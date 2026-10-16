@@ -9,8 +9,6 @@ export const readerDesktopEmbeddedStyles = `
 .reader-app.is-embedded .reader-agent-annotate-scrim{position:absolute}
 .reader-app.is-embedded .reader-responsive-scrim{position:absolute}
 .reader-app.is-embedded .reader-annotation-connection{position:absolute;width:100%;height:100%}
-.reader-app.is-embedded .reader-completion-burst{position:absolute}
-.reader-app.is-embedded .reader-agent-dock{position:absolute}
 .reader-toolbar-article{display:flex;flex:1 1 auto;max-width:100%;align-items:center;gap:12px;min-width:0;overflow:hidden;font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif)}
 .reader-toolbar-article-copy{display:grid;flex:0 1 auto;gap:5px;max-width:100%;min-width:0;overflow:hidden}
 .reader-toolbar-article-title{max-width:100%;overflow:hidden;color:var(--reader-ink);font-size:15px;font-weight:920;line-height:1.18;text-overflow:ellipsis;white-space:nowrap}

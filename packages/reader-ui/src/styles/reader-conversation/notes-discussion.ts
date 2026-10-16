@@ -471,16 +471,6 @@ export const notesDiscussionStyles = `.reader-notes-header {
   overflow:visible;
   pointer-events:none
 }
-.reader-note-review-burst .reader-completion-burst {
-  position:absolute;
-  inset:0;
-  overflow:visible
-}
-.reader-note-review-burst .reader-completion-burst-center {
-  left:50%;
-  top:44%;
-  transform:scale(.58)
-}
 .reader-note-toolbar .reader-delete-note {
   height:26px;
   margin-right:0;

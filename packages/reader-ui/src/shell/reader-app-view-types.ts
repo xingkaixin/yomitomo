@@ -13,12 +13,7 @@ import type { HighlightBox, TocItem } from '@yomitomo/core';
 import type { AnnotationRailLayout } from '../annotations/annotation-rail-layout';
 import type { buildTocAnnotationStats } from '../annotations/annotation-toc-stats';
 import type { ReaderWindowSourceRect } from '../annotations/reader-annotation-types';
-import type {
-  AgentDockItem,
-  HighlightChoiceAction,
-  ReaderSettings,
-  VirtualCursorState,
-} from '../reader-types';
+import type { HighlightChoiceAction, ReaderSettings } from '../reader-types';
 
 export type SelectionAction = {
   x: number;
@@ -131,13 +126,9 @@ export type ReaderAnnotationModel = {
 
 export type ReaderAgentModel = {
   agents: PublicAgent[];
-  dockCompleting: boolean;
-  dockItems: AgentDockItem[];
   pendingAnnotationAgents?: Record<string, PublicAgent[]>;
   // Authors of saved notes, including disabled agents; only used to resolve names and avatars.
   personaAgents?: PublicAgent[];
-  theaterBoxes: HighlightBox[];
-  virtualCursors: VirtualCursorState[];
 };
 
 export type ReaderSelectionModel = {
@@ -200,10 +191,7 @@ export type ReaderUiLabels = {
   findRelated: string;
   assistant: string;
   assistantAnswering: string;
-  assistantCompleted: string;
   assistantParticipationSummary: (names: string[], processing: boolean) => string;
-  assistantReadingActive: string;
-  assistantReadingStatus: string;
   assistantToolStep: (toolName: string) => string;
   backToLibrary: string;
   cancel: string;
@@ -281,9 +269,6 @@ export const defaultReaderUiLabels: ReaderUiLabels = {
   findRelated: '查找关联',
   assistant: '助手',
   assistantAnswering: '正在回答...',
-  assistantCompleted: '已完成',
-  assistantReadingActive: '正在共读',
-  assistantReadingStatus: '助手共读状态',
   assistantToolStep: (toolName) => toolName,
   assistantParticipationSummary: (names, processing) => {
     if (names.length === 0) return '暂无助手参与';

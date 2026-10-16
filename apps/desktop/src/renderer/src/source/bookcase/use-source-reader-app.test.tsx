@@ -601,12 +601,6 @@ function surface({
         onMouseUp: vi.fn(),
       },
     },
-    agentPlayback: {
-      dockCompleting: false,
-      dockItems: [],
-      theaterBoxes: [],
-      virtualCursors: [],
-    },
     annotations: {
       activeId: null,
       annotations: [annotation],

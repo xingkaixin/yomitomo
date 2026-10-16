@@ -7,11 +7,7 @@ import type {
   Comment,
   ReaderChatState,
 } from '@yomitomo/shared';
-import {
-  deleteAnnotationComment,
-  mergeAgentAnnotationAsThought,
-  sortAnnotations,
-} from '@yomitomo/core';
+import { deleteAnnotationComment, sortAnnotations } from '@yomitomo/core';
 import type { TextImportCommitInput, WindowAnimationSourceRect } from '../../../ipc-contract';
 import { articleStorePatchCommit, type ArticleStore } from './app-article-store';
 import { getDesktopApi } from './app-desktop-api';
@@ -36,34 +32,6 @@ export function useAppArticleStoreActions({ articleStore }: UseAppArticleStoreAc
   const readArticle = useCallback(async (articleId: string) => {
     return getDesktopApi().article.get(articleId);
   }, []);
-
-  const mergeArticleAgentAnnotation = useCallback(
-    async (articleId: string, annotation: Annotation) => {
-      return articleStore.runMutation({
-        invoke: () =>
-          getDesktopApi().article.mergeAgentAnnotation({
-            articleId,
-            annotation,
-          }),
-        reconcile: (result) => ({
-          patches: result ? [result.patch] : [],
-          current: result
-            ? {
-                type: 'update',
-                articleId,
-                update: (article) =>
-                  articleWithAnnotations(
-                    article,
-                    mergeAgentAnnotationAsThought(article.annotations, annotation).annotations,
-                    result.patch.article.updatedAt,
-                  ),
-              }
-            : undefined,
-        }),
-      });
-    },
-    [articleStore],
-  );
 
   const deleteArticleAnnotation = useCallback(
     async (articleId: string, annotationId: string) => {
@@ -356,7 +324,6 @@ export function useAppArticleStoreActions({ articleStore }: UseAppArticleStoreAc
     closeArticleDiscussions,
     openArticleDiscussion,
     readArticle,
-    mergeArticleAgentAnnotation,
     saveArticleAnnotation,
     saveArticleComment,
     saveArticleReadingProgress,
@@ -374,7 +341,6 @@ export type ReaderArticleActions = Pick<
   ArticleActions,
   | 'deleteArticleAnnotation'
   | 'deleteArticleComment'
-  | 'mergeArticleAgentAnnotation'
   | 'openArticleDiscussion'
   | 'saveArticleAnnotation'
   | 'saveArticleComment'

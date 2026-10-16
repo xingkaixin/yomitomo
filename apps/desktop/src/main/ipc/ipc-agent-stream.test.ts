@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
-  AgentAnnotatePayload,
   AgentMessagePayload,
   Annotation,
   AnnotationDistillationReviewMessage,
@@ -212,32 +211,6 @@ describe('runAgentStreamIpc', () => {
       expect.objectContaining({
         type: 'error',
         message: desktopIpcErrorCodes.invalidArgs,
-        error: expect.objectContaining({ code: desktopIpcErrorCodes.invalidArgs }),
-      }),
-    );
-  });
-
-  it('rejects an oversized annotation array on annotate streams', () => {
-    const guard = vi.fn();
-    const handler = vi.fn();
-    runAgentStreamIpc('agent:annotate:stream', 'STREAM_FAILED', handler, guard);
-    const sender = streamSender();
-    const payload: AgentAnnotatePayload = {
-      agentUsername: 'agent',
-      article: article('article text'),
-      annotations: Array.from({ length: 501 }, () => annotation),
-    };
-
-    expect(() =>
-      ipcHandler('agent:annotate:stream')({ sender }, request('req_annotate', payload)),
-    ).not.toThrow();
-
-    expect(guard).not.toHaveBeenCalled();
-    expect(handler).not.toHaveBeenCalled();
-    expect(sender.send).toHaveBeenCalledWith(
-      'agent:annotate:stream:req_annotate',
-      expect.objectContaining({
-        type: 'error',
         error: expect.objectContaining({ code: desktopIpcErrorCodes.invalidArgs }),
       }),
     );

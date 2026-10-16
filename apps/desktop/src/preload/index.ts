@@ -42,8 +42,6 @@ export type {
   ArticleAnnotationDeleteInput,
   ArticleAnnotationDistillationSaveInput,
   ArticleAnnotationUpsertInput,
-  ArticleAgentAnnotationMergeInput,
-  ArticleAgentAnnotationMergeResult,
   ArticleCommentDeleteInput,
   ArticleCommentUpsertInput,
   ArticleImportResult,

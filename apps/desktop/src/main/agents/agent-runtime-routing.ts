@@ -68,30 +68,12 @@ export function reviewAgentNotFoundError(username: string) {
   );
 }
 
-export function annotationAgentNotFoundError(username: string) {
-  return new DesktopIpcError(
-    desktopIpcErrorCodes.annotationAgentNotFound,
-    desktopIpcErrorCodes.annotationAgentNotFound,
-    { detail: { username } },
-  );
-}
-
 function providerRouteRequiredError(task: ProviderTask) {
   return new DesktopIpcError(
     desktopIpcErrorCodes.providerRouteRequired,
     desktopIpcErrorCodes.providerRouteRequired,
     { detail: { task } },
   );
-}
-
-export function findAnnotationAgent(
-  agents: Agent[],
-  agentId: string | undefined,
-  username: string,
-) {
-  return agents
-    .filter((agent) => agent.kind === 'annotation' && agent.enabled)
-    .find((agent) => agent.id === agentId || agent.username === username);
 }
 
 export function findCommentAgent(

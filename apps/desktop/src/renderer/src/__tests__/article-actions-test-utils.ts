@@ -21,7 +21,6 @@ export function articleActionStubs(overrides: Partial<ArticleActions> = {}): Art
     importArticleUrl: vi.fn<ArticleActions['importArticleUrl']>(),
     importEbookFile: vi.fn<ArticleActions['importEbookFile']>(),
     importPdfFile: vi.fn<ArticleActions['importPdfFile']>(),
-    mergeArticleAgentAnnotation: vi.fn<ArticleActions['mergeArticleAgentAnnotation']>(),
     openArticleDiscussion: vi.fn<ArticleActions['openArticleDiscussion']>(),
     readArticle: vi.fn<ArticleActions['readArticle']>(),
     saveArticleAnnotation: vi.fn<ArticleActions['saveArticleAnnotation']>(),

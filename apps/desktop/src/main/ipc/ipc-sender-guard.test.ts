@@ -87,7 +87,7 @@ describe('desktop IPC sender authorization', () => {
         desktopIpcErrorCodes.senderNotAuthorized,
       );
     }
-    expect(() => assertMainEvent('agent:annotate:stream', annotation)).toThrow(
+    expect(() => assertMainEvent('app:renderer-ready', annotation)).toThrow(
       desktopIpcErrorCodes.senderNotAuthorized,
     );
   });

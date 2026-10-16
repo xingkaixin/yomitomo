@@ -133,13 +133,6 @@ export type ParagraphWindow = {
   blocks: SourceLabeledContextBlock[];
 };
 
-export type AnnotationSummary = {
-  annotationId: string;
-  anchor?: TextAnchor;
-  text: string;
-  source: ContextSourceLabel;
-};
-
 export type ThreadMessageContext = {
   commentId: string;
   author: AnnotationAuthorRef;
@@ -200,53 +193,6 @@ export type AgentRoleCard = {
   source: ContextSourceLabel;
 };
 
-export type ChapterMemory = {
-  chapterId: string;
-  summary: string;
-  source: ContextSourceLabel;
-};
-
-export type SegmentText = {
-  segmentId: string;
-  text: string;
-  textRange?: TextRange;
-  source: ContextSourceLabel;
-};
-
-export type SegmentMemory = {
-  segmentId: string;
-  summary: string;
-  source: ContextSourceLabel;
-};
-
-export type ChapterTrace = {
-  chapterId: string;
-  events: string[];
-  source: ContextSourceLabel;
-};
-
-export type SegmentTraceMemory = {
-  segmentId: string;
-  events: string[];
-  source: ContextSourceLabel;
-};
-
-export type DedupContext = {
-  recentAnchors: TextAnchor[];
-  recentComments?: string[];
-  source: ContextSourceLabel;
-};
-
-export type SelectionAnnotationContext = BaseReadingContext & {
-  task: 'selection_annotation';
-  selection: TextAnchor;
-  localWindow: ParagraphWindow;
-  memoryViewBlocks?: SourceLabeledContextBlock[];
-  nearbyAnnotations: AnnotationSummary[];
-  retrievedEvidence: RelatedPassage[];
-  chapterMemory?: ChapterMemory;
-};
-
 export type SelectionThreadContext = BaseReadingContext & {
   task: 'selection_thread_reply';
   originalSelection: TextAnchor;
@@ -263,24 +209,7 @@ export type ChapterRouteContext = BaseReadingContext & {
   agents: AgentRoleCard[];
 };
 
-export type SegmentAnnotationContext = BaseReadingContext & {
-  task: 'chapter_segment_annotation';
-  currentSegment: SegmentText;
-  retrievedEvidence: RelatedPassage[];
-  memoryViewBlocks?: SourceLabeledContextBlock[];
-  previousMemory?: SegmentMemory;
-  previousTrace?: SegmentTraceMemory;
-  nextPreview?: string;
-  chapterTrace?: ChapterTrace;
-  allowedAnchorRange: TextRange;
-  dedupContext: DedupContext;
-};
-
-export type ReadingTaskContext =
-  | SelectionAnnotationContext
-  | SelectionThreadContext
-  | ChapterRouteContext
-  | SegmentAnnotationContext;
+export type ReadingTaskContext = SelectionThreadContext | ChapterRouteContext;
 
 export type ArticleTextSection = {
   id: string;

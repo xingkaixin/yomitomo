@@ -367,22 +367,6 @@ export function annotationColor(
   return annotationPersona(annotation, userProfile, agents).color;
 }
 
-export function annotationToPublicAgent(annotation: Annotation): PublicAgent | undefined {
-  if (annotation.author.kind !== 'agent') return undefined;
-  return {
-    id: annotation.author.agentId,
-    kind: 'annotation',
-    username: annotation.author.username,
-    nickname: annotationAuthorName(annotation.author),
-    avatar: annotation.author.avatar || 'AI',
-    annotationColor: annotation.author.annotationColor || annotation.color,
-    annotationDensity: 'medium',
-    enabled: true,
-    personalityName: '自定义个性',
-    temperature: 0.35,
-  };
-}
-
 export function annotationAuthorName(author: AnnotationAuthorRef) {
   return author.nickname || author.username;
 }

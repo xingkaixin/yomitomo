@@ -7,7 +7,6 @@ import {
   defaultLibraryContentSourceOrder,
   type Agent,
   type AgentMentionInstructionPayload,
-  type AgentReviewPayload,
   type Annotation,
   type AppSettingsPatch,
   type AssistantDeliveryRequest,
@@ -181,27 +180,6 @@ const publicAgentShapeSchema = agentShapeSchema
     pinyin: z.string().max(256).optional(),
   });
 
-const readerProgressShapeSchema = z.object({
-  currentChapterId: idSchema,
-  currentSegmentId: idSchema.optional(),
-  readChapterIds: z.array(idSchema).max(100_000),
-  readUntilTextOffset: nonnegativeIntegerSchema.optional(),
-});
-
-const spoilerPolicyShapeSchema = z.object({
-  allowedScope: z.enum([
-    'current-selection',
-    'current-segment',
-    'current-chapter-so-far',
-    'current-chapter',
-    'read-so-far',
-    'whole-book',
-  ]),
-  allowFutureChapterEvidence: z.boolean(),
-  allowFuturePlotEvents: z.boolean(),
-  userOverride: z.boolean().optional(),
-});
-
 const ebookIndexShapeSchema = z.object({
   version: z.literal(1),
   articleId: idSchema,
@@ -217,17 +195,6 @@ const articleContextShapeSchema = z.object({
   url: z.string().max(4096),
   text: z.string().max(20_000_000),
   ebookIndex: ebookIndexShapeSchema.optional(),
-});
-
-const agentReviewPayloadShapeSchema = z.object({
-  agentId: idSchema.optional(),
-  agentUsername: z.string().min(1).max(256),
-  uiLanguage: z.enum(['zh-CN', 'en', 'ja']).optional(),
-  agentRoster: z.array(publicAgentShapeSchema).max(1_000).optional(),
-  readerProgress: readerProgressShapeSchema.optional(),
-  spoilerPolicy: spoilerPolicyShapeSchema.optional(),
-  article: articleContextShapeSchema,
-  annotation: annotationShapeSchema,
 });
 
 const agentMentionPayloadShapeSchema = z.object({
@@ -250,7 +217,6 @@ const agentMentionPayloadShapeSchema = z.object({
 
 const annotationSchema = checkedSchema<Annotation>(annotationShapeSchema);
 const commentSchema = checkedSchema<Comment>(commentShapeSchema);
-const agentReviewPayloadSchema = checkedSchema<AgentReviewPayload>(agentReviewPayloadShapeSchema);
 const agentMentionPayloadSchema = checkedSchema<AgentMentionInstructionPayload>(
   agentMentionPayloadShapeSchema,
 );
@@ -454,7 +420,6 @@ type ArticleAnnotationDistillationSaveSchemaInput = {
 export const agentDomainIpcInvokeSchemas = {
   'agent:delete': z.tuple([idSchema]),
   'agent:mention-route': z.tuple([agentMentionPayloadSchema]),
-  'agent:review': z.tuple([agentReviewPayloadSchema]),
   'agent:save': z.tuple([checkedSchema<Partial<Agent>>(agentShapeSchema.partial())]),
   'agent-trace:list': z.tuple([
     z
@@ -563,9 +528,6 @@ export const articleDomainIpcInvokeSchemas = {
   'article:delete-annotation': z.tuple([z.object({ articleId: idSchema, annotationId: idSchema })]),
   'article:delete-comment': z.tuple([
     z.object({ articleId: idSchema, annotationId: idSchema, commentId: idSchema }),
-  ]),
-  'article:merge-agent-annotation': z.tuple([
-    z.object({ articleId: idSchema, annotation: annotationSchema }),
   ]),
   'article:save-annotation': z.tuple([
     z.object({

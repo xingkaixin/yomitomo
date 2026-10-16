@@ -22,7 +22,6 @@ type ArticlePersistence = Pick<
   | 'findArticleByIdentity'
   | 'initializeArticleTranslation'
   | 'listLibraryArticles'
-  | 'mergeArticleAgentAnnotation'
   | 'readArticle'
   | 'readArticleCover'
   | 'readArticleStatsSummaries'
@@ -103,12 +102,6 @@ export function registerArticleIpc(context: ArticleIpcContext) {
     const patch = await articlePersistence.saveArticleAnnotationDistillation(input);
     if (patch) context.sendArticlePatched(event, patch);
     return patch;
-  });
-  handleDesktopIpc('article:merge-agent-annotation', async (event, input) => {
-    const { storeArticles: articlePersistence } = await context.getPersistenceModules();
-    const result = await articlePersistence.mergeArticleAgentAnnotation(input);
-    if (result) context.sendArticlePatched(event, result.patch);
-    return result;
   });
   handleDesktopIpc('article:save-comment', async (event, input) => {
     const { storeArticles: articlePersistence } = await context.getPersistenceModules();

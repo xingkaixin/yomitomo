@@ -1,6 +1,5 @@
 import { eq } from 'drizzle-orm';
 import type { Annotation, ArticleUpsertPatch, Comment } from '@yomitomo/shared';
-import { mergeAgentAnnotationAsThought } from '@yomitomo/core';
 import { DesktopIpcError, desktopIpcErrorCodes } from '../../ipc-errors';
 import * as schema from '../db/schema';
 import type { StoreDatabase, StoreExecutor } from '../store/store-db';
@@ -160,28 +159,6 @@ export function saveAnnotationDistillationRows(
   if (!saved) return null;
   const article = readArticleSummaryRows(database, input.articleId);
   return article ? buildArticleUpsertPatch(article) : null;
-}
-
-export function mergeAgentAnnotationRows(
-  database: StoreDatabase,
-  input: { articleId: string; annotation: Annotation },
-  executor: ReadingMemorySqliteExecutor,
-) {
-  const annotations = readArticleAnnotations(database, input.articleId);
-  const result = mergeAgentAnnotationAsThought(annotations, input.annotation);
-  if (result.annotations === annotations) {
-    const article = readArticleSummaryRows(database, input.articleId);
-    return article ? { activeId: result.activeId, patch: buildArticleUpsertPatch(article) } : null;
-  }
-
-  const annotation = result.annotations.find((item) => item.id === result.activeId);
-  if (!annotation) return null;
-  const patch = upsertAnnotationRows(
-    database,
-    { articleId: input.articleId, annotation, updatedAt: annotation.updatedAt },
-    executor,
-  );
-  return patch ? { activeId: result.activeId, patch } : null;
 }
 
 function upsertAnnotationRow(

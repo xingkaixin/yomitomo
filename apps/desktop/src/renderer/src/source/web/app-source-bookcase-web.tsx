@@ -24,7 +24,6 @@ import {
   buildTocAnnotationStats,
   readerAnnotationScrollTop,
 } from '@yomitomo/reader-ui/reader-annotations';
-import { useAgentAnnotationQueue } from '@yomitomo/reader-ui/use-agent-annotation-queue';
 import { OpenArticleButton } from '../../shell/app-ui';
 import { articleIdentityLine } from '../../shell/app-article-presentation';
 import type { WebSourceBookcaseProps } from '../bookcase/source-bookcase-types';
@@ -35,7 +34,6 @@ import {
   sourceReaderTocStyles,
   webAnnotationNavigationState,
 } from './app-source-bookcase-web-utils';
-import { createWebSourceReaderController } from './app-source-bookcase-web-controller';
 import { saveAssistantArticleText, sectionsFromHeadings } from '../bookcase/assistant-article-text';
 import { useAssistantPassageReveal } from '../bookcase/use-assistant-passage-reveal';
 import { useSourceReaderApp } from '../bookcase/use-source-reader-app';
@@ -62,7 +60,7 @@ export function WebSourceBookcase({
   },
   readerControl: { focusAnnotationId, onClose, onOpenEvidenceSource, selectedAnnotationId },
 }: WebSourceBookcaseProps) {
-  const { mergeArticleAgentAnnotation, saveArticleReadingProgress } = articleActions;
+  const { saveArticleReadingProgress } = articleActions;
   const sourceReaderApp = useSourceReaderApp({
     articleActions,
     beforeOpenAnnotation,
@@ -83,7 +81,6 @@ export function WebSourceBookcase({
     },
   });
   const {
-    isCurrentArticle,
     newAnnotationIds,
     openAnnotation,
     session: sourceReaderSession,
@@ -104,8 +101,7 @@ export function WebSourceBookcase({
     onSaveArticleReadingProgress: saveArticleReadingProgress,
     scrollRef,
   });
-  const { annotations, annotationsRef, annotationAgents, deleteAnnotation, saveAnnotation } =
-    sourceReaderSession;
+  const { annotations, annotationsRef, annotationAgents, deleteAnnotation } = sourceReaderSession;
   const [articleSearchText, setArticleSearchText] = useState('');
   const { canonicalUrl, contentHtml: articleHtml, excerpt, url: articleUrl } = article;
   const contentHtml = useMemo(
@@ -162,33 +158,6 @@ export function WebSourceBookcase({
     revealReaderChatContext({ sourceType: article.sourceType, quote: anchor.exact, anchor });
   });
 
-  const {
-    agentDockCompleting,
-    agentDockItems,
-    agentTheaterBoxes,
-    annotatingAgents: annotatingAgentIds,
-    virtualCursors,
-    cleanupVirtualReadingSessions,
-    enqueueAgentAnnotation,
-    finishVirtualReading,
-    finishVirtualReadingIfIdle,
-    markAgentAnnotating,
-    markVirtualReadingDone,
-    processAgentAnnotationQueue,
-    startVirtualReading,
-  } = useAgentAnnotationQueue({
-    agents: annotationAgents,
-    articleRef,
-    canvasRef,
-    surfaceRef: scrollRef,
-    articleBodySelector: '.reader-article-body',
-    annotationsRef,
-    saveAnnotation,
-    setActiveId: openAnnotation,
-    readerLog: () => {},
-  });
-  useEffect(() => cleanupVirtualReadingSessions, []);
-
   const { labels, readerSettings, selection, updateReaderSettings } = sourceReaderWorkspace;
   const { temporaryBoxes, setHighlightChoice, clearAnnotationUiState } = selection;
   const webReaderSelection = useWebReaderSelection({
@@ -200,25 +169,6 @@ export function WebSourceBookcase({
     selection,
     translation: bilingualTranslation,
     userProfile,
-  });
-
-  useEffect(() => {
-    return sourceReaderSession.registerAgentAnnotationAdapter(
-      createWebSourceReaderController({
-        currentArticleText,
-        enqueueAgentAnnotation,
-        finishVirtualReading,
-        finishVirtualReadingIfIdle,
-        isAgentAnnotating: (agentId) => annotatingAgentIds.includes(agentId),
-        isCurrentArticle,
-        markAgentAnnotating,
-        markVirtualReadingDone,
-        onMergeArticleAgentAnnotation: mergeArticleAgentAnnotation,
-        processAgentAnnotationQueue,
-        setStatusMessage,
-        startVirtualReading,
-      }),
-    );
   });
 
   useEffect(() => {
@@ -506,12 +456,6 @@ export function WebSourceBookcase({
         onSelectionHandleDragEnd: webReaderSelection.actions.onSelectionHandleDragEnd,
         onSelectionHandleDragStart: webReaderSelection.actions.onSelectionHandleDragStart,
       },
-    },
-    agentPlayback: {
-      dockCompleting: agentDockCompleting,
-      dockItems: agentDockItems,
-      theaterBoxes: agentTheaterBoxes,
-      virtualCursors,
     },
     annotations: {
       activeId: selectedAnnotationId,

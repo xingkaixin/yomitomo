@@ -14,7 +14,6 @@ import {
 import { readReadingMemoryProjectionJobs } from '../reading-memory/reading-memory-projection-job-store';
 
 import {
-  mergeAgentAnnotationRows,
   saveAnnotationDistillationRows,
   upsertAnnotationRows,
   upsertCommentRows,
@@ -759,47 +758,6 @@ describe('article repository local child row writes', () => {
         ?.distillation,
     ).toMatchObject({ status: 'unpublished', content: 'newer content' });
     expect(projectionJobFor(memory, target.id)).toEqual(projectionJobBeforeConflict);
-  });
-
-  it('merges agent thoughts against the persisted annotation', () => {
-    const { database, memory } = repositoryDatabase();
-    const targetAnchor = { start: 20, end: 24, exact: '另一目标句子', prefix: '', suffix: '' };
-    const target = annotation({
-      id: 'annotation_1',
-      anchor: targetAnchor,
-      comments: [comment({ id: 'comment_1', content: 'existing comment' })],
-      distillation: { status: 'published', content: 'keep distillation' },
-    });
-    upsertAnnotationRows(database, { articleId: 'article_1', annotation: target }, memory);
-    const agentComment = comment({
-      id: 'comment_2',
-      author: { kind: 'agent', agentId: 'agent_1', username: 'assistant' },
-      content: 'agent thought',
-      createdAt: '2026-06-04T05:00:00.000Z',
-    });
-
-    const result = mergeAgentAnnotationRows(
-      database,
-      {
-        articleId: 'article_1',
-        annotation: annotation({
-          id: 'agent_annotation',
-          anchor: targetAnchor,
-          author: { kind: 'agent', agentId: 'agent_1', username: 'assistant' },
-          comments: [agentComment],
-          updatedAt: agentComment.createdAt,
-        }),
-      },
-      memory,
-    );
-
-    const saved = readArticleRows(database, 'article_1')?.annotations.find(
-      (item) => item.id === target.id,
-    );
-    expect(result?.activeId).toBe(target.id);
-    expect(saved?.distillation?.content).toBe('keep distillation');
-    expect(saved?.comments.map((item) => item.id)).toEqual(['comment_1', 'comment_2']);
-    expect(readArticleRows(database, 'article_1')?.annotations).toHaveLength(2);
   });
 
   it('does not move child rows across articles when ids are mismatched', () => {

@@ -3,29 +3,15 @@
 import React, { useEffect } from 'react';
 import { act, cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type {
-  AgentReadingPlanItem,
-  Agent,
-  Annotation,
-  ArticleRecord,
-  PublicAgent,
-  UserProfile,
-} from '@yomitomo/shared';
+import type { Agent, Annotation, ArticleRecord, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { createTextAnchor } from '@yomitomo/shared';
-import type { PromptArticle } from '../shell/app-reading-types';
-import {
-  constrainSourceAgentPlanAnnotation,
-  type SourceAgentAnnotationAdapter,
-  type SourceAgentAnnotationPlayback,
-  useSourceReaderSession,
-} from '../source/bookcase/use-source-reader-session';
+import { useSourceReaderSession } from '../source/bookcase/use-source-reader-session';
 
 const now = '2026-05-25T00:00:00.000Z';
 
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
-  vi.unstubAllGlobals();
 });
 
 const agent: PublicAgent = {
@@ -59,13 +45,9 @@ const userProfile: UserProfile = {
   updatedAt: now,
 };
 
-const promptArticle: PromptArticle = {
-  title: '文章',
-  url: 'https://example.com/post',
-  text: '第一段内容。第二段内容。',
-};
+const articleText = '第一段内容。第二段内容。';
 
-function articleRecord(annotations: Annotation[] = [annotationFor(promptArticle.text, 0, 2)]) {
+function articleRecord(annotations: Annotation[] = [annotationFor(articleText, 0, 2)]) {
   return {
     id: 'article_1',
     url: 'https://example.com/post',
@@ -77,31 +59,16 @@ function articleRecord(annotations: Annotation[] = [annotationFor(promptArticle.
     annotations,
     createdAt: now,
     updatedAt: now,
-    focusCoReadingPlan: {
-      id: 'plan_1',
-      articleId: 'article_1',
-      selectedAgentIds: [agent.id],
-      sections: [],
-      readingMemory: {
-        textSummaries: [],
-        readingTraces: [],
-        updatedAt: now,
-      },
-      createdAt: now,
-      updatedAt: now,
-    },
   } satisfies ArticleRecord;
 }
 
 type SourceSession = ReturnType<typeof useSourceReaderSession>;
 
 function renderSession({
-  adapter,
   article = articleRecord(),
   onBeforeDeleteAnnotation = vi.fn(),
   onDeleteArticleAnnotation = vi.fn(),
 }: {
-  adapter?: SourceAgentAnnotationAdapter;
   article?: ArticleRecord;
   onBeforeDeleteAnnotation?: (annotationId: string) => void;
   onDeleteArticleAnnotation?: (articleId: string, annotationId: string) => Promise<void> | void;
@@ -111,7 +78,6 @@ function renderSession({
   function Harness({ currentArticle }: { currentArticle: ArticleRecord }) {
     const nextSession = useSourceReaderSession({
       agents: [storedAgent],
-      agentAnnotationAdapter: adapter,
       annotations: currentArticle.annotations,
       article: currentArticle,
       clearPendingOnArticleChange: true,
@@ -138,87 +104,7 @@ function renderSession({
   };
 }
 
-function stubAnnotationStream(
-  requestAnnotationsStream: NonNullable<
-    typeof window.yomitomoDesktop
-  >['agent']['requestAnnotationsStream'],
-) {
-  window.yomitomoDesktop = {
-    agent: { requestAnnotationsStream },
-  } as unknown as NonNullable<typeof window.yomitomoDesktop>;
-}
-
-function sourceContext() {
-  return {
-    article: promptArticle,
-    articleId: 'article_1',
-    articleText: promptArticle.text,
-    visibleArticle: true,
-  };
-}
-
-function sourceAdapter({
-  accept = () => true,
-  finish = () => undefined,
-}: {
-  accept?: SourceAgentAnnotationPlayback['accept'];
-  finish?: SourceAgentAnnotationPlayback['finish'];
-} = {}): SourceAgentAnnotationAdapter {
-  return {
-    prepare: ({ options }) => ({
-      context: sourceContext(),
-      options,
-      start: () => ({ accept, finish }),
-    }),
-  };
-}
-
-describe('constrainSourceAgentPlanAnnotation', () => {
-  it('keeps annotations inside their reading plan section and applies section intent', () => {
-    const articleText = '第一段内容。第二段内容。';
-    const annotation = annotationFor(articleText, 6, 10, 'explain');
-    const readingPlan: AgentReadingPlanItem[] = [
-      {
-        sectionId: 'section-1',
-        sectionTitle: '第一段',
-        sectionStart: 0,
-        sectionEnd: 5,
-      },
-      {
-        sectionId: 'section-2',
-        sectionTitle: '第二段',
-        sectionStart: 6,
-        sectionEnd: articleText.length,
-        readingIntent: 'challenge',
-      },
-    ];
-
-    const constrained = constrainSourceAgentPlanAnnotation(annotation, readingPlan, articleText);
-
-    expect(constrained).toMatchObject({
-      id: 'annotation-1',
-      readingIntent: 'challenge',
-      comments: [{ id: 'comment-1', readingIntent: 'challenge' }],
-    });
-  });
-
-  it('drops annotations outside the reading plan', () => {
-    const articleText = '第一段内容。第二段内容。';
-    const annotation = annotationFor(articleText, 6, 10);
-    const readingPlan: AgentReadingPlanItem[] = [
-      {
-        sectionId: 'section-1',
-        sectionTitle: '第一段',
-        sectionStart: 0,
-        sectionEnd: 5,
-      },
-    ];
-
-    expect(constrainSourceAgentPlanAnnotation(annotation, readingPlan, articleText)).toBeNull();
-  });
-});
-
-describe('useSourceReaderSession agent annotations', () => {
+describe('useSourceReaderSession pending agents', () => {
   it('applies each declared pending-state cleanup policy', async () => {
     const onBeforeDeleteAnnotation = vi.fn();
     const onDeleteArticleAnnotation = vi.fn();
@@ -239,148 +125,12 @@ describe('useSourceReaderSession agent annotations', () => {
 
     await waitFor(() => expect(session().pendingAnnotationAgents).toEqual({}));
   });
-
-  it('rejects requests before an adapter is registered and clears pending state', async () => {
-    const requestAnnotationsStream = vi.fn();
-    stubAnnotationStream(requestAnnotationsStream);
-    const { session } = renderSession({});
-
-    await act(async () => session().addPendingAnnotationAgent('annotation_1', agent));
-    await waitFor(() => expect(session().pendingAnnotationAgents.annotation_1).toHaveLength(1));
-
-    await act(async () => {
-      await expect(
-        session().requestAgentAnnotations(agent, { pendingAnnotationId: 'annotation_1' }),
-      ).rejects.toThrow('Source agent annotation adapter is not registered');
-    });
-
-    await waitFor(() => expect(session().pendingAnnotationAgents.annotation_1).toBeUndefined());
-    expect(requestAnnotationsStream).not.toHaveBeenCalled();
-  });
-
-  it('runs requests after an adapter is registered', async () => {
-    stubAnnotationStream(vi.fn(async () => ({ annotations: [], readingMemory: undefined })));
-    const onEmpty = vi.fn();
-    const { session } = renderSession({});
-
-    act(() => {
-      session().registerAgentAnnotationAdapter(sourceAdapter({ finish: onEmpty }));
-    });
-    await act(async () => {
-      await session().requestAgentAnnotations(agent);
-    });
-
-    expect(onEmpty).toHaveBeenCalledOnce();
-  });
-
-  it('removes the pending agent marker when the source cannot build context', async () => {
-    const { session } = renderSession({
-      adapter: {
-        prepare: () => null,
-      },
-    });
-
-    await act(async () => session().addPendingAnnotationAgent('annotation_1', agent));
-    await waitFor(() => expect(session().pendingAnnotationAgents.annotation_1).toHaveLength(1));
-
-    await act(async () => {
-      await session().requestAgentAnnotations(agent, { pendingAnnotationId: 'annotation_1' });
-    });
-
-    await waitFor(() => expect(session().pendingAnnotationAgents.annotation_1).toBeUndefined());
-  });
-
-  it('clears a temporary target annotation when the stream fails', async () => {
-    stubAnnotationStream(
-      vi.fn(async () => {
-        throw new Error('stream failed');
-      }),
-    );
-    const finish = vi.fn();
-    const { session } = renderSession({ adapter: sourceAdapter({ finish }) });
-
-    await expect(
-      act(async () => {
-        await session().requestAgentAnnotations(agent, {
-          targetAnchor: createTextAnchor(promptArticle.text, 0, 2),
-        });
-      }),
-    ).rejects.toThrow('stream failed');
-
-    await waitFor(() => {
-      expect(session().annotations).toHaveLength(1);
-      expect(
-        session().annotations.some((annotation) =>
-          annotation.comments.some((comment) => comment.pending),
-        ),
-      ).toBe(false);
-    });
-    expect(finish).toHaveBeenCalledWith({ status: 'failure' });
-  });
-
-  it('includes reading memory only when the request input requires it', async () => {
-    const readingMemory = {
-      textSummaries: [],
-      readingTraces: [],
-      updatedAt: now,
-    };
-    const requestAnnotationsStream = vi.fn(
-      async (
-        ..._args: Parameters<
-          NonNullable<typeof window.yomitomoDesktop>['agent']['requestAnnotationsStream']
-        >
-      ) => ({
-        annotations: [],
-        readingMemory,
-      }),
-    );
-    stubAnnotationStream(requestAnnotationsStream);
-    const { session } = renderSession({
-      adapter: sourceAdapter(),
-    });
-
-    await act(async () => {
-      await session().requestAgentAnnotations(agent);
-      await session().requestAgentAnnotations(agent, {
-        readingPlan: [
-          {
-            sectionId: 'section_1',
-            sectionTitle: '第一段',
-            sectionStart: 0,
-            sectionEnd: 6,
-          },
-        ],
-      });
-    });
-
-    expect(requestAnnotationsStream.mock.calls[0]?.[0].readingMemory).toBeUndefined();
-    expect(requestAnnotationsStream.mock.calls[1]?.[0].readingMemory).toEqual(readingMemory);
-  });
-
-  it('notifies the source adapter when the stream returns no accepted annotations', async () => {
-    stubAnnotationStream(vi.fn(async () => ({ annotations: [], readingMemory: undefined })));
-    const onEmpty = vi.fn();
-    const { session } = renderSession({
-      adapter: sourceAdapter({ finish: onEmpty }),
-    });
-
-    await act(async () => {
-      await session().requestAgentAnnotations(agent);
-    });
-
-    expect(onEmpty).toHaveBeenCalledWith({ status: 'empty' });
-  });
 });
 
-function annotationFor(
-  articleText: string,
-  start: number,
-  end: number,
-  readingIntent?: Annotation['readingIntent'],
-): Annotation {
+function annotationFor(text: string, start: number, end: number): Annotation {
   return {
     id: 'annotation-1',
-    anchor: createTextAnchor(articleText, start, end),
+    anchor: createTextAnchor(text, start, end),
     author: { kind: 'agent', agentId: 'agent_1', username: 'assistant' },
     color: 'yellow',
     comments: [
@@ -392,7 +142,6 @@ function annotationFor(
       },
     ],
     createdAt: '2026-05-25T00:00:00.000Z',
-    readingIntent,
     updatedAt: '2026-05-25T00:00:00.000Z',
   };
 }

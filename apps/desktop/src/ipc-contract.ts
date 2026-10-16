@@ -1,10 +1,7 @@
 import type {
-  AgentAnnotatePayload,
-  AgentAnnotateResult,
   AgentDistillationReviewPayload,
   AnnotationDistillationReviewItem,
   AnnotationDistillationReviewMessage,
-  ArticleRecord,
   ArticleStorePatch,
   ArticleTranslation,
   AssistantPassageRevealRequest,
@@ -45,26 +42,11 @@ type AgentDistillationReviewStreamEvent =
   | { type: 'done'; message: AnnotationDistillationReviewMessage }
   | DesktopIpcStreamErrorEvent;
 
-type AgentAnnotateStreamEvent =
-  | { type: 'start' }
-  | { type: 'item'; annotation: ArticleRecord['annotations'][number] }
-  | {
-      type: 'done';
-      annotations: ArticleRecord['annotations'];
-      readingMemory?: AgentAnnotateResult['readingMemory'];
-    }
-  | DesktopIpcStreamErrorEvent;
-
 export type DesktopIpcStreamMap = {
   'agent:distillation-review:stream': {
     payload: AgentDistillationReviewPayload;
     event: AgentDistillationReviewStreamEvent;
     result: AnnotationDistillationReviewMessage;
-  };
-  'agent:annotate:stream': {
-    payload: AgentAnnotatePayload;
-    event: AgentAnnotateStreamEvent;
-    result: AgentAnnotateResult;
   };
 };
 

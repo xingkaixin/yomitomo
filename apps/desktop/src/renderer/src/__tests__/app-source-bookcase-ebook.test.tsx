@@ -16,7 +16,6 @@ import { articleActionStubs } from './article-actions-test-utils';
 
 const mocks = vi.hoisted(() => ({
   attachFoliateDocumentListeners: vi.fn(),
-  cleanupAgentTheater: vi.fn(),
   cleanupFoliateDocumentListeners: vi.fn(),
   goLeft: vi.fn(),
   goRight: vi.fn(),
@@ -25,7 +24,6 @@ const mocks = vi.hoisted(() => ({
   hideEbookBoxLayer: vi.fn(),
   resetEbookBoxState: vi.fn(),
   scheduleEbookBoxUpdate: vi.fn(),
-  setAgentTheaterBoxes: vi.fn(),
   boxes: [] as HighlightBox[],
   readerShellProps: undefined as
     | {
@@ -104,25 +102,6 @@ vi.mock('../source/ebook/use-foliate-input-bridge', () => ({
   useFoliateInputBridge: () => ({
     attachFoliateDocumentListeners: mocks.attachFoliateDocumentListeners,
     cleanupFoliateDocumentListeners: mocks.cleanupFoliateDocumentListeners,
-  }),
-}));
-
-vi.mock('../source/ebook/use-ebook-agent-virtual-reading', () => ({
-  useEbookAgentVirtualReading: () => ({
-    agentDockCompleting: false,
-    agentDockItems: [],
-    agentTheaterBoxes: [],
-    virtualCursors: [],
-    agentAnimationQueueRef: { current: Promise.resolve() },
-    cleanupAgentTheater: mocks.cleanupAgentTheater,
-    cursorAgent: vi.fn(),
-    finishAgentDock: vi.fn(),
-    finishVirtualReading: vi.fn(),
-    setAgentTheaterBoxes: mocks.setAgentTheaterBoxes,
-    startAgentDock: vi.fn(),
-    startVirtualReading: vi.fn(),
-    stopVirtualReadingTimer: vi.fn(),
-    updateVirtualCursor: vi.fn(),
   }),
 }));
 

@@ -1,12 +1,10 @@
 import React from 'react';
-import { AgentReadingDock } from '../agent/reader-agent-reading-dock';
 import { AnnotationConnection } from '../annotations/reader-annotation-connection';
 import { ReaderChatPanel } from './reader-chat-panel';
 import { ReaderFloatingPanels } from './reader-floating-panels';
 import { ReaderSurfaceView } from './reader-surface-view';
 import { ReaderTocPanel } from './reader-toc-panel';
 import { ReaderFloatingToolbar, ReaderToolbar } from './reader-toolbar';
-import { VirtualCursor } from './reader-virtual-cursor';
 import type {
   ReaderAppViewProps,
   ReaderChatActivationSource,
@@ -75,7 +73,7 @@ function ReaderAppViewComponent(
     filteredAnnotations,
     railLayoutOverride,
   } = annotationModel;
-  const { agents, dockCompleting, dockItems, virtualCursors } = agentModel;
+  const { agents } = agentModel;
   const {
     messageSendShortcut,
     readerSettings,
@@ -305,8 +303,6 @@ function ReaderAppViewComponent(
 
         {activeConnection ? <AnnotationConnection connection={activeConnection} /> : null}
 
-        <AgentReadingDock completing={dockCompleting} items={dockItems} labels={labels} />
-
         {chat && chatActions ? (
           <ReaderChatPanel
             activationSource={chatActivationSource}
@@ -330,9 +326,6 @@ function ReaderAppViewComponent(
           />
         ) : null}
 
-        {virtualCursors.map((cursor) =>
-          cursor.visible ? <VirtualCursor cursor={cursor} key={cursor.id} /> : null,
-        )}
         {overlays}
       </div>
     </ReaderTooltipProvider>

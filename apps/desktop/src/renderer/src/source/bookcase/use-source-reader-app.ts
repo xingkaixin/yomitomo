@@ -1,11 +1,4 @@
-import {
-  createElement,
-  useEffect,
-  useRef,
-  useState,
-  type Dispatch,
-  type SetStateAction,
-} from 'react';
+import { createElement, useEffect, useRef, useState } from 'react';
 import type {
   Annotation,
   ResolvedAppSettings,
@@ -25,7 +18,6 @@ import { useReadingRelations } from '../../reading-memory/use-reading-relations'
 import { appToast } from '../../shell/app-toast';
 import {
   useSourceReaderSession,
-  type SourceAgentAnnotationAdapter,
   type UseSourceReaderSessionOptions,
 } from './use-source-reader-session';
 import { useSourceReaderWorkspace } from './use-source-reader-workspace';
@@ -45,7 +37,6 @@ type ReaderSearchMatch = NonNullable<
 type ReaderSearchHighlightBox = Omit<HighlightBox, 'annotationId' | 'color' | 'contributorId'>;
 type SourceReaderSessionInput = Omit<
   UseSourceReaderSessionOptions,
-  | 'agentAnnotationAdapter'
   | 'onDeleteArticleAnnotation'
   | 'onDeleteArticleComment'
   | 'onSaveArticleAnnotation'
@@ -91,15 +82,10 @@ export type SourceReaderAdapter = {
   >;
 };
 
-type SourceReaderAgentPlayback = Pick<
-  ReaderAppViewProps['agents'],
-  'dockCompleting' | 'dockItems' | 'theaterBoxes' | 'virtualCursors'
->;
 type SourceReaderAnnotationSurface = Omit<ReaderAppViewProps['annotations'], 'annotationTotals'>;
 
 export type SourceReaderAppSurface = {
   adapter: SourceReaderAdapter;
-  agentPlayback: SourceReaderAgentPlayback;
   annotations: SourceReaderAnnotationSurface;
   article: ReaderAppViewProps['article'];
   shell: {
@@ -122,10 +108,6 @@ export type SourceReaderAppSurface = {
 export type UseSourceReaderAppInput = {
   articleActions: ReaderArticleActions;
   onOpenEvidenceSource?: (target: ReadingEvidenceSourceTarget) => void;
-  createAgentAnnotationAdapter?: (context: {
-    isCurrentArticle: (articleId: string) => boolean;
-    setStatusMessage: Dispatch<SetStateAction<string>>;
-  }) => SourceAgentAnnotationAdapter;
   beforeOpenAnnotation?: () => void;
   messageSendShortcut?: MessageSendShortcut;
   settings?: ResolvedAppSettings;
@@ -137,7 +119,6 @@ export function useSourceReaderApp({
   articleActions,
   onOpenEvidenceSource,
   beforeOpenAnnotation,
-  createAgentAnnotationAdapter,
   messageSendShortcut,
   settings,
   selectionActionShortcuts,
@@ -150,10 +131,6 @@ export function useSourceReaderApp({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const session = useSourceReaderSession({
     ...sessionInput,
-    agentAnnotationAdapter: createAgentAnnotationAdapter?.({
-      isCurrentArticle,
-      setStatusMessage,
-    }),
     onDeleteArticleAnnotation: articleActions.deleteArticleAnnotation,
     onDeleteArticleComment: articleActions.deleteArticleComment,
     onSaveArticleAnnotation: articleActions.saveArticleAnnotation,
@@ -249,16 +226,7 @@ export function useSourceReaderApp({
   }
 
   function viewProps(
-    {
-      adapter,
-      agentPlayback,
-      annotations,
-      article,
-      shell,
-      toc,
-      toolbar,
-      userProfile,
-    }: SourceReaderAppSurface,
+    { adapter, annotations, article, shell, toc, toolbar, userProfile }: SourceReaderAppSurface,
     onAnnotationLayoutChange?: ReaderAnnotationActions['onAnnotationLayoutChange'],
   ): ReaderAppViewProps {
     const activeTocOpen = toc.open ?? tocOpen;
@@ -346,7 +314,6 @@ export function useSourceReaderApp({
         agents: session.annotationAgents,
         pendingAnnotationAgents: session.pendingAnnotationAgents,
         personaAgents: session.personaAgents,
-        ...agentPlayback,
       },
       annotations: {
         annotationTotals: workspace.annotationTotals,

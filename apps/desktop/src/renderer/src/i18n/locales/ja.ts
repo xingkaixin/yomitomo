@@ -51,7 +51,6 @@ export const jaResources = {
     assistantErrors: {
       agentNotFound: 'アシスタント {{name}} が見つかりませんでした。',
       reviewAgentNotFound: 'レビュー アシスタント {{name}} が見つかりませんでした。',
-      annotationAgentNotFound: 'アノテーション アシスタント {{name}} が見つかりませんでした。',
     },
     onboarding: {
       ariaLabel: '最初の読書を始める',
@@ -394,12 +393,9 @@ export const jaResources = {
       findRelated: '関連を探す',
       assistant: 'アシスタント',
       assistantAnswering: '応答中...',
-      assistantCompleted: '完了',
       assistantParticipationDirect: '{{names}} さんが参加しています{{processing}}',
       assistantParticipationSummary:
         '{{names}} さんと {{count}} 人のアシスタントが参加しています{{processing}}',
-      assistantReadingActive: '共読',
-      assistantReadingStatus: 'アシスタントの共読ステータス',
       backToLibrary: 'ライブラリに戻る',
       clearSearch: '検索をクリア',
       closeReader: 'リーダーを閉じる',
@@ -1176,25 +1172,6 @@ export const jaResources = {
     source: {
       empty: '原文を表示するには記事を選択してください',
       emptyContent: 'オリジナルのコンテンツはまだありません',
-      selection: 'セレクション',
-      agentThinking: '{{name}} は考えています',
-      agentStatus: {
-        reviewing: '{{name}} さんがレビューしています',
-        replying: '{{name}} さんが返信しています',
-        reading: '{{name}} さんが読んでいます',
-        readingOffscreen: '{{name}} は {{direction}} を読んでいます',
-        addingThought: '{{name}} さんが意見を追加しています',
-        addingThoughtOffscreen: '{{name}} さんが {{direction}} の考えを追加しています',
-        thoughtAdded: 'の考えを追加しました',
-        withSuffix: '{{name}} {{suffix}}',
-        noNewThought: '新しい考えはありません',
-        noNewThoughtWithName: '{{name}}には新しい考えはありません',
-        addThoughtFailed: '考えを追加できませんでした',
-        direction: {
-          above: '上',
-          below: '下',
-        },
-      },
       readerChatFailed: 'Q&A リクエストは失敗しました。後でもう一度試してください。',
       requestFailedWithMessage: 'リクエストが失敗しました: {{message}}',
       mixedSelectionToast: '原文のみ、または翻訳のみを選択してください',

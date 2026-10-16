@@ -15,7 +15,6 @@ export function usePdfiumOpenLifecycle({
   articlePageCount,
   annotationCount,
   boxCount,
-  clearAgentAnnotationPlayback,
   currentPage,
   initialPageNumber,
   loadedDocumentPageCount,
@@ -32,7 +31,6 @@ export function usePdfiumOpenLifecycle({
   articlePageCount: number;
   annotationCount: number;
   boxCount: number;
-  clearAgentAnnotationPlayback: () => void;
   currentPage: number;
   initialPageNumber: number;
   loadedDocumentPageCount: number | undefined;
@@ -47,8 +45,6 @@ export function usePdfiumOpenLifecycle({
 }) {
   const recordedPhasesRef = useRef(new Set<string>());
   const restoreMetricsWaitLoggedRef = useRef(false);
-  const clearPlaybackRef = useRef(clearAgentAnnotationPlayback);
-  clearPlaybackRef.current = clearAgentAnnotationPlayback;
 
   useEffect(() => {
     recordedPhasesRef.current = new Set();
@@ -64,7 +60,6 @@ export function usePdfiumOpenLifecycle({
 
   useEffect(() => {
     resetPdfiumTextDocument();
-    clearPlaybackRef.current();
   }, [articleId, articlePageCount, resetPdfiumTextDocument]);
 
   useEffect(() => {
@@ -118,6 +113,4 @@ export function usePdfiumOpenLifecycle({
   useEffect(() => {
     if (boxCount === 0 && annotationCount > 0) schedulePageMetricsUpdate();
   }, [annotationCount, boxCount, schedulePageMetricsUpdate]);
-
-  useEffect(() => () => clearPlaybackRef.current(), []);
 }

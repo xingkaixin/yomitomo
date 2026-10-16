@@ -10,7 +10,6 @@ import type {
   AssistantRunEvent,
   CollectionStorePatch,
   CollectionWithMembers,
-  Comment,
   DesktopStore,
   LibraryPin,
   LibraryPinPatch,
@@ -35,7 +34,6 @@ import type {
   AppInfo,
   AppLockStatus,
   AppLockVerifyPinResult,
-  ArticleAgentAnnotationMergeResult,
   ArticleImportResult,
   ArticleLibraryListResult,
   AssistantExecutionRunDetail,
@@ -67,11 +65,6 @@ export const agentIpcInvokeDescriptors = {
   >()({
     route: ['agent', 'planMentionRoute'],
     roles: annotationAndMain,
-    validation: 'schema',
-  }),
-  'agent:review': desktopIpcInvoke<DesktopIpcSchemaArgs<'agent:review'>, Comment[]>()({
-    route: ['agent', 'review'],
-    roles: mainOnly,
     validation: 'schema',
   }),
   'agent:save': desktopIpcInvoke<DesktopIpcSchemaArgs<'agent:save'>, AgentStorePatch>()({
@@ -264,14 +257,6 @@ export const articleIpcInvokeDescriptors = {
   >()({
     route: ['article', 'deleteComment'],
     roles: annotationAndMain,
-    validation: 'schema',
-  }),
-  'article:merge-agent-annotation': desktopIpcInvoke<
-    DesktopIpcSchemaArgs<'article:merge-agent-annotation'>,
-    ArticleAgentAnnotationMergeResult | null
-  >()({
-    route: ['article', 'mergeAgentAnnotation'],
-    roles: mainOnly,
     validation: 'schema',
   }),
   'article:save-annotation': desktopIpcInvoke<

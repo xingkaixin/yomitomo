@@ -15,9 +15,6 @@ export function readerUiLabels(): ReaderUiLabels {
     findRelated: i18next.t('readerUi.findRelated'),
     assistant: i18next.t('readerUi.assistant'),
     assistantAnswering: i18next.t('readerUi.assistantAnswering'),
-    assistantCompleted: i18next.t('readerUi.assistantCompleted'),
-    assistantReadingActive: i18next.t('readerUi.assistantReadingActive'),
-    assistantReadingStatus: i18next.t('readerUi.assistantReadingStatus'),
     assistantToolStep: (toolName) =>
       i18next.t(`assistantProgress.steps.${toolName}`, { defaultValue: toolName }),
     backToLibrary: i18next.t('readerUi.backToLibrary'),

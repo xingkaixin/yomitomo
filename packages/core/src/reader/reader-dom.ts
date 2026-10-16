@@ -231,42 +231,6 @@ export function scrollReaderSurfaceToRect(surface: HTMLElement, rect: DOMRect, o
   });
 }
 
-export function cursorPositionFromOffset(
-  article: HTMLElement,
-  surface: HTMLElement,
-  offset: number,
-  endOffset?: number,
-) {
-  const text = article.textContent || '';
-  const surfaceRect = surface.getBoundingClientRect();
-  const start = Math.max(0, Math.min(offset, text.length - 1));
-  const end = Math.min(text.length - 1, endOffset ?? text.length - 1, start + 120);
-
-  for (let cursor = start; cursor < end; cursor += 1) {
-    if (!text[cursor]?.trim()) continue;
-
-    const range = rangeFromOffsets(article, cursor, cursor + 1);
-    const rect = range?.getClientRects()[0];
-    if (!rect || rect.width < 1 || rect.height < 1) continue;
-
-    const offscreen: 'above' | 'below' | null =
-      rect.bottom < surfaceRect.top ? 'above' : rect.top > surfaceRect.bottom ? 'below' : null;
-    return {
-      offset: cursor,
-      x: offscreen ? surfaceRect.left + surfaceRect.width / 2 : rect.left + rect.width,
-      y:
-        offscreen === 'above'
-          ? surfaceRect.top + 20
-          : offscreen === 'below'
-            ? surfaceRect.bottom - 20
-            : rect.top + rect.height / 2,
-      offscreen: offscreen,
-    };
-  }
-
-  return null;
-}
-
 export function rangeHighlightBoxes(
   range: Range,
   canvasRect: DOMRect,

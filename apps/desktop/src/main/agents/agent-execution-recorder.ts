@@ -1,5 +1,3 @@
-import type { NormalizedAiUsage } from '@yomitomo/ai';
-import { isRecord } from '@yomitomo/shared';
 import type { AssistantExecutionRunInput } from '../assistant/assistant-execution-repository';
 
 type AgentExecutionLogger = {
@@ -19,18 +17,6 @@ export function createAssistantExecutionRecorder(input: {
       safelyRecordExecutionRun(input.recordAssistantExecutionRun, input.logger, record);
     },
   };
-}
-
-export function annotateResultUsage(result: unknown): NormalizedAiUsage | undefined {
-  if (!isRecord(result) || !isRecord(result.usage)) return undefined;
-  return compactUsage({
-    inputTokens: finiteNumber(result.usage.inputTokens),
-    outputTokens: finiteNumber(result.usage.outputTokens),
-    reasoningTokens: finiteNumber(result.usage.reasoningTokens),
-    cachedInputTokens: finiteNumber(result.usage.cachedInputTokens),
-    cacheWriteTokens: finiteNumber(result.usage.cacheWriteTokens),
-    totalTokens: finiteNumber(result.usage.totalTokens),
-  });
 }
 
 function safelyRecordExecutionRun(
@@ -58,15 +44,4 @@ function logError(logger: AgentExecutionLogger, event: string, error: unknown) {
   } catch {
     return;
   }
-}
-
-function compactUsage(usage: NormalizedAiUsage) {
-  const compacted = Object.fromEntries(
-    Object.entries(usage).filter(([, value]) => value !== undefined),
-  ) as NormalizedAiUsage;
-  return Object.keys(compacted).length > 0 ? compacted : undefined;
-}
-
-function finiteNumber(value: unknown) {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }

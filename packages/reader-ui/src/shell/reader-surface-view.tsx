@@ -240,7 +240,7 @@ function getCssDurationMs(element: Element, variableName: string, fallback: numb
 
 export function ReaderSurfaceView({
   actions: { annotation: annotationActions, selection: selectionActions },
-  agents: { agents, pendingAnnotationAgents = {}, personaAgents, theaterBoxes: agentTheaterBoxes },
+  agents: { agents, pendingAnnotationAgents = {}, personaAgents },
   annotationRail: {
     annotationRailItems,
     exitingAnnotationIds,
@@ -299,10 +299,6 @@ export function ReaderSurfaceView({
   const temporarySegments = React.useMemo(
     () => buildHighlightSegments(temporaryBoxes),
     [temporaryBoxes],
-  );
-  const agentTheaterSegments = React.useMemo(
-    () => buildHighlightSegments(agentTheaterBoxes),
-    [agentTheaterBoxes],
   );
   const searchSegments = React.useMemo(() => buildHighlightSegments(searchBoxes), [searchBoxes]);
   const newHighlightDelayBySegmentId = React.useMemo(() => {
@@ -397,15 +393,6 @@ export function ReaderSurfaceView({
               <div
                 className="reader-highlight is-temporary"
                 key={`temporary-${segment.id}`}
-                style={highlightSegmentStyle(segment, false) as React.CSSProperties}
-              >
-                <HighlightDots colors={segment.colors} />
-              </div>
-            ))}
-            {agentTheaterSegments.map((segment) => (
-              <div
-                className="reader-highlight is-agent-theater"
-                key={`agent-theater-${segment.id}`}
                 style={highlightSegmentStyle(segment, false) as React.CSSProperties}
               >
                 <HighlightDots colors={segment.colors} />

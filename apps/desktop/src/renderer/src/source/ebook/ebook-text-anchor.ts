@@ -92,19 +92,6 @@ export function rangeForEbookAnchorInDocument(
   return createEbookAnchorResolver(doc, timing).rangeForAnchor(anchor);
 }
 
-export function rangeForEbookAnchorCursorInDocument(
-  doc: Document,
-  anchor: Annotation['anchor'],
-  progressOffset: number,
-) {
-  const matched = createEbookAnchorResolver(doc).match(anchor);
-  if (!matched) return null;
-
-  const length = Math.max(1, matched.match.end - matched.match.start);
-  const cursor = matched.match.start + (Math.max(0, progressOffset) % length);
-  return rangeFromNormalizedDomTextPoint(doc, matched.index.positions, cursor, matched.match.end);
-}
-
 export function createEbookAnchorResolver(doc: Document, timing?: DomTextIndexTiming) {
   let index: NormalizedDomTextIndex | null | undefined;
 
@@ -249,25 +236,6 @@ function rangeFromNormalizedDomText(
   range.setStart(start.node, start.offset);
   range.setEnd(end.node, end.offset + (end.virtual ? 0 : 1));
   return range;
-}
-
-function rangeFromNormalizedDomTextPoint(
-  doc: Document,
-  positions: DomTextPosition[],
-  offset: number,
-  limitEnd: number,
-) {
-  let cursor = Math.min(offset, Math.max(0, limitEnd - 1));
-  while (cursor < limitEnd && positions[cursor]?.virtual) cursor += 1;
-  if (!positions[cursor] || cursor >= limitEnd) {
-    cursor = Math.min(Math.max(0, limitEnd - 1), positions.length - 1);
-    while (cursor > 0 && positions[cursor]?.virtual) cursor -= 1;
-  }
-  if (!positions[cursor] || positions[cursor]?.virtual) return null;
-  return rangeFromNormalizedDomText(doc, positions, {
-    start: cursor,
-    end: Math.min(limitEnd, cursor + 1),
-  });
 }
 
 function domAnchorMatchScore(

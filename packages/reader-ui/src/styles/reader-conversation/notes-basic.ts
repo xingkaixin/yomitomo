@@ -208,7 +208,7 @@ export const notesBasicStyles = `.reader-notes {
   width:30px;
   height:30px
 }
-.reader-note-anchor .reader-avatar-badge,.reader-comment .reader-avatar-badge,.reader-agent-menu .reader-avatar-badge,.reader-agent-annotate-menu .reader-avatar-badge,.reader-virtual-label .reader-avatar-badge {
+.reader-note-anchor .reader-avatar-badge,.reader-comment .reader-avatar-badge,.reader-agent-menu .reader-avatar-badge,.reader-agent-annotate-menu .reader-avatar-badge {
   display:grid;
   place-items:center;
   overflow:hidden;
@@ -279,10 +279,6 @@ export const notesBasicStyles = `.reader-notes {
 .reader-highlight.is-temporary {
   background:rgba(77,155,114,.14);
   box-shadow:0 0 0 1px rgba(77,155,114,.2)
-}
-.reader-highlight.is-agent-theater {
-  background:rgba(77,155,114,.18);
-  box-shadow:0 0 0 1px rgba(77,155,114,.22)
 }
 .reader-highlight.is-search {
   background:var(--reader-search-highlight);

@@ -75,16 +75,6 @@ export type ArticleAnnotationUpsertInput = {
 export type ArticleAnnotationDistillationSaveInput =
   DesktopIpcSchemaArgs<'article:save-annotation-distillation'>[0];
 
-export type ArticleAgentAnnotationMergeInput = {
-  articleId: string;
-  annotation: Annotation;
-};
-
-export type ArticleAgentAnnotationMergeResult = {
-  activeId: string;
-  patch: ArticleUpsertPatch;
-};
-
 export type ArticleCommentDeleteInput = {
   articleId: string;
   annotationId: string;

@@ -51,7 +51,6 @@ export const enResources = {
     assistantErrors: {
       agentNotFound: 'Assistant {{name}} was not found.',
       reviewAgentNotFound: 'Review assistant {{name}} was not found.',
-      annotationAgentNotFound: 'Annotation assistant {{name}} was not found.',
     },
     onboarding: {
       ariaLabel: 'Start your first reading',
@@ -393,12 +392,9 @@ export const enResources = {
       findRelated: 'Find related',
       assistant: 'Assistant',
       assistantAnswering: 'Answering...',
-      assistantCompleted: 'completed',
       assistantParticipationDirect: '{{names}} participating{{processing}}',
       assistantParticipationSummary:
         '{{names}} and {{count}} assistants participating{{processing}}',
-      assistantReadingActive: 'co-reading',
-      assistantReadingStatus: 'Assistant co-reading status',
       backToLibrary: 'Back to library',
       clearSearch: 'Clear search',
       closeReader: 'Close reader',
@@ -1160,25 +1156,6 @@ export const enResources = {
     source: {
       empty: 'Select an article to view the original text',
       emptyContent: 'No original content yet',
-      selection: 'Selection',
-      agentThinking: '{{name}} is thinking',
-      agentStatus: {
-        reviewing: '{{name}} is reviewing',
-        replying: '{{name}} is replying',
-        reading: '{{name}} is reading',
-        readingOffscreen: '{{name}} is reading {{direction}}',
-        addingThought: '{{name}} is adding a thought',
-        addingThoughtOffscreen: '{{name}} is adding a thought {{direction}}',
-        thoughtAdded: 'thought added',
-        withSuffix: '{{name}} {{suffix}}',
-        noNewThought: 'No new thoughts',
-        noNewThoughtWithName: '{{name}} has no new thoughts',
-        addThoughtFailed: 'Failed to add thought',
-        direction: {
-          above: 'above',
-          below: 'below',
-        },
-      },
       readerChatFailed: 'Q&A request failed. Try again later.',
       requestFailedWithMessage: 'Request failed: {{message}}',
       mixedSelectionToast: 'Select only the original text or only the translation',

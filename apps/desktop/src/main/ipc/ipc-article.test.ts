@@ -162,29 +162,6 @@ describe('article IPC patch broadcasts', () => {
     expect(sendArticlePatched).toHaveBeenCalledWith(event, patch);
   });
 
-  it('broadcasts article patches after merging agent annotations', async () => {
-    storageMocks.ipcMainHandle.mockClear();
-    const annotation = annotationRecord();
-    const patch = articlePatch(annotation);
-    const mergeResult = { activeId: annotation.id, patch };
-    const mergeArticleAgentAnnotation = vi.fn().mockResolvedValue(mergeResult);
-    const sendArticlePatched = vi.fn();
-
-    registerArticleIpc(articleIpcContext({ mergeArticleAgentAnnotation }, { sendArticlePatched }));
-
-    const handler = storageMocks.ipcMainHandle.mock.calls.find(
-      ([channel]) => channel === 'article:merge-agent-annotation',
-    )?.[1];
-    expect(handler).toBeTypeOf('function');
-    const input = { articleId: 'article_1', annotation };
-
-    const result = await handler({}, input);
-
-    expect(mergeArticleAgentAnnotation).toHaveBeenCalledWith(input);
-    expect(result).toEqual({ ok: true, value: mergeResult });
-    expect(sendArticlePatched).toHaveBeenCalledWith(expect.anything(), patch);
-  });
-
   it('broadcasts article patches after saving annotations', async () => {
     storageMocks.ipcMainHandle.mockClear();
     const annotation = annotationRecord();
@@ -593,7 +570,6 @@ function articleIpcContext(
         findArticleByIdentity: vi.fn(),
         initializeArticleTranslation: vi.fn(),
         listLibraryArticles: vi.fn(),
-        mergeArticleAgentAnnotation: vi.fn(),
         readArticle: vi.fn(),
         readArticleCover: vi.fn(),
         readArticleStatsSummaries: vi.fn(),

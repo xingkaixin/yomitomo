@@ -32,46 +32,6 @@ afterEach(() => {
 });
 
 describe('useAppArticleStoreActions', () => {
-  it('reconciles an agent annotation with the catalog and current article', async () => {
-    const annotation = annotationFixture('agent-annotation', {
-      author: { kind: 'agent', agentId: 'agent_1', username: 'assistant' },
-    });
-    const initial = webArticleRecord('article-1');
-    const optimisticCurrent = { ...initial, annotations: [annotation] };
-    const saved = {
-      ...optimisticCurrent,
-      title: 'Merged article',
-      updatedAt: '2026-05-17T08:00:00.000Z',
-    };
-    const second = webArticleRecord('article-2');
-    const mergeAgentAnnotation = vi.fn().mockResolvedValue({
-      activeId: annotation.id,
-      patch: { type: 'article-upsert', article: articleSummaryFromRecord(saved) },
-    });
-    const fixture = renderArticleActions({
-      articles: [articleSummaryFromRecord(initial), articleSummaryFromRecord(second)],
-      currentArticle: optimisticCurrent,
-      desktopApi: { article: { mergeAgentAnnotation } },
-    });
-
-    await act(async () => {
-      await fixture.actions.mergeArticleAgentAnnotation(initial.id, annotation);
-    });
-
-    expect(mergeAgentAnnotation).toHaveBeenCalledWith({
-      articleId: initial.id,
-      annotation,
-    });
-    expect(fixture.storeRef.current.articles).toEqual([
-      articleSummaryFromRecord(saved),
-      articleSummaryFromRecord(second),
-    ]);
-    expect(fixture.getCurrentArticle()).toMatchObject({
-      annotations: [annotation],
-      updatedAt: saved.updatedAt,
-    });
-  });
-
   it('preserves newer annotation and comment state while an older save is in flight', async () => {
     const initial = webArticleRecord('article-1');
     const inputAnnotation = annotationFixture('annotation-1', { color: '#f4c95d' });

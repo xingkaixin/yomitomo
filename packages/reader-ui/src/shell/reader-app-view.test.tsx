@@ -55,10 +55,6 @@ describe('ReaderAppView surface handle', () => {
         }}
         agents={{
           agents: [],
-          dockCompleting: false,
-          dockItems: [],
-          theaterBoxes: [],
-          virtualCursors: [],
         }}
         annotations={{
           activeId: null,
