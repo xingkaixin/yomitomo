@@ -237,7 +237,12 @@ function countToolCall(api: ToolExecutionApi, context: Parameters<ToolExecutionA
   return api.commit(async (tx) => {
     const run = await tx.doc(RunContextDoc, api.conversationId);
     run.toolCalls += 1;
-    return { ...run } as AssistantRunContext;
+    // Nested doc values are overlays that throw once the commit settles, so copy them out.
+    return {
+      ...run,
+      visibleRanges:
+        run.visibleRanges?.map(({ textStart, textEnd }) => ({ textStart, textEnd })) ?? null,
+    };
   }, context);
 }
 
