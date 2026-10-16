@@ -36,6 +36,7 @@ import {
   webAnnotationNavigationState,
 } from './app-source-bookcase-web-utils';
 import { createWebSourceReaderController } from './app-source-bookcase-web-controller';
+import { saveAssistantArticleText, sectionsFromHeadings } from '../bookcase/assistant-article-text';
 import { useSourceReaderApp } from '../bookcase/use-source-reader-app';
 import { useSourceReaderAppView } from '../bookcase/use-source-reader-app-view';
 import { useWebAnnotationRailDiagnostics } from './use-web-annotation-rail-diagnostics';
@@ -151,6 +152,11 @@ export function WebSourceBookcase({
     () => buildTocAnnotationStats(tocItems, annotations, userProfile, annotationAgents),
     [annotationAgents, annotations, tocItems, userProfile],
   );
+  useEffect(() => {
+    const text = currentArticleText();
+    const headings = tocItems.map((item) => ({ title: item.text, depth: item.depth }));
+    saveAssistantArticleText(article.id, { text, sections: sectionsFromHeadings(text, headings) });
+  }, [article.id, tocItems]);
 
   const {
     agentDockCompleting,

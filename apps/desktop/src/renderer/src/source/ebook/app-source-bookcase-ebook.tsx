@@ -46,6 +46,7 @@ import {
 import { ArticleBook } from '../../shell/app-article-book';
 import { articleDisplayTitle } from '../../reading-library/app-reading-library-utils';
 import { createEbookSourceReaderController } from './app-source-bookcase-ebook-controller';
+import { saveAssistantArticleText } from '../bookcase/assistant-article-text';
 import { useSourceReaderApp } from '../bookcase/use-source-reader-app';
 import { useSourceReaderAppView } from '../bookcase/use-source-reader-app-view';
 import { appendAgentAnnotationToArticle as appendPersistedAgentAnnotation } from '../bookcase/append-agent-annotation-to-article';
@@ -205,6 +206,15 @@ export function EbookBookcase({
   } = selection;
   const { ebook } = article;
   const ebookText = useMemo(() => ebookArticleText(ebook.chapters), [ebook.chapters]);
+  useEffect(() => {
+    const sections = (ebook.index?.chapters ?? []).map((chapter) => ({
+      id: chapter.id,
+      title: chapter.title,
+      start: chapter.textStart,
+      end: chapter.textEnd,
+    }));
+    saveAssistantArticleText(article.id, { text: ebookText, sections });
+  }, [article.id, ebook.index, ebookText]);
   const articleAnnotationSignature = useMemo(
     () => ebookHighlightAnnotationsSignature(articleAnnotations, userProfile, annotationAgents),
     [annotationAgents, articleAnnotations, userProfile],

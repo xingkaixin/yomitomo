@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import type { ArticleTextSnapshot } from '@yomitomo/shared';
 import { articleTextFilePath } from './assistant-session-files';
@@ -39,6 +39,13 @@ export function createArticleTextStore(directory: () => string) {
       const stored = JSON.parse(raw) as StoredArticleText;
       remember(articleId, stored);
       return stored.snapshot;
+    },
+    async has(articleId: string) {
+      if (cache.has(articleId)) return true;
+      return access(articleTextFilePath(directory(), articleId)).then(
+        () => true,
+        () => false,
+      );
     },
     forget(articleId: string) {
       cache.delete(articleId);

@@ -444,6 +444,15 @@ export const assistantIpcInvokeDescriptors = {
     validation: 'schema',
     databaseIndependent: true,
   }),
+  'assistant:has-article-text': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'assistant:has-article-text'>,
+    boolean
+  >()({
+    route: ['assistant', 'hasArticleText'],
+    roles: mainOnly,
+    validation: 'schema',
+    databaseIndependent: true,
+  }),
   'assistant:deliver': desktopIpcInvoke<
     DesktopIpcSchemaArgs<'assistant:deliver'>,
     { runKey: string | null }

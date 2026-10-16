@@ -40,7 +40,9 @@ import { ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
 import { readerDesktopEmbeddedBundleStyles } from '@yomitomo/reader-ui/reader-styles';
 import { selectionActionShortcut } from '@yomitomo/reader-ui/reader-shortcuts';
 import type { SourceBookcaseProps } from '../bookcase/source-bookcase-types';
+import { saveAssistantArticleText } from '../bookcase/assistant-article-text';
 import { useSourceReaderApp } from '../bookcase/use-source-reader-app';
+import { getOptionalDesktopApi } from '../../shell/app-desktop-api';
 import {
   useReaderPageTurnKeys,
   type ReaderPageTurnDirection,
@@ -58,7 +60,7 @@ import {
   pageProgress,
   pdfPageProgressPercent,
 } from './app-source-bookcase-pdfium-reading-progress';
-import { pdfiumTocAnnotationStats } from './pdfium-text-document';
+import { pdfiumTocAnnotationStats, pdfReaderReadingSections } from './pdfium-text-document';
 import { createPdfiumSourceReaderController } from './app-source-bookcase-pdfium-controller';
 import { EmbedPdfSelectionBridge } from './app-source-bookcase-pdfium-selection-bridge';
 import type { PdfOpenTrace } from './app-source-bookcase-pdfium-open-trace';
@@ -294,6 +296,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     ensurePdfTextDocument,
     extractPdfiumPageText,
     markPdfiumFirstPageReady,
+    pdfFirstPageReady,
     pdfTextDocument,
     pdfTextIndexPreparing,
     resetPdfiumTextDocument,
@@ -853,6 +856,32 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     },
     userProfile,
   });
+  useEffect(() => {
+    if (!loadedDocument || !pdfFirstPageReady) return;
+    let cancelled = false;
+    void (async () => {
+      const hasArticleText = getOptionalDesktopApi()?.assistant?.hasArticleText;
+      // Full-text extraction is slow on long PDFs, so it runs only until main has a copy.
+      if (!hasArticleText) return;
+      if (!pdfTextDocument && (await hasArticleText(article.id).catch(() => true))) return;
+      const textDocument = pdfTextDocument ?? (await ensurePdfTextDocument());
+      if (cancelled) return;
+      saveAssistantArticleText(article.id, {
+        text: textDocument.text,
+        sections: pdfReaderReadingSections(textDocument, tocItems, loadedDocument.pages.length),
+      });
+    })().catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    article.id,
+    ensurePdfTextDocument,
+    loadedDocument,
+    pdfFirstPageReady,
+    pdfTextDocument,
+    tocItems,
+  ]);
   useEffect(() => {
     if (!searchOpen || !loadedDocument) return;
     let cancelled = false;

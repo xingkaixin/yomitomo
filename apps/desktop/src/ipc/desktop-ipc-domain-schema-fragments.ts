@@ -496,6 +496,7 @@ export const assistantDomainIpcInvokeSchemas = {
   'assistant:save-article-text': z.tuple([
     z.object({ articleId: idSchema, snapshot: articleTextSnapshotSchema }),
   ]),
+  'assistant:has-article-text': z.tuple([idSchema]),
   'assistant:deliver': z.tuple([
     checkedSchema<AssistantDeliveryRequest>(
       z.object({
