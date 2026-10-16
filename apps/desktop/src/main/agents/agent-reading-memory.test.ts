@@ -478,6 +478,31 @@ describe('agent reading memory persistence', () => {
     );
   });
 
+  it('dedupes memory evidence found by several snapshot queries', () => {
+    const port = createAgentReadingMemoryPort({
+      executor: readingMemoryExecutor(),
+      logger: { logError: vi.fn() },
+    });
+    memoryStore.searchReadingMemoryEntries.mockReturnValue([
+      memoryEntry({ agentId: 'agent_1', sourceAnnotationId: 'annotation_1' }),
+    ]);
+
+    const snapshot = port.createMessageReadingContextSnapshot({
+      payload: messagePayload(),
+      agentId: 'agent_1',
+    });
+
+    expect(memoryStore.searchReadingMemoryEntries.mock.calls.length).toBeGreaterThan(1);
+    expect(snapshot?.memoryEvidence).toHaveLength(1);
+    expect(snapshot?.memoryEvidence?.[0]?.provenance).toMatchObject({
+      articleId: 'article_1',
+      sourceType: 'ai_task',
+      sourceAnnotationId: 'annotation_1',
+      agentId: 'agent_1',
+      authorType: 'ai',
+    });
+  });
+
   it('degrades a fast snapshot when injected memory lookup fails', () => {
     const executor = {
       exec: vi.fn(),

@@ -3,12 +3,17 @@ import type {
   AgentAnnotatePayload,
   AgentAnnotateResult,
   AgentMessagePayload,
+  ReadingMemoryEntry,
 } from '@yomitomo/shared';
-import type { AgentMessageReadingContextSnapshot } from '@yomitomo/ai';
+import type {
+  AgentMessageReadingContextSnapshot,
+  AssistantToolEvidenceInput as ReadingEvidence,
+} from '@yomitomo/ai';
 import { makeId } from '@yomitomo/shared';
 import {
   readingMemoryAnchorCheckpointEntries,
   readingMemoryEntriesFromMemoryDelta,
+  readingMemoryEntrySearchText,
   readingMemoryFromEntries,
   readingMemoryViewRequestForAnnotatePayload,
   readingMemoryViewRequestForMessagePayload,
@@ -17,9 +22,11 @@ import {
   appendReadingMemoryEntries,
   buildReadingMemoryView,
   readReadingMemoryEntries,
+  searchReadingMemoryEntries,
   type ReadingMemorySqliteExecutor,
 } from '../reading-memory/reading-memory-store';
-import { createAgentMessageReadingContextSnapshot } from '../assistant/assistant-reading-tools';
+
+const MEMORY_EVIDENCE_PER_QUERY = 6;
 
 type AgentReadingMemoryLogger = {
   logError: (event: string, error: unknown, data?: Record<string, unknown>) => void;
@@ -80,11 +87,7 @@ export function createAgentReadingMemoryPort(input: {
       }),
     createMessageReadingContextSnapshot: ({ payload, agentId }) => {
       try {
-        return createAgentMessageReadingContextSnapshot({
-          payload,
-          agentId,
-          executor: input.executor,
-        });
+        return createAgentMessageReadingContextSnapshot(payload, input.executor);
       } catch (error) {
         input.logger.logError('reading_context.snapshot_failed', error, {
           articleId: payload.article.id,
@@ -209,4 +212,91 @@ export function saveAgentAnnotateReadingMemoryEntries(input: {
       memoryTraceCount: input.result.readingMemory?.readingTraces.length || 0,
     });
   }
+}
+
+function createAgentMessageReadingContextSnapshot(
+  payload: AgentMessagePayload,
+  executor: ReadingMemorySqliteExecutor,
+): AgentMessageReadingContextSnapshot | undefined {
+  const articleId = payload.article.id;
+  if (!articleId) return undefined;
+
+  const queries = snapshotSearchQueries([
+    payload.annotation.anchor.exact,
+    payload.userComment.content,
+    payload.instruction,
+  ]);
+  const memoryEvidence = uniqueEvidence(
+    queries.flatMap((query) =>
+      searchReadingMemoryEntries({
+        articleId,
+        query,
+        limit: MEMORY_EVIDENCE_PER_QUERY,
+        visibility: ['default'],
+        fallbackToSubstring: true,
+        executor,
+      }).map(memoryEntryEvidence),
+    ),
+  );
+  return memoryEvidence.length > 0 ? { memoryEvidence } : undefined;
+}
+
+function memoryEntryEvidence(entry: ReadingMemoryEntry): ReadingEvidence {
+  const summary = readingMemoryEntrySearchText(entry) || `${entry.kind}:${entry.scope}:${entry.id}`;
+  return {
+    summary,
+    text: summary,
+    provenance: {
+      articleId: entry.articleId,
+      sourceType: entry.sourceType,
+      sourceAnnotationId: entry.sourceAnnotationId,
+      sourceCommentId: entry.sourceCommentId,
+      agentId: entry.agentId,
+      authorType: memoryAuthorType(entry),
+      anchor: entry.anchor,
+      textStart: entry.textRange?.textStart,
+      textEnd: entry.textRange?.textEnd,
+      createdAt: entry.createdAt,
+    },
+  };
+}
+
+function memoryAuthorType(entry: ReadingMemoryEntry) {
+  if (entry.agentId) return 'ai' as const;
+  if (entry.readerId || entry.scope === 'reader') return 'user' as const;
+  return undefined;
+}
+
+function uniqueEvidence(evidence: ReadingEvidence[]) {
+  const seen = new Set<string>();
+  return evidence.filter((item) => {
+    const key = [
+      item.provenance.sourceAnnotationId,
+      item.provenance.sourceCommentId,
+      item.provenance.sourceType,
+      item.summary,
+    ].join(':');
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function snapshotSearchQueries(values: Array<string | undefined>) {
+  const queries = values.flatMap((value) => {
+    const text = value?.trim();
+    if (!text) return [];
+    return [text, ...cjkSearchWindows(text)];
+  });
+  return Array.from(new Set(queries)).slice(0, 12);
+}
+
+function cjkSearchWindows(text: string) {
+  const normalized = text.replace(/[^\p{L}\p{N}_]+/gu, '');
+  if (!/[\p{Script=Han}]/u.test(normalized) || normalized.length <= 4) return [];
+  const windows: string[] = [];
+  for (let index = 0; index <= normalized.length - 4 && windows.length < 6; index += 1) {
+    windows.push(normalized.slice(index, index + 4));
+  }
+  return windows;
 }
