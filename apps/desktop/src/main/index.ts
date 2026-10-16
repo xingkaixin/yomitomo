@@ -72,6 +72,10 @@ import { secureRendererWebPreferences } from './windows/renderer-window-security
 import { installRendererNavigationGuard } from './windows/renderer-navigation';
 import { windowChromeOptions } from './windows/window-chrome';
 import { mainPath } from './app/main-paths';
+import {
+  disposeAssistantSessions,
+  removeAllAssistantSessions,
+} from './assistant-sessions/assistant-session-lifecycle';
 import type { AppMenuCommand } from '../app-menu-types';
 
 let mainWindow: BrowserWindow | null = null;
@@ -369,6 +373,7 @@ const beforeQuit = createBeforeQuitHandler({
     readingReviewRuntime = null;
     await mainProcessRuntime?.dispose();
     mainProcessRuntime = null;
+    await disposeAssistantSessions();
   },
   quit: () => app.quit(),
   logError,
@@ -409,6 +414,9 @@ function registerIpc(startupStoreInitialization: StartupStoreInitializationResul
       readingLibraryRuntime?.cancelAll();
       readingReviewRuntime?.cancelAll();
       mainProcessRuntime?.onDatabaseRestored();
+      void removeAllAssistantSessions().catch((error: unknown) =>
+        logError('assistant_session.restore_cleanup_failed', error),
+      );
     },
     storeLoadErrorInfo,
     elapsedMs,
