@@ -1,5 +1,12 @@
 import { HugeiconsIcon } from '@hugeicons/react';
-import { MessageQuestionIcon, MinusSignIcon, SentIcon } from '@hugeicons/core-free-icons';
+import {
+  Cancel01Icon,
+  Loading03Icon,
+  MessageQuestionIcon,
+  MinusSignIcon,
+  SentIcon,
+  Tick01Icon,
+} from '@hugeicons/core-free-icons';
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { renderSafeMarkdown } from '@yomitomo/core/safe-markdown';
 import type {
@@ -59,7 +66,12 @@ type ReaderChatViewport = {
 
 type ReaderChatMessageLabels = Pick<
   ReaderUiLabels,
-  'assistant' | 'assistantAnswering' | 'dateLocale' | 'me' | 'relativeTimeLabel'
+  | 'assistant'
+  | 'assistantAnswering'
+  | 'assistantToolStep'
+  | 'dateLocale'
+  | 'me'
+  | 'relativeTimeLabel'
 >;
 
 type ReaderChatPanelLabels = ReaderChatMessageLabels &
@@ -516,6 +528,25 @@ function ReaderChatMessageView({
           >
             {message.context.quote}
           </button>
+        ) : null}
+        {isAssistant && message.assistantProgress?.steps.length ? (
+          <ol className="reader-chat-message-steps">
+            {message.assistantProgress.steps.map((step) => (
+              <li className={`is-${step.status}`} key={step.id}>
+                <HugeiconsIcon
+                  icon={
+                    step.status === 'done'
+                      ? Tick01Icon
+                      : step.status === 'failed'
+                        ? Cancel01Icon
+                        : Loading03Icon
+                  }
+                  size={10}
+                />
+                <span>{labels.assistantToolStep(step.label)}</span>
+              </li>
+            ))}
+          </ol>
         ) : null}
         {isAssistant && streaming ? (
           <p>{message.content || labels.assistantAnswering}</p>

@@ -1,3 +1,4 @@
+import type { AssistantRuntimeProgressStep } from '../annotation-types';
 import type { AgentReadingIntent } from './agent-types';
 
 export type AssistantChannel =
@@ -23,7 +24,7 @@ export type AssistantRunEvent = {
   channel: AssistantChannel;
   status: 'running' | 'done' | 'failed';
   text: string;
-  activeTool?: string;
+  steps?: AssistantRuntimeProgressStep[];
   commentId?: string;
   error?: string;
 };

@@ -36,15 +36,13 @@ export const jaResources = {
       openLatest: '最新リリースを開く',
     },
     assistantProgress: {
-      deepSteps: '深い探索の手順',
+      processSteps: '処理の流れ',
       steps: {
-        get_current_thread: '現在のディスカッションを読む',
-        get_anchor_context: 'ハイライト付近のソースを確認してください',
-        search_article_passages: '関連する原文の一節を検索する',
-        search_article_memory: '既存の記事の記憶を検索する',
-        search_own_memory: 'このアシスタントの以前のメモを確認してください',
-        search_other_agents_memory: '他のアシスタントの関連する意見を参照する',
-        check_duplicate_thought: '重複した考えをチェックする',
+        article_outline: '目次を確認',
+        read_article: '本文を読む',
+        search_article: '本文を検索',
+        search_reading_memory: '既存の注釈を探す',
+        read_thread: 'スレッドを読む',
       },
       fallback: {
         fastResponse: '深層探索はまだ終わっていません。クイック返信に切り替えました。',

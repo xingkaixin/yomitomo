@@ -36,15 +36,13 @@ export const enResources = {
       openLatest: 'Open latest release',
     },
     assistantProgress: {
-      deepSteps: 'Deep exploration steps',
+      processSteps: 'Steps',
       steps: {
-        get_current_thread: 'Read current discussion',
-        get_anchor_context: 'Check source around the highlight',
-        search_article_passages: 'Search related source passages',
-        search_article_memory: 'Find existing article memory',
-        search_own_memory: 'Review this assistant’s prior notes',
-        search_other_agents_memory: 'Reference other assistants’ related thoughts',
-        check_duplicate_thought: 'Check for duplicate thoughts',
+        article_outline: 'Check the outline',
+        read_article: 'Read the text',
+        search_article: 'Search the text',
+        search_reading_memory: 'Search existing notes',
+        read_thread: 'Read a thread',
       },
       fallback: {
         fastResponse: 'Deep exploration did not finish. Switched to a quick reply.',

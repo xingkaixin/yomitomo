@@ -19,7 +19,7 @@ export type ChannelSnapshot = { messages: Comment[]; quote?: string; anchor?: Te
 
 export type ChannelReply = Pick<
   Comment,
-  'id' | 'author' | 'content' | 'createdAt' | 'readingIntent'
+  'id' | 'author' | 'content' | 'createdAt' | 'readingIntent' | 'assistantProgress'
 >;
 
 // Annotation threads live in the comments table and 问一问 sessions in the article's reader
@@ -51,6 +51,7 @@ export function createAssistantChannelSources(publishPatch: (patch: ArticleStore
       role: 'assistant',
       content: reply.content,
       assistantId: reply.author.kind === 'agent' ? reply.author.agentId : undefined,
+      ...(reply.assistantProgress ? { assistantProgress: reply.assistantProgress } : {}),
       createdAt: reply.createdAt,
     };
     const sessions = [...state.sessions];

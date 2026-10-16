@@ -18,6 +18,8 @@ export function readerUiLabels(): ReaderUiLabels {
     assistantCompleted: i18next.t('readerUi.assistantCompleted'),
     assistantReadingActive: i18next.t('readerUi.assistantReadingActive'),
     assistantReadingStatus: i18next.t('readerUi.assistantReadingStatus'),
+    assistantToolStep: (toolName) =>
+      i18next.t(`assistantProgress.steps.${toolName}`, { defaultValue: toolName }),
     backToLibrary: i18next.t('readerUi.backToLibrary'),
     assistantParticipationSummary: (names, processing) =>
       names.length > 2

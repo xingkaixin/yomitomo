@@ -217,6 +217,7 @@ export function annotationWithAssistantRuns(
         content: run.text,
         createdAt: run.startedAt,
         pending: true,
+        ...(run.steps?.length ? { assistantProgress: { steps: run.steps } } : {}),
         ...(run.channel.kind === 'thread' ? { replyTo: run.channel.threadId } : {}),
       },
     ];

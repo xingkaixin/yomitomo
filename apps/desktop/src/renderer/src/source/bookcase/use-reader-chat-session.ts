@@ -212,6 +212,7 @@ function stateWithAssistantRuns(
       role: 'assistant',
       content: run.text,
       assistantId: run.agentId,
+      assistantProgress: run.steps?.length ? { steps: run.steps } : undefined,
       createdAt: run.startedAt,
     }));
   if (pending.length === 0) return state;

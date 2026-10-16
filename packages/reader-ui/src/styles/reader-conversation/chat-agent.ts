@@ -355,6 +355,38 @@ export const chatAgentStyles = `.reader-chat-fab {
 .reader-chat-message-context:disabled {
   cursor:default
 }
+.reader-chat-message-steps {
+  display:flex;
+  flex-wrap:wrap;
+  gap:4px;
+  margin:0;
+  padding:0;
+  list-style:none;
+  font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif)
+}
+.reader-chat-message-steps li {
+  display:inline-flex;
+  min-width:0;
+  max-width:100%;
+  align-items:center;
+  gap:3px;
+  border:1px solid color-mix(in srgb, currentColor 14%, transparent);
+  border-radius:999px;
+  padding:1px 6px;
+  font-size:10px;
+  font-weight:700;
+  line-height:1.4;
+  opacity:.68
+}
+.reader-chat-message-steps li span {
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+.reader-chat-message-steps svg {
+  flex:0 0 auto
+}
 .reader-chat-markdown {
   min-width:0;
   max-width:100%;

@@ -48,6 +48,7 @@ import {
 import { formatDelivery, formatRetraction } from './assistant-channel-delivery';
 import type { ChannelReply, ChannelSnapshot } from './assistant-channel-sources';
 import { RunContextDoc } from './assistant-reading-extension';
+import { joinRunText, messageText, readRunTranscript } from './assistant-run-transcript';
 import type { AssistantSessionStore } from './assistant-session-store';
 
 const context = BACKGROUND_CONTEXT;
@@ -279,7 +280,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     const message = entry?.model?.find(
       (item): item is AssistantMessage => item.role === 'assistant',
     );
-    const text = message ? answerText(message) : '';
+    const { text, steps } = await readRunTranscript(fork, answerId);
     const runKey = runKeyFor(articleId, forkId);
     if (!message || !text) {
       for (const [requestId, run] of answered)
@@ -298,6 +299,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
       content: text,
       createdAt: new Date().toISOString(),
       ...(first.readingIntent ? { readingIntent: first.readingIntent as AgentReadingIntent } : {}),
+      ...(steps.length > 0 ? { assistantProgress: { steps } } : {}),
     });
 
     const mainId = (await harness.snapshot(AgentConversationsDoc, context))?.conversations[
@@ -350,6 +352,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
       channel: first.channel,
       status: saved ? 'done' : 'failed',
       text,
+      steps,
       ...(saved ? { commentId } : { error: 'channel_deleted' }),
     });
     if (main && resolved) await compactWhenLarge(main, resolved);
@@ -381,6 +384,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
       channel: run.channel,
       status: 'failed',
       text: active.get(runKey)?.text ?? '',
+      steps: active.get(runKey)?.steps ?? [],
       error: reason,
     });
   }
@@ -388,22 +392,44 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
   async function watchProgress(harness: Harness, articleId: string, run: AssistantRunRecord) {
     const runKey = runKeyFor(articleId, run.forkId);
     if (watchers.has(runKey)) return;
+    const fork = await harness.conversation(run.forkId as ConversationId, context);
+    if (!fork) return;
     const state = await harness.documentState(LiveDoc, run.forkId as ConversationId, context);
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const emit = () => {
-      timer = undefined;
-      const live = state?.value;
-      const partial = live?.generation?.message as AssistantMessage | undefined;
-      const tool = live?.tools?.find((slot) => slot.status !== 'done');
+    let emitting = false;
+    let again = false;
+    const publishProgress = async () => {
+      const transcript = await readRunTranscript(fork);
+      if (!watchers.has(runKey)) return;
+      // Read after the entries: a partial committed meanwhile is gone from the live doc, not doubled.
+      const partial = state?.value?.generation?.message as AssistantMessage | undefined;
       publish({
         runKey,
         articleId,
         agentId: run.agentId,
         channel: run.channel,
         status: 'running',
-        text: partial ? answerText(partial) : (active.get(runKey)?.text ?? ''),
-        ...(tool ? { activeTool: tool.name } : {}),
+        text: joinRunText([transcript.text, partial ? messageText(partial) : '']),
+        steps: transcript.steps,
       });
+    };
+    // Reads are async, so overlapping emits collapse into one follow-up read.
+    const emit = () => {
+      timer = undefined;
+      if (emitting) {
+        again = true;
+        return;
+      }
+      emitting = true;
+      void (async () => {
+        do {
+          again = false;
+          await publishProgress().catch((error: unknown) => {
+            ports.logError('assistant_channel.progress_failed', error, { articleId, runKey });
+          });
+        } while (again);
+        emitting = false;
+      })();
     };
     const unsubscribe = state?.subscribe(() => {
       timer ??= setTimeout(emit, PROGRESS_INTERVAL_MS);
@@ -513,13 +539,6 @@ function agentChange(resolved: ResolvedChannelAgent): AgentChange {
 
 function runKeyFor(articleId: string, forkId: number) {
   return `${articleId}:${forkId}`;
-}
-
-function answerText(message: AssistantMessage) {
-  return message.content
-    .flatMap((part) => (part.type === 'text' ? [part.text] : []))
-    .join('')
-    .trim();
 }
 
 function anchorOffset(text: string, anchor: TextAnchor) {

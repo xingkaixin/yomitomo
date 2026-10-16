@@ -421,6 +421,7 @@ const readerChatStateShapeSchema = z.object({
               role: z.enum(['user', 'assistant']),
               content: boundedStringSchema,
               assistantId: idSchema.optional(),
+              assistantProgress: assistantProgressShapeSchema.optional(),
               context: z.record(z.string(), z.unknown()).optional(),
               createdAt: timestampSchema,
             }),

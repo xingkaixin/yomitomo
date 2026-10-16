@@ -118,6 +118,11 @@ SQLite schema 位于 `apps/desktop/src/main/db/schema.ts`；`articles`、`annota
 renderer 在 `apps/desktop/src/renderer/src/shell/app-assistant-runs.ts` 中把运行中的回复显示成占位，
 保存后的回复到达时撤掉占位。
 
+一次回复可能跨多条模型消息：先说明要查什么，调用阅读工具，再给出回答。`assistant-run-transcript.ts`
+从 fork 自己的 entries 中取出本轮全部文本和工具调用，运行中的占位和保存后的回复都使用拼接后的
+全文，前面的文本不会被后面的覆盖。工具调用只记录工具名和成败，写进回复的 `assistantProgress`，
+界面显示成步骤标签，不展开参数和结果。
+
 ### 回复现有 thread
 
 讨论窗口 `apps/desktop/src/renderer/src/annotation-discussion/app-annotation-discussion-window.tsx`
