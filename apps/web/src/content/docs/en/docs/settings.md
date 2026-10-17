@@ -44,8 +44,6 @@ Choose one default model for reading comprehension, in-depth review, and bilingu
 | In-Depth Review         | Evidence verification, logical audit, and copy polish|
 | Bilingual Translation   | Paragraph-level streaming translation and refresh    |
 
-The **Assistant Execution Mode** applies globally: **Fast Response** prioritizes low latency, whereas **Deep Verification** empowers assistants to employ tools and multi-step reasoning before answering.
-
 ## Language and Visual Customization
 
 - **Language**: Toggle between Simplified Chinese, English, and Japanese in Settings > General. UI text and assistant personas adapt instantly.
@@ -68,7 +66,7 @@ Open local data folders, inspect logs, and choose a complete backup or a databas
 - **Complete backup**: Creates a folder containing the database, original ebooks and PDFs, PDF thumbnails, and a file checksum manifest. Keep the entire folder when moving devices. Restore verifies the files and database, keeps a safety backup of current data, and rolls back if installing the backup fails.
 - **Database only**: Saves a SQLite file containing stored annotations, discussions, distillations, and settings. Original ebooks, PDFs, and thumbnails are excluded; keep source files separately.
 
-Complete backups exclude API keys and do not transfer App Lock. After restoring, configure model and WeRead keys again and enable App Lock if needed. Download local Reading Memory models again on the new device.
+Complete backups exclude API keys and do not transfer App Lock. After restoring, configure model and WeRead keys again and enable App Lock if needed. Download local Reading Memory models again on the new device. Assistant conversation memory is not backed up and is cleared when a database is restored; annotations, discussions, and Reader Q&A in the backup are restored as usual.
 
 ## Reading Memory Data Scope
 
