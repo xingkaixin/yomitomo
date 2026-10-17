@@ -5,6 +5,17 @@ sidebar:
   hidden: true
 ---
 
+## 0.16.5
+
+Released: 2026-10-17
+
+- Assistants keep a conversation memory per document and look up the source, Reading Memory, and discussions as needed, following reading progress in EPUBs.
+- Replies continue after a window closes and resume after restart; assistants reply in parallel and show their tool steps.
+- Cited passages and discussions in replies become clickable links; the fast/deep execution mode setting is removed.
+- Updated preset models and fixed thinking and temperature parameters for new models and scrolling in long model lists.
+
+[View 0.16.5 release notes](/en/changelogs/v0-16-5/)
+
 ## 0.16.4
 
 Released: 2026-10-13

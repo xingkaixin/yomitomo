@@ -1,0 +1,35 @@
+{
+  "version": "0.16.5",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "Assistants remember your conversations",
+      "description": "Within a document, assistants build on earlier discussions, thoughts, and Q&A, so you do not have to repeat context. They look up the source text, outline, and Reading Memory on their own when needed.",
+      "audience": "reader"
+    },
+    {
+      "type": "new",
+      "title": "Replies continue after you close the window",
+      "description": "Discussion replies and Reader Q&A keep running in the background and finish after a restart. Assistants mentioned together reply in parallel and show steps such as reading the source text.",
+      "audience": "reader"
+    },
+    {
+      "type": "new",
+      "title": "Jump from a citation to the source",
+      "description": "Passages and discussions cited in replies become links. One click moves the reader to the source text or opens that discussion, so checking evidence takes less effort.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "Highlights open their whole chapter",
+      "description": "In EPUBs, a request from a highlight lets the assistant read the whole chapter. Questions without a selection stop at your reading progress, so later chapters are not spoiled.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "Correct parameters for new models",
+      "description": "Preset models now match current releases, and models such as Claude 5, Gemini 3.8, and GPT-6 receive the right thinking and temperature parameters. The assistant execution mode setting is removed.",
+      "audience": "settings"
+    }
+  ]
+}
