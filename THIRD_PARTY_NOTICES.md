@@ -50,20 +50,19 @@ Bundled font notices are discovered from:
 
 | License | Packages |
 | --- | ---: |
-| (AFL-2.1 OR BSD-3-Clause) | 1 |
 | (MIT AND Zlib) | 1 |
 | (MIT OR CC0-1.0) | 1 |
 | (MIT OR GPL-3.0-or-later) | 1 |
 | (MPL-2.0 OR Apache-2.0) | 1 |
 | 0BSD | 1 |
-| Apache-2.0 | 57 |
+| Apache-2.0 | 47 |
 | BlueOak-1.0.0 | 2 |
 | BSD-2-Clause | 9 |
 | BSD-3-Clause | 18 |
 | CC0-1.0 | 1 |
 | ISC | 21 |
 | LGPL-3.0-or-later | 1 |
-| MIT | 223 |
+| MIT | 222 |
 | MIT AND ISC | 1 |
 | MIT-0 | 2 |
 | OFL-1.1 | 11 |
@@ -74,13 +73,6 @@ Bundled font notices are discovered from:
 
 | Package | Versions | License | Homepage |
 | --- | --- | --- | --- |
-| @ai-sdk/anthropic | 4.0.78 | Apache-2.0 | [link](https://ai-sdk.dev/docs) |
-| @ai-sdk/gateway | 4.0.110 | Apache-2.0 | [link](https://ai-sdk.dev/docs) |
-| @ai-sdk/google | 4.0.93 | Apache-2.0 | [link](https://ai-sdk.dev/docs) |
-| @ai-sdk/openai | 4.0.91 | Apache-2.0 | [link](https://ai-sdk.dev/docs) |
-| @ai-sdk/openai-compatible | 3.0.67 | Apache-2.0 | [link](https://ai-sdk.dev/docs) |
-| @ai-sdk/provider | 4.0.26 | Apache-2.0 | [link](https://ai-sdk.dev/docs) |
-| @ai-sdk/provider-utils | 5.0.58 | Apache-2.0 | [link](https://ai-sdk.dev/docs) |
 | @anthropic-ai/sdk | 0.129.0 | MIT | [link](https://github.com/anthropics/anthropic-sdk-typescript#readme) |
 | @asamuzakjp/css-color | 7.1.4 | MIT | [link](https://github.com/asamuzaK/cssColor#readme) |
 | @asamuzakjp/dom-selector | 9.2.4 | MIT | [link](https://github.com/asamuzaK/domSelector#readme) |
@@ -196,7 +188,6 @@ Bundled font notices are discovered from:
 | @standard-schema/spec | 1.1.0 | MIT | [link](https://standardschema.dev) |
 | @standard-schema/utils | 0.3.0 | MIT | [link](https://github.com/standard-schema/standard-schema#readme) |
 | @sveltejs/acorn-typescript | 1.0.10 | MIT | [link](https://github.com/sveltejs/acorn-typescript#readme) |
-| @vercel/oidc | 3.2.0 | Apache-2.0 | [link](https://vercel.com) |
 | @vue/compiler-core | 3.5.34 | MIT | [link](https://github.com/vuejs/core/tree/main/packages/compiler-core#readme) |
 | @vue/compiler-dom | 3.5.34 | MIT | [link](https://github.com/vuejs/core/tree/main/packages/compiler-dom#readme) |
 | @vue/compiler-sfc | 3.5.34 | MIT | [link](https://github.com/vuejs/core/tree/main/packages/compiler-sfc#readme) |
@@ -206,12 +197,10 @@ Bundled font notices are discovered from:
 | @vue/runtime-dom | 3.5.34 | MIT | [link](https://github.com/vuejs/core/tree/main/packages/runtime-dom#readme) |
 | @vue/server-renderer | 3.5.34 | MIT | [link](https://github.com/vuejs/core/tree/main/packages/server-renderer#readme) |
 | @vue/shared | 3.5.34 | MIT | [link](https://github.com/vuejs/core/tree/main/packages/shared#readme) |
-| @workflow/serde | 4.1.0 | Apache-2.0 | [link](https://github.com/vercel/workflow#readme) |
 | @xmldom/xmldom | 0.9.12 | MIT | [link](https://github.com/xmldom/xmldom) |
 | acorn | 8.18.0 | MIT | [link](https://github.com/acornjs/acorn) |
 | adm-zip | 0.6.1 | MIT | [link](https://github.com/cthackers/adm-zip) |
 | agent-base | 7.1.4, 9.0.0 | MIT | [link](https://github.com/TooTallNate/proxy-agents#readme) |
-| ai | 7.0.137 | Apache-2.0 | [link](https://ai-sdk.dev/docs) |
 | argparse | 2.0.1 | Python-2.0 | [link](https://github.com/nodeca/argparse#readme) |
 | aria-query | 5.3.1 | Apache-2.0 | [link](https://github.com/A11yance/aria-query#readme) |
 | axobject-query | 4.1.0 | Apache-2.0 | [link](https://github.com/A11yance/axobject-query#readme) |
@@ -278,7 +267,6 @@ Bundled font notices are discovered from:
 | esrap | 2.2.12 | MIT | [link](https://github.com/sveltejs/esrap#readme) |
 | estree-walker | 2.0.2 | MIT | [link](https://github.com/Rich-Harris/estree-walker#readme) |
 | eventemitter3 | 5.0.4 | MIT | [link](https://github.com/primus/eventemitter3#readme) |
-| eventsource-parser | 3.1.1 | MIT | [link](https://github.com/rexxars/eventsource-parser#readme) |
 | extend | 3.0.2 | MIT | [link](https://github.com/justmoon/node-extend#readme) |
 | fast-sha256 | 1.3.0 | Unlicense | [link](https://github.com/dchest/fast-sha256-js#readme) |
 | fetch-blob | 3.2.0 | MIT | [link](https://github.com/node-fetch/fetch-blob#readme) |
@@ -318,7 +306,6 @@ Bundled font notices are discovered from:
 | js-yaml | 4.3.2 | MIT | [link](https://github.com/nodeca/js-yaml#readme) |
 | jsdom | 30.1.2 | MIT | [link](https://github.com/jsdom/jsdom#readme) |
 | json-bigint | 1.0.0 | MIT | [link](https://github.com/sidorares/json-bigint#readme) |
-| json-schema | 0.4.0 | (AFL-2.1 OR BSD-3-Clause) | [link](https://github.com/kriszyp/json-schema#readme) |
 | json-schema-to-ts | 3.1.1 | MIT | [link](https://github.com/ThomasAribart/json-schema-to-ts#readme) |
 | json-stringify-safe | 5.0.1 | ISC | [link](https://github.com/isaacs/json-stringify-safe) |
 | jsonfile | 6.2.1 | MIT | [link](https://github.com/jprichardson/node-jsonfile#readme) |
@@ -412,7 +399,7 @@ Bundled font notices are discovered from:
 | type-fest | 0.13.1 | (MIT OR CC0-1.0) | [link](https://github.com/sindresorhus/type-fest#readme) |
 | typebox | 1.3.27 | MIT | [link](https://github.com/sinclairzx81/typebox#readme) |
 | uhyphen | 0.2.0 | ISC | [link](https://github.com/WebReflection/uhyphen#readme) |
-| undici | 7.30.0, 8.11.2 | MIT | [link](https://undici.nodejs.org) |
+| undici | 8.11.2 | MIT | [link](https://undici.nodejs.org) |
 | universalify | 2.0.1 | MIT | [link](https://github.com/RyanZim/universalify#readme) |
 | use-sync-external-store | 1.6.0, 1.7.0 | MIT | [link](https://github.com/react/react#readme) |
 | util-deprecate | 1.0.2 | MIT | [link](https://github.com/TooTallNate/util-deprecate) |
