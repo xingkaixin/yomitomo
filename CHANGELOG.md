@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.16.5 - 2026-10-17
+
+### Features
+
+- Assistants now keep a conversation memory for each document, so thread replies, highlight thoughts, and Reader Q&A build on earlier exchanges. They look up the outline, chapters, full-text search, Reading Memory, and discussion threads as needed. In EPUBs, a highlight opens its whole chapter, and questions without a selection stop at reading progress. (#971)
+- Assistant replies keep running after a window closes and resume after restart, and assistants mentioned together reply in parallel. Text written before tool calls is kept, and each tool step is shown in discussions and Reader Q&A. The fast/deep execution mode setting is removed. (#971)
+- Turned passages and discussions cited in replies into underlined links that move the reader to the passage or open the discussion. (#971)
+- Distillation review continues the reviewer's conversation for the document, and the model can correct invalid review items instead of failing the review. (#972)
+- Updated preset models to current releases, removed retired model IDs, and reorganized the local Reading Memory settings card. (#972)
+
+### Fixes
+
+- Applied thinking and temperature settings per model from the pi-ai catalog, so models such as Claude 5, Gemini 3.8, and GPT-6 no longer receive parameters they reject; temperature applies only when thinking is off. (#972)
+- Made long provider model lists scroll instead of squeezing rows and clipping the footer. (#972)
+
+### Engineering
+
+- Moved assistant replies, distillation review, translation, reading judgment, mention routing, and connection tests onto pi-ai and pi-durable, removing the AI SDK tool-loop runtime and the legacy comment stream. (#971, #972)
+- Removed unused annotation generation, agent review, reading context, and memory view code. (#972, #973)
+
 ## 0.16.4 - 2026-10-13
 
 ### Fixes
