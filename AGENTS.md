@@ -1,35 +1,18 @@
 # AGENTS.md
 
-面向本仓库内开发代理的工作说明。默认作用域为整个 `yomitomo` workspace。
+修改 `apps/desktop` 前同时遵循 `apps/desktop/AGENTS.md`。
 
-## 技术与事实来源
+## 技术约束
 
-- 包管理器使用 `pnpm@12`，workspace 由 `pnpm-workspace.yaml` 定义，构建由 Turbo 编排。
-- 依赖版本和 package scripts 以根目录及各 workspace 的 `package.json` 为准，工具链版本以 `mise.toml` 为准。
-- 多个 workspace 共用的依赖版本集中在 `pnpm-workspace.yaml` 的 `catalog` 中，各 `package.json` 使用 `catalog:` 引用。升级共用依赖时修改 catalog；`apps/web` 的 TypeScript 6 单独声明，`apps/desktop/electron-native` 保持独立安装配置。
-- 项目使用 TypeScript 和 ESM。除 `@yomitomo/web` 外统一使用 TypeScript 7；`apps/web` 保持 TypeScript 6，供 Astro 与 `@astrojs/check` 使用。不要在没有明确迁移任务时统一这两个版本。
-- 桌面端使用 Electron、electron-vite、React、Vite 和 Tailwind CSS；官网使用 Astro、React、Vite 和 Tailwind CSS；下载与匿名遥测服务使用 Cloudflare Workers，开发与部署通过系统全局 cf CLI 调用。
-- 测试使用 Vitest，lint 使用 oxlint，format 使用 oxfmt。
-
-## Workspace 结构
-
-- `apps/desktop`：Electron 桌面端，包含 main、preload、renderer。修改该目录前同时遵循 `apps/desktop/AGENTS.md`。
-- `apps/web`：Astro 产品官网，包含 landing page、下载入口、SEO 和产品静态图。
-- `apps/download`：Cloudflare Worker 下载服务，处理安装包下载入口和跳转。
-- `apps/telemetry`：Cloudflare Worker 匿名遥测服务，接收桌面端 daily heartbeat 并写入 Analytics Engine。
-- `packages/shared`：共享类型、ID/哈希工具、文本锚定逻辑、PDF 和微信读书协议类型。
-- `packages/core`：业务核心逻辑，包括批注、评论、阅读统计、EPUB/PDF 索引和阅读器 DOM 纯逻辑。
-- `packages/ai`：LLM provider 调用（pi-ai）、单次生成运行时、模型输入预算、助手与沉淀审阅提示词、翻译和阅读记忆判断。
-- `packages/reader-ui`：桌面阅读器 React UI、样式、工具和助手批注队列。
-- `dist/**`：各应用构建产物。
-
-Workspace 包使用 `@yomitomo/*` 命名。跨包引用基础类型和底层纯函数时使用 `@yomitomo/shared`，业务逻辑使用 `@yomitomo/core`，AI provider 和生成链路使用 `@yomitomo/ai`，阅读器界面复用使用 `@yomitomo/reader-ui`。库 package 从自己的 `src/index.ts` 或 `package.json#exports` 暴露公共 API。
+- 多个 workspace 共用的依赖版本集中在 `pnpm-workspace.yaml` 的 `catalog`，各 `package.json` 使用 `catalog:` 引用；升级共用依赖时修改 catalog。`apps/desktop/electron-native` 保持独立安装配置。
+- 除 `@yomitomo/web` 外统一使用 TypeScript 7；`apps/web` 单独声明 TypeScript 6，供 Astro 与 `@astrojs/check` 使用。没有明确迁移任务时不要统一这两个版本。
+- Cloudflare Workers 和官网的开发与部署通过系统全局 `cf` CLI 调用，它不在 workspace 依赖中。
 
 ## 文档
 
 动手前先读与任务相关的文档。改动目标、边界或流程时，在同一 PR 更新对应文档；文档与代码不一致时，核实后修正文档。
 
-- 方向与架构：`docs/product.md`（目标、非目标、取舍原则、隐私边界）、`docs/architecture.md`（模块边界、依赖方向、关键决策）、`CONTEXT.md`（领域术语）。
+- 方向与架构：`docs/product.md`（目标、非目标、取舍原则、隐私边界）、`docs/architecture.md`（运行单元、包归属与依赖方向、关键决策）、`CONTEXT.md`（领域术语）。
 - 子系统设计：`docs/annotation-data-flow.md`、`docs/effect-v4-runtime.md`、`docs/ui-primitives.md`、`docs/desktop-style-ownership.md`、`docs/reading-memory-model-evaluation.md`。
 - 发布与运维：`docs/release-guide.md`、`docs/reading-memory-release.md`、`docs/reading-memory-model-distribution.md`、`docs/web-performance.md`、`docs/web-backgrounds.md`。
 
@@ -37,13 +20,9 @@ Workspace 包使用 `@yomitomo/*` 命名。跨包引用基础类型和底层纯�
 
 ## 命令与门禁
 
-- 从根目录运行 workspace 级任务；需要缩小范围时使用 `pnpm --filter <package> <script>`。
-- 根目录和各 package 的可用命令以对应 `package.json` 为准。
-- 本地快速循环使用 `mise run check:fast`；提交前优先运行 `mise run check`。
+本地快速循环使用 `mise run check:fast`。推送 PR 分支前至少运行 `pnpm format:check`；会触发完整 CI 的改动在推送前运行 `mise run check`。
 
-`mise run check` 是 canonical 门禁，CI 调用同一顺序。`pnpm gate:check` 会校验下面的命令块与 `mise.toml`、CI 是否一致。
-
-如果本机未安装 mise，可直接运行等价命令：
+`mise run check` 是 canonical 门禁，CI 按同一顺序执行。未安装 mise 时运行下面的等价命令，`pnpm gate:check` 会校验它与 `mise.toml`、CI 一致：
 
 <!-- gate:check -->
 ```bash
@@ -59,9 +38,7 @@ pnpm build
 pnpm test:app:e2e:from-dist
 ```
 
-无图形环境的 Linux 通过 `xvfb-run -a mise run check` 运行完整门禁；macOS 和已有图形会话的 Linux 可直接运行 `mise run check`。
-
-推送 PR 分支前至少运行 `pnpm format:check`。会触发完整 CI 的改动优先在推送前运行 `mise run check` 或上述等价命令。
+无图形环境的 Linux 通过 `xvfb-run -a mise run check` 运行完整门禁。
 
 ## 测试取舍
 
@@ -71,7 +48,4 @@ pnpm test:app:e2e:from-dist
 
 ## 仓库约束
 
-- `.issues/` 是本地 issue 跟踪数据，不得加入 Git。即使任务要求创建或更新 issue，也不要使用 `git add -f .issues/...`；提交前确认 staged files 不包含 `.issues/`。
-- 官网页面、产品图、SEO 和下载链接放在 `apps/web/src` 与 `apps/web/public`。下载链接从 `apps/desktop/package.json` 的版本号生成。
-- `pnpm dev` 通过 workspace 源码消费 `@yomitomo/shared`、`@yomitomo/core`、`@yomitomo/ai` 和 `@yomitomo/reader-ui`；改动这些包后，桌面端 Vite watch 链路会重新构建相关代码。
-- 修改 workspace 包名或依赖后更新 `pnpm-lock.yaml`；需要只更新 lockfile 时运行 `pnpm install --lockfile-only`。
+- `.issues/` 是本地 issue 数据，不进 Git。不要使用 `git add -f .issues/...`；提交前确认 staged files 不包含 `.issues/`。
