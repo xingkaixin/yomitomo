@@ -165,7 +165,7 @@ pnpm build
 
 - `packages/shared` 放共享类型、provider preset、agent preset、ID/哈希、文本锚定、PDF 和微信读书协议类型。
 - `packages/core` 放批注、评论、阅读统计、EPUB/PDF 索引和阅读器 DOM 相关纯逻辑。
-- `packages/ai` 放 provider 调用、模型输入预算、AI 批注和 EPUB/PDF 阅读上下文。
+- `packages/ai` 放 pi-ai provider 调用、单次生成运行时、模型输入预算、助手与沉淀审阅提示词、翻译和阅读记忆判断。
 - `packages/reader-ui` 放桌面阅读器 React UI、样式、工具和 hooks。
 - `apps/desktop/src/main` 放 Electron 主进程、SQLite store、LLM 调用、文章/电子书/PDF 导入、微信读书同步和日志。
 - `apps/desktop/src/renderer/src/reading-library`、`apps/desktop/src/renderer/src/reading-stats`、`apps/desktop/src/renderer/src/settings`、`apps/desktop/src/renderer/src/shell` 和 `apps/desktop/src/renderer/src/source` 分别放桌面端阅读库、统计、设置、应用外壳/日志 UI，以及 Web/EPUB/PDF 阅读器界面。

@@ -164,7 +164,7 @@ pnpm build
 
 - `packages/shared` contains shared types, provider presets, agent presets, IDs/hashes, text anchoring, PDF, and WeRead protocol types.
 - `packages/core` contains pure logic for annotations, comments, reading statistics, EPUB/PDF indexing, and reader DOM behavior.
-- `packages/ai` contains provider calls, model input budgeting, AI annotations, and EPUB/PDF reading context.
+- `packages/ai` contains pi-ai provider calls, the single-shot generation runtime, model input budgeting, assistant and distillation review prompts, translation, and reading memory judgment.
 - `packages/reader-ui` contains the desktop reader React UI, styles, utilities, and hooks.
 - `apps/desktop/src/main` contains the Electron main process, SQLite store, LLM calls, article/ebook/PDF import, WeRead sync, and logging.
 - `apps/desktop/src/renderer/src/reading-library`, `apps/desktop/src/renderer/src/reading-stats`, `apps/desktop/src/renderer/src/settings`, `apps/desktop/src/renderer/src/shell`, and `apps/desktop/src/renderer/src/source` contain the desktop library, statistics, settings, application shell/log UI, and Web/EPUB/PDF reader surfaces.
