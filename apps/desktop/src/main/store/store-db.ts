@@ -267,7 +267,9 @@ async function installDatabaseReplacement(
     }
     await files?.rollback().catch((rollbackError) => failures.push(rollbackError));
     if (failures.length > 1) {
-      throw new AggregateError(failures, 'DATA_MANAGEMENT_RESTORE_ROLLBACK_FAILED');
+      throw new AggregateError(failures, 'DATA_MANAGEMENT_RESTORE_ROLLBACK_FAILED', {
+        cause: error,
+      });
     }
     throw error;
   }

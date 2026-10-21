@@ -79,7 +79,7 @@ export function createReadingMemorySemanticIndex(
     document: null,
   };
   const queries = new Set<AbortController>();
-  const scope = Scope.makeUnsafe();
+  const fiberScope = Scope.makeUnsafe();
   let mode: 'running' | 'suspended' | 'disposed' = 'running';
   let indexingPaused = false;
   let indexingFailed = false;
@@ -291,9 +291,13 @@ export function createReadingMemorySemanticIndex(
     );
     // A positive delay keeps continuation on the timer turn, matching Node's setTimeout(0).
     fiber = Effect.runSync(
-      Effect.forkIn(Effect.sleep(Math.max(1, delayMs)).pipe(Effect.flatMap(() => pass)), scope, {
-        startImmediately: true,
-      }),
+      Effect.forkIn(
+        Effect.sleep(Math.max(1, delayMs)).pipe(Effect.flatMap(() => pass)),
+        fiberScope,
+        {
+          startImmediately: true,
+        },
+      ),
     );
     scheduled = fiber;
   };
@@ -415,7 +419,7 @@ export function createReadingMemorySemanticIndex(
       options.modelLifecycle.dispose();
       options.previousModelLifecycle?.dispose();
       disposePromise = maintain(async () => {
-        await Effect.runPromise(Scope.close(scope, Exit.void));
+        await Effect.runPromise(Scope.close(fiberScope, Exit.void));
       });
       return disposePromise;
     },
