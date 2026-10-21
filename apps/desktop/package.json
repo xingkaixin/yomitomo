@@ -75,7 +75,7 @@
     "date-fns": "^4.4.0",
     "drizzle-kit": "^0.31.11",
     "drizzle-orm": "^0.45.4",
-    "electron": "^44.7.0",
+    "electron": "^44.9.2",
     "electron-builder": "^26.17.0",
     "electron-builder-squirrel-windows": "^26.17.0",
     "electron-updater": "^6.8.9",
