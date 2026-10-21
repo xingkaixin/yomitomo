@@ -1,6 +1,6 @@
 {
   "name": "@yomitomo/desktop",
-  "version": "0.16.5",
+  "version": "0.16.6",
   "private": true,
   "type": "module",
   "main": "dist/main/index.js",
