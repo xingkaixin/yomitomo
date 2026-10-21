@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.16.6 - 2026-10-21
+
+### Fixes
+
+- Upgraded Electron to 44.9.2 so the app no longer trusts the eMudhra intermediate certificate authorities whose private keys were compromised. Attackers holding those keys can no longer impersonate HTTPS services the app connects to, such as AI providers, WeRead sync, and the Windows update feed. (#976)
+
 ## 0.16.5 - 2026-10-17
 
 ### Features

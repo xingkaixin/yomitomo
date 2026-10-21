@@ -1,0 +1,11 @@
+{
+  "version": "0.16.6",
+  "highlights": [
+    {
+      "type": "fixed",
+      "title": "网络连接更安全",
+      "description": "eMudhra 旗下部分证书颁发机构的私钥已泄露，本版不再信任这些证书。在公共 Wi-Fi 等网络中，他人无法借此冒充 AI 服务商、微信读书或 Windows 更新服务，窃取你的 API Key 和账号凭据。",
+      "audience": "settings"
+    }
+  ]
+}

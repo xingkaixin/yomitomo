@@ -5,6 +5,14 @@ sidebar:
   hidden: true
 ---
 
+## 0.16.6
+
+Released: 2026-10-21
+
+- Upgraded Electron to 44.9.2 to stop trusting compromised eMudhra intermediate certificates, preventing impersonation of AI providers, WeRead sync, and the Windows update feed.
+
+[View 0.16.6 release notes](/en/changelogs/v0-16-6/)
+
 ## 0.16.5
 
 Released: 2026-10-17
