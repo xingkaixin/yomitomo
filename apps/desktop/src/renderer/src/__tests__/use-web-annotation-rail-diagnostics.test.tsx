@@ -184,7 +184,7 @@ function rect(values: Partial<DOMRect>): DOMRect {
     right: left + width,
     bottom: top + height,
     toJSON: () => ({}),
-  } as DOMRect;
+  };
 }
 
 class MockResizeObserver {

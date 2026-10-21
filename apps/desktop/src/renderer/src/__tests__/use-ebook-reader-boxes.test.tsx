@@ -421,18 +421,17 @@ function foliateDocument(
 ) {
   const frame = document.createElement('iframe');
   document.body.append(frame);
-  frame.getBoundingClientRect = () =>
-    ({
-      bottom: 1000,
-      height: 1000,
-      left: rect.left,
-      right: rect.left + rect.width,
-      top: 0,
-      width: rect.width,
-      x: rect.left,
-      y: 0,
-      toJSON: () => ({}),
-    }) as DOMRect;
+  frame.getBoundingClientRect = () => ({
+    bottom: 1000,
+    height: 1000,
+    left: rect.left,
+    right: rect.left + rect.width,
+    top: 0,
+    width: rect.width,
+    x: rect.left,
+    y: 0,
+    toJSON: () => ({}),
+  });
   const doc = frame.contentDocument!;
   doc.body.textContent = text;
   return doc;
@@ -466,18 +465,17 @@ function foliateView(
   };
   renderer.getContents = () => contents;
   const view = document.createElement('div');
-  view.getBoundingClientRect = () =>
-    ({
-      bottom: 1000,
-      height: 1000,
-      left: rect.left,
-      right: rect.left + rect.width,
-      top: 0,
-      width: rect.width,
-      x: rect.left,
-      y: 0,
-      toJSON: () => ({}),
-    }) as DOMRect;
+  view.getBoundingClientRect = () => ({
+    bottom: 1000,
+    height: 1000,
+    left: rect.left,
+    right: rect.left + rect.width,
+    top: 0,
+    width: rect.width,
+    x: rect.left,
+    y: 0,
+    toJSON: () => ({}),
+  });
   return Object.assign(view, {
     renderer,
     getPageInfo: () => ({ sectionIndex: 0, pageIndex: 0, pageCount: 1 }),

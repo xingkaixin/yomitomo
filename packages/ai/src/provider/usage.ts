@@ -25,5 +25,5 @@ function compactUsage(usage: NormalizedAiUsage): NormalizedAiUsage {
     Object.entries(usage).filter(
       ([, value]) => typeof value === 'number' && Number.isFinite(value),
     ),
-  ) as NormalizedAiUsage;
+  );
 }

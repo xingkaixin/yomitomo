@@ -155,6 +155,7 @@ describe('useWebBilingualTranslation', () => {
         ...cached,
         status: 'failed',
         error: 'TRANSLATION_INCOMPLETE',
+        // oxlint-disable-next-line oxc/no-map-spread -- Copying keeps the fixture immutable; the cost is irrelevant in a test.
         segments: cached.segments.map((segment) => ({
           ...segment,
           status: 'failed',

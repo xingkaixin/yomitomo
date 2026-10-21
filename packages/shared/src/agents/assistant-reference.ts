@@ -18,5 +18,5 @@ export function parseAssistantReference(href: string): AssistantReference | unde
     return end > start ? { kind: 'passage', start, end } : undefined;
   }
   const discussion = /^#discussion:([\w-]+)$/.exec(href);
-  return discussion ? { kind: 'discussion', annotationId: discussion[1]! } : undefined;
+  return discussion ? { kind: 'discussion', annotationId: discussion[1] } : undefined;
 }

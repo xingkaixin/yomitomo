@@ -2,7 +2,7 @@
 
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ArticleSummaryRecord, DesktopStore } from '@yomitomo/shared';
+import type { ArticleSummaryRecord } from '@yomitomo/shared';
 import type { AppMenuCommand } from '../../../app-menu-types';
 import { appNavigationReducer, useAppSession, type AppSessionInput } from './app-session';
 
@@ -11,9 +11,7 @@ const desktopApi = vi.hoisted(() => ({
   checkUpdates: vi.fn(async () => undefined),
   menuCommandListeners: new Set<(command: AppMenuCommand) => void>(),
   readStatsSummaries: vi.fn(async () => [] as ArticleSummaryRecord[]),
-  restoreDatabase: vi.fn(
-    async () => ({ canceled: true }) as { canceled: boolean; store?: unknown },
-  ),
+  restoreDatabase: vi.fn(async () => ({ canceled: true })),
   showMainWindow: vi.fn(),
 }));
 
@@ -255,7 +253,7 @@ function renderSession(overrides: Partial<AppSessionInput> = {}) {
 function sessionInput(overrides: Partial<AppSessionInput>): AppSessionInput {
   return {
     appLocked: false,
-    applyStore: vi.fn() as unknown as (store: DesktopStore) => void,
+    applyStore: vi.fn(),
     articles: [],
     developerModeEnabled: false,
     onboardingCompletedAt: '2026-06-29T00:00:00.000Z',

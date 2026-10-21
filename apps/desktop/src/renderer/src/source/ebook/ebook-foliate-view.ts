@@ -361,12 +361,8 @@ function sumKnownPageCounts(counts: Array<number | null>) {
 
 export function waitForFoliateIdle() {
   return new Promise<void>((resolve) => {
-    const idleWindow = window as Window &
-      typeof globalThis & {
-        requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
-      };
-    if (idleWindow.requestIdleCallback) {
-      idleWindow.requestIdleCallback(() => resolve(), { timeout: 250 });
+    if (window.requestIdleCallback) {
+      window.requestIdleCallback(() => resolve(), { timeout: 250 });
       return;
     }
 

@@ -153,7 +153,7 @@ describe('WeReadSettingsPanel', () => {
       });
 
       expect(
-        (screen.getByRole('button', { name: '删除已保存 Key' }) as HTMLButtonElement).disabled,
+        screen.getByRole<HTMLButtonElement>('button', { name: '删除已保存 Key' }).disabled,
       ).toBe(false);
       expect(input.value).toBe(draft === 'edited' ? 'test-key-b' : '');
       expect(
@@ -196,13 +196,11 @@ describe('WeReadSettingsPanel', () => {
       await removing.promise;
     });
 
-    expect(
-      (screen.getByRole('button', { name: '删除已保存 Key' }) as HTMLButtonElement).disabled,
-    ).toBe(true);
-    expect(input.value).toBe('test-key-next');
-    expect((screen.getByRole('button', { name: '保存' }) as HTMLButtonElement).disabled).toBe(
-      false,
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: '删除已保存 Key' }).disabled).toBe(
+      true,
     );
+    expect(input.value).toBe('test-key-next');
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: '保存' }).disabled).toBe(false);
   });
 
   it('retains the draft and unconfigured state after a failed credential save', async () => {
@@ -227,9 +225,9 @@ describe('WeReadSettingsPanel', () => {
 
     expect(await screen.findByText('保存失败：keyring unavailable')).toBeTruthy();
     expect(input.value).toBe('test-key');
-    expect(
-      (screen.getByRole('button', { name: '删除已保存 Key' }) as HTMLButtonElement).disabled,
-    ).toBe(true);
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: '删除已保存 Key' }).disabled).toBe(
+      true,
+    );
   });
 
   it('saves the WeRead sync mode independently', async () => {

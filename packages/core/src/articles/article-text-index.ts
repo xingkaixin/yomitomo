@@ -63,7 +63,7 @@ export function createArticleTextIndex(
     const result: ArticleTextBlock[] = [];
     let chars = 0;
     for (let cursor = index; cursor < blocks.length; cursor++) {
-      const block = blocks[cursor]!;
+      const block = blocks[cursor];
       if (!limit(block)) return { blocks: result };
       if (result.length > 0 && chars + block.text.length > maxChars) {
         return { blocks: result, nextBlockId: block.id };
@@ -109,7 +109,7 @@ export function createArticleTextIndex(
       if (center < 0) return { blocks: [] };
       let first = center;
       let last = center;
-      let chars = blocks[center]!.text.length;
+      let chars = blocks[center].text.length;
       while (chars < maxChars && (first > 0 || last < blocks.length - 1)) {
         const before = blocks[first - 1];
         const after = blocks[last + 1];

@@ -87,7 +87,7 @@ function piModel(provider: LlmProvider, providerId: string): Model<Api> {
     thinkingLevelMap: known.thinkingLevelMap,
     contextWindow: known.contextWindow,
     ...(known.api === model.api && { compat: { ...model.compat, ...known.compat } }),
-  } as Model<Api>;
+  };
 }
 
 function catalogModel(provider: LlmProvider): Model<Api> | undefined {

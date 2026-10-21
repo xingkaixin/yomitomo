@@ -13,7 +13,7 @@ function anchor(overrides: Partial<Annotation['anchor']> = {}): Annotation['anch
     start: 2,
     end: 6,
     ...overrides,
-  } as Annotation['anchor'];
+  };
 }
 
 describe('web selection adjustment', () => {
