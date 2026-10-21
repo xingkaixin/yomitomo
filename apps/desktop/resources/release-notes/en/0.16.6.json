@@ -1,0 +1,11 @@
+{
+  "version": "0.16.6",
+  "highlights": [
+    {
+      "type": "fixed",
+      "title": "Safer network connections",
+      "description": "Private keys for several eMudhra certificate authorities were compromised, and the app no longer trusts them. On networks such as public Wi-Fi, no one can use them to impersonate AI providers, WeRead, or the Windows update service and capture your API keys or account credentials.",
+      "audience": "settings"
+    }
+  ]
+}

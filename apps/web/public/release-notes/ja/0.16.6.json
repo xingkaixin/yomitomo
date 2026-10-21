@@ -1,0 +1,11 @@
+{
+  "version": "0.16.6",
+  "highlights": [
+    {
+      "type": "fixed",
+      "title": "ネットワーク接続をより安全に",
+      "description": "eMudhra の一部の認証局で秘密鍵が漏洩したため、アプリはこれらを信頼しなくなりました。公衆 Wi-Fi などのネットワークでも、これらを悪用して AI プロバイダー、WeRead、Windows の更新サービスになりすまし、API キーやアカウント情報を盗むことはできません。",
+      "audience": "settings"
+    }
+  ]
+}
