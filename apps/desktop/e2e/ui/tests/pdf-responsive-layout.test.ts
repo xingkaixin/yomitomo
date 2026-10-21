@@ -227,7 +227,6 @@ async function waitForPdfLayoutQuiet(page: Page, label: string): Promise<PdfLayo
 
 async function readPdfLayoutSnapshot(page: Page): Promise<PdfLayoutSnapshot> {
   return page.evaluate(() => {
-    // oxlint-disable-next-line unicorn/consistent-function-scoping -- Playwright serializes this callback into the browser context.
     function requiredBox(element: Element | null, label: string) {
       if (!element) throw new Error(`PDF_LAYOUT_BOX_UNAVAILABLE:${label}`);
       const box = element.getBoundingClientRect();
