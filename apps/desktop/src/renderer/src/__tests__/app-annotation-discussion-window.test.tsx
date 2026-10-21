@@ -714,14 +714,14 @@ describe('AnnotationDiscussionWindowApp', () => {
     const [zhouRequest, linRequest] = desktop.deliver.mock.calls.map(
       (call) => call[0] as AssistantDeliveryRequest,
     );
-    desktop.emitRun(runEvent(zhouRequest!, 'run_agent_1', { text: '第一份草稿' }));
-    desktop.emitRun(runEvent(linRequest!, 'run_agent_2', { text: '第二份草稿' }));
+    desktop.emitRun(runEvent(zhouRequest, 'run_agent_1', { text: '第一份草稿' }));
+    desktop.emitRun(runEvent(linRequest, 'run_agent_2', { text: '第二份草稿' }));
 
     expect(await screen.findByText('第一份草稿')).toBeTruthy();
     expect(screen.getByText('第二份草稿')).toBeTruthy();
     expect(document.querySelectorAll('.annotation-discussion-message.is-pending')).toHaveLength(2);
 
-    desktop.emitRun(runEvent(zhouRequest!, 'run_agent_1', { status: 'failed', text: '' }));
+    desktop.emitRun(runEvent(zhouRequest, 'run_agent_1', { status: 'failed', text: '' }));
 
     await waitFor(() => expect(screen.queryByText('第一份草稿')).toBeNull());
     expect(screen.getByText('第二份草稿')).toBeTruthy();
@@ -1142,7 +1142,7 @@ class MockResizeObserver {
           contentRect: { width },
         } as ResizeObserverEntry,
       ],
-      this as unknown as ResizeObserver,
+      this,
     );
   }
 }

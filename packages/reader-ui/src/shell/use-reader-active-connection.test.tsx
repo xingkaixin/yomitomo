@@ -31,7 +31,7 @@ function rect(left: number, top: number, width: number, height: number): DOMRect
     x: left,
     y: top,
     toJSON: () => ({}),
-  } as DOMRect;
+  };
 }
 
 function mockRect(element: Element, value: DOMRect) {

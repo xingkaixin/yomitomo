@@ -172,6 +172,7 @@ async function extractWithDefuddle(
   pageUrl: string,
 ): Promise<ExtractedArticle | null> {
   try {
+    // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- tsgolint resolves this import as any; tsc sees the typed module, which lacks the publishedAt/date fields read below.
     const { default: Defuddle } = (await import('defuddle')) as { default: any };
     const cloned = cloneArticleDocument(articleDocument);
     const result = await new Defuddle(cloned, { url: pageUrl }).parseAsync();

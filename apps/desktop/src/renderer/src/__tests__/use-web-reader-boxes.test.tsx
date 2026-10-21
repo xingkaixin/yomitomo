@@ -290,7 +290,7 @@ function rect(values: Partial<DOMRect> = {}): DOMRect {
     right: values.right ?? left + width,
     bottom: values.bottom ?? top + height,
     toJSON: () => ({}),
-  } as DOMRect;
+  };
 }
 
 function mockRect(element: Element, getRect: () => DOMRect) {
@@ -331,6 +331,6 @@ class MockResizeObserver {
           contentRect: element.getBoundingClientRect(),
         }) as ResizeObserverEntry,
     );
-    this.callback(entries, this as unknown as ResizeObserver);
+    this.callback(entries, this);
   }
 }

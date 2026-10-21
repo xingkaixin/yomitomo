@@ -115,7 +115,7 @@ describe('store normalizers provider and agent fields', () => {
         soul: 'Read carefully',
         createdAt: '2026-06-11T00:00:00.000Z',
         updatedAt: '2026-06-11T00:00:00.000Z',
-      } as Parameters<typeof rowToAgent>[0]),
+      }),
     ).toMatchObject({
       kind: 'annotation',
       presetId: undefined,
@@ -399,7 +399,7 @@ describe('store normalizers articles', () => {
             },
           ],
         },
-      } as Parameters<typeof rowToArticle>[0],
+      },
       [],
     );
 
@@ -432,7 +432,7 @@ describe('store normalizers articles', () => {
             pageCount: 0,
             title: 'PDF',
           },
-        } as Parameters<typeof rowToArticle>[0],
+        },
         [],
       ).pdf,
     ).toEqual({

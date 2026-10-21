@@ -32,7 +32,7 @@ export const ChartContainer = React.forwardRef<HTMLDivElement, ChartContainerPro
           className,
         )}
         ref={ref}
-        style={{ ...colorVars, ...style } as React.CSSProperties}
+        style={{ ...colorVars, ...style }}
         {...props}
       >
         <ResponsiveContainer>{children}</ResponsiveContainer>

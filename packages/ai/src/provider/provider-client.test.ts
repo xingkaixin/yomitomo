@@ -239,7 +239,7 @@ describe('listProviderModels', () => {
     if (Exit.isSuccess(exit)) return;
     const failure = Cause.squash(exit.cause);
     expect(failure).toMatchObject({ _tag: 'ProviderHttpError' });
-    expect(String((failure as Error).message)).toContain('500');
+    expect((failure as Error).message).toContain('500');
   });
 
   it('aborts the model-list request when its Effect fiber is interrupted', async () => {

@@ -239,7 +239,7 @@ export function validateDesktopIpcStreamRequest<Channel extends DesktopIpcStream
   }
   const result = desktopIpcStreamSchemas[channel].safeParse(request);
   if (result.success) {
-    return { success: true, data: result.data as DesktopIpcStreamRequest<Channel> };
+    return { success: true, data: result.data };
   }
   return {
     success: false,

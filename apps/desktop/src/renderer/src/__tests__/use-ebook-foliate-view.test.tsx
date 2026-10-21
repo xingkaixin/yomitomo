@@ -160,18 +160,17 @@ function MountedFoliateViewProbe({
 
   const setViewHost = (node: HTMLDivElement | null) => {
     if (node) {
-      node.getBoundingClientRect = () =>
-        ({
-          bottom: layoutBox?.height ?? height,
-          height: layoutBox?.height ?? height,
-          left: 0,
-          right: layoutBox?.width ?? width,
-          top: 0,
-          width: layoutBox?.width ?? width,
-          x: 0,
-          y: 0,
-          toJSON: () => ({}),
-        }) as DOMRect;
+      node.getBoundingClientRect = () => ({
+        bottom: layoutBox?.height ?? height,
+        height: layoutBox?.height ?? height,
+        left: 0,
+        right: layoutBox?.width ?? width,
+        top: 0,
+        width: layoutBox?.width ?? width,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      });
     }
     viewState.viewHostRef.current = node;
   };
@@ -326,7 +325,7 @@ class MockResizeObserver {
   unobserve = vi.fn();
 
   trigger() {
-    this.callback([], this as unknown as ResizeObserver);
+    this.callback([], this);
   }
 }
 
