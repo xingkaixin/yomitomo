@@ -51,6 +51,10 @@ telemetry → shared
 - 写入结果以 patch 广播给其他窗口，不回发给发起窗口，见
   `apps/desktop/src/main/ipc/renderer-state-event-dispatcher.ts`。IPC 声明与 patch 粒度的规则见
   `apps/desktop/AGENTS.md`。
+- 启动各阶段写入 `performance.startup.*` 日志。改动启动路径前后用
+  `pnpm --filter @yomitomo/desktop startup:benchmark --app <Yomitomo.app>` 对比：脚本以临时 userData
+  多次冷启动打包版，输出各阶段距进程启动的中位数。macOS 上脚本先向 LaunchServices 注册 helper app；
+  未注册的构建产物每次启动 GPU 进程会多花约 450ms，已安装的应用没有这项开销。
 
 ## 数据与事实来源
 
