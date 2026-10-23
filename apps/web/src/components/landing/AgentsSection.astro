@@ -45,8 +45,7 @@ const profiles: Record<string, { name: string; role: string }> = isJapanese
 
 const copy = isJapanese
   ? {
-      kicker: '六人のAI読書パートナー',
-      title: '代わりに読むのではなく、一緒に読む。',
+      title: 'AI読書パートナーは、代わりに読むのではなく一緒に読む。',
       lead: [
         '六つの視点が問い、掘り下げ、翻訳し、編集します。最後に判断するのはいつもあなたです。',
         '線を引くたびに参加者を選ぶことも、全員を休ませることもできます。',
@@ -54,16 +53,14 @@ const copy = isJapanese
     }
   : isEnglish
     ? {
-      kicker: 'Six AI companions',
-      title: "They don't read for you—they read with you.",
+      title: "AI companions don't read for you—they read with you.",
       lead: [
         'Six perspectives question, dig deeper, translate and edit, but the final judgment always stays yours.',
         'You can choose who joins each line, or mute them all.',
       ],
       }
     : {
-      kicker: '六位 AI 伴读',
-      title: '它们不替你读，而是陪你读。',
+      title: 'AI 伴读不替你读，而是陪你读。',
       lead: [
         '六种视角各自提问、追根、翻译和编辑，但最终的判断始终留给你。',
         '你可以为每条划线指定谁参与，也可以让它们全部安静下来。',
@@ -76,7 +73,6 @@ const avatarDir = isEnglish ? 'en' : isJapanese ? 'ja' : 'zh-CN';
 <section class="section companions-section">
   <div class="lp-container">
     <div class="section-copy">
-      <p class="sec-kicker">{copy.kicker}</p>
       <h2 class="sec-title">{copy.title}</h2>
       <p class="sec-lead">{copy.lead[0]}<br />{copy.lead[1]}</p>
     </div>
