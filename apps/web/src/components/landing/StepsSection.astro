@@ -9,7 +9,6 @@ const isJapanese = lang === 'ja';
 
 const copy = isJapanese
   ? {
-      kicker: 'Yomitomoとは',
       title: '読書の最小単位を、記事から判断へ。',
       lead: [
         '多くのツールは記事を「保存」するだけで、考え抜くところまでは助けてくれません。',
@@ -32,7 +31,6 @@ const copy = isJapanese
     }
   : isEnglish
     ? {
-      kicker: 'What it is',
       title: 'Yomitomo shrinks the smallest unit of reading from the article to the judgment.',
       lead: [
         'Most tools only let you "save" articles. None help you think them through.',
@@ -54,7 +52,6 @@ const copy = isJapanese
       ],
       }
     : {
-      kicker: '这是什么',
       title: 'Yomitomo 把阅读的最小单位，从文章变成判断。',
       lead: [
         '大多数工具只让你把文章「存起来」，却没人帮你「想清楚」。',
@@ -77,7 +74,6 @@ const titleLines = isEnglish
 <section class="section concept-section">
   <div class="lp-container concept-layout">
     <div class="section-copy">
-      <p class="sec-kicker">{copy.kicker}</p>
       <h2 class="sec-title">
         {
           titleLines

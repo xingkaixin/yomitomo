@@ -8,23 +8,23 @@ const copy = lang === 'en'
   ? {
       title: 'Choose your reading workflow.',
       links: [
-        { href: '/en/blog/scenarios/readwise-reader-alternative/', title: 'Yomitomo or Readwise Reader?', description: 'Compare desktop reading, sync, AI and note exports.' },
-        { href: '/en/blog/scenarios/local-ai-reading-with-ollama/', title: 'Read with a local model in Ollama', description: 'Configure your model, try a passage, and check what stays local.' },
+        { href: '/en/blog/scenarios/readwise-reader-alternative/', title: 'Yomitomo or Readwise Reader?' },
+        { href: '/en/blog/scenarios/local-ai-reading-with-ollama/', title: 'Read with a local model in Ollama' },
       ],
     }
   : lang === 'ja'
     ? {
         title: '目的に合わせて使い始める。',
         links: [
-          { href: '/ja/blog/scenarios/pdf-annotation/', title: 'PDFに注釈を付け、AIと読み進める', description: '取り込み、ハイライト、対話の手順と対応範囲。' },
-          { href: '/ja/blog/scenarios/zotero-academic-workflow/', title: 'Zoteroの論文をYomitomoで精読する', description: 'PDFの手動取り込みと、読書メモを戻す方法。' },
+          { href: '/ja/blog/scenarios/pdf-annotation/', title: 'PDFに注釈を付け、AIと読み進める' },
+          { href: '/ja/blog/scenarios/zotero-academic-workflow/', title: 'Zoteroの論文をYomitomoで精読する' },
         ],
       }
     : {
         title: '从你的阅读场景开始。',
         links: [
-          { href: '/docs/weread-api-key/', title: '获取微信读书 API Key', description: '找到官方入口，完成配置，排查连接问题。' },
-          { href: '/blog/scenarios/weread-migration/', title: '把微信读书划线和想法同步到本地', description: '了解同步范围、操作步骤和备份方式。' },
+          { href: '/docs/weread-api-key/', title: '获取微信读书 API Key' },
+          { href: '/blog/scenarios/weread-migration/', title: '把微信读书划线和想法同步到本地' },
         ],
       };
 ---
@@ -36,7 +36,6 @@ const copy = lang === 'en'
       {copy.links.map((link) => (
         <li>
           <a href={link.href}>{link.title}</a>
-          <p>{link.description}</p>
         </li>
       ))}
     </ul>
@@ -62,11 +61,6 @@ const copy = lang === 'en'
     font-weight: 600;
     text-decoration: underline;
     text-underline-offset: 4px;
-  }
-  p {
-    color: var(--ink-2);
-    margin: 12px 0 0;
-    line-height: 1.6;
   }
   @media (max-width: 800px) {
     .guide-links {

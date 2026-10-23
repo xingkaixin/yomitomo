@@ -10,26 +10,14 @@ const isJapanese = lang === 'ja';
 
 const copy = isJapanese
   ? {
-      version: `v${downloads.version} · 公開中`,
       title: ['Yomitomoをダウンロードして、', '読んだことを残し始めよう。'],
-      desc: [
-        '完全無料のオープンソース。読書データはローカルに保存されます。',
-        'macOSとWindowsに対応しています。',
-      ],
     }
   : isEnglish
     ? {
-      version: `v${downloads.version} · Available now`,
       title: ['Download Yomitomo,', 'and start keeping what you read.'],
-      desc: [
-        'Completely free, open source, with reading data stored locally.',
-        'Available for macOS and Windows.',
-      ],
       }
     : {
-      version: `v${downloads.version} · 现已发布`,
       title: ['下载 Yomitomo，', '开始把读过的留下来。'],
-      desc: ['完全免费、开源，阅读数据保存在本地。', '支持 macOS 与 Windows。'],
       };
 ---
 
@@ -37,9 +25,8 @@ const copy = isJapanese
   <div class="lp-container">
     <div class="dl">
       <div class="dl-copy">
-        <p class="dl-version"><span class="pulse"></span>{copy.version}</p>
+        <p class="dl-version"><span class="pulse"></span>v{downloads.version}</p>
         <h2>{copy.title[0]}<br />{copy.title[1]}</h2>
-        <p>{copy.desc[0]}<br />{copy.desc[1]}</p>
       </div>
       <div class="dl-cards">
         <a
@@ -60,7 +47,6 @@ const copy = isJapanese
             <b>macOS</b>
           </span>
           <span class="arch">Apple Silicon</span>
-          <span class="ext">.DMG</span>
         </a>
         <a
           class="dl-card"
@@ -80,7 +66,6 @@ const copy = isJapanese
             <b>Windows</b>
           </span>
           <span class="arch">x64</span>
-          <span class="ext">.EXE</span>
         </a>
       </div>
     </div>
