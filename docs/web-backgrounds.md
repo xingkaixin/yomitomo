@@ -1,6 +1,6 @@
 # 官网背景素材
 
-官网沿用暖白底色与朱红强调色，以纸张和光影区分区域。内容、字体、区块顺序和既有交互保持不变。
+官网沿用暖白底色与朱红强调色，以纸张和光影区分区域。更换背景不改变内容、字体、区块顺序和交互。
 
 ## 位置与维护
 
@@ -13,9 +13,9 @@
 | reading-margins.webp | 内容页页边 | 正文与侧栏保持暖白，仅大屏页边有装饰 |
 | reading-footer.webp | 共用页脚 | 右下收拢页边与小段朱红，链接区保持清楚 |
 
-首页与页脚的图层由 `apps/web/src/styles/landing.css` 管理，使用不可交互的伪元素和静态蒙版。手机减弱装饰，没有新增动画或客户端状态。
+首页与页脚的图层由 `apps/web/src/styles/landing.css` 管理，使用不可交互的伪元素和静态蒙版。手机端减弱装饰。背景不使用动画或客户端状态。
 
-内容页由 `apps/web/src/styles/starlight.css` 管理，替换原来的方格背景，正文有独立的暖白底色。页边图只在宽屏加载，并在固定范围内淡出，不随文章长度拉伸或平铺。
+内容页由 `apps/web/src/styles/starlight.css` 管理，正文有独立的暖白底色。页边图只在宽屏加载，并在固定范围内淡出，不随文章长度拉伸或平铺。
 
 `apps/web/src/components/starlight/PageFrame.astro` 复用 Starlight 页面框架，并把共用页脚放到正文栏外，避免用视口宽度和负边距跨越侧栏。`apps/web/src/components/starlight/Footer.astro` 有意不输出正文栏内的第二个页脚。
 
