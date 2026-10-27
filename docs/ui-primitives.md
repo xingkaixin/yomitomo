@@ -1,4 +1,4 @@
-# UI Primitive Boundary
+# UI primitive boundary
 
 ## Decision
 
@@ -7,11 +7,11 @@ behavior must use Base UI or local wrappers built on Base UI. The CI primitive
 checker treats any Radix import, package dependency, or lockfile entry as a
 failure.
 
-Base UI is used as an unstyled behavior layer. Existing CSS classes, theme
-variables, and public wrapper names should remain stable unless an issue
-explicitly scopes an API change.
+Base UI supplies behavior only, without styles. Existing CSS classes, theme
+variables, and public wrapper names stay stable unless an issue explicitly
+scopes an API change.
 
-Base UI is installed as the single tree-shakable React package:
+Base UI comes from a single tree-shakable React package:
 
 ```ts
 import { Popover } from '@base-ui/react/popover';
@@ -25,8 +25,8 @@ subpath imports so each wrapper imports only the primitive it needs.
 - `apps/desktop/src/renderer/src/components/ui`: desktop renderer wrappers.
   These wrappers may use Tailwind classes, `cn`, `class-variance-authority`,
   desktop z-index variables, and AppTheme CSS variables.
-- Desktop renderer CSS ownership is documented in
-  [Desktop Renderer Style Ownership](./desktop-style-ownership.md).
+- [Desktop renderer style ownership](./desktop-style-ownership.md) covers
+  desktop renderer CSS.
 - `packages/reader-ui/src/components/ui`: reader-ui wrappers. These wrappers
   must not depend on desktop renderer modules, Tailwind config, Electron, or
   desktop-only theme helpers.
@@ -34,7 +34,7 @@ subpath imports so each wrapper imports only the primitive it needs.
   primitive needs it, such as the landing discussion dialog. Static landing
   content should not add primitive dependencies or desktop-only wrappers.
 
-## Base UI Rules
+## Base UI rules
 
 - Business code should import local wrappers, not Base UI primitives directly,
   when the primitive already has a wrapper or is shared across more than one UI
@@ -47,7 +47,7 @@ subpath imports so each wrapper imports only the primitive it needs.
 - Preserve existing CSS classes when replacing primitive behavior. Visual design
   should not change unless the issue explicitly says so.
 
-## Radix Status
+## Radix status
 
 There are no current Radix exceptions.
 

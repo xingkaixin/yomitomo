@@ -104,9 +104,8 @@ telemetry → shared
   reader chat state）。投递时把该 agent 尚未收到的消息追加进会话，回复写回频道；已删除的消息在
   下次投递时以“已废弃”标记追加，不改写会话历史。
 - 文章正文不放进 system prompt。阅读器打开文章时把全文和章节写入会话目录，agent 用检索工具按需
-  读取。投递只带划线原文和它所在的段落 id；划线可能只是半句，由 agent 自己调用工具读前后文。
-  可读范围：有选区时到选区所在章节末尾为止，划线可能是半句或小标题，需要读到后文；问一问没有选区时
-  以阅读进度为界。
+  读取。投递只带划线原文和它所在的段落 id；划线可能只是半句或小标题，由 agent 自己调用工具读前后文。
+  有选区时 agent 可以读到选区所在章节末尾；问一问没有选区时以阅读进度为界。
 - 同一 agent 被多个频道同时触发时，各自 fork 主会话并行运行；同一频道再次投递时 steer 进正在运行
   的 fork，不排队。生成在 main 进程继续，关闭窗口或锁定应用不会中断；未完成的运行留下 pending
   标记，启动时恢复。
@@ -137,15 +136,15 @@ telemetry → shared
 
 - Effect v4 只用于 main 进程编排、`packages/ai` 和 `packages/core`，不进入 renderer、preload、
   `reader-ui` 和 `shared`。对外 API 保持 Promise，内部工作流直接组合 Effect。
-  规则与升级流程见 [Effect v4 Runtime Boundary](effect-v4-runtime.md)，由 `pnpm effect:check` 校验。
+  规则与升级流程见 [Effect v4 runtime boundary](effect-v4-runtime.md)，由 `pnpm effect:check` 校验。
 - 周期任务、投影 worker、语义索引和 embedding 进程归属 main 进程 runtime
   （`apps/desktop/src/main/app/main-process-runtime.ts`），退出时中断并等待它们释放数据库。
 
 ## 界面
 
-- 交互 primitive 使用 Base UI 及本地 wrapper，禁止 Radix，见 [UI Primitive Boundary](ui-primitives.md)，
+- 交互 primitive 使用 Base UI 及本地 wrapper，禁止 Radix，见 [UI primitive boundary](ui-primitives.md)，
   由 `pnpm ui:check-primitives` 校验。
-- 桌面端样式归属见 [Desktop Renderer Style Ownership](desktop-style-ownership.md)。颜色来自主题变量，
+- 桌面端样式归属见 [Desktop renderer style ownership](desktop-style-ownership.md)。颜色来自主题变量，
   不在组件中写死核心色。
 
 ## 分发与外部服务

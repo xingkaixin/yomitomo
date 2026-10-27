@@ -1,6 +1,6 @@
 # Yomitomo 版本发布指南
 
-本文记录从上一版本 tag 到对外发布的一整套文档与产物同步流程。
+本文记录从上一版本 tag 到对外发布的文档与产物同步流程。
 
 ## 范围与原则
 
@@ -108,7 +108,7 @@ pnpm deploy:download
 
 ## 发布前：图片资源（按需）
 
-每次发布前快速过一遍视觉是否仍代表当前产品，**不必每版都换图**，但若本版改了阅读器、设置、主题或品牌呈现，建议同步截图或插画。
+每次发布前过一遍图片是否仍符合当前产品。不必每版都换图；本版改了阅读器、设置、主题或品牌呈现时，同步更新截图或插画。
 
 ### 应用更新弹窗封面
 
@@ -121,7 +121,7 @@ pnpm deploy:download
 
 引用位置：`apps/desktop/src/renderer/src/shell/app-update-dialog.tsx`（随主题切换 lighter / darker）。替换后本地打开更新弹窗或跑相关测试（如 `app-update-dialog.test.tsx`）确认比例与裁切正常。
 
-**何时更新**：更新弹窗版式大改、阅读器/设置视觉翻新、新主题默认图需要体现本版卖点时。
+更新弹窗版式大改、阅读器或设置视觉翻新，或头图需要体现本版新主题时，更换这两张图。
 
 ### 官网与 README 示意图（可选）
 
@@ -157,7 +157,7 @@ pnpm deploy:download
 - 顶层：`version`、`highlights[]`。
 - 每条 highlight：`type`（`new` | `changed` | `fixed` | `deprecated`）、`title`、`description`、`audience`。
 - 条数建议 4–6 条，面向「更新前 / 更新后」弹窗，不要粘贴完整 CHANGELOG。
-- 把功能翻译成「这跟我有关」，落到一个具体的人身上（场景、情绪、身份），公式是帮助谁、在什么时候、解决什么问题。
+- 每条从用户角度写清帮助谁、在什么场景、解决什么问题，不罗列功能名。
 - 桌面端读取逻辑见 `apps/desktop/src/main/app/release-notes.ts`：
   - **更新前**：`remote` → `https://yomitomo.app/release-notes/{locale}/{version}.json`
   - **更新后**：`local` → `apps/desktop/resources/release-notes/...`
@@ -171,7 +171,7 @@ cp apps/desktop/resources/release-notes/en/X.Y.Z.json apps/web/public/release-no
 cp apps/desktop/resources/release-notes/ja/X.Y.Z.json apps/web/public/release-notes/ja/X.Y.Z.json
 ```
 
-## 发布后：Download Worker Smoke Check
+## 发布后：Download Worker smoke check
 
 GitHub Release 产物上传完成后、对外公告前，替换 `X.Y.Z` 并检查以下 URL。目标是确认官网下载入口、electron-updater manifest、`/updates` 前缀代理和 blockmap 代理都能访问真实 release asset。
 
@@ -218,6 +218,6 @@ manifest/feed 的成功响应缓存为 60 秒，4xx 缓存为 10 秒。不要把
 ## 撰写 CHANGELOG 的步骤
 
 1. `git log vPREV..HEAD --oneline --no-merges` 通读提交主题，按 **Features / Performance / Fixes / Engineering**（中文：新功能 / 性能 / 修复 / 工程）归类。
-2. 与已有 milestone 草稿对比，**补写** tag 之后新增的 PR（例如翻译、音效、安全、CI 签名等）。
+2. 与已有 milestone 草稿对比，补写 tag 之后新增的 PR（例如翻译、音效、安全、CI 签名等）。
 3. 条目末尾保留 `(#PR)` 便于追溯。
 4. 将精简版同步到 Starlight changelog 页面；索引页只保留 3–4 条 bullet。
