@@ -4,34 +4,34 @@
 
 # Yomitomo
 
-Yomitomo is a local-first AI reading companion desktop app. The Electron desktop app handles web article, EPUB/AZW3/MOBI ebook, and PDF imports, the reading library, highlights, notes, discussion comments, insight publishing, reader chat, WeRead sync, LLM provider management, and reading assistants. The Astro website provides product pages, download entry points, bilingual documentation, and social previews.
+Yomitomo is a local-first AI reading companion desktop app. The Electron desktop app handles web article, EPUB/AZW3/MOBI ebook, and PDF imports, the reading library, highlights, notes, discussion comments, distillations, reader Q&A, WeRead sync, LLM provider management, and reading assistants. The Astro website provides product pages, download entry points, documentation in Chinese, English, and Japanese, and social previews.
 
 You can currently download macOS Apple Silicon and Windows x64 installers from [yomitomo.app](https://yomitomo.app) or [GitHub Releases](https://github.com/xingkaixin/yomitomo/releases). The project is still in early alpha.
 
-## Core Capabilities
+## Core capabilities
 
 - Web article import: extract body text, title, author, site metadata, and images from URLs.
 - Ebook import and reading: import local EPUB, AZW3, and MOBI files, and persist chapters, covers, and the original book files.
-- PDF import and reading: import local PDF files with outline, selection, highlights, notes, and assistant co-reading support.
-- Desktop reader: outline, font size, content width, highlights, full-text search, reader chat, floating toolbar, dual note sidebars, selection shortcuts, arrow-key paging, and annotation navigation; bilingual translation for web articles and chapter-level bilingual reading for ebooks.
-- Text annotations: highlights, annotation types, thought threads, discussion comments, insight publishing, and `@assistant` triggers; discussion and distillation flows include motion and optional sound feedback (toggle in Settings).
-- Proactive close reading: choose one or more reading assistants so AI can generate annotations around web articles, ebook chapters, or PDF documents while reusing local reading memory, role perspectives, and localized presentation.
+- PDF import and reading: import local PDF files with outline, selection, highlights, and notes.
+- Desktop reader: outline, font size, content width, highlights, full-text search, reader Q&A, floating toolbar, dual note sidebars, selection shortcuts, arrow-key paging, and annotation navigation; bilingual translation for web articles and chapter-level bilingual reading for ebooks.
+- Text annotations: highlights, annotation types, thought threads, discussion comments, distillation publishing, and `@assistant` triggers; discussion and distillation flows include motion and optional sound feedback (toggle in Settings).
+- Reading assistants: mention `@assistant` in a discussion, ask an assistant to add a thought under a highlight, or ask about the article in reader Q&A. Assistants read the surrounding text on demand, and their replies link to the passages they cite.
 - WeRead sync: sync book notes, thoughts, and reading statistics after configuring an API key.
 - Reading library: manage web articles, ebooks, annotations, comments, and original-source links in one place.
 - Distillation library: gather every published distillation into one searchable, read-only list with source context and a jump back to the original annotation.
-- Reading memory: local vector indexing for notes and highlights using multilingual embeddings, supporting cross-source questions, connected reading evidence, and citation-bound judgments with accurate source jumping.
-- UI and themes: Chinese/English/Japanese switching, themes including dusk indigo, hand-drawn ink paper and theme pickers, and unified toast notifications.
+- Reading memory: a local multilingual embedding model indexes highlights, thoughts, discussions, and published distillations for related reading, questions across the library, and revisiting past judgments. Every AI claim cites a saved record and jumps back to the source text.
+- UI and themes: Chinese, English, and Japanese interfaces, and multiple themes including dusk indigo and hand-drawn ink paper.
 - App updates and data management: check for updates, view release notes, open the data directory, view logs, and back up or restore the database together with original ebooks, PDFs, and PDF thumbnails; API keys are excluded from complete backups. macOS installers are signed and notarized.
 - Reading statistics: generate local reading trends by article, annotation, and discussion.
 - Local-first reading privacy: reading content, book titles, annotations, file paths, AI conversations, and provider API keys stay local; anonymous app, version, and system metrics are sent at most once per day by default and can be disabled in Settings.
 
 ## Screenshots
 
-### Electron Desktop App
+### Electron desktop app
 
 ![Yomitomo Electron desktop app](apps/web/public/assets/read.webp)
 
-## Project Structure
+## Project structure
 
 ```text
 apps/desktop       Electron desktop app, including main, preload, and renderer
@@ -45,7 +45,7 @@ packages/shared    Shared types, provider presets, agent presets, IDs, hashes, t
 assets             Project static assets
 ```
 
-## Tech Stack
+## Tech stack
 
 - Package manager: `pnpm@12.x`
 - Build orchestration: Turbo
@@ -56,7 +56,7 @@ assets             Project static assets
 - Tests: Vitest
 - Lint / format: oxlint and oxfmt through Turbo
 
-## Run From Source
+## Run from source
 
 ### Prerequisites
 
@@ -79,7 +79,7 @@ pnpm --filter @yomitomo/desktop native:verify
 
 Run this command after upgrading Electron or `better-sqlite3` to confirm that plain Node/Vitest and the Electron app use their own `better-sqlite3` native roots.
 
-### Run the Desktop App
+### Run the desktop app
 
 ```bash
 pnpm --filter @yomitomo/desktop dev
@@ -91,15 +91,15 @@ After startup, the desktop app will:
 - Provide user, provider, assistant, reading library, statistics, and log views.
 - Support importing web URLs, local EPUB/AZW3/MOBI files, or local PDF files from the reading library.
 
-### Run the Website
+### Run the website
 
 ```bash
 pnpm --filter @yomitomo/web dev
 ```
 
-The local website dev server is used to preview the landing page, download links, SEO metadata, and static product images.
+Use the website dev server to preview the landing page, download links, SEO metadata, and static product images.
 
-### Package Release Artifacts
+### Package release artifacts
 
 Build the default release artifact from the repository root:
 
@@ -120,16 +120,16 @@ pnpm make:app:win-x64
 
 Pushing a `vX.Y.Z` tag triggers the GitHub Release workflow, which builds and uploads macOS `.dmg` / `.zip`, Windows `.exe`, blockmap files, and `latest*.yml` update metadata.
 
-### Local Reading and AI Configuration
+### Local reading and AI configuration
 
 1. Start the desktop app.
 2. Create an LLM provider on the Providers page, then enter the base URL, API key, and model name.
 3. Create annotation assistants or review assistants on the Assistants page, and connect them to a provider.
 4. Import a web URL, local EPUB/AZW3/MOBI file, or local PDF file from the Reading Library.
-5. Open an article or ebook, select text to create highlights and annotations, or choose reading assistants in Close Reading to generate AI annotations.
+5. Open an article, ebook, or PDF, and select text to highlight it and write a thought. Mention `@assistant` in a discussion to bring in an assistant.
 6. To sync WeRead, configure a WeRead API key in Settings and then sync notes and reading statistics.
 
-### Run Workspace Dev Tasks Together
+### Run workspace dev tasks together
 
 ```bash
 pnpm dev
@@ -137,7 +137,7 @@ pnpm dev
 
 `pnpm dev` starts each workspace development task through Turbo.
 
-## Common Commands
+## Common commands
 
 ```bash
 pnpm dev:app
@@ -160,7 +160,7 @@ pnpm build
 - When importing an EPUB, AZW3, or MOBI ebook, the desktop app stores the original ebook file, chapter index, and local article record.
 - When importing a PDF, the desktop app stores the original PDF file, page information, and local article record.
 
-## Layering Conventions
+## Layering conventions
 
 - `packages/shared` contains shared types, provider presets, agent presets, IDs/hashes, text anchoring, PDF, and WeRead protocol types.
 - `packages/core` contains pure logic for annotations, comments, reading statistics, EPUB/PDF indexing, and reader DOM behavior.
@@ -172,7 +172,7 @@ pnpm build
 - `apps/download/src` contains the Cloudflare Worker that proxies GitHub Release installers, update manifests, and blockmap files for `download.yomitomo.app`.
 - `apps/telemetry/src` contains the Cloudflare Worker that receives anonymous desktop heartbeats and writes them to Analytics Engine.
 
-## Pre-Commit Checks
+## Pre-commit checks
 
 `mise run check` mirrors the GitHub Actions check order:
 

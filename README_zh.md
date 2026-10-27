@@ -4,7 +4,7 @@
 
 # Yomitomo
 
-Yomitomo 是一个本地优先的 AI 伴读桌面应用。Electron 桌面端负责网页文章、EPUB/AZW3/MOBI 电子书与 PDF 导入、阅读库、批注、评论、批注沉淀、阅读器聊天、微信读书同步、LLM provider 管理和阅读助手；Astro 官网负责产品介绍、下载入口、双语文档和社交预览。
+Yomitomo 是一个本地优先的 AI 伴读桌面应用。Electron 桌面端负责网页文章、EPUB/AZW3/MOBI 电子书与 PDF 导入、阅读库、批注、评论、批注沉淀、阅读问答、微信读书同步、LLM provider 管理和阅读助手；Astro 官网负责产品介绍、下载入口、中英日三语文档和社交预览。
 
 当前可以从 [yomitomo.app](https://yomitomo.app) 或 [GitHub Releases](https://github.com/xingkaixin/yomitomo/releases) 下载 macOS Apple Silicon 和 Windows x64 安装包。项目仍处于 early alpha 阶段。
 
@@ -12,15 +12,15 @@ Yomitomo 是一个本地优先的 AI 伴读桌面应用。Electron 桌面端负�
 
 - 网页文章导入：从 URL 抽取正文、标题、作者、站点信息和图片。
 - 电子书导入与阅读：导入本地 EPUB、AZW3 和 MOBI 文件，保存章节、封面和原始电子书文件。
-- PDF 导入与阅读：导入本地 PDF 文件，支持目录、选区、高亮、批注和助手共读。
-- 桌面阅读器：目录、字号、宽度、高亮、全文搜索、阅读器聊天、悬浮工具栏、双侧笔记栏、选区快捷键、方向键翻页和批注导航；网页文章支持双语翻译，电子书支持章节级双语阅读。
+- PDF 导入与阅读：导入本地 PDF 文件，支持目录、选区、高亮和批注。
+- 桌面阅读器：目录、字号、宽度、高亮、全文搜索、阅读问答、悬浮工具栏、双侧笔记栏、选区快捷键、方向键翻页和批注导航；网页文章支持双语翻译，电子书支持章节级双语阅读。
 - 文本批注：高亮、批注类型、想法线程、讨论评论、沉淀发布和 `@助手` 触发；讨论与沉淀支持动效与音效反馈（可在设置中开关）。
-- 主动精读：选择一个或多个阅读助手，让 AI 围绕网页文章、电子书章节或 PDF 文档生成批注，并复用本地阅读记忆、角色视角和本地化展示。
+- 阅读助手：在讨论中 `@助手`、让助手在划线下追加想法，或在阅读问答里就文章提问。助手按需读取前后文，回复里的引用链接到对应段落。
 - 微信读书同步：配置 API key 后同步书籍笔记、想法和阅读统计。
 - 阅读库：集中管理网页文章、电子书、批注、评论和原文链接。
 - 沉淀库：把已发布的沉淀汇总到一个可搜索的只读列表，显示来源上下文并可跳回原始批注。
-- 阅读记忆：基于本地多语言向量模型为笔记与批注建立索引，支持跨文献提问、阅读证据关联与带引用的研判生成，可一键精准反查原文。
-- 界面与主题：中/英/日多语言切换、黄昏靛蓝等多主题、手绘墨迹纸张与主题选择、统一 Toast 提示。
+- 阅读记忆：本地多语言向量模型为划线、想法、讨论和已发布的沉淀建立索引，用于阅读中关联、问书库和重新审视。AI 给出的每条主张都引用已保存的记录，并能跳回原文。
+- 界面与主题：中、英、日三语界面，黄昏靛蓝、手绘墨迹纸张等多套主题。
 - 应用更新与数据管理：检查更新、查看版本更新说明、打开数据目录、查看日志，完整备份和还原数据库、电子书与 PDF 原文件及 PDF 缩略图；完整备份不包含 API Key。macOS 安装包经签名与公证。
 - 阅读统计：按文章、批注和讨论生成本地阅读趋势。
 - 本地优先的阅读隐私：阅读内容、书名、批注、文件路径、AI 对话和 provider API key 保存在本机；匿名应用、版本与系统指标默认每天最多发送一次，可在设置中关闭。
@@ -65,7 +65,6 @@ assets             项目静态资源
 - macOS 桌面开发环境
 - Xcode Command Line Tools，供 `better-sqlite3` native rebuild 使用
 
-
 安装依赖：
 
 ```bash
@@ -99,7 +98,7 @@ pnpm --filter @yomitomo/desktop dev
 pnpm --filter @yomitomo/web dev
 ```
 
-官网本地开发用于预览 landing page、下载链接、SEO 元信息和产品静态图。
+用官网开发服务预览 landing page、下载链接、SEO 元信息和产品静态图。
 
 ### 打包发布产物
 
@@ -128,7 +127,7 @@ pnpm make:app:win-x64
 2. 在「供应商」页创建 LLM provider，填写 base URL、API key 和模型名。
 3. 在「助手」页创建批注助手或审核助手，并关联 provider。
 4. 在「阅读库」导入网页 URL、本地 EPUB/AZW3/MOBI 文件或本地 PDF 文件。
-5. 打开文章或电子书，选中文本创建高亮和批注，或在「助手精读」里选择阅读助手生成 AI 批注。
+5. 打开文章、电子书或 PDF，选中文本划线并写想法；在讨论里 `@助手` 邀请助手参与。
 6. 如需同步微信读书，在「设置」里配置微信读书 API key 后同步笔记和阅读统计。
 
 ### 同时启动 workspace 开发任务
@@ -148,6 +147,7 @@ pnpm lint
 pnpm lint:fix
 pnpm format
 pnpm format:check
+pnpm ui:check-primitives
 pnpm typecheck
 pnpm test
 pnpm build
@@ -181,7 +181,13 @@ pnpm build
 mise run check
 ```
 
-展开为：
+本地快速循环使用：
+
+```bash
+mise run check:fast
+```
+
+完整门禁展开为：
 
 <!-- gate:check -->
 ```bash
@@ -197,13 +203,19 @@ pnpm build
 pnpm test:app:e2e:from-dist
 ```
 
+无图形环境的 Linux 通过 Xvfb 运行完整门禁：
+
+```bash
+xvfb-run -a mise run check
+```
+
 ## 开源许可证
 
 Yomitomo 使用 [MIT](LICENSE) 许可证发布。
 
 Copyright 2026 Yomitomo contributors.
 
-第三方生产依赖和 vendored 组件的许可证清单见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。清单可通过以下命令重新生成：
+第三方生产依赖和 vendored 组件的许可证清单见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。用以下命令重新生成清单：
 
 ```bash
 pnpm licenses:generate
