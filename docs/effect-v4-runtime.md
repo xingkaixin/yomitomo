@@ -1,4 +1,4 @@
-# Effect v4 Runtime Boundary
+# Effect v4 runtime boundary
 
 Pinned Effect version: `4.0.3`
 
@@ -54,10 +54,9 @@ projector reports changed evidence or an explicit reconcile, such as download co
 Continuation batches use a positive timer delay so pauses and queries can preempt the next batch,
 matching Node's previous zero-delay timer behavior.
 
-The inventory includes root and subpath imports and the Schema, scheduling, scope, queue, layer,
-runtime, and HTTP namespaces used by the staged runtime adoption.
+The inventory includes both root and subpath imports.
 
-## Runtime Semantics
+## Runtime semantics
 
 The `4.0.0` to `4.0.3` source comparison covers every production namespace above and the
 internal runtime implementations. The API inventory and signatures remain compatible.
@@ -101,7 +100,7 @@ The test-only inventory additionally uses `Cause.hasDies`, `Cause.hasFails`, `Ca
 `Fiber.interrupt`, and `Fiber.join` to observe v4 runtime behavior without relying on rejected Promise
 shape.
 
-## Upgrade Procedure
+## Upgrade procedure
 
 1. Update `effect` and `@effect/vitest` in the `pnpm-workspace.yaml` catalog to the same exact v4
    stable, beta, or rc version; ranges and dist-tags are not allowed. `apps/desktop`, `packages/ai`,

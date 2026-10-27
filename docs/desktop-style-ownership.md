@@ -1,4 +1,4 @@
-# Desktop Renderer Style Ownership
+# Desktop renderer style ownership
 
 本文档定义桌面端 renderer 样式的归属边界。目标是让新增或迁移样式能直接落到拥有最终语义的位置，避免再通过后置 legacy 覆盖层修补。
 
@@ -10,7 +10,7 @@
 - `styles/shell.css`、`styles/settings.css`、`styles/library.css`、`styles/source-*.css` 承载各功能区域样式。
 - `styles/theme-overrides.css` 只保留有明确原因的例外层。
 
-不要把具体组件规则直接写进入口文件。新增全局 import 时，应先判断它是否属于已有功能模块；只有确实跨模块且需要固定加载顺序时，才扩展入口拓扑。
+不要把具体组件规则直接写进入口文件。新增全局 import 时，应先判断它是否属于已有功能模块；只有确实跨模块且需要固定加载顺序时，才在入口新增 import。
 
 ## 功能模块
 
@@ -36,7 +36,7 @@ Tailwind 用于局部、一次性的布局和间距。以下情况应进入 CSS 
 
 不要为绕过归属判断而把大量 Tailwind class 堆进业务组件。
 
-## Theme Overrides 例外层
+## theme-overrides 例外层
 
 `apps/desktop/src/renderer/src/styles/theme-overrides/` 不是新样式的默认归宿。它只允许保留这些有明确原因的例外：
 
@@ -70,4 +70,4 @@ desktop 对嵌入式 reader 的桥接样式应留在 source reader 模块内，�
 4. 它是否是 reader-ui 自身能力？放在 `packages/reader-ui`，不要引用 desktop 边界。
 5. 它是否确实跨模块并依赖后置加载顺序？才考虑 `theme-overrides/`，并在文件名和内容中表达具体原因。
 
-若无法回答归属问题，先补清语义边界，再写样式。
+如果答不出样式属于哪个区域，先确定归属，再写样式。
