@@ -28,6 +28,7 @@
     "./ui-popover": "./src/components/ui/popover.tsx",
     "./ui-popup-class-name": "./src/components/ui/popup-class-name.ts",
     "./use-composition-submit": "./src/use-composition-submit.ts",
+    "./use-event-listener": "./src/hooks/use-event-listener.ts",
     "./use-mount-effect": "./src/hooks/use-mount-effect.ts"
   },
   "scripts": {

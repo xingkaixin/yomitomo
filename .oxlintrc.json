@@ -65,6 +65,7 @@
     },
     {
       "files": [
+        "packages/reader-ui/src/hooks/use-event-listener.ts",
         "packages/reader-ui/src/hooks/use-mount-effect.ts"
       ],
       "rules": {
