@@ -1,6 +1,7 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Delete02Icon } from '@hugeicons/core-free-icons';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useReducer, useRef, type ReactNode } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { ReadingMemoryStatusSnapshot } from '../../../ipc-contract';
 import {
@@ -20,13 +21,6 @@ import { SettingsConfirmDialog } from './app-settings-confirm-dialog';
 import { SettingsGroup, SettingsRow } from './app-settings-kit';
 
 type ModelAction = 'download' | 'cancel' | 'remove' | 'pause' | 'resume' | 'rebuild';
-type ModelSettingsSession = {
-  revision: number;
-  operation: { action: ModelAction } | null;
-  refresh: () => Promise<void>;
-  wake: (snapshot: ReadingMemoryStatusSnapshot) => void;
-};
-
 const activeStatusPollMs = 1_000;
 const idleStatusPollMs = 10_000;
 
@@ -43,66 +37,47 @@ function statusPollDelay(snapshot: ReadingMemoryStatusSnapshot | undefined) {
   return active ? activeStatusPollMs : idleStatusPollMs;
 }
 
+const readingMemoryStatusQueryKey = ['reading-memory', 'status'] as const;
+
+type ModelActionState = { error: boolean; pending: ModelAction | null };
+
+type ModelActionEvent =
+  | { type: 'started'; action: ModelAction }
+  | { type: 'succeeded' }
+  | { type: 'failed' }
+  | { type: 'settled' };
+
+function modelActionReducer(state: ModelActionState, event: ModelActionEvent): ModelActionState {
+  switch (event.type) {
+    case 'started':
+      return { error: false, pending: event.action };
+    case 'succeeded':
+      return { ...state, error: false };
+    case 'failed':
+      return { ...state, error: true };
+    case 'settled':
+      return { ...state, pending: null };
+  }
+}
+
 function useReadingMemoryModelStatus() {
-  const [snapshot, setSnapshot] = useState<ReadingMemoryStatusSnapshot | null>(null);
-  const [error, setError] = useState<'load' | 'action' | null>(null);
-  const [pending, setPending] = useState<ModelAction | null>(null);
-  const sessionRef = useRef<ModelSettingsSession | null>(null);
+  const queryClient = useQueryClient();
+  const status = useQuery({
+    queryKey: readingMemoryStatusQueryKey,
+    queryFn: () => getDesktopApi().readingMemory.model.status(),
+    refetchInterval: (query) => statusPollDelay(query.state.data),
+  });
+  const [action, dispatch] = useReducer(modelActionReducer, { error: false, pending: null });
+  const operationRef = useRef<{ action: ModelAction } | null>(null);
 
-  useEffect(() => {
-    let latest: ReadingMemoryStatusSnapshot | undefined;
-    const session: ModelSettingsSession = { revision: 0, operation: null, refresh, wake };
-    sessionRef.current = session;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-
-    async function refresh() {
-      const revision = ++session.revision;
-      try {
-        const next = await getDesktopApi().readingMemory.model.status();
-        if (sessionRef.current !== session || revision !== session.revision) return;
-        latest = next;
-        setSnapshot(next);
-        setError((current) => (current === 'load' ? null : current));
-      } catch {
-        if (sessionRef.current === session && revision === session.revision) setError('load');
-      }
-    }
-
-    function schedule() {
-      clearTimeout(timer);
-      if (sessionRef.current === session) {
-        timer = setTimeout(() => void poll(), statusPollDelay(latest));
-      }
-    }
-
-    async function poll() {
-      await refresh();
-      schedule();
-    }
-
-    function wake(next: ReadingMemoryStatusSnapshot) {
-      latest = next;
-      schedule();
-    }
-
-    void poll();
-    return () => {
-      clearTimeout(timer);
-      if (sessionRef.current === session) sessionRef.current = null;
-    };
-  }, []);
-
-  async function run(action: ModelAction, source: ReadingMemoryModelSource = 'modelscope') {
-    const session = sessionRef.current;
-    if (!session) return;
-    if (session.operation && !(action === 'cancel' && session.operation.action === 'download')) {
-      return;
-    }
-    const operation = { action };
-    session.operation = operation;
-    session.revision += 1;
-    setPending(action);
-    setError(null);
+  async function run(nextAction: ModelAction, source: ReadingMemoryModelSource = 'modelscope') {
+    const current = operationRef.current;
+    if (current && !(nextAction === 'cancel' && current.action === 'download')) return;
+    const operation = { action: nextAction };
+    operationRef.current = operation;
+    dispatch({ type: 'started', action: nextAction });
+    // An in-flight status read started before this action must not overwrite its result.
+    await queryClient.cancelQueries({ queryKey: readingMemoryStatusQueryKey });
     try {
       const { model, index } = getDesktopApi().readingMemory;
       const actions = {
@@ -113,25 +88,55 @@ function useReadingMemoryModelStatus() {
         resume: index.resume,
         rebuild: index.rebuild,
       };
-      const next = await actions[action]();
-      if (sessionRef.current !== session || session.operation !== operation) return;
-      session.revision += 1;
-      setSnapshot(next);
-      session.wake(next);
-      setError(null);
+      const next = await actions[nextAction]();
+      if (operationRef.current !== operation) return;
+      queryClient.setQueryData(readingMemoryStatusQueryKey, next);
+      dispatch({ type: 'succeeded' });
     } catch {
-      if (sessionRef.current !== session || session.operation !== operation) return;
-      session.revision += 1;
-      setError('action');
+      if (operationRef.current !== operation) return;
+      dispatch({ type: 'failed' });
     } finally {
-      if (sessionRef.current === session && session.operation === operation) {
-        session.operation = null;
-        setPending(null);
+      if (operationRef.current === operation) {
+        operationRef.current = null;
+        dispatch({ type: 'settled' });
       }
     }
   }
 
-  return { snapshot, error, pending, run, refresh: () => sessionRef.current?.refresh() };
+  const error: 'action' | 'load' | null = action.error ? 'action' : status.isError ? 'load' : null;
+  return {
+    snapshot: status.data ?? null,
+    error,
+    pending: action.pending,
+    run,
+    refresh: () => status.refetch(),
+  };
+}
+
+type ModelSettingsViewEvent =
+  | { type: 'sourceSelected'; source: ReadingMemoryModelSource }
+  | {
+      type: 'removeRequested';
+    }
+  | { type: 'removeDismissed' };
+
+type ModelSettingsViewState = {
+  removeConfirmationOpen: boolean;
+  selectedSource: ReadingMemoryModelSource;
+};
+
+function modelSettingsViewReducer(
+  state: ModelSettingsViewState,
+  event: ModelSettingsViewEvent,
+): ModelSettingsViewState {
+  switch (event.type) {
+    case 'sourceSelected':
+      return { ...state, selectedSource: event.source };
+    case 'removeRequested':
+      return { ...state, removeConfirmationOpen: true };
+    case 'removeDismissed':
+      return { ...state, removeConfirmationOpen: false };
+  }
 }
 
 type StatusTone = 'ready' | 'active' | 'idle' | 'error';
@@ -180,8 +185,10 @@ function StatusLabel({
 export function ReadingMemoryModelSettings() {
   const { t, i18n } = useTranslation();
   const { snapshot, error, pending, run, refresh } = useReadingMemoryModelStatus();
-  const [selectedSource, setSource] = useState<ReadingMemoryModelSource>('modelscope');
-  const [removeConfirmationOpen, setRemoveConfirmationOpen] = useState(false);
+  const [{ removeConfirmationOpen, selectedSource }, dispatch] = useReducer(
+    modelSettingsViewReducer,
+    { removeConfirmationOpen: false, selectedSource: 'modelscope' },
+  );
   const model = snapshot?.model;
   const source = model?.source ?? selectedSource;
   const downloading = model?.status === 'downloading' || pending === 'download';
@@ -334,7 +341,9 @@ export function ReadingMemoryModelSettings() {
               value={source}
               disabled={busy || downloading}
               onValueChange={(value) => {
-                if (value === 'modelscope' || value === 'huggingface') setSource(value);
+                if (value === 'modelscope' || value === 'huggingface') {
+                  dispatch({ type: 'sourceSelected', source: value });
+                }
               }}
             >
               <SelectTrigger
@@ -423,7 +432,7 @@ export function ReadingMemoryModelSettings() {
                 className="action-button reading-memory-remove"
                 variant="ghost"
                 disabled={!canRemove}
-                onClick={() => setRemoveConfirmationOpen(true)}
+                onClick={() => dispatch({ type: 'removeRequested' })}
               >
                 <HugeiconsIcon icon={Delete02Icon} size={15} />
                 {t('settings.models.localMemory.remove')}
@@ -456,9 +465,9 @@ export function ReadingMemoryModelSettings() {
         description={t('settings.models.localMemory.removeDescription')}
         confirmLabel={t('settings.models.localMemory.remove')}
         cancelLabel={t('settings.confirm.cancel')}
-        onCancel={() => setRemoveConfirmationOpen(false)}
+        onCancel={() => dispatch({ type: 'removeDismissed' })}
         onConfirm={() => {
-          setRemoveConfirmationOpen(false);
+          dispatch({ type: 'removeDismissed' });
           void run('remove');
         }}
       />

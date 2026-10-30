@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReadingMemoryStatusSnapshot } from '../../../ipc-contract';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { readingMemoryModelSources } from '../../../reading-memory-model-sources';
 import { ReadingMemoryModelSettings } from '../settings/reading-memory-model-settings';
+import { renderWithQueryClient } from './query-test-utils';
 
 function status(
   modelStatus: ReadingMemoryStatusSnapshot['model']['status'] = 'available',
@@ -90,7 +91,7 @@ describe('ReadingMemoryModelSettings', () => {
   it('discloses the exact download size, source, directory, and separate coverage before opt-in', async () => {
     const snapshot = status('not-installed');
     const api = installApi(snapshot);
-    render(<ReadingMemoryModelSettings />);
+    renderWithQueryClient(<ReadingMemoryModelSettings />);
 
     expect(await screen.findByRole('button', { name: '下载模型' })).toBeTruthy();
     expect(screen.getByText('218.1 MB（218,123,456 字节）')).toBeTruthy();
@@ -110,7 +111,7 @@ describe('ReadingMemoryModelSettings', () => {
     const cancelled = status('not-installed');
     cancelled.model.downloadedBytes = 1_000_000;
     api.model.cancel.mockResolvedValue(cancelled);
-    render(<ReadingMemoryModelSettings />);
+    renderWithQueryClient(<ReadingMemoryModelSettings />);
 
     fireEvent.click(await screen.findByRole('button', { name: '下载模型' }));
     fireEvent.click(screen.getByRole('button', { name: '取消下载' }));
@@ -129,7 +130,7 @@ describe('ReadingMemoryModelSettings', () => {
 
   it('downloads from the selected source only after explicit opt-in', async () => {
     const api = installApi(status('not-installed'));
-    render(<ReadingMemoryModelSettings />);
+    renderWithQueryClient(<ReadingMemoryModelSettings />);
     fireEvent.click(await screen.findByRole('combobox', { name: '下载源' }));
     const option = await screen.findByRole('option', { name: 'Hugging Face' });
     fireEvent.pointerDown(option, { pointerType: 'mouse' });
@@ -144,7 +145,7 @@ describe('ReadingMemoryModelSettings', () => {
     const snapshot = status('downloading');
     snapshot.model.source = 'huggingface';
     installApi(snapshot);
-    render(<ReadingMemoryModelSettings />);
+    renderWithQueryClient(<ReadingMemoryModelSettings />);
     const source = await screen.findByRole('combobox', { name: '下载源' });
     expect(source.textContent).toContain('Hugging Face');
     expect(source.hasAttribute('disabled')).toBe(true);
@@ -153,7 +154,7 @@ describe('ReadingMemoryModelSettings', () => {
 
   it('requires confirmation before deleting only model files and the derived index', async () => {
     const api = installApi();
-    render(<ReadingMemoryModelSettings />);
+    renderWithQueryClient(<ReadingMemoryModelSettings />);
     const remove = await screen.findByRole('button', { name: '删除模型与索引' });
     fireEvent.click(remove);
 
@@ -174,7 +175,7 @@ describe('ReadingMemoryModelSettings', () => {
 
   it('runs pause, resume, and rebuild only from explicit actions', async () => {
     const api = installApi();
-    render(<ReadingMemoryModelSettings />);
+    renderWithQueryClient(<ReadingMemoryModelSettings />);
     fireEvent.click(await screen.findByRole('button', { name: '暂停索引' }));
     fireEvent.click(await screen.findByRole('button', { name: '继续索引' }));
     await waitFor(() =>
@@ -201,7 +202,7 @@ describe('ReadingMemoryModelSettings', () => {
       .mockReturnValueOnce(unmountedPoll.promise);
     let unmount!: () => void;
     await act(async () => {
-      ({ unmount } = render(<ReadingMemoryModelSettings />));
+      ({ unmount } = renderWithQueryClient(<ReadingMemoryModelSettings />));
     });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1_000);
@@ -231,7 +232,7 @@ describe('ReadingMemoryModelSettings', () => {
     vi.useFakeTimers();
     const api = installApi();
     await act(async () => {
-      render(<ReadingMemoryModelSettings />);
+      renderWithQueryClient(<ReadingMemoryModelSettings />);
     });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(9_999);
@@ -247,7 +248,7 @@ describe('ReadingMemoryModelSettings', () => {
     const api = installApi();
     api.model.status.mockRejectedValueOnce(new Error('offline'));
     api.index.pause.mockRejectedValueOnce(new Error('unavailable'));
-    render(<ReadingMemoryModelSettings />);
+    renderWithQueryClient(<ReadingMemoryModelSettings />);
     fireEvent.click(await screen.findByRole('button', { name: '重试读取' }));
     fireEvent.click(await screen.findByRole('button', { name: '暂停索引' }));
 
@@ -260,7 +261,7 @@ describe('ReadingMemoryModelSettings', () => {
     const snapshot = status('failed');
     snapshot.model.failure = 'unsupported-platform';
     installApi(snapshot);
-    render(<ReadingMemoryModelSettings />);
+    renderWithQueryClient(<ReadingMemoryModelSettings />);
 
     expect(await screen.findByRole('alert')).toHaveProperty(
       'textContent',

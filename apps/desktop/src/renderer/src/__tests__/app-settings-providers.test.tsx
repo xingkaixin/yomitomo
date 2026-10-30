@@ -18,6 +18,7 @@ import { initializeAppI18n } from '../i18n/app-i18n';
 import { appToast } from '../shell/app-toast';
 import type { SaveState } from '../shell/app-types';
 import { normalizeAppSettings } from '../../../settings/app-settings-normalization';
+import { renderWithQueryClient } from './query-test-utils';
 
 const release = vi.hoisted(() => ({ enabled: undefined as boolean | undefined }));
 
@@ -466,7 +467,7 @@ describe('ProviderSettings', () => {
         configurable: true,
         value: { readingMemory: { model: { status } } },
       });
-      render(
+      renderWithQueryClient(
         <ProviderSettings
           {...makeProviderSettingsProps({ providerValue: emptyProvider, providers: [] })}
         />,
@@ -489,7 +490,7 @@ describe('ProviderSettings', () => {
       makeProvider('provider_2', 'OpenAI'),
     ];
 
-    render(
+    renderWithQueryClient(
       <ProviderSettings
         {...makeProviderSettingsProps({
           providerValue: providers[0],
@@ -516,7 +517,7 @@ describe('ProviderSettings', () => {
   it('lets a task return to the default model without changing other routes', async () => {
     const provider = makeProvider('provider_1', 'Anthropic');
     const onRouteSave = vi.fn();
-    render(
+    renderWithQueryClient(
       <ProviderSettings
         {...makeProviderSettingsProps({
           providerValue: provider,
@@ -542,7 +543,7 @@ describe('ProviderSettings', () => {
     const provider = makeProvider('provider_1', 'Anthropic');
     const onSelect = vi.fn();
 
-    render(
+    renderWithQueryClient(
       <ProviderSettings
         {...makeProviderSettingsProps({
           providerValue: provider,
@@ -563,7 +564,7 @@ describe('ProviderSettings', () => {
     const provider = makeProvider('provider_1', 'Anthropic');
     const onSave = vi.fn(async () => true);
 
-    render(
+    renderWithQueryClient(
       <ProviderSettings
         {...makeProviderSettingsProps({
           providerValue: provider,
@@ -592,7 +593,7 @@ describe('ProviderSettings', () => {
     const provider = makeProvider('provider_1', 'Anthropic');
     const save = vi.fn().mockResolvedValue(undefined);
 
-    render(
+    renderWithQueryClient(
       <ProviderSettings
         {...makeProviderSettingsProps({
           providerValue: provider,
@@ -615,7 +616,7 @@ describe('ProviderSettings', () => {
     const provider = makeProvider('provider_1', 'Anthropic');
     const onDelete = vi.fn();
 
-    render(
+    renderWithQueryClient(
       <ProviderSettings
         {...makeProviderSettingsProps({
           providerValue: provider,
@@ -647,7 +648,7 @@ describe('ProviderSettings', () => {
     const onCreate = vi.fn();
     const onTest = vi.fn();
 
-    render(<StatefulEmptyProviderSettings onCreate={onCreate} onTest={onTest} />);
+    renderWithQueryClient(<StatefulEmptyProviderSettings onCreate={onCreate} onTest={onTest} />);
 
     expect(screen.getByLabelText('默认模型供应商')).toHaveProperty('disabled', true);
     expect(screen.getByText(/双语翻译为整篇文章全文.*所配置的端点/)).toBeTruthy();
