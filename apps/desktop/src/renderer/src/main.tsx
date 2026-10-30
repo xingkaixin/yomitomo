@@ -1,27 +1,27 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { LockKeyIcon } from '@hugeicons/core-free-icons';
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { AppSettingsPatch, DesktopStore } from '@yomitomo/shared';
-import { normalizeUiLanguage } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 
 import { AppLockGate } from './app-lock/app-lock-gate';
 import { AvatarImage } from './shell/app-ui';
 import { useAppAgentActions } from './shell/app-agent-actions';
 import { useAppArticleStoreActions } from './shell/app-article-store-actions';
 import { useAppCollectionStoreActions } from './shell/app-library-collection-store-actions';
-import { bindDesktopStoreEvents } from './shell/app-desktop-event-bindings';
+import { bindDesktopStoreEvents, bindMainWindowEvents } from './shell/app-desktop-event-bindings';
 import {
   createDesktopStore,
   DesktopStoreProvider,
   useDesktopStore,
   useDesktopStoreApi,
 } from './shell/app-desktop-store';
-import { useSecondaryModulePreload } from './shell/app-secondary-module-preload';
+import { IdleModulePreload, useSecondaryModulePreload } from './shell/app-secondary-module-preload';
 import { applySavedSettings } from './settings/app-settings-application';
 import { recordStartupTiming } from './shell/app-renderer-performance';
-import { useAppSession } from './shell/app-session';
+import { AppSessionStoreProvider, createAppSessionStore, useAppSession } from './shell/app-session';
 import {
   activeSurfaceComponents,
   ReadingMemory,
@@ -39,12 +39,16 @@ import { SettingsNavButton } from './settings/app-settings-nav-button';
 import { getDesktopApi } from './shell/app-desktop-api';
 import { StoreLoadErrorScreen } from './shell/app-store-load-error';
 import { ThemeSelector } from './theme/app-theme-selector';
-import { useReaderThemeController } from './theme/use-reader-theme-controller';
+import {
+  createReaderThemeStore,
+  ReaderThemeStoreProvider,
+  useReaderThemeController,
+} from './theme/use-reader-theme-controller';
 import { UpdateReleaseDialog } from './shell/app-update-dialog';
 import { AppUpdateNavButton } from './shell/app-update-nav-button';
 import { useAppUpdateState } from './shell/use-app-update-state';
-import { changeAppI18nLanguage, initializeAppI18n } from './i18n/app-i18n';
-import { readCachedUiLanguage, writeCachedUiLanguage } from './i18n/app-language-cache';
+import { initializeAppI18n } from './i18n/app-i18n';
+import { readCachedUiLanguage } from './i18n/app-language-cache';
 import { AppToaster, useHeaderToastOffset } from './shell/app-toast';
 import './styles.css';
 import 'goey-toast/styles.css';
@@ -57,7 +61,7 @@ const rendererModuleLoadedAt = performance.now();
 function App() {
   const appUpdateState = useAppUpdateState();
   useSecondaryModulePreload();
-  const { applyStore, refreshStore } = useDesktopStoreApi().getState();
+  const { refreshStore } = useDesktopStoreApi().getState();
   const loadedStore = useDesktopStore((state) => state.store);
   const loadError = useDesktopStore((state) => state.loadError);
   const storeStatus = loadError ? 'error' : loadedStore ? 'ready' : 'loading';
@@ -66,25 +70,36 @@ function App() {
   const appLocked = Boolean(appLockEnabled && readyStore?.settings.appLockLocked);
   const session = useAppSession({
     appLocked,
-    applyStore,
-    articles: readyStore?.articles || [],
     developerModeEnabled: Boolean(readyStore?.settings.developerModeEnabled),
     onboardingCompletedAt: readyStore?.settings.onboardingCompletedAt,
-    readStatsArticles: () => getDesktopApi().article.readStatsSummaries(),
-    storeStatus,
   });
-  const theme = useReaderThemeController({
-    appLocked,
-    applyStore,
-    settings: readyStore?.settings || null,
+  const theme = useReaderThemeController();
+
+  useMountEffect(() => {
+    recordStartupTiming('app.mounted');
+    recordStartupTiming('window.show_requested', {
+      reason: 'app.mounted',
+      storeLoaded: storeStatus === 'ready',
+      storeLoadError: storeStatus === 'error',
+    });
+    getDesktopApi().app.showMainWindow();
   });
 
-  if (loadError) return <StoreLoadErrorScreen error={loadError} onRetry={refreshStore} />;
+  if (loadError) return <StoreLoadErrorView error={loadError} onRetry={refreshStore} />;
   if (!readyStore) return <StartupShell />;
 
   return (
     <ReadyApp appUpdateState={appUpdateState} session={session} store={readyStore} theme={theme} />
   );
+}
+
+function StoreLoadErrorView(props: Parameters<typeof StoreLoadErrorScreen>[0]) {
+  useMountEffect(() => recordStoreReadyForUi(false));
+  return <StoreLoadErrorScreen {...props} />;
+}
+
+function recordStoreReadyForUi(storeLoaded: boolean) {
+  recordStartupTiming('store.ready_for_ui', { storeLoaded, storeLoadError: !storeLoaded });
 }
 
 function ReadyApp({
@@ -107,12 +122,7 @@ function ReadyApp({
   const appLocked = appLockEnabled && store.settings.appLockLocked;
   const toastTopOffset = useHeaderToastOffset(session.readerOpen);
 
-  useEffect(() => {
-    if (appLocked) return;
-    const storedUiLanguage = normalizeUiLanguage(store.settings.uiLanguage);
-    writeCachedUiLanguage(storedUiLanguage);
-    changeAppI18nLanguage(storedUiLanguage);
-  }, [appLocked, store.settings.uiLanguage]);
+  useMountEffect(() => recordStoreReadyForUi(true));
 
   const articleActions = useAppArticleStoreActions({ articleStore });
   const {
@@ -168,6 +178,7 @@ function ReadyApp({
     <AppLockGate enabled={appLockEnabled} locked={appLocked} onStoreUpdated={applyStore}>
       {({ enabled: lockEnabled, locked: lockOverlayVisible, lockApp, shortcutLabel }) => (
         <main className={appShellClassName}>
+          <IdleModulePreload />
           <AppMasthead settings={store.settings}>
             <nav className="app-section-nav" aria-label={t('nav.main')}>
               <div className="app-section-links">
@@ -385,12 +396,26 @@ const AnnotationSedimentationWindowApp = lazy(() =>
   })),
 );
 
-function createMainWindowStore() {
+function createMainWindow() {
   const desktopStore = createDesktopStore();
+  const sessionStore = createAppSessionStore(desktopStore);
+  const themeStore = createReaderThemeStore({ applyStore: desktopStore.getState().applyStore });
   void desktopStore.getState().refreshStore();
   const unbindDesktopStoreEvents = bindDesktopStoreEvents(desktopStore);
-  import.meta.hot?.dispose(unbindDesktopStoreEvents);
-  return desktopStore;
+  const unbindMainWindowEvents = bindMainWindowEvents({ desktopStore, sessionStore, themeStore });
+  import.meta.hot?.dispose(() => {
+    unbindMainWindowEvents();
+    unbindDesktopStoreEvents();
+  });
+  return (
+    <DesktopStoreProvider store={desktopStore}>
+      <AppSessionStoreProvider store={sessionStore}>
+        <ReaderThemeStoreProvider store={themeStore}>
+          <App />
+        </ReaderThemeStoreProvider>
+      </AppSessionStoreProvider>
+    </DesktopStoreProvider>
+  );
 }
 
 const rendererWindowKind = new URLSearchParams(window.location.search).get('window');
@@ -400,9 +425,7 @@ const rootApp =
   ) : rendererWindowKind === 'annotation-sedimentation' ? (
     <AnnotationSedimentationWindowApp />
   ) : (
-    <DesktopStoreProvider store={createMainWindowStore()}>
-      <App />
-    </DesktopStoreProvider>
+    createMainWindow()
   );
 
 createRoot(document.getElementById('root')!).render(<Suspense fallback={null}>{rootApp}</Suspense>);
