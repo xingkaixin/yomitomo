@@ -1,6 +1,6 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Delete02Icon, ViewIcon, ViewOffIcon } from '@hugeicons/core-free-icons';
-import { useEffect, useRef, useState } from 'react';
+import { useReducer, useRef } from 'react';
 import { providerPresets } from '@yomitomo/shared';
 import type { ProviderDraft } from './app-settings';
 import { providerLogoMap } from './app-settings-provider-assets';
@@ -151,8 +151,8 @@ export function ProviderForm({
       <Field id="provider-api-key" className="col-span-2" label="API Key">
         <SecretInput
           id="provider-api-key"
+          key={draft.id}
           hasStoredValue={Boolean(draft.hasApiKey)}
-          storedValueId={draft.id}
           value={draft.apiKey || ''}
           onChange={(apiKey) => onChange({ ...draft, apiKey, removeApiKey: false })}
           onRevealStoredValue={() =>
@@ -165,10 +165,56 @@ export function ProviderForm({
   );
 }
 
+type SecretInputState = {
+  revealError: string;
+  revealLoading: boolean;
+  revealedStoredValue: string;
+  visible: boolean;
+};
+
+type SecretInputEvent =
+  | { type: 'edited' }
+  | { type: 'hidden' }
+  | { type: 'revealFailed'; error: string }
+  | { type: 'revealStarted' }
+  | { type: 'revealSucceeded'; error: string; value: string }
+  | { type: 'shown' }
+  | { type: 'storedValueRemoved' };
+
+const initialSecretInputState: SecretInputState = {
+  revealError: '',
+  revealLoading: false,
+  revealedStoredValue: '',
+  visible: false,
+};
+
+function secretInputReducer(state: SecretInputState, event: SecretInputEvent): SecretInputState {
+  switch (event.type) {
+    case 'edited':
+      return { ...state, revealError: '', revealLoading: false, revealedStoredValue: '' };
+    case 'hidden':
+      return { ...state, revealError: '', revealedStoredValue: '', visible: false };
+    case 'revealFailed':
+      return { ...state, revealError: event.error, revealLoading: false };
+    case 'revealStarted':
+      return { ...state, revealError: '', revealLoading: true };
+    case 'revealSucceeded':
+      return {
+        revealError: event.error,
+        revealLoading: false,
+        revealedStoredValue: event.value,
+        visible: true,
+      };
+    case 'shown':
+      return { ...state, visible: true };
+    case 'storedValueRemoved':
+      return initialSecretInputState;
+  }
+}
+
 function SecretInput({
   hasStoredValue,
   id,
-  storedValueId,
   value,
   onChange,
   onRevealStoredValue,
@@ -176,66 +222,57 @@ function SecretInput({
 }: {
   hasStoredValue?: boolean;
   id: string;
-  storedValueId?: string;
   value: string;
   onChange: (value: string) => void;
   onRevealStoredValue?: () => Promise<string>;
   onRemove: () => void;
 }) {
   const { t } = useTranslation();
-  const [visible, setVisible] = useState(false);
-  const [revealedStoredValue, setRevealedStoredValue] = useState('');
-  const [revealLoading, setRevealLoading] = useState(false);
-  const [revealError, setRevealError] = useState('');
+  const [{ revealError, revealLoading, revealedStoredValue, visible }, dispatch] = useReducer(
+    secretInputReducer,
+    initialSecretInputState,
+  );
   const revealRequestRef = useRef(0);
   const displayValue = value || (visible ? revealedStoredValue : '');
 
   async function toggleVisible() {
     if (visible) {
-      setVisible(false);
-      setRevealedStoredValue('');
-      setRevealError('');
+      dispatch({ type: 'hidden' });
       return;
     }
 
     if (value || !hasStoredValue) {
-      setVisible(true);
+      dispatch({ type: 'shown' });
       return;
     }
 
-    setRevealError('');
-    setRevealLoading(true);
+    dispatch({ type: 'revealStarted' });
     const requestId = ++revealRequestRef.current;
     try {
       const storedValue = (await onRevealStoredValue?.()) || '';
       if (requestId !== revealRequestRef.current) return;
-      setRevealedStoredValue(storedValue);
-      setVisible(true);
-      if (!storedValue) setRevealError(t('settings.models.noStoredKey'));
+      dispatch({
+        type: 'revealSucceeded',
+        error: storedValue ? '' : t('settings.models.noStoredKey'),
+        value: storedValue,
+      });
     } catch {
       if (requestId !== revealRequestRef.current) return;
-      setRevealError(t('settings.models.readStoredKeyFailed'));
-    } finally {
-      if (requestId === revealRequestRef.current) setRevealLoading(false);
+      dispatch({ type: 'revealFailed', error: t('settings.models.readStoredKeyFailed') });
     }
   }
 
-  useEffect(() => {
+  function edit(nextValue: string) {
     revealRequestRef.current += 1;
-    setVisible(false);
-    setRevealedStoredValue('');
-    setRevealError('');
-    setRevealLoading(false);
-  }, [storedValueId]);
+    dispatch({ type: 'edited' });
+    onChange(nextValue);
+  }
 
-  useEffect(() => {
-    if (hasStoredValue && !value) return;
+  function removeStoredValue() {
     revealRequestRef.current += 1;
-    setRevealedStoredValue('');
-    setRevealError('');
-    setRevealLoading(false);
-    if (!value) setVisible(false);
-  }, [hasStoredValue, value]);
+    dispatch({ type: 'storedValueRemoved' });
+    onRemove();
+  }
 
   return (
     <div className="secret-input">
@@ -249,7 +286,7 @@ function SecretInput({
           spellCheck={false}
           type={visible ? 'text' : 'password'}
           value={displayValue}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={(event) => edit(event.target.value)}
         />
         <button
           className="secret-toggle"
@@ -267,7 +304,12 @@ function SecretInput({
       </div>
       {revealError ? <p className="secret-input-error">{revealError}</p> : null}
       {hasStoredValue && !value ? (
-        <Button className="secret-remove" type="button" variant="secondary" onClick={onRemove}>
+        <Button
+          className="secret-remove"
+          type="button"
+          variant="secondary"
+          onClick={removeStoredValue}
+        >
           <HugeiconsIcon icon={Delete02Icon} size={14} />
           {t('settings.models.removeStoredKey')}
         </Button>

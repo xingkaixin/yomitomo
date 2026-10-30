@@ -14,6 +14,7 @@ import {
   defaultUser,
   emptyProvider,
   providerDraftHasChanges,
+  userAnnotationColors,
   userDraftHasChanges,
   type ProviderDraft,
   type ProviderTestState,
@@ -238,7 +239,7 @@ export function createSettingsDraftStore(desktopStore: DesktopStoreApi): Setting
         profile,
         provider,
         resetFromSnapshot: (snapshot) => {
-          profile.update(snapshot.user);
+          profile.update(profileDraftFromUser(snapshot.user));
           general.update(snapshot.settings);
           shortcuts.update(snapshot.settings);
           routes.update(snapshot.settings);
@@ -329,6 +330,13 @@ export function settingsDraftsView(state: SettingsDraftState) {
     routes: draft(actions.routes, 'routes', state.settingsDraft),
     shortcuts: draft(actions.shortcuts, 'shortcuts', state.settingsDraft),
   };
+}
+
+// The profile dialog only offers userAnnotationColors; a profile saved with an older color
+// starts its draft on the first allowed one.
+function profileDraftFromUser(user: UserDraft): UserDraft {
+  if (!user.annotationColor || userAnnotationColors.includes(user.annotationColor)) return user;
+  return { ...user, annotationColor: userAnnotationColors[0] };
 }
 
 function localizedEmptyProvider(): ProviderDraft {

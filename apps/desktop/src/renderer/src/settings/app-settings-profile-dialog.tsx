@@ -52,11 +52,6 @@ export function UserProfileSettingsDialog({
     ? draft.annotationColor || userAnnotationColors[0]
     : userAnnotationColors[0];
 
-  React.useEffect(() => {
-    if (!draft.annotationColor || userAnnotationColors.includes(draft.annotationColor)) return;
-    onChange({ ...draft, annotationColor: userAnnotationColors[0] });
-  }, [draft, onChange]);
-
   return (
     <Dialog open onOpenChange={(nextOpen) => !nextOpen && onClose()}>
       <DialogPortal>

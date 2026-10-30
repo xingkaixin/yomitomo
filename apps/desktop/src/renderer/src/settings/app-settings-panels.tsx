@@ -16,8 +16,9 @@ import {
   Settings01Icon,
   Upload01Icon,
 } from '@hugeicons/core-free-icons';
-import React, { useEffect, useReducer, useState } from 'react';
+import React, { useReducer } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useEventListener } from '@yomitomo/reader-ui/use-event-listener';
 import type {
   AppSettingsPatch,
   ResolvedAppSettings,
@@ -89,6 +90,30 @@ function messageSendShortcutCopy(
 
 type SelectionShortcutAction = keyof SelectionActionShortcuts;
 type ShortcutSaveSection = 'message' | 'selection';
+
+type ShortcutSettingsState = {
+  recordingAction: SelectionShortcutAction | null;
+  saveSection: ShortcutSaveSection | null;
+};
+
+type ShortcutSettingsEvent =
+  | { type: 'recordingFinished' }
+  | { type: 'recordingStarted'; action: SelectionShortcutAction }
+  | { type: 'saveStarted'; section: ShortcutSaveSection };
+
+function shortcutSettingsReducer(
+  state: ShortcutSettingsState,
+  event: ShortcutSettingsEvent,
+): ShortcutSettingsState {
+  switch (event.type) {
+    case 'recordingFinished':
+      return { ...state, recordingAction: null };
+    case 'recordingStarted':
+      return { ...state, recordingAction: event.action };
+    case 'saveStarted':
+      return { ...state, saveSection: event.section };
+  }
+}
 
 const selectionShortcutRows: Array<{
   action: SelectionShortcutAction;
@@ -217,8 +242,10 @@ export function ShortcutSettings({ draft }: { draft: SaveableDraft<ResolvedAppSe
     void draft.save(override);
   };
   const { t } = useTranslation();
-  const [recordingAction, setRecordingAction] = useState<SelectionShortcutAction | null>(null);
-  const [saveSection, setSaveSection] = useState<ShortcutSaveSection | null>(null);
+  const [{ recordingAction, saveSection }, dispatch] = useReducer(shortcutSettingsReducer, {
+    recordingAction: null,
+    saveSection: null,
+  });
   const selectedShortcut = normalizeMessageSendShortcut(settingsDraft.messageSendShortcut);
   const shortcutModifier = getShortcutModifier();
   const selectionShortcuts = React.useMemo(
@@ -226,16 +253,11 @@ export function ShortcutSettings({ draft }: { draft: SaveableDraft<ResolvedAppSe
     [settingsDraft.selectionActionShortcuts],
   );
 
-  useEffect(() => {
-    if (!recordingAction) return;
-    const action = recordingAction;
-
-    function finishRecording() {
-      setRecordingAction(null);
-      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-    }
-
-    function handleShortcutKeyDown(event: KeyboardEvent) {
+  useEventListener(
+    recordingAction ? window : null,
+    'keydown',
+    (event) => {
+      if (!recordingAction) return;
       event.preventDefault();
       event.stopPropagation();
 
@@ -253,7 +275,7 @@ export function ShortcutSettings({ draft }: { draft: SaveableDraft<ResolvedAppSe
         ...settingsDraft,
         selectionActionShortcuts: {
           ...selectionShortcuts,
-          [action]: key,
+          [recordingAction]: key,
         },
       };
       onSettingsChange(nextDraft);
@@ -262,15 +284,18 @@ export function ShortcutSettings({ draft }: { draft: SaveableDraft<ResolvedAppSe
           normalizeSelectionActionShortcutDraft(nextDraft.selectionActionShortcuts),
         )
       ) {
-        setSaveSection('selection');
+        dispatch({ type: 'saveStarted', section: 'selection' });
         onSave(nextDraft);
       }
       finishRecording();
-    }
+    },
+    { capture: true },
+  );
 
-    window.addEventListener('keydown', handleShortcutKeyDown, true);
-    return () => window.removeEventListener('keydown', handleShortcutKeyDown, true);
-  }, [onSave, onSettingsChange, recordingAction, selectionShortcuts, settingsDraft]);
+  function finishRecording() {
+    dispatch({ type: 'recordingFinished' });
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+  }
 
   function resetSelectionShortcut(action: SelectionShortcutAction) {
     const nextDraft = {
@@ -286,13 +311,13 @@ export function ShortcutSettings({ draft }: { draft: SaveableDraft<ResolvedAppSe
         normalizeSelectionActionShortcutDraft(nextDraft.selectionActionShortcuts),
       )
     ) {
-      setSaveSection('selection');
+      dispatch({ type: 'saveStarted', section: 'selection' });
       onSave(nextDraft);
     }
   }
 
   function retrySave(section: ShortcutSaveSection) {
-    setSaveSection(section);
+    dispatch({ type: 'saveStarted', section });
     onSave();
   }
 
@@ -331,7 +356,7 @@ export function ShortcutSettings({ draft }: { draft: SaveableDraft<ResolvedAppSe
               onClick={() => {
                 const nextDraft = { ...settingsDraft, messageSendShortcut: option.value };
                 onSettingsChange(nextDraft);
-                setSaveSection('message');
+                dispatch({ type: 'saveStarted', section: 'message' });
                 onSave(nextDraft);
               }}
             >
@@ -399,7 +424,7 @@ export function ShortcutSettings({ draft }: { draft: SaveableDraft<ResolvedAppSe
                 className={recording ? 'settings-key-button is-recording' : 'settings-key-button'}
                 type="button"
                 aria-label={t('settings.shortcuts.setShortcut', { label: rowLabel })}
-                onClick={() => setRecordingAction(row.action)}
+                onClick={() => dispatch({ type: 'recordingStarted', action: row.action })}
               >
                 <Kbd className="settings-keycap">{recording ? '...' : key}</Kbd>
                 <span>

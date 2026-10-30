@@ -10,7 +10,7 @@ import {
   SecurityCheckIcon,
   Tick01Icon,
 } from '@hugeicons/core-free-icons';
-import React, { useState } from 'react';
+import React, { useReducer } from 'react';
 import {
   providerPresets,
   type ResolvedAppSettings,
@@ -71,10 +71,12 @@ export function ProviderSettings({ providerDraft, routesDraft, providers }: Prov
       : saveState === 'saved'
         ? t('settings.models.saved')
         : t('settings.models.save');
-  const [providerEditorOpen, setProviderEditorOpen] = useState(false);
-  const [providerEditorMode, setProviderEditorMode] = useState<'create' | 'edit'>('create');
-  const [providerEditorStep, setProviderEditorStep] = useState<1 | 2>(1);
-  const [providerPresetPicked, setProviderPresetPicked] = useState(false);
+  const [providerEditor, dispatchEditor] = useReducer(providerEditorReducer, {
+    mode: 'create',
+    open: false,
+    presetPicked: false,
+    step: 1,
+  });
   const testStatus = testState.status;
   const usedProviderIds = new Set(
     [
@@ -87,23 +89,17 @@ export function ProviderSettings({ providerDraft, routesDraft, providers }: Prov
 
   function selectProvider(provider: LlmProvider) {
     providerDraft.select(provider);
-    setProviderEditorMode('edit');
-    setProviderEditorStep(2);
-    setProviderPresetPicked(true);
-    setProviderEditorOpen(true);
+    dispatchEditor({ type: 'editStarted' });
   }
 
   function createProvider() {
     providerDraft.create();
-    setProviderEditorMode('create');
-    setProviderEditorStep(1);
-    setProviderPresetPicked(false);
-    setProviderEditorOpen(true);
+    dispatchEditor({ type: 'createStarted' });
   }
 
   function deleteProvider(id: string) {
     void providerDraft.deleteProvider(id);
-    setProviderEditorOpen(false);
+    dispatchEditor({ type: 'closed' });
   }
 
   function testProvider(nextDraft: ProviderDraft) {
@@ -111,15 +107,15 @@ export function ProviderSettings({ providerDraft, routesDraft, providers }: Prov
   }
 
   function closeProviderEditor() {
-    setProviderEditorOpen(false);
+    dispatchEditor({ type: 'closed' });
   }
 
   async function saveProviderAndClose() {
     try {
       const saved = Boolean(await providerDraft.save());
-      if (saved) setProviderEditorOpen(false);
+      if (saved) dispatchEditor({ type: 'closed' });
     } catch {
-      setProviderEditorOpen(true);
+      dispatchEditor({ type: 'saveFailed' });
     }
   }
 
@@ -128,8 +124,13 @@ export function ProviderSettings({ providerDraft, routesDraft, providers }: Prov
   }
 
   const editorDialog =
-    providerEditorOpen && typeof document !== 'undefined' ? (
-      <Dialog open={providerEditorOpen} onOpenChange={setProviderEditorOpen}>
+    providerEditor.open && typeof document !== 'undefined' ? (
+      <Dialog
+        open={providerEditor.open}
+        onOpenChange={(open) => {
+          if (!open) closeProviderEditor();
+        }}
+      >
         <DialogPortal>
           <DialogOverlay className="provider-editor-dialog-overlay">
             <DialogContent
@@ -144,18 +145,17 @@ export function ProviderSettings({ providerDraft, routesDraft, providers }: Prov
                 testStatus={testStatus}
                 titleId="provider-editor-dialog-title"
                 canSave={canSave}
-                editorMode={providerEditorMode}
-                editorStep={providerEditorStep}
-                providerPresetPicked={providerPresetPicked}
+                editorMode={providerEditor.mode}
+                editorStep={providerEditor.step}
+                providerPresetPicked={providerEditor.presetPicked}
                 onChange={providerDraft.update}
                 onCancel={closeProviderEditor}
                 onPickPreset={(preset) => {
                   providerDraft.update(providerDraftFromPreset(draft, preset));
-                  setProviderPresetPicked(true);
-                  setProviderEditorStep(2);
+                  dispatchEditor({ type: 'presetPicked' });
                 }}
                 onSave={saveProviderAndClose}
-                onStepChange={setProviderEditorStep}
+                onStepChange={(step) => dispatchEditor({ type: 'stepChanged', step })}
                 onTest={testProvider}
               />
             </DialogContent>
@@ -357,7 +357,7 @@ function ProviderPresetPicker({
   onPickPreset: (preset: ProviderPreset) => void;
 }) {
   const { t } = useTranslation();
-  const [query, setQuery] = useState('');
+  const [query, changeQuery] = useReducer(presetQueryReducer, '');
   const normalizedQuery = query.trim().toLowerCase();
   const presets = providerPickerPresets.filter((preset) => {
     if (!normalizedQuery) return true;
@@ -376,7 +376,7 @@ function ProviderPresetPicker({
           type="text"
           value={query}
           placeholder={t('settings.models.searchProvider')}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => changeQuery(event.target.value)}
         />
       </label>
       <div className="provider-editor-pick-grid">
@@ -600,8 +600,10 @@ function TaskProviderRoutes({
   onSave: (draft?: ResolvedAppSettings) => void;
 }) {
   const { t } = useTranslation();
-  const [showTaskRoutes, setShowTaskRoutes] = useState(() =>
-    taskRouteOptions.some((option) => Boolean(settingsDraft[option.key])),
+  const [showTaskRoutes, toggleTaskRoutes] = useReducer(
+    (shown: boolean) => !shown,
+    settingsDraft,
+    (draft) => taskRouteOptions.some((option) => Boolean(draft[option.key])),
   );
 
   function updateRoute(key: (typeof taskRouteOptions)[number]['key'], providerId: string) {
@@ -627,7 +629,7 @@ function TaskProviderRoutes({
           variant="ghost"
           aria-expanded={showTaskRoutes}
           aria-controls="provider-task-overrides"
-          onClick={() => setShowTaskRoutes((shown) => !shown)}
+          onClick={toggleTaskRoutes}
         >
           {t('settings.models.taskOverrides')}
         </Button>
@@ -725,4 +727,43 @@ function ProviderRouteRow({
       </Select>
     </SettingsRow>
   );
+}
+
+type ProviderEditorState = {
+  mode: 'create' | 'edit';
+  open: boolean;
+  presetPicked: boolean;
+  step: 1 | 2;
+};
+
+type ProviderEditorEvent =
+  | { type: 'closed' }
+  | { type: 'createStarted' }
+  | { type: 'editStarted' }
+  | { type: 'presetPicked' }
+  | { type: 'saveFailed' }
+  | { type: 'stepChanged'; step: 1 | 2 };
+
+function providerEditorReducer(
+  state: ProviderEditorState,
+  event: ProviderEditorEvent,
+): ProviderEditorState {
+  switch (event.type) {
+    case 'closed':
+      return { ...state, open: false };
+    case 'createStarted':
+      return { mode: 'create', open: true, presetPicked: false, step: 1 };
+    case 'editStarted':
+      return { mode: 'edit', open: true, presetPicked: true, step: 2 };
+    case 'presetPicked':
+      return { ...state, presetPicked: true, step: 2 };
+    case 'saveFailed':
+      return { ...state, open: true };
+    case 'stepChanged':
+      return { ...state, step: event.step };
+  }
+}
+
+function presetQueryReducer(_query: string, query: string) {
+  return query;
 }

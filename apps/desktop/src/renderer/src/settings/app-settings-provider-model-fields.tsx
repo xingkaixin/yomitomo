@@ -11,7 +11,7 @@ import {
   ViewIcon,
   ViewOffIcon,
 } from '@hugeicons/core-free-icons';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useReducer, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { ProviderDraft } from './app-settings';
 import { Button } from '../components/ui/button';
@@ -153,13 +153,11 @@ function ProviderModelPicker({
   onUpdateCustomModel: (modelName: string, nextModelName: string) => void;
 }) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const [customModel, setCustomModel] = useState('');
-  const [editingModel, setEditingModel] = useState('');
-  const [menuPlacement, setMenuPlacement] = useState<ProviderModelMenuPlacement | null>(null);
+  const [{ customModel, editingModel, menuPlacement, open, query }, dispatch] = useReducer(
+    providerModelPickerReducer,
+    initialProviderModelPickerState,
+  );
   const rootRef = useRef<HTMLDivElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const normalizedModels = useMemo(() => mergeModelNames(models), [models]);
   const normalizedQuery = query.trim().toLowerCase();
@@ -175,68 +173,46 @@ function ProviderModelPicker({
       ),
     [normalizedModels, normalizedQuery, presetModels],
   );
-  const updateMenuPlacement = useCallback(() => {
-    if (!rootRef.current) return;
-    setMenuPlacement(getProviderModelMenuPlacement(rootRef.current));
-  }, []);
 
-  useLayoutEffect(() => {
-    if (!open) {
-      setMenuPlacement(null);
-      return;
+  const attachMenu = useCallback((menu: HTMLDivElement) => {
+    function updateMenuPlacement() {
+      if (!rootRef.current) return;
+      dispatch({
+        type: 'placementMeasured',
+        placement: getProviderModelMenuPlacement(rootRef.current),
+      });
     }
-    updateMenuPlacement();
-  }, [open, updateMenuPlacement]);
-
-  useEffect(() => {
-    if (!open) return;
-    setQuery('');
-    const frame = window.requestAnimationFrame(() => searchRef.current?.focus());
-    return () => window.cancelAnimationFrame(frame);
-  }, [open]);
-
-  useEffect(() => {
     function closeOnOutsidePointer(event: MouseEvent) {
       const target = event.target as Node;
-      if (rootRef.current?.contains(target) || menuRef.current?.contains(target)) return;
-      setOpen(false);
+      if (rootRef.current?.contains(target) || menu.contains(target)) return;
+      dispatch({ type: 'closed' });
     }
-    if (!open) return undefined;
+    const frame = window.requestAnimationFrame(() => searchRef.current?.focus());
     document.addEventListener('mousedown', closeOnOutsidePointer);
-    return () => document.removeEventListener('mousedown', closeOnOutsidePointer);
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return undefined;
     window.addEventListener('resize', updateMenuPlacement);
     window.addEventListener('scroll', updateMenuPlacement, true);
     return () => {
+      window.cancelAnimationFrame(frame);
+      document.removeEventListener('mousedown', closeOnOutsidePointer);
       window.removeEventListener('resize', updateMenuPlacement);
       window.removeEventListener('scroll', updateMenuPlacement, true);
     };
-  }, [open, updateMenuPlacement]);
+  }, []);
+
+  function toggleMenu() {
+    if (open || !rootRef.current) {
+      dispatch({ type: 'closed' });
+      return;
+    }
+    dispatch({ type: 'opened', placement: getProviderModelMenuPlacement(rootRef.current) });
+  }
 
   function submitCustomModel() {
     const nextModel = customModel.trim();
     if (!nextModel) return;
-    if (editingModel) {
-      onUpdateCustomModel(editingModel, nextModel);
-      setEditingModel('');
-    } else {
-      onAddCustomModel(nextModel);
-    }
-    setCustomModel('');
-    setOpen(false);
-  }
-
-  function editCustomModel(model: string) {
-    setEditingModel(model);
-    setCustomModel(model);
-  }
-
-  function cancelCustomEdit() {
-    setEditingModel('');
-    setCustomModel('');
+    if (editingModel) onUpdateCustomModel(editingModel, nextModel);
+    else onAddCustomModel(nextModel);
+    dispatch({ type: 'customModelSubmitted' });
   }
 
   const menuStyle = menuPlacement
@@ -260,7 +236,7 @@ function ProviderModelPicker({
           <div
             className="provider-model-menu theme-select-content"
             data-side={menuPlacement.side}
-            ref={menuRef}
+            ref={attachMenu}
             style={menuStyle}
           >
             <label className="provider-model-search">
@@ -270,7 +246,7 @@ function ProviderModelPicker({
                 type="text"
                 value={query}
                 placeholder={t('settings.models.searchModel')}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => dispatch({ type: 'queryChanged', query: event.target.value })}
               />
             </label>
             <div className="provider-model-scroll">
@@ -293,7 +269,7 @@ function ProviderModelPicker({
                         type="button"
                         onClick={() => {
                           onChange(model);
-                          setOpen(false);
+                          dispatch({ type: 'closed' });
                         }}
                       >
                         <span className="provider-model-radio">
@@ -322,7 +298,7 @@ function ProviderModelPicker({
                             className="provider-model-row-action"
                             type="button"
                             aria-label={t('settings.models.editCustomModel', { model })}
-                            onClick={() => editCustomModel(model)}
+                            onClick={() => dispatch({ type: 'customModelEditStarted', model })}
                           >
                             <HugeiconsIcon icon={PencilIcon} size={14} />
                           </button>
@@ -370,10 +346,12 @@ function ProviderModelPicker({
                   autoComplete="off"
                   placeholder={t('settings.models.customModelName')}
                   value={customModel}
-                  onChange={(event) => setCustomModel(event.target.value)}
+                  onChange={(event) =>
+                    dispatch({ type: 'customModelChanged', customModel: event.target.value })
+                  }
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') submitCustomModel();
-                    if (event.key === 'Escape') cancelCustomEdit();
+                    if (event.key === 'Escape') dispatch({ type: 'customModelEditCancelled' });
                   }}
                 />
               </label>
@@ -400,7 +378,7 @@ function ProviderModelPicker({
                   size="sm"
                   type="button"
                   variant="secondary"
-                  onClick={cancelCustomEdit}
+                  onClick={() => dispatch({ type: 'customModelEditCancelled' })}
                 >
                   {t('settings.models.cancelCustomModelEdit')}
                 </Button>
@@ -434,7 +412,7 @@ function ProviderModelPicker({
         className={open ? 'provider-model-select-trigger is-open' : 'provider-model-select-trigger'}
         role="combobox"
         type="button"
-        onClick={() => setOpen((value) => !value)}
+        onClick={toggleMenu}
       >
         {modelName ? (
           <span className="provider-model-value">{modelName}</span>
@@ -460,6 +438,56 @@ const modelMenuGap = 8;
 const modelMenuViewportPadding = 16;
 const modelMenuMaxHeight = 430;
 const modelMenuMinHeight = 220;
+
+type ProviderModelPickerState = {
+  customModel: string;
+  editingModel: string;
+  menuPlacement: ProviderModelMenuPlacement | null;
+  open: boolean;
+  query: string;
+};
+
+type ProviderModelPickerEvent =
+  | { type: 'closed' }
+  | { type: 'customModelChanged'; customModel: string }
+  | { type: 'customModelEditCancelled' }
+  | { type: 'customModelEditStarted'; model: string }
+  | { type: 'customModelSubmitted' }
+  | { type: 'opened'; placement: ProviderModelMenuPlacement }
+  | { type: 'placementMeasured'; placement: ProviderModelMenuPlacement }
+  | { type: 'queryChanged'; query: string };
+
+const initialProviderModelPickerState: ProviderModelPickerState = {
+  customModel: '',
+  editingModel: '',
+  menuPlacement: null,
+  open: false,
+  query: '',
+};
+
+function providerModelPickerReducer(
+  state: ProviderModelPickerState,
+  event: ProviderModelPickerEvent,
+): ProviderModelPickerState {
+  switch (event.type) {
+    case 'closed':
+      return { ...state, menuPlacement: null, open: false };
+    case 'customModelChanged':
+      return { ...state, customModel: event.customModel };
+    case 'customModelEditCancelled':
+      return { ...state, customModel: '', editingModel: '' };
+    case 'customModelEditStarted':
+      return { ...state, customModel: event.model, editingModel: event.model };
+    case 'customModelSubmitted':
+      return { ...state, customModel: '', editingModel: '', menuPlacement: null, open: false };
+    case 'opened':
+      return { ...state, menuPlacement: event.placement, open: true, query: '' };
+    case 'placementMeasured':
+      return { ...state, menuPlacement: event.placement };
+    case 'queryChanged':
+      return { ...state, query: event.query };
+  }
+}
 
 function getProviderModelMenuPlacement(anchor: HTMLElement): ProviderModelMenuPlacement {
   const rect = anchor.getBoundingClientRect();

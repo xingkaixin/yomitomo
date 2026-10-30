@@ -75,8 +75,9 @@ renderer store.
 Only these primitives may call `useEffect` or `useLayoutEffect`. Each is added
 with its first caller and listed in the `.oxlintrc.json` allowlist override.
 
-- `useEventListener(target, type, handler)` in reader-ui: window or document
-  events scoped to a mounted view, such as reader keyboard shortcuts.
+- `useEventListener(target, type, handler, options)` in reader-ui: window or
+  document events scoped to a mounted view, such as reader keyboard shortcuts.
+  A `null` target removes the listener.
 - `useInterval(callback, delay)` in reader-ui: timers that run while a state
   lasts. A `null` delay stops the timer.
 - `useDesktopEvent(subscribe, handler)` in the desktop renderer: push events that

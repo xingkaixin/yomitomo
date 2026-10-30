@@ -8,7 +8,7 @@ import {
   ViewIcon,
   ViewOffIcon,
 } from '@hugeicons/core-free-icons';
-import React, { useEffect, useState } from 'react';
+import React, { useReducer, useRef } from 'react';
 import type {
   Agent,
   AgentKind,
@@ -17,6 +17,7 @@ import type {
   UiLanguage,
 } from '@yomitomo/shared';
 import { agentPersonalities, normalizeUiLanguage } from '@yomitomo/shared';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import {
   elementDialogSourceRect,
   useSourceAwareDialogTransition,
@@ -51,6 +52,37 @@ type AgentLineCue = {
   state: 'enter' | 'rest';
   text: string;
 };
+
+type AgentLibraryState = {
+  detail: { agent: Agent; sourceRect: DialogSourceRect } | null;
+  filter: AgentFilter;
+  lineCue: AgentLineCue | null;
+};
+
+type AgentLibraryEvent =
+  | { type: 'detailClosed' }
+  | { type: 'detailOpened'; agent: Agent; sourceRect: DialogSourceRect }
+  | { type: 'filterChanged'; filter: AgentFilter }
+  | { type: 'lineCueExpired'; id: string }
+  | { type: 'lineCueShown'; cue: AgentLineCue };
+
+function agentLibraryReducer(
+  state: AgentLibraryState,
+  event: AgentLibraryEvent,
+): AgentLibraryState {
+  switch (event.type) {
+    case 'detailClosed':
+      return { ...state, detail: null };
+    case 'detailOpened':
+      return { ...state, detail: { agent: event.agent, sourceRect: event.sourceRect } };
+    case 'filterChanged':
+      return { ...state, filter: event.filter };
+    case 'lineCueExpired':
+      return state.lineCue?.id === event.id ? { ...state, lineCue: null } : state;
+    case 'lineCueShown':
+      return { ...state, lineCue: event.cue };
+  }
+}
 
 const agentFilterOptions: Array<{ value: AgentFilter }> = [
   { value: 'annotation' },
@@ -341,33 +373,34 @@ export function AgentSettings({
   onToggle: (agent: Agent) => void;
 }) {
   const { t } = useTranslation();
-  const [filter, setFilter] = useState<AgentFilter>('annotation');
-  const [lineCue, setLineCue] = useState<AgentLineCue | null>(null);
-  const [detail, setDetail] = useState<{ agent: Agent; sourceRect: DialogSourceRect } | null>(null);
+  const [{ detail, filter, lineCue }, dispatch] = useReducer(agentLibraryReducer, {
+    detail: null,
+    filter: 'annotation',
+    lineCue: null,
+  });
+  const lineCueTimerRef = useRef<number | undefined>(undefined);
   const uiLanguage = normalizeUiLanguage(settings.uiLanguage);
   const visibleAgents = visibleAgentsForFilter(agents, filter, uiLanguage);
   const routeConfigured = hasAgentRoute(settings, providers, filter);
   const routeNotice = routeConfigured ? null : routeNoticeCopy(filter, providers.length > 0, t);
   const emptyKindLabel = t(`settings.agents.kindLabels.${filter}`);
 
-  useEffect(() => {
-    if (!lineCue) return;
-
-    const timeoutId = window.setTimeout(() => {
-      setLineCue((current) => (current?.id === lineCue.id ? null : current));
-    }, 2600);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [lineCue]);
+  useMountEffect(() => () => window.clearTimeout(lineCueTimerRef.current));
 
   function handleAgentToggle(agent: Agent) {
     const nextEnabled = !agent.enabled;
-    setLineCue({
+    const cue: AgentLineCue = {
       agentId: agent.id,
       id: `${agent.id}-${nextEnabled ? 'enter' : 'rest'}-${Date.now()}`,
       state: nextEnabled ? 'enter' : 'rest',
       text: agentPresenceLine(agent, nextEnabled, uiLanguage),
-    });
+    };
+    dispatch({ type: 'lineCueShown', cue });
+    window.clearTimeout(lineCueTimerRef.current);
+    lineCueTimerRef.current = window.setTimeout(
+      () => dispatch({ type: 'lineCueExpired', id: cue.id }),
+      2600,
+    );
     onToggle(agent);
   }
 
@@ -381,7 +414,11 @@ export function AgentSettings({
       </header>
       <section className="agent-library">
         <div className="agent-library-toolbar">
-          <AgentFilterTabs agents={agents} value={filter} onChange={setFilter} />
+          <AgentFilterTabs
+            agents={agents}
+            value={filter}
+            onChange={(nextFilter) => dispatch({ type: 'filterChanged', filter: nextFilter })}
+          />
           {error ? (
             <div className="agent-error-status" role="alert">
               {error}
@@ -424,7 +461,7 @@ export function AgentSettings({
                 lineCue={lineCue?.agentId === agent.id ? lineCue : null}
                 uiLanguage={uiLanguage}
                 onOpenDetail={(detailAgent, sourceRect) =>
-                  setDetail({ agent: detailAgent, sourceRect })
+                  dispatch({ type: 'detailOpened', agent: detailAgent, sourceRect })
                 }
                 onToggle={handleAgentToggle}
               />
@@ -437,7 +474,7 @@ export function AgentSettings({
           agent={detail.agent}
           sourceRect={detail.sourceRect}
           uiLanguage={uiLanguage}
-          onClose={() => setDetail(null)}
+          onClose={() => dispatch({ type: 'detailClosed' })}
         />
       ) : null}
     </div>
