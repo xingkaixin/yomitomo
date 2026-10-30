@@ -5,7 +5,7 @@ import {
   RotateLeft01Icon,
   ViewIcon,
 } from '@hugeicons/core-free-icons';
-import { useEffect, useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 import type {
   AnnotationDistillationProposal,
   AnnotationDistillationReviewItem,
@@ -51,7 +51,6 @@ export function SedimentationReviewTimeline({
 }) {
   const { t } = useTranslation();
   const messages = reviewTimelineMessages(sessions, agents);
-  const listRef = useRef<HTMLElement | null>(null);
   const scrollSignal = messages
     .map(
       (item) =>
@@ -60,16 +59,6 @@ export function SedimentationReviewTimeline({
         }`,
     )
     .join('|');
-
-  useEffect(() => {
-    const list = listRef.current;
-    if (!list) return;
-    if (typeof list.scrollTo === 'function') {
-      list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' });
-    } else {
-      list.scrollTop = list.scrollHeight;
-    }
-  }, [scrollSignal]);
 
   if (sessions.length === 0) {
     return (
@@ -83,7 +72,6 @@ export function SedimentationReviewTimeline({
 
   return (
     <section
-      ref={listRef}
       className={[
         'annotation-sedimentation-review-list',
         'annotation-discussion-messages',
@@ -105,6 +93,7 @@ export function SedimentationReviewTimeline({
           pendingProposalIds={pendingProposalIds}
         />
       ))}
+      <span hidden key={scrollSignal} ref={scrollListToEnd} />
     </section>
   );
 }
@@ -208,6 +197,17 @@ function ReviewTimelineMessage({
       </div>
     </article>
   );
+}
+
+// Attached to a marker keyed by the messages, so it runs after every timeline change.
+function scrollListToEnd(marker: HTMLSpanElement | null) {
+  const list = marker?.parentElement;
+  if (!list) return;
+  if (typeof list.scrollTo === 'function') {
+    list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' });
+  } else {
+    list.scrollTop = list.scrollHeight;
+  }
 }
 
 export function StructuredReviewItems({ items }: { items: AnnotationDistillationReviewItem[] }) {

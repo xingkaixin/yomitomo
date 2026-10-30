@@ -1,6 +1,6 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Delete02Icon, MoreHorizontalIcon, PinIcon, PinOffIcon } from '@hugeicons/core-free-icons';
-import { useState } from 'react';
+import { useReducer } from 'react';
 import type { PublicAgent, UserProfile } from '@yomitomo/shared';
 import { commentPersona } from '@yomitomo/core';
 import { useTranslation } from 'react-i18next';
@@ -34,8 +34,10 @@ export function ThoughtListItem({
   userProfile: UserProfile;
 }) {
   const { t } = useTranslation();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [{ confirmOpen, menuOpen }, dispatch] = useReducer(thoughtListItemReducer, {
+    confirmOpen: false,
+    menuOpen: false,
+  });
   const author = commentPersona(thread.root, userProfile, agents);
   const itemClassName = [
     'annotation-discussion-idea',
@@ -62,7 +64,10 @@ export function ThoughtListItem({
           </small>
         </span>
       </button>
-      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+      <DropdownMenu
+        open={menuOpen}
+        onOpenChange={(open) => dispatch({ type: 'menuOpenChanged', open })}
+      >
         <div className="annotation-discussion-idea-actions">
           <DropdownMenuTrigger asChild>
             <button
@@ -80,7 +85,7 @@ export function ThoughtListItem({
                 onClick={(event) => {
                   event.stopPropagation();
                   onPin();
-                  setMenuOpen(false);
+                  dispatch({ type: 'menuOpenChanged', open: false });
                 }}
               >
                 {thread.isPinned ? (
@@ -101,8 +106,7 @@ export function ThoughtListItem({
                 aria-label={t('discussion.deleteThoughtAria')}
                 onClick={(event) => {
                   event.stopPropagation();
-                  setMenuOpen(false);
-                  setConfirmOpen(true);
+                  dispatch({ type: 'deleteRequested' });
                 }}
               >
                 <HugeiconsIcon icon={Delete02Icon} size={13} />
@@ -123,12 +127,33 @@ export function ThoughtListItem({
         description={t('discussion.deleteThoughtConfirmDescription')}
         open={confirmOpen}
         title={t('discussion.deleteThoughtConfirmTitle')}
-        onCancel={() => setConfirmOpen(false)}
+        onCancel={() => dispatch({ type: 'deleteDismissed' })}
         onConfirm={() => {
-          setConfirmOpen(false);
+          dispatch({ type: 'deleteDismissed' });
           onDelete();
         }}
       />
     </article>
   );
+}
+
+type ThoughtListItemState = { confirmOpen: boolean; menuOpen: boolean };
+
+type ThoughtListItemEvent =
+  | { type: 'deleteDismissed' }
+  | { type: 'deleteRequested' }
+  | { type: 'menuOpenChanged'; open: boolean };
+
+function thoughtListItemReducer(
+  state: ThoughtListItemState,
+  event: ThoughtListItemEvent,
+): ThoughtListItemState {
+  switch (event.type) {
+    case 'deleteDismissed':
+      return { ...state, confirmOpen: false };
+    case 'deleteRequested':
+      return { confirmOpen: true, menuOpen: false };
+    case 'menuOpenChanged':
+      return { ...state, menuOpen: event.open };
+  }
 }

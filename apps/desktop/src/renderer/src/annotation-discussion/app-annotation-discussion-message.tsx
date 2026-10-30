@@ -1,6 +1,6 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Delete02Icon } from '@hugeicons/core-free-icons';
-import { useMemo, useState } from 'react';
+import { useMemo, useReducer } from 'react';
 import type { Comment, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { commentPersona } from '@yomitomo/core';
 import { useTranslation } from 'react-i18next';
@@ -24,7 +24,7 @@ export function DiscussionMessage({
   userProfile: UserProfile;
 }) {
   const { t } = useTranslation();
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmOpen, dispatch] = useReducer(deleteConfirmReducer, false);
   const author = commentPersona(message, userProfile, agents);
   const html = useMemo(
     () => renderDiscussionMessageMarkdown(message.content, agents, message.author),
@@ -55,7 +55,7 @@ export function DiscussionMessage({
             type="button"
             disabled={isDeleting}
             aria-label={t('discussion.deleteReplyAria')}
-            onClick={() => setConfirmOpen(true)}
+            onClick={() => dispatch({ type: 'deleteRequested' })}
           >
             <HugeiconsIcon icon={Delete02Icon} size={13} />
           </button>
@@ -72,12 +72,19 @@ export function DiscussionMessage({
         description={t('discussion.deleteReplyConfirmDescription')}
         open={confirmOpen}
         title={t('discussion.deleteReplyConfirmTitle')}
-        onCancel={() => setConfirmOpen(false)}
+        onCancel={() => dispatch({ type: 'deleteDismissed' })}
         onConfirm={() => {
-          setConfirmOpen(false);
+          dispatch({ type: 'deleteDismissed' });
           onDelete();
         }}
       />
     </article>
   );
+}
+
+function deleteConfirmReducer(
+  _open: boolean,
+  event: { type: 'deleteDismissed' } | { type: 'deleteRequested' },
+) {
+  return event.type === 'deleteRequested';
 }
