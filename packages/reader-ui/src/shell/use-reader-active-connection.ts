@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useState, type RefObject } from 'react';
+import { useCallback, useReducer, type RefObject } from 'react';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { annotationColor, type HighlightBox } from '@yomitomo/core';
 import { buildAnnotationConnectionPath } from '../reader-connection-path';
@@ -28,6 +28,20 @@ function connectionTargetForNote(noteElement: HTMLElement, readerRect: DOMRect) 
   };
 }
 
+type ActiveConnectionEvent = { type: 'connectionMeasured'; connection: ActiveConnection | null };
+
+function activeConnectionReducer(
+  current: ActiveConnection | null,
+  event: ActiveConnectionEvent,
+): ActiveConnection | null {
+  const next = event.connection;
+  if (current === next) return current;
+  if (current && next && current.path === next.path && current.color === next.color) {
+    return current;
+  }
+  return next;
+}
+
 export function useReaderActiveConnection({
   annotationAgents,
   annotations,
@@ -39,76 +53,24 @@ export function useReaderActiveConnection({
   surfaceRef,
   userProfile,
 }: UseReaderActiveConnectionInput) {
-  const [activeConnection, setActiveConnection] = useState<ActiveConnection | null>(null);
+  const [activeConnection, dispatch] = useReducer(activeConnectionReducer, null);
 
   const recalculateActiveConnection = useCallback(() => {
-    const clearActiveConnection = () => {
-      if (activeConnection !== null) setActiveConnection(null);
-    };
-
-    if (!selectedAnnotationId) {
-      clearActiveConnection();
-      return;
-    }
-
-    const canvasElement = canvasRef.current;
-    const scrollElement = surfaceRef.current;
-    const noteElement = noteRefs.current.get(selectedAnnotationId);
-    const annotation = annotations.find((item) => item.id === selectedAnnotationId);
-    const activeBoxes = boxes.filter((box) => box.annotationId === selectedAnnotationId);
-    const readerElement = readerRootRef.current;
-    if (
-      !canvasElement ||
-      !scrollElement ||
-      !noteElement ||
-      !annotation ||
-      !readerElement ||
-      activeBoxes.length === 0
-    ) {
-      clearActiveConnection();
-      return;
-    }
-
-    const canvasRect = canvasElement.getBoundingClientRect();
-    const readerRect = readerElement.getBoundingClientRect();
-    const scrollRect = scrollElement.getBoundingClientRect();
-    const noteRect = noteElement.getBoundingClientRect();
-    const noteTarget = connectionTargetForNote(noteElement, readerRect);
-    const noteY = noteTarget.y;
-    const box = activeBoxes.toSorted((left, right) => {
-      const leftY = canvasRect.top - readerRect.top + left.top + left.height / 2;
-      const rightY = canvasRect.top - readerRect.top + right.top + right.height / 2;
-      return Math.abs(leftY - noteY) - Math.abs(rightY - noteY);
-    })[0];
-    if (!box) {
-      clearActiveConnection();
-      return;
-    }
-
-    const startX =
-      canvasRect.left -
-      readerRect.left +
-      (noteTarget.side === 'left' ? box.left - 6 : box.left + box.width + 6);
-    const startY = canvasRect.top - readerRect.top + box.top + box.height / 2;
-    const endX = noteTarget.x + (noteTarget.side === 'left' ? 8 : -8);
-    const endY = noteY;
-    const highlightViewportY = readerRect.top + startY;
-    const highlightVisible =
-      highlightViewportY >= scrollRect.top - 24 && highlightViewportY <= scrollRect.bottom + 24;
-    const noteVisible =
-      noteRect.bottom >= scrollRect.top + 24 && noteRect.top <= scrollRect.bottom - 24;
-    if (!highlightVisible || !noteVisible) {
-      clearActiveConnection();
-      return;
-    }
-
-    const path = buildAnnotationConnectionPath(startX, startY, endX, endY);
-    const color = annotationColor(annotation, userProfile, annotationAgents);
-    setActiveConnection((current) =>
-      current?.path === path && current.color === color ? current : { path, color },
-    );
+    dispatch({
+      type: 'connectionMeasured',
+      connection: measureActiveConnection({
+        annotationAgents,
+        annotations,
+        boxes,
+        canvasElement: canvasRef.current,
+        noteElement: selectedAnnotationId ? noteRefs.current.get(selectedAnnotationId) : undefined,
+        readerElement: readerRootRef.current,
+        scrollElement: surfaceRef.current,
+        selectedAnnotationId,
+        userProfile,
+      }),
+    });
   }, [
-    activeConnection,
     annotationAgents,
     annotations,
     boxes,
@@ -120,11 +82,8 @@ export function useReaderActiveConnection({
     userProfile,
   ]);
 
-  useLayoutEffect(() => {
-    recalculateActiveConnection();
-  }, [annotations, boxes, recalculateActiveConnection]);
-
-  useEffect(() => {
+  // Identity follows the connection inputs, so a ref callback built on it re-measures and re-subscribes after those commits.
+  const trackActiveConnection = useCallback(() => {
     const scrollElement = surfaceRef.current;
     let frame = 0;
     const schedule = () => {
@@ -132,6 +91,7 @@ export function useReaderActiveConnection({
       frame = window.requestAnimationFrame(recalculateActiveConnection);
     };
 
+    recalculateActiveConnection();
     scrollElement?.addEventListener('scroll', schedule, { passive: true });
     window.addEventListener('resize', schedule);
     return () => {
@@ -141,5 +101,74 @@ export function useReaderActiveConnection({
     };
   }, [recalculateActiveConnection, surfaceRef]);
 
-  return { activeConnection, recalculateActiveConnection };
+  return { activeConnection, recalculateActiveConnection, trackActiveConnection };
+}
+
+function measureActiveConnection({
+  annotationAgents,
+  annotations,
+  boxes,
+  canvasElement,
+  noteElement,
+  readerElement,
+  scrollElement,
+  selectedAnnotationId,
+  userProfile,
+}: {
+  annotationAgents: PublicAgent[];
+  annotations: Annotation[];
+  boxes: HighlightBox[];
+  canvasElement: HTMLDivElement | null;
+  noteElement: HTMLElement | undefined;
+  readerElement: HTMLDivElement | null;
+  scrollElement: HTMLElement | null;
+  selectedAnnotationId: string | null;
+  userProfile: UserProfile;
+}): ActiveConnection | null {
+  if (!selectedAnnotationId) return null;
+
+  const annotation = annotations.find((item) => item.id === selectedAnnotationId);
+  const activeBoxes = boxes.filter((box) => box.annotationId === selectedAnnotationId);
+  if (
+    !canvasElement ||
+    !scrollElement ||
+    !noteElement ||
+    !annotation ||
+    !readerElement ||
+    activeBoxes.length === 0
+  ) {
+    return null;
+  }
+
+  const canvasRect = canvasElement.getBoundingClientRect();
+  const readerRect = readerElement.getBoundingClientRect();
+  const scrollRect = scrollElement.getBoundingClientRect();
+  const noteRect = noteElement.getBoundingClientRect();
+  const noteTarget = connectionTargetForNote(noteElement, readerRect);
+  const noteY = noteTarget.y;
+  const box = activeBoxes.toSorted((left, right) => {
+    const leftY = canvasRect.top - readerRect.top + left.top + left.height / 2;
+    const rightY = canvasRect.top - readerRect.top + right.top + right.height / 2;
+    return Math.abs(leftY - noteY) - Math.abs(rightY - noteY);
+  })[0];
+  if (!box) return null;
+
+  const startX =
+    canvasRect.left -
+    readerRect.left +
+    (noteTarget.side === 'left' ? box.left - 6 : box.left + box.width + 6);
+  const startY = canvasRect.top - readerRect.top + box.top + box.height / 2;
+  const endX = noteTarget.x + (noteTarget.side === 'left' ? 8 : -8);
+  const endY = noteY;
+  const highlightViewportY = readerRect.top + startY;
+  const highlightVisible =
+    highlightViewportY >= scrollRect.top - 24 && highlightViewportY <= scrollRect.bottom + 24;
+  const noteVisible =
+    noteRect.bottom >= scrollRect.top + 24 && noteRect.top <= scrollRect.bottom - 24;
+  if (!highlightVisible || !noteVisible) return null;
+
+  return {
+    path: buildAnnotationConnectionPath(startX, startY, endX, endY),
+    color: annotationColor(annotation, userProfile, annotationAgents),
+  };
 }

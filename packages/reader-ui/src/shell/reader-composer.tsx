@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffectEvent, useReducer, useRef } from 'react';
 import type { MessageSendShortcut, PublicAgent } from '@yomitomo/shared';
 import {
   ReaderTooltip,
@@ -8,6 +8,7 @@ import {
 import { FloatingComposer } from '../shared/floating-composer';
 import type { PendingComposer } from '../reader-types';
 import { useCompositionSubmit } from '../use-composition-submit';
+import { useEventListener } from '../hooks/use-event-listener';
 import type { ReaderUiLabels } from './reader-app-view-types';
 import { defaultReaderUiLabels } from './reader-app-view-types';
 
@@ -16,6 +17,7 @@ const COMPOSER_VIEWPORT_PADDING = 12;
 const COMPOSER_FALLBACK_WIDTH = 520;
 const COMPOSER_FALLBACK_HEIGHT = 232;
 const COMPOSER_MAX_TEXTAREA_ROWS = 8;
+const COMPOSER_CLOSE_FALLBACK_MS = 120;
 
 type ComposerPlacement = 'below' | 'above';
 export type ComposerPopupPhase = 'opening' | 'open' | 'closing';
@@ -36,6 +38,36 @@ type ComposerPosition = {
   placement: ComposerPlacement;
 };
 
+type ComposerState = { note: string; position: ComposerPosition };
+
+type ComposerEvent =
+  | { type: 'noteEdited'; note: string; position: ComposerPosition | null }
+  | { type: 'positioned'; position: ComposerPosition };
+
+function composerReducer(state: ComposerState, event: ComposerEvent): ComposerState {
+  switch (event.type) {
+    case 'noteEdited':
+      return {
+        note: event.note,
+        position: event.position
+          ? keepSamePosition(state.position, event.position)
+          : state.position,
+      };
+    case 'positioned': {
+      const position = keepSamePosition(state.position, event.position);
+      return position === state.position ? state : { ...state, position };
+    }
+  }
+}
+
+function keepSamePosition(current: ComposerPosition, next: ComposerPosition) {
+  return current.left === next.left &&
+    current.top === next.top &&
+    current.placement === next.placement
+    ? current
+    : next;
+}
+
 export function Composer({
   composer,
   labels = defaultReaderUiLabels,
@@ -43,6 +75,8 @@ export function Composer({
   phase = 'open',
   shortcutModifier,
   onCancel,
+  onClosed,
+  onOpened,
   onSave,
 }: {
   agents: PublicAgent[];
@@ -52,16 +86,19 @@ export function Composer({
   phase?: ComposerPopupPhase;
   shortcutModifier: string;
   onCancel: () => void;
+  onClosed?: () => void;
+  onOpened?: () => void;
   onSave: (note: string) => void | Promise<void>;
 }) {
-  const [note, setNote] = useState('');
-  const [position, setPosition] = useState<ComposerPosition>(() => ({
-    left: composer.x,
-    top: composer.y + COMPOSER_GAP,
-    placement: 'below',
-  }));
-  const rootRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [{ note, position }, dispatch] = useReducer(
+    composerReducer,
+    composer,
+    (pending): ComposerState => ({
+      note: '',
+      position: { left: pending.x, top: pending.y + COMPOSER_GAP, placement: 'below' },
+    }),
+  );
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const trimmedNote = note.trim();
   const submitLabel = trimmedNote ? labels.submitThought : labels.submitHighlight;
   const interactive = phase !== 'closing';
@@ -74,27 +111,32 @@ export function Composer({
     .filter(Boolean)
     .join(' ');
 
-  useLayoutEffect(() => {
-    resizeTextarea(textareaRef.current);
-  }, [note]);
+  const reportOpened = useEffectEvent(() => onOpened?.());
+  const reportClosed = useEffectEvent(() => onClosed?.());
 
-  useLayoutEffect(() => {
-    setPosition(measureComposerPosition(composer, rootRef.current));
-  }, [composer, note]);
+  // Recreated when the composer or its phase changes, so placement and motion timing follow that commit.
+  const attachRoot = useCallback(
+    (root: HTMLDivElement) => {
+      rootRef.current = root;
+      dispatch({ type: 'positioned', position: measureComposerPosition(composer, root) });
 
-  useEffect(() => {
-    if (!interactive) return;
+      const frame = phase === 'opening' ? window.requestAnimationFrame(() => reportOpened()) : 0;
+      const timer =
+        phase === 'closing' ? window.setTimeout(() => reportClosed(), composerCloseMs(root)) : 0;
+      return () => {
+        window.cancelAnimationFrame(frame);
+        window.clearTimeout(timer);
+      };
+    },
+    [composer, phase],
+  );
 
-    function handleCancelShortcut(event: KeyboardEvent) {
-      if (event.defaultPrevented || event.key !== 'Escape' || event.isComposing) return;
-      event.preventDefault();
-      event.stopPropagation();
-      onCancel();
-    }
-
-    window.addEventListener('keydown', handleCancelShortcut);
-    return () => window.removeEventListener('keydown', handleCancelShortcut);
-  }, [interactive, onCancel]);
+  useEventListener(interactive ? window : null, 'keydown', (event) => {
+    if (event.defaultPrevented || event.key !== 'Escape' || event.isComposing) return;
+    event.preventDefault();
+    event.stopPropagation();
+    onCancel();
+  });
 
   function save() {
     if (!interactive) return;
@@ -108,8 +150,12 @@ export function Composer({
   });
 
   function handleNoteChange(event: React.ChangeEvent<HTMLTextAreaElement>) {
-    setNote(event.currentTarget.value);
     resizeTextarea(event.currentTarget);
+    dispatch({
+      type: 'noteEdited',
+      note: event.currentTarget.value,
+      position: rootRef.current ? measureComposerPosition(composer, rootRef.current) : null,
+    });
   }
 
   return (
@@ -120,7 +166,7 @@ export function Composer({
       data-state={phase}
       aria-hidden={phase === 'closing'}
       inert={phase === 'closing' ? true : undefined}
-      ref={rootRef}
+      ref={attachRoot}
       style={{ left: position.left, top: position.top }}
     >
       <header className="reader-composer-header">
@@ -129,7 +175,7 @@ export function Composer({
         </div>
       </header>
       <FloatingComposer
-        ref={textareaRef}
+        ref={resizeTextarea}
         className="reader-composer-editor"
         secondaryAction={
           <ReaderTooltip content={<ShortcutTooltipContent keys={['Esc']} label={labels.cancel} />}>
@@ -190,6 +236,15 @@ export function measureComposerPosition(
   );
 
   return { left, top, placement };
+}
+
+function composerCloseMs(root: HTMLElement) {
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return 0;
+  const element = root.closest<HTMLElement>('.reader-app') || document.documentElement;
+  const raw = window.getComputedStyle(element).getPropertyValue('--dropdown-close-dur').trim();
+  const value = Number.parseFloat(raw);
+  if (!Number.isFinite(value)) return COMPOSER_CLOSE_FALLBACK_MS;
+  return raw.endsWith('ms') ? value : value * 1000;
 }
 
 function resizeTextarea(textarea: HTMLTextAreaElement | null) {

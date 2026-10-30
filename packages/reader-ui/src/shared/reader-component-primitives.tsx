@@ -12,8 +12,8 @@ import {
   SparklesIcon,
 } from '@hugeicons/core-free-icons';
 import {
+  useReducer,
   useRef,
-  useState,
   type ComponentPropsWithoutRef,
   type CSSProperties,
   type MouseEvent,
@@ -160,7 +160,7 @@ export function AgentAvatarStack({
   onAgentClick,
 }: AgentAvatarStackProps) {
   const stackRef = useRef<HTMLSpanElement | null>(null);
-  const [revealedAgentId, setRevealedAgentId] = useState<string | null>(null);
+  const [revealedAgentId, dispatch] = useReducer(revealedAgentReducer, null);
   if (agents.length === 0) return null;
 
   const activeIds = activeAgentIds instanceof Set ? activeAgentIds : new Set(activeAgentIds || []);
@@ -169,7 +169,7 @@ export function AgentAvatarStack({
     if (!revealLabelOnDoubleClick) return;
     event.preventDefault();
     event.stopPropagation();
-    setRevealedAgentId((current) => (current === agentId ? null : agentId));
+    dispatch({ type: 'agentRevealToggled', agentId });
   }
 
   function setAvatarProximity(activeIndex: number | null, phase: 'in' | 'out') {
@@ -281,6 +281,12 @@ export function AgentAvatarStack({
       })}
     </span>
   );
+}
+
+type RevealedAgentEvent = { type: 'agentRevealToggled'; agentId: string };
+
+function revealedAgentReducer(revealedAgentId: string | null, event: RevealedAgentEvent) {
+  return revealedAgentId === event.agentId ? null : event.agentId;
 }
 
 export function SubmitShortcutKeys({

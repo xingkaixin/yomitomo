@@ -130,7 +130,7 @@ function HookProbe({
   });
 
   return (
-    <>
+    <div ref={rail.layoutChangeRef}>
       <output data-testid="visible">
         {rail.visibleAnnotations.map((item) => item.id).join(',')}
       </output>
@@ -150,7 +150,7 @@ function HookProbe({
           ref={rail.noteRefForAnnotation(item.annotation.id)}
         />
       ))}
-    </>
+    </div>
   );
 }
 

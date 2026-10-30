@@ -3,6 +3,7 @@ import { annotationIdsAtHighlightPoint, type HighlightBox } from '@yomitomo/core
 import type { Annotation, SelectionActionShortcuts } from '@yomitomo/shared';
 import type { AnnotationRailLayout } from '../annotations/annotation-rail-layout';
 import { useReaderAnnotationRail } from '../annotations/use-reader-annotation-rail';
+import { useMountEffect } from '../hooks/use-mount-effect';
 import type {
   AnnotationNavigationDirection,
   AnnotationNavigationRequest,
@@ -12,6 +13,7 @@ import type {
   ReaderChatActivationSource,
   SelectionAction,
 } from './reader-app-view-types';
+import type { SelectionMenuHandle } from './reader-selection-menu';
 import { useReaderShellInteractions } from './use-reader-shell-interactions';
 
 export const stackedAnnotationRailLayout: AnnotationRailLayout = {
@@ -35,6 +37,36 @@ const emptyAnnotationNavigation: AnnotationNavigationState = {
   previousId: null,
   totalCount: 0,
 };
+
+type ScrolledNavigation = {
+  basis: AnnotationNavigationState;
+  navigation: AnnotationNavigationState;
+};
+
+type ScrolledNavigationEvent = {
+  type: 'surfaceScrolled';
+  basis: AnnotationNavigationState;
+  navigation: AnnotationNavigationState;
+};
+
+function scrolledNavigationReducer(
+  current: ScrolledNavigation | null,
+  event: ScrolledNavigationEvent,
+): ScrolledNavigation | null {
+  if (
+    current?.basis === event.basis &&
+    sameAnnotationNavigation(current.navigation, event.navigation)
+  ) {
+    return current;
+  }
+  return { basis: event.basis, navigation: event.navigation };
+}
+
+type RailLayoutEvent = { type: 'railLayoutMeasured'; layout: AnnotationRailLayout };
+
+function railLayoutReducer(current: AnnotationRailLayout, event: RailLayoutEvent) {
+  return sameAnnotationRailLayout(current, event.layout) ? current : event.layout;
+}
 
 export type UseReaderShellStateOptions = {
   activeId: string | null;
@@ -105,7 +137,7 @@ export function useReaderShellState({
   onToggleSettings,
   readerChatOpen,
 }: UseReaderShellStateOptions) {
-  const measuredAnnotationRailLayout = useAnnotationRailLayout(
+  const { layout: measuredAnnotationRailLayout, railLayoutRef } = useAnnotationRailLayout(
     canvasRef,
     articleRef,
     articleId,
@@ -140,16 +172,52 @@ export function useReaderShellState({
     },
     [boxes, canvasRef],
   );
-  const [annotationNavigation, setAnnotationNavigation] = React.useState<AnnotationNavigationState>(
+  const visibleAnnotations = annotationRail.visibleAnnotations;
+  const resolvedNavigation = React.useMemo(
     () =>
-      onResolveAnnotationNavigation?.({
-        activeId,
-        annotations: annotationRail.visibleAnnotations,
-      }) ?? emptyAnnotationNavigation,
+      onResolveAnnotationNavigation?.({ activeId, annotations: visibleAnnotations }) ??
+      emptyAnnotationNavigation,
+    [activeId, onResolveAnnotationNavigation, visibleAnnotations],
   );
-  const [selectionCopyRequestKey, setSelectionCopyRequestKey] = React.useState(0);
+  const [scrolledNavigation, dispatchScrolledNavigation] = React.useReducer(
+    scrolledNavigationReducer,
+    null,
+  );
+  const annotationNavigation =
+    scrolledNavigation?.basis === resolvedNavigation
+      ? scrolledNavigation.navigation
+      : resolvedNavigation;
+  const refreshNavigation = React.useEffectEvent(() => {
+    if (!onResolveAnnotationNavigation) return;
+    dispatchScrolledNavigation({
+      type: 'surfaceScrolled',
+      basis: resolvedNavigation,
+      navigation:
+        onResolveAnnotationNavigation({ activeId, annotations: visibleAnnotations }) ??
+        emptyAnnotationNavigation,
+    });
+  });
+
+  useMountEffect(() => {
+    const surface = surfaceRef.current;
+    let frame = 0;
+    const schedule = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => refreshNavigation());
+    };
+
+    // The resolver may read the surface handle, which is only attached after the first commit.
+    refreshNavigation();
+    surface?.addEventListener('scroll', schedule, { passive: true });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      surface?.removeEventListener('scroll', schedule);
+    };
+  });
+
+  const selectionMenuRef = React.useRef<SelectionMenuHandle | null>(null);
   const requestSelectionCopy = React.useCallback(() => {
-    setSelectionCopyRequestKey((key) => key + 1);
+    void selectionMenuRef.current?.copy();
   }, []);
   const interactions = useReaderShellInteractions({
     activeId,
@@ -174,42 +242,6 @@ export function useReaderShellState({
     shouldPreserveActiveAnnotationOnPointerDown,
   });
 
-  React.useEffect(() => {
-    if (!onResolveAnnotationNavigation) {
-      setAnnotationNavigation((current) =>
-        sameAnnotationNavigation(current, emptyAnnotationNavigation)
-          ? current
-          : emptyAnnotationNavigation,
-      );
-      return;
-    }
-    const surface = surfaceRef.current;
-    if (!surface) return;
-
-    let frame = 0;
-    const updateNavigation = () => {
-      const nextNavigation =
-        onResolveAnnotationNavigation({
-          activeId,
-          annotations: annotationRail.visibleAnnotations,
-        }) ?? emptyAnnotationNavigation;
-      setAnnotationNavigation((current) =>
-        sameAnnotationNavigation(current, nextNavigation) ? current : nextNavigation,
-      );
-    };
-    const schedule = () => {
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(updateNavigation);
-    };
-
-    updateNavigation();
-    surface.addEventListener('scroll', schedule, { passive: true });
-    return () => {
-      window.cancelAnimationFrame(frame);
-      surface.removeEventListener('scroll', schedule);
-    };
-  }, [activeId, annotationRail.visibleAnnotations, onResolveAnnotationNavigation, surfaceRef]);
-
   const navigateAnnotation = React.useCallback(
     (direction: AnnotationNavigationDirection) => {
       const annotationId =
@@ -224,10 +256,12 @@ export function useReaderShellState({
     annotationNavigation,
     annotationRail,
     annotationRailLayout,
+    clearHiddenActiveAnnotation: interactions.clearHiddenActiveAnnotation,
     handleReaderPointerDownCapture: interactions.handleReaderPointerDownCapture,
     navigateAnnotation,
+    railLayoutRef,
     requestSelectionCopy,
-    selectionCopyRequestKey,
+    selectionMenuRef,
     toggleSettings: interactions.toggleSettings,
   };
 }
@@ -238,46 +272,41 @@ function useAnnotationRailLayout(
   articleId: string,
   contentWidth?: number,
 ) {
-  const [layout, setLayout] = React.useState<AnnotationRailLayout>(stackedAnnotationRailLayout);
+  const [layout, dispatch] = React.useReducer(railLayoutReducer, stackedAnnotationRailLayout);
 
-  React.useLayoutEffect(() => {
-    const canvas = canvasRef.current;
-    const article = articleRef.current;
-    if (!canvas || !article) {
-      setLayout((current) =>
-        sameAnnotationRailLayout(current, stackedAnnotationRailLayout)
-          ? current
-          : stackedAnnotationRailLayout,
-      );
-      return;
-    }
+  // Recreated when the article or content width changes, so the rail is re-measured after that commit.
+  const railLayoutRef = React.useCallback(
+    () => {
+      const canvas = canvasRef.current;
+      const article = articleRef.current;
+      if (!canvas || !article) {
+        dispatch({ type: 'railLayoutMeasured', layout: stackedAnnotationRailLayout });
+        return () => {};
+      }
 
-    const updateLayout = () => {
-      const nextLayout = measureAnnotationRailLayout(canvas, article, contentWidth);
-      setLayout((current) =>
-        sameAnnotationRailLayout(current, nextLayout) ? current : nextLayout,
-      );
-    };
+      const updateLayout = () => {
+        dispatch({
+          type: 'railLayoutMeasured',
+          layout: measureAnnotationRailLayout(canvas, article, contentWidth),
+        });
+      };
 
-    updateLayout();
-    window.addEventListener('resize', updateLayout);
-
-    if (typeof ResizeObserver === 'undefined') {
+      updateLayout();
+      window.addEventListener('resize', updateLayout);
+      const observer =
+        typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateLayout);
+      observer?.observe(canvas);
+      observer?.observe(article);
       return () => {
         window.removeEventListener('resize', updateLayout);
+        observer?.disconnect();
       };
-    }
+    },
+    // articleId is not read here; a new article must still trigger a fresh measurement.
+    [articleId, articleRef, canvasRef, contentWidth],
+  );
 
-    const observer = new ResizeObserver(updateLayout);
-    observer.observe(canvas);
-    observer.observe(article);
-    return () => {
-      window.removeEventListener('resize', updateLayout);
-      observer.disconnect();
-    };
-  }, [articleId, articleRef, canvasRef, contentWidth]);
-
-  return layout;
+  return { layout, railLayoutRef };
 }
 
 export function measureAnnotationRailLayout(

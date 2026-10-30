@@ -1,11 +1,12 @@
 import {
-  useEffect,
+  useEffectEvent,
+  useReducer,
   useRef,
-  useState,
   type MouseEvent,
   type PointerEvent,
   type RefObject,
 } from 'react';
+import { useMountEffect } from '../hooks/use-mount-effect';
 
 type SearchClearElements = {
   glow: HTMLDivElement;
@@ -23,6 +24,19 @@ export type SearchClearGlowBuilderParams = {
 };
 
 export type SearchClearGlowStop = readonly [number, number, number, number];
+
+type SearchClearState = { clearing: boolean; clearingText: string };
+
+type SearchClearEvent = { type: 'clearFinished' } | { type: 'clearStarted'; text: string };
+
+function searchClearReducer(_state: SearchClearState, event: SearchClearEvent): SearchClearState {
+  switch (event.type) {
+    case 'clearFinished':
+      return { clearing: false, clearingText: '' };
+    case 'clearStarted':
+      return { clearing: true, clearingText: event.text };
+  }
+}
 
 type SearchClearDissolveOptions = {
   buildGlow: (params: SearchClearGlowBuilderParams) => string;
@@ -60,19 +74,14 @@ export function useSearchClearDissolveCore({
   const glowRef = useRef<HTMLDivElement | null>(null);
   const frameRef = useRef<number | null>(null);
   const canvasRef = useRef<CanvasRenderingContext2D | null>(null);
-  const [clearingText, setClearingText] = useState('');
-  const [clearing, setClearing] = useState(false);
+  const [{ clearing, clearingText }, dispatch] = useReducer(searchClearReducer, {
+    clearing: false,
+    clearingText: '',
+  });
   const mirrorText = formatMirrorText(clearing ? clearingText : query);
+  const queryRefilled = useEffectEvent(() => query.length > 0);
 
-  useEffect(() => {
-    return () => {
-      cancelClearFrame(frameRef);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (clearing && query.length > 0) finishClearAnimation(false);
-  }, [clearing, query]);
+  useMountEffect(() => () => cancelClearFrame(frameRef));
 
   function clearInlineMotionStyles() {
     onClearStyles?.(wrapRef.current);
@@ -96,8 +105,7 @@ export function useSearchClearDissolveCore({
   function finishClearAnimation(refocus: boolean) {
     cancelClearFrame(frameRef);
     clearInlineMotionStyles();
-    setClearing(false);
-    setClearingText('');
+    dispatch({ type: 'clearFinished' });
     if (refocus) focusInput();
   }
 
@@ -131,8 +139,7 @@ export function useSearchClearDissolveCore({
     const motion = readSearchClearMotion(getComputedStyle(elements.wrap));
 
     canvasRef.current ??= createSearchClearCanvasContext();
-    setClearingText(query);
-    setClearing(true);
+    dispatch({ type: 'clearStarted', text: query });
     onQueryChange('');
 
     elements.mirror.textContent = formatMirrorText(query);
@@ -149,6 +156,12 @@ export function useSearchClearDissolveCore({
 
     const startTime = performance.now();
     const tick = (now: number) => {
+      if (queryRefilled()) {
+        frameRef.current = null;
+        finishClearAnimation(false);
+        return;
+      }
+
       const elapsed = now - startTime;
       const outProgress = motion.easeOut(Math.min(1, elapsed / motion.outDuration));
       const inProgress = motion.easeIn(Math.min(1, elapsed / motion.inDuration));

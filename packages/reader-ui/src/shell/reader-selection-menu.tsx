@@ -6,18 +6,38 @@ import {
   Search01Icon,
   Tick01Icon,
 } from '@hugeicons/core-free-icons';
-import { useEffect, useRef, useState } from 'react';
+import { useImperativeHandle, useReducer, useRef, type Ref } from 'react';
 import type { SelectionActionShortcuts } from '@yomitomo/shared';
 import { normalizeSelectionActionShortcuts } from '@yomitomo/shared';
 import { Kbd } from '../components/ui/kbd';
 import type { SelectionMenuAction } from '../reader-types';
 import type { ReaderUiLabels } from './reader-app-view-types';
 import { defaultReaderUiLabels } from './reader-app-view-types';
+import { useMountEffect } from '../hooks/use-mount-effect';
 
 type SelectionMenuLabels = Pick<
   ReaderUiLabels,
   'askSelection' | 'copySelection' | 'recordThought' | 'findRelated'
 >;
+
+export type SelectionMenuHandle = {
+  copy: () => Promise<void>;
+};
+
+type CopyState = 'idle' | 'copying' | 'copied';
+
+type CopyEvent = { type: 'copyFailed' } | { type: 'copyStarted' } | { type: 'copySucceeded' };
+
+function copyStateReducer(_state: CopyState, event: CopyEvent): CopyState {
+  switch (event.type) {
+    case 'copyFailed':
+      return 'idle';
+    case 'copyStarted':
+      return 'copying';
+    case 'copySucceeded':
+      return 'copied';
+  }
+}
 
 export function SelectionMenu({
   action,
@@ -28,12 +48,12 @@ export function SelectionMenu({
   onFindRelated,
   onCopy,
   onCopySettled,
-  copyRequestKey = 0,
+  ref,
 }: {
   action: SelectionMenuAction;
   labels?: SelectionMenuLabels;
+  ref?: Ref<SelectionMenuHandle>;
   shortcuts?: Partial<SelectionActionShortcuts>;
-  copyRequestKey?: number;
   onAnnotate: () => void;
   onAsk?: () => void;
   onFindRelated?: () => void;
@@ -41,33 +61,26 @@ export function SelectionMenu({
   onCopySettled?: () => void;
 }) {
   const shortcutKeys = normalizeSelectionActionShortcuts(shortcuts);
-  const [copyState, setCopyState] = useState<'idle' | 'copying' | 'copied'>('idle');
+  const [copyState, dispatch] = useReducer(copyStateReducer, 'idle');
   const closeTimerRef = useRef<number | null>(null);
-  const lastCopyRequestKeyRef = useRef(copyRequestKey);
 
-  useEffect(() => {
-    return () => {
-      if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
-    };
-  }, []);
+  useMountEffect(() => () => {
+    if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
+  });
 
   async function copy() {
     if (copyState !== 'idle') return;
-    setCopyState('copying');
+    dispatch({ type: 'copyStarted' });
     try {
       await onCopy();
-      setCopyState('copied');
+      dispatch({ type: 'copySucceeded' });
       closeTimerRef.current = window.setTimeout(() => onCopySettled?.(), 520);
     } catch {
-      setCopyState('idle');
+      dispatch({ type: 'copyFailed' });
     }
   }
 
-  useEffect(() => {
-    if (copyRequestKey === lastCopyRequestKeyRef.current) return;
-    lastCopyRequestKeyRef.current = copyRequestKey;
-    void copy();
-  }, [copyRequestKey]);
+  useImperativeHandle(ref, () => ({ copy }));
 
   const copied = copyState === 'copied';
 

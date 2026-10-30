@@ -258,6 +258,7 @@ describe('ReaderSurfaceView', () => {
         annotationRail={{
           annotationRailItems: [],
           exitingAnnotationIds: new Set(),
+          layoutChangeRef: () => {},
           noteRefForAnnotation: () => vi.fn(),
           visibleAnnotationIds: new Set(annotations.map((item) => item.id)),
           visibleAnnotations: annotations,
@@ -294,7 +295,6 @@ describe('ReaderSurfaceView', () => {
         }}
         selection={{
           composer,
-          copyRequestKey: 0,
           highlightChoice: null,
           selectionAction,
         }}

@@ -7,7 +7,7 @@ import {
   BubbleChatIcon,
   MoreHorizontalIcon,
 } from '@hugeicons/core-free-icons';
-import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useReducer, useRef } from 'react';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
 import {
   annotationCommentThreads,
@@ -107,6 +107,37 @@ type AnnotationCardProps = {
 
 const emptyAgents: PublicAgent[] = [];
 
+type AnnotationCardState = {
+  dualMorph: { height: number; token: number } | null;
+  isStackFront: boolean;
+  shuffling: boolean;
+};
+
+type AnnotationCardEvent =
+  | { type: 'dualMorphMeasured'; height: number; token: number }
+  | { type: 'shuffleEnded' }
+  | { type: 'stackFrontChanged'; isStackFront: boolean; shuffle: boolean };
+
+function annotationCardReducer(
+  state: AnnotationCardState,
+  event: AnnotationCardEvent,
+): AnnotationCardState {
+  switch (event.type) {
+    case 'dualMorphMeasured':
+      return state.dualMorph?.token === event.token && state.dualMorph.height === event.height
+        ? state
+        : { ...state, dualMorph: { height: event.height, token: event.token } };
+    case 'shuffleEnded':
+      return state.shuffling ? { ...state, shuffling: false } : state;
+    case 'stackFrontChanged':
+      return {
+        ...state,
+        isStackFront: event.isStackFront,
+        shuffling: state.shuffling || event.shuffle,
+      };
+  }
+}
+
 export const AnnotationCard = React.memo(function AnnotationCard({
   noteRef,
   style,
@@ -132,14 +163,19 @@ export const AnnotationCard = React.memo(function AnnotationCard({
     annotation.distillation?.updatedAt ||
     annotation.distillation?.publishedAt ||
     annotation.updatedAt;
-  const [shuffling, setShuffling] = useState(false);
-  const prevStackFrontRef = useRef(isStackFront);
-
-  useLayoutEffect(() => {
-    const wasFront = prevStackFrontRef.current;
-    prevStackFrontRef.current = isStackFront;
-    if (!exiting && stackCount > 1 && wasFront && !isStackFront) setShuffling(true);
-  }, [exiting, isStackFront, stackCount]);
+  const [cardState, dispatch] = useReducer(annotationCardReducer, {
+    dualMorph: null,
+    isStackFront,
+    shuffling: false,
+  });
+  if (cardState.isStackFront !== isStackFront) {
+    dispatch({
+      type: 'stackFrontChanged',
+      isStackFront,
+      shuffle: !exiting && stackCount > 1 && !isStackFront,
+    });
+  }
+  const { shuffling } = cardState;
 
   const noteClassName = [
     'reader-note',
@@ -169,22 +205,26 @@ export const AnnotationCard = React.memo(function AnnotationCard({
     distillationAnimation?.overlayDistillation?.content.trim() || distillationContent;
   const dualMorphAnnotationRef = useRef<HTMLDivElement | null>(null);
   const dualMorphDistillationRef = useRef<HTMLDivElement | null>(null);
-  const [dualMorphHeight, setDualMorphHeight] = useState<number | null>(null);
+  const dualMorphToken = isDualMorph ? distillationAnimation?.token : undefined;
+  const dualMorphHeight =
+    dualMorphToken !== undefined && cardState.dualMorph?.token === dualMorphToken
+      ? cardState.dualMorph.height
+      : null;
 
-  useLayoutEffect(() => {
-    if (!isDualMorph) {
-      if (dualMorphHeight !== null) setDualMorphHeight(null);
-      return;
-    }
-
+  // Not memoized: either face can change height on any render, so the stage re-measures after every commit.
+  function measureDualMorphStage(stage: HTMLDivElement | null) {
+    if (!stage || dualMorphToken === undefined) return;
     const targetElement =
       annotation.distillation?.status === 'published'
         ? dualMorphDistillationRef.current
         : dualMorphAnnotationRef.current;
-    const nextHeight = targetElement?.offsetHeight ?? null;
-    if (nextHeight === null || nextHeight === dualMorphHeight) return;
-    setDualMorphHeight(nextHeight);
-  });
+    if (!targetElement) return;
+    dispatch({
+      type: 'dualMorphMeasured',
+      height: targetElement.offsetHeight,
+      token: dualMorphToken,
+    });
+  }
 
   function handleCardClick(event: React.MouseEvent<HTMLElement>) {
     if (active) return;
@@ -220,12 +260,15 @@ export const AnnotationCard = React.memo(function AnnotationCard({
       style={shuffling ? { ...style, zIndex: 70 } : style}
       onClick={handleCardClick}
       onAnimationEnd={(event) => {
-        if (event.animationName.startsWith('reader-note-shuffle')) setShuffling(false);
+        if (event.animationName.startsWith('reader-note-shuffle')) {
+          dispatch({ type: 'shuffleEnded' });
+        }
       }}
     >
       {isDualMorph ? (
         <div
           className="reader-note-dual-morph-stage"
+          ref={measureDualMorphStage}
           style={dualMorphHeight === null ? undefined : { height: `${dualMorphHeight}px` }}
         >
           <div
@@ -587,16 +630,21 @@ function DeleteActionMenu({
   onDelete: () => void;
   onOpenDiscussion?: (sourceElement: Element) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [{ confirmOpen, open }, dispatch] = useReducer(deleteActionMenuReducer, {
+    confirmOpen: false,
+    open: false,
+  });
 
   function openDiscussionAndClose(sourceElement: Element) {
-    setOpen(false);
+    dispatch({ type: 'menuOpenChanged', open: false });
     onOpenDiscussion?.(sourceElement);
   }
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
+    <DropdownMenu
+      open={open}
+      onOpenChange={(nextOpen) => dispatch({ type: 'menuOpenChanged', open: nextOpen })}
+    >
       <div
         className={[className, 'reader-action-menu', open ? 'is-open' : '']
           .filter(Boolean)
@@ -626,10 +674,7 @@ function DeleteActionMenu({
               className="reader-delete-note reader-action-delete"
               type="button"
               aria-label={deleteAriaLabel}
-              onClick={() => {
-                setOpen(false);
-                setConfirmOpen(true);
-              }}
+              onClick={() => dispatch({ type: 'deleteRequested' })}
             >
               <HugeiconsIcon icon={Delete02Icon} size={13} />
               <span>{labels.deleteAnnotation}</span>
@@ -642,15 +687,36 @@ function DeleteActionMenu({
           description={labels.deleteAnnotationConfirmDescription}
           open={confirmOpen}
           title={labels.deleteAnnotationConfirmTitle}
-          onCancel={() => setConfirmOpen(false)}
+          onCancel={() => dispatch({ type: 'deleteDismissed' })}
           onConfirm={() => {
-            setConfirmOpen(false);
+            dispatch({ type: 'deleteDismissed' });
             onDelete();
           }}
         />
       </div>
     </DropdownMenu>
   );
+}
+
+type DeleteActionMenuState = { confirmOpen: boolean; open: boolean };
+
+type DeleteActionMenuEvent =
+  | { type: 'deleteDismissed' }
+  | { type: 'deleteRequested' }
+  | { type: 'menuOpenChanged'; open: boolean };
+
+function deleteActionMenuReducer(
+  state: DeleteActionMenuState,
+  event: DeleteActionMenuEvent,
+): DeleteActionMenuState {
+  switch (event.type) {
+    case 'deleteDismissed':
+      return { ...state, confirmOpen: false };
+    case 'deleteRequested':
+      return { confirmOpen: true, open: false };
+    case 'menuOpenChanged':
+      return { ...state, open: event.open };
+  }
 }
 
 function ReaderConfirmDialog({

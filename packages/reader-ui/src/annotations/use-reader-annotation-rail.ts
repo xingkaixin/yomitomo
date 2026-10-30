@@ -2,6 +2,8 @@ import React from 'react';
 import type { HighlightBox } from '@yomitomo/core';
 import type { Annotation } from '@yomitomo/shared';
 import { buildAnnotationRailItems, type AnnotationRailLayout } from './annotation-rail-layout';
+import { useInterval } from '../hooks/use-interval';
+import { useMountEffect } from '../hooks/use-mount-effect';
 
 const FILTERED_NOTE_EXIT_MS = 190;
 
@@ -17,6 +19,77 @@ function stringSetsEqual(left: Set<string>, right: Set<string>): boolean {
   return true;
 }
 
+type RailState = {
+  exitingIds: Set<string>;
+  ids: string[];
+  noteHeights: Record<string, number>;
+  sourceIds: string[];
+  visibleIds: string[];
+};
+
+type RailEvent =
+  | { type: 'exitFinished' }
+  | { type: 'noteDetached'; annotationId: string }
+  | { type: 'noteHeightsMeasured'; heights: Iterable<[string, number]> }
+  | { type: 'railAnnotationsChanged'; sourceIds: string[]; visibleIds: string[] };
+
+function railReducer(state: RailState, event: RailEvent): RailState {
+  switch (event.type) {
+    case 'exitFinished': {
+      const visibleIdSet = new Set(state.visibleIds);
+      const ids = state.sourceIds.filter((id) => visibleIdSet.has(id));
+      if (stringArraysEqual(state.ids, ids) && state.exitingIds.size === 0) return state;
+      return { ...state, exitingIds: new Set(), ids };
+    }
+    case 'noteDetached': {
+      if (!(event.annotationId in state.noteHeights)) return state;
+      const noteHeights = { ...state.noteHeights };
+      delete noteHeights[event.annotationId];
+      return { ...state, noteHeights };
+    }
+    case 'noteHeightsMeasured': {
+      let noteHeights = state.noteHeights;
+      for (const [annotationId, height] of event.heights) {
+        if (state.noteHeights[annotationId] === height) continue;
+        if (noteHeights === state.noteHeights) noteHeights = { ...state.noteHeights };
+        noteHeights[annotationId] = height;
+      }
+      return noteHeights === state.noteHeights ? state : { ...state, noteHeights };
+    }
+    case 'railAnnotationsChanged': {
+      const sourceIdSet = new Set(event.sourceIds);
+      const visibleIdSet = new Set(event.visibleIds);
+      const currentIds = state.ids.length > 0 ? state.ids : event.sourceIds;
+      const exitingIds = currentIds.filter((id) => sourceIdSet.has(id) && !visibleIdSet.has(id));
+      const renderedIds = new Set([...event.visibleIds, ...exitingIds]);
+      const ids = event.sourceIds.filter((id) => renderedIds.has(id));
+      const nextExitingIds = new Set(exitingIds);
+      const unchanged =
+        stringArraysEqual(state.ids, ids) && stringSetsEqual(state.exitingIds, nextExitingIds);
+      return {
+        ...state,
+        exitingIds: unchanged ? state.exitingIds : nextExitingIds,
+        ids: unchanged ? state.ids : ids,
+        sourceIds: event.sourceIds,
+        visibleIds: event.visibleIds,
+      };
+    }
+  }
+}
+
+function initialRailState({
+  sourceIds,
+  visibleIds,
+}: {
+  sourceIds: string[];
+  visibleIds: string[];
+}) {
+  return railReducer(
+    { exitingIds: new Set(), ids: sourceIds, noteHeights: {}, sourceIds, visibleIds },
+    { type: 'railAnnotationsChanged', sourceIds, visibleIds },
+  );
+}
+
 export type UseReaderAnnotationRailOptions = {
   activeId: string | null;
   annotationRailLayout?: AnnotationRailLayout;
@@ -30,6 +103,8 @@ export type UseReaderAnnotationRailOptions = {
 export type ReaderAnnotationRailState = {
   annotationRailItems: ReturnType<typeof buildAnnotationRailItems>;
   exitingAnnotationIds: Set<string>;
+  /** Attach to an element that contains the rail; reports rail layout changes after each commit. */
+  layoutChangeRef: (element: HTMLElement | null) => void;
   noteRefForAnnotation: (annotationId: string) => (element: HTMLElement | null) => void;
   visibleAnnotationIds: Set<string>;
   visibleAnnotations: Annotation[];
@@ -45,25 +120,6 @@ export function useReaderAnnotationRail({
   noteRefs,
   onAnnotationLayoutChange,
 }: UseReaderAnnotationRailOptions): ReaderAnnotationRailState {
-  const [railAnimation, setRailAnimation] = React.useState(() => ({
-    ids: annotations.map((annotation) => annotation.id),
-    exitingIds: new Set<string>(),
-  }));
-  const [noteHeights, setNoteHeights] = React.useState<Record<string, number>>({});
-  const noteElementsRef = React.useRef(new Map<string, HTMLElement>());
-  const noteRefCallbacksRef = React.useRef(
-    new Map<string, (element: HTMLElement | null) => void>(),
-  );
-  const noteResizeObserverRef = React.useRef<ResizeObserver | null>(null);
-  const pendingNoteHeightsRef = React.useRef(new Map<string, number>());
-  const noteHeightFrameRef = React.useRef(0);
-  const registerNoteElementRef = React.useRef<
-    (annotationId: string, element: HTMLElement | null) => void
-  >(() => {});
-  const notifyAnnotationLayoutChange = React.useEffectEvent(() => {
-    onAnnotationLayoutChange?.();
-  });
-
   const visibleAnnotations = filteredAnnotations;
   const visibleAnnotationIds = React.useMemo(
     () => new Set(visibleAnnotations.map((annotation) => annotation.id)),
@@ -73,16 +129,47 @@ export function useReaderAnnotationRail({
     () => annotations.filter((annotation) => visibleAnnotationIds.has(annotation.id)),
     [annotations, visibleAnnotationIds],
   );
+  const sourceIds = React.useMemo(
+    () => annotations.map((annotation) => annotation.id),
+    [annotations],
+  );
+  const visibleIds = React.useMemo(
+    () => visibleRailAnnotations.map((annotation) => annotation.id),
+    [visibleRailAnnotations],
+  );
+  const [rail, dispatch] = React.useReducer(
+    railReducer,
+    { sourceIds, visibleIds },
+    initialRailState,
+  );
+  if (
+    !stringArraysEqual(rail.sourceIds, sourceIds) ||
+    !stringArraysEqual(rail.visibleIds, visibleIds)
+  ) {
+    dispatch({ type: 'railAnnotationsChanged', sourceIds, visibleIds });
+  }
+  const { exitingIds, ids: railIds, noteHeights } = rail;
+  const noteElementsRef = React.useRef(new Map<string, HTMLElement>());
+  const noteRefCallbacksRef = React.useRef(
+    new Map<string, (element: HTMLElement | null) => void>(),
+  );
+  const noteResizeObserverRef = React.useRef<ResizeObserver | null>(null);
+  const pendingNoteHeightsRef = React.useRef(new Map<string, number>());
+  const noteHeightFrameRef = React.useRef(0);
+  const notifyAnnotationLayoutChange = React.useEffectEvent(() => {
+    onAnnotationLayoutChange?.();
+  });
+
   const railAnnotationById = React.useMemo(
     () => new Map(annotations.map((annotation) => [annotation.id, annotation])),
     [annotations],
   );
   const railAnnotations = React.useMemo(
     () =>
-      railAnimation.ids
+      railIds
         .map((id) => railAnnotationById.get(id))
         .filter((annotation): annotation is Annotation => Boolean(annotation)),
-    [railAnimation.ids, railAnnotationById],
+    [railIds, railAnnotationById],
   );
   const documentAnnotationRailLayout = React.useMemo(() => {
     if (!annotationRailLayout) return undefined;
@@ -116,21 +203,23 @@ export function useReaderAnnotationRail({
     [activeId, documentAnnotationRailLayout, boxes, noteHeights, railAnnotations],
   );
 
+  useInterval(
+    () => dispatch({ type: 'exitFinished' }),
+    exitingIds.size > 0 ? FILTERED_NOTE_EXIT_MS : null,
+  );
+
+  useMountEffect(() => () => {
+    noteResizeObserverRef.current?.disconnect();
+    if (noteHeightFrameRef.current) window.cancelAnimationFrame(noteHeightFrameRef.current);
+  });
+
   const flushPendingNoteHeights = React.useCallback(() => {
     noteHeightFrameRef.current = 0;
     if (pendingNoteHeightsRef.current.size === 0) return;
 
-    const measuredHeights = pendingNoteHeightsRef.current;
+    const heights = pendingNoteHeightsRef.current;
     pendingNoteHeightsRef.current = new Map();
-    setNoteHeights((current) => {
-      let next = current;
-      for (const [annotationId, height] of measuredHeights) {
-        if (current[annotationId] === height) continue;
-        if (next === current) next = { ...current };
-        next[annotationId] = height;
-      }
-      return next;
-    });
+    dispatch({ type: 'noteHeightsMeasured', heights });
   }, []);
 
   const queueNoteHeight = React.useCallback(
@@ -144,14 +233,6 @@ export function useReaderAnnotationRail({
     [flushPendingNoteHeights],
   );
 
-  const updateNoteHeight = React.useCallback((annotationId: string, height: number) => {
-    const nextHeight = Math.ceil(height);
-    if (nextHeight <= 0) return;
-    setNoteHeights((current) =>
-      current[annotationId] === nextHeight ? current : { ...current, [annotationId]: nextHeight },
-    );
-  }, []);
-
   const registerNoteElement = React.useCallback(
     (annotationId: string, element: HTMLElement | null) => {
       const existing = noteElementsRef.current.get(annotationId);
@@ -160,14 +241,10 @@ export function useReaderAnnotationRail({
       if (!element) {
         if (existing) noteResizeObserverRef.current?.unobserve(existing);
         noteElementsRef.current.delete(annotationId);
+        noteRefCallbacksRef.current.delete(annotationId);
         noteRefs.current.delete(annotationId);
         pendingNoteHeightsRef.current.delete(annotationId);
-        setNoteHeights((current) => {
-          if (!(annotationId in current)) return current;
-          const next = { ...current };
-          delete next[annotationId];
-          return next;
-        });
+        dispatch({ type: 'noteDetached', annotationId });
         return;
       }
 
@@ -175,7 +252,9 @@ export function useReaderAnnotationRail({
       noteRefs.current.set(annotationId, element);
 
       if (typeof ResizeObserver === 'undefined') {
-        updateNoteHeight(annotationId, element.getBoundingClientRect().height);
+        const height = Math.ceil(element.getBoundingClientRect().height);
+        if (height > 0)
+          dispatch({ type: 'noteHeightsMeasured', heights: [[annotationId, height]] });
         return;
       }
       if (!noteResizeObserverRef.current) {
@@ -188,90 +267,35 @@ export function useReaderAnnotationRail({
       }
       noteResizeObserverRef.current.observe(element);
     },
-    [noteRefs, queueNoteHeight, updateNoteHeight],
+    [noteRefs, queueNoteHeight],
   );
 
-  registerNoteElementRef.current = registerNoteElement;
+  const noteRefForAnnotation = React.useCallback(
+    (annotationId: string) => {
+      const existing = noteRefCallbacksRef.current.get(annotationId);
+      if (existing) return existing;
 
-  const noteRefForAnnotation = React.useCallback((annotationId: string) => {
-    const existing = noteRefCallbacksRef.current.get(annotationId);
-    if (existing) return existing;
-
-    const callback = (element: HTMLElement | null) => {
-      registerNoteElementRef.current(annotationId, element);
-    };
-    noteRefCallbacksRef.current.set(annotationId, callback);
-    return callback;
-  }, []);
-
-  React.useEffect(() => {
-    const sourceIds = annotations.map((annotation) => annotation.id);
-    const sourceIdSet = new Set(sourceIds);
-    const visibleIds = visibleRailAnnotations.map((annotation) => annotation.id);
-    const visibleIdSet = new Set(visibleIds);
-
-    setRailAnimation((current) => {
-      const currentIds = current.ids.length > 0 ? current.ids : sourceIds;
-      const exitingIds = currentIds.filter((id) => sourceIdSet.has(id) && !visibleIdSet.has(id));
-      const renderedIds = new Set([...visibleIds, ...exitingIds]);
-      const nextIds = sourceIds.filter((id) => renderedIds.has(id));
-      const nextExitingIds = new Set(exitingIds);
-      if (
-        stringArraysEqual(current.ids, nextIds) &&
-        stringSetsEqual(current.exitingIds, nextExitingIds)
-      ) {
-        return current;
-      }
-      return {
-        ids: nextIds,
-        exitingIds: nextExitingIds,
+      const callback = (element: HTMLElement | null) => {
+        registerNoteElement(annotationId, element);
       };
-    });
-
-    const timeout = window.setTimeout(() => {
-      setRailAnimation((current) => {
-        const nextIds = sourceIds.filter((id) => visibleIdSet.has(id));
-        if (stringArraysEqual(current.ids, nextIds) && current.exitingIds.size === 0) {
-          return current;
-        }
-        return {
-          ids: nextIds,
-          exitingIds: new Set(),
-        };
-      });
-    }, FILTERED_NOTE_EXIT_MS);
-
-    return () => window.clearTimeout(timeout);
-  }, [annotations, visibleRailAnnotations]);
-
-  React.useEffect(() => {
-    const visibleIds = new Set(railAnnotations.map((annotation) => annotation.id));
-    for (const annotationId of noteRefCallbacksRef.current.keys()) {
-      if (!visibleIds.has(annotationId)) noteRefCallbacksRef.current.delete(annotationId);
-    }
-    setNoteHeights((current) => {
-      const next = Object.fromEntries(
-        Object.entries(current).filter(([annotationId]) => visibleIds.has(annotationId)),
-      );
-      return Object.keys(next).length === Object.keys(current).length ? current : next;
-    });
-  }, [railAnnotations]);
-
-  React.useEffect(
-    () => () => {
-      noteResizeObserverRef.current?.disconnect();
-      if (noteHeightFrameRef.current) window.cancelAnimationFrame(noteHeightFrameRef.current);
+      noteRefCallbacksRef.current.set(annotationId, callback);
+      return callback;
     },
-    [],
+    [registerNoteElement],
   );
 
-  React.useLayoutEffect(() => {
-    notifyAnnotationLayoutChange();
-  }, [annotationRailItems, noteHeights]);
+  // Recreated when rail items or note heights change, so the layout is reported after that commit.
+  const layoutChangeRef = React.useCallback(
+    (element: HTMLElement | null) => {
+      if (element) notifyAnnotationLayoutChange();
+    },
+    [annotationRailItems, noteHeights],
+  );
 
   return {
     annotationRailItems,
-    exitingAnnotationIds: railAnimation.exitingIds,
+    exitingAnnotationIds: exitingIds,
+    layoutChangeRef,
     noteRefForAnnotation,
     visibleAnnotationIds,
     visibleAnnotations,

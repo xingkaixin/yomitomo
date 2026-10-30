@@ -328,9 +328,10 @@ function ReaderFloatingSearchToolbar({
           ? '0/0'
           : '';
 
-  React.useEffect(() => {
-    inputRef.current?.focus();
-    inputRef.current?.select();
+  const attachInput = React.useCallback((input: HTMLInputElement | null) => {
+    inputRef.current = input;
+    input?.focus();
+    input?.select();
   }, []);
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
@@ -366,7 +367,7 @@ function ReaderFloatingSearchToolbar({
             .join(' ')}
         >
           <input
-            ref={inputRef}
+            ref={attachInput}
             aria-label={labels.searchBody}
             value={search.query}
             onChange={(event) => search.onQueryChange(event.currentTarget.value)}
