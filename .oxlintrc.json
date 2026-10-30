@@ -125,8 +125,6 @@
         "apps/desktop/src/renderer/src/settings/app-settings-provider-model-fetch.ts",
         "apps/desktop/src/renderer/src/settings/app-settings-provider-model-fields.tsx",
         "apps/desktop/src/renderer/src/settings/app-settings-provider-panel.tsx",
-        "apps/desktop/src/renderer/src/settings/app-settings-weread-panel.tsx",
-        "apps/desktop/src/renderer/src/settings/reading-memory-model-settings.tsx",
         "apps/desktop/src/renderer/src/settings/use-app-lock-settings-workflow.ts",
         "apps/desktop/src/renderer/src/shell/app-agent-actions.ts",
         "apps/desktop/src/renderer/src/shell/app-article-book.tsx",

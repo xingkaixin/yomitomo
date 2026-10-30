@@ -16,7 +16,8 @@ import {
   Settings01Icon,
   Upload01Icon,
 } from '@hugeicons/core-free-icons';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useReducer, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type {
   AppSettingsPatch,
   ResolvedAppSettings,
@@ -34,7 +35,7 @@ import {
 import { getShortcutModifier, messageSendShortcutKeys } from '@yomitomo/reader-ui/reader-shortcuts';
 import { useTranslation } from 'react-i18next';
 import { messageSendShortcutOptions } from './app-settings';
-import type { DataManagementPathKind, DataManagementPaths } from '../../../preload';
+import type { DataManagementPathKind } from '../../../preload';
 import { CopyIconButton } from '../shell/app-ui';
 import { appToast } from '../shell/app-toast';
 import { AutoSaveStatus } from './app-settings-save-status';
@@ -440,6 +441,50 @@ export function ShortcutSettings({ draft }: { draft: SaveableDraft<ResolvedAppSe
   );
 }
 
+type DataConfirmAction = 'clear-log' | 'restore-db' | 'restore-full';
+
+type DataManagementState = {
+  busyAction: string;
+  confirmAction: DataConfirmAction | null;
+  lastRetentionDays: number;
+  status: string;
+};
+
+type DataManagementEvent =
+  | { type: 'actionFinished' }
+  | { type: 'actionStarted'; action: string }
+  | { type: 'confirmDismissed' }
+  | { type: 'confirmRequested'; action: DataConfirmAction }
+  | { type: 'retentionChosen'; days: number }
+  | { type: 'statusReported'; message: string };
+
+const initialDataManagementState: DataManagementState = {
+  busyAction: '',
+  confirmAction: null,
+  lastRetentionDays: 90,
+  status: '',
+};
+
+function dataManagementReducer(
+  state: DataManagementState,
+  event: DataManagementEvent,
+): DataManagementState {
+  switch (event.type) {
+    case 'actionFinished':
+      return { ...state, busyAction: '' };
+    case 'actionStarted':
+      return { ...state, busyAction: event.action, status: '' };
+    case 'confirmDismissed':
+      return { ...state, confirmAction: null };
+    case 'confirmRequested':
+      return { ...state, confirmAction: event.action };
+    case 'retentionChosen':
+      return { ...state, lastRetentionDays: event.days };
+    case 'statusReported':
+      return { ...state, status: event.message };
+  }
+}
+
 export function DataManagementSettings({
   settings,
   onStoreUpdated,
@@ -448,31 +493,18 @@ export function DataManagementSettings({
   onStoreUpdated: (store: DesktopStore) => void;
 }) {
   const { t } = useTranslation();
-  const [paths, setPaths] = useState<DataManagementPaths | null>(null);
-  const [busyAction, setBusyAction] = useState('');
-  const [status, setStatus] = useState('');
-  const [lastRetentionDays, setLastRetentionDays] = useState(90);
-  const [confirmAction, setConfirmAction] = useState<
-    'clear-log' | 'restore-db' | 'restore-full' | null
-  >(null);
+  const pathsQuery = useQuery({
+    queryKey: ['data', 'paths'],
+    queryFn: () => getDesktopApi().data.getPaths(),
+  });
+  const paths = pathsQuery.data;
+  const [{ busyAction, confirmAction, lastRetentionDays, status: actionStatus }, dispatch] =
+    useReducer(dataManagementReducer, initialDataManagementState);
+  const status =
+    actionStatus || (pathsQuery.error ? dataManagementErrorMessage(pathsQuery.error, t) : '');
   const retentionSave = useSaveStatus({
     errorMessage: (error) => dataManagementErrorMessage(error, t),
   });
-
-  useEffect(() => {
-    let mounted = true;
-    getDesktopApi()
-      .data.getPaths()
-      .then((nextPaths) => {
-        if (mounted) setPaths(nextPaths);
-      })
-      .catch((error) => {
-        if (mounted) setStatus(dataManagementErrorMessage(error, t));
-      });
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
   async function openPath(kind: DataManagementPathKind) {
     await runDataAction(`open:${kind}`, async () => {
@@ -481,15 +513,18 @@ export function DataManagementSettings({
   }
 
   async function saveLogRetention(days: number) {
-    setLastRetentionDays(days);
+    dispatch({ type: 'retentionChosen', days });
     await runDataAction(`retention:${days}`, async () => {
       await retentionSave.run(
         () => getDesktopApi().store.saveSettings({ logRetentionDays: days }),
         {
-          onError: (_error, message) => setStatus(message),
+          onError: (_error, message) => dispatch({ type: 'statusReported', message }),
           onSaved: (nextStore) => {
             onStoreUpdated(nextStore);
-            setStatus(t('settings.data.retentionSavedDays', { count: days }));
+            dispatch({
+              type: 'statusReported',
+              message: t('settings.data.retentionSavedDays', { count: days }),
+            });
           },
         },
       );
@@ -497,7 +532,7 @@ export function DataManagementSettings({
   }
 
   async function clearLog() {
-    setConfirmAction(null);
+    dispatch({ type: 'confirmDismissed' });
     await runDataAction('clear-log', async () => {
       await getDesktopApi().diagnostics.log.clear();
       appToast.success(t('settings.data.toast.logClearedTitle'), {
@@ -528,7 +563,7 @@ export function DataManagementSettings({
   }
 
   async function restoreDatabase(complete = false) {
-    setConfirmAction(null);
+    dispatch({ type: 'confirmDismissed' });
     await runDataAction(complete ? 'restore-full' : 'restore-db', async () => {
       const result = await (complete
         ? getDesktopApi().data.restoreFullData()
@@ -557,8 +592,7 @@ export function DataManagementSettings({
   }
 
   async function runDataAction(action: string, task: () => Promise<void>) {
-    setBusyAction(action);
-    setStatus('');
+    dispatch({ type: 'actionStarted', action });
     try {
       await task();
     } catch (error) {
@@ -566,10 +600,10 @@ export function DataManagementSettings({
       if (isToastDataAction(action)) {
         appToast.error(t(dataActionErrorToastTitleKey(action)), { description: message });
       } else {
-        setStatus(message);
+        dispatch({ type: 'statusReported', message });
       }
     } finally {
-      setBusyAction('');
+      dispatch({ type: 'actionFinished' });
     }
   }
 
@@ -624,7 +658,7 @@ export function DataManagementSettings({
             disabled={Boolean(busyAction)}
             type="button"
             variant="secondary"
-            onClick={() => setConfirmAction('restore-full')}
+            onClick={() => dispatch({ type: 'confirmRequested', action: 'restore-full' })}
           >
             <HugeiconsIcon icon={Upload01Icon} size={15} />
             {t(
@@ -689,7 +723,7 @@ export function DataManagementSettings({
             disabled={Boolean(busyAction)}
             type="button"
             variant="secondary"
-            onClick={() => setConfirmAction('clear-log')}
+            onClick={() => dispatch({ type: 'confirmRequested', action: 'clear-log' })}
           >
             <HugeiconsIcon icon={Delete02Icon} size={15} />
             {t('settings.data.clearLog')}
@@ -725,7 +759,7 @@ export function DataManagementSettings({
             disabled={Boolean(busyAction)}
             type="button"
             variant="secondary"
-            onClick={() => setConfirmAction('restore-db')}
+            onClick={() => dispatch({ type: 'confirmRequested', action: 'restore-db' })}
           >
             <HugeiconsIcon icon={Upload01Icon} size={15} />
             {t('settings.data.restoreDatabase')}
@@ -741,7 +775,7 @@ export function DataManagementSettings({
           description={confirmDialog.description}
           open
           title={confirmDialog.title}
-          onCancel={() => setConfirmAction(null)}
+          onCancel={() => dispatch({ type: 'confirmDismissed' })}
           onConfirm={() => {
             if (confirmAction === 'clear-log') void clearLog();
             if (confirmAction === 'restore-db') void restoreDatabase();

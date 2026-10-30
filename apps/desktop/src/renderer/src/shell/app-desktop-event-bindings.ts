@@ -1,3 +1,4 @@
+import type { QueryClient } from '@tanstack/react-query';
 import { normalizeUiLanguage, type DesktopStore } from '@yomitomo/shared';
 import { isAppLockSettingsLocked } from '../../../app-store';
 import { changeAppI18nLanguage } from '../i18n/app-i18n';
@@ -25,10 +26,11 @@ export function bindDesktopStoreEvents(desktopStore: DesktopStoreApi) {
 
 export function bindMainWindowEvents(stores: {
   desktopStore: DesktopStoreApi;
+  queryClient: QueryClient;
   sessionStore: AppSessionStoreApi;
   themeStore: ReaderThemeStoreApi;
 }) {
-  const { desktopStore, sessionStore, themeStore } = stores;
+  const { desktopStore, queryClient, sessionStore, themeStore } = stores;
   const unsubscribeMenuCommands = getDesktopApi().app.onMenuCommand((command) => {
     if (isStoreLocked(desktopStore.getState().store)) return;
     sessionStore.getState().actions.runMenuCommand(command);
@@ -38,7 +40,10 @@ export function bindMainWindowEvents(stores: {
     const previousStore = previousState.store;
     if (store === previousStore || !store) return;
     if (isStoreLocked(store)) {
-      if (!isStoreLocked(previousStore)) sessionStore.getState().actions.resetForLock();
+      if (!isStoreLocked(previousStore)) {
+        sessionStore.getState().actions.resetForLock();
+        queryClient.clear();
+      }
       return;
     }
     if (store.settings !== previousStore?.settings) {

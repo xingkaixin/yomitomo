@@ -60,6 +60,7 @@
     "@hugeicons/core-free-icons": "catalog:",
     "@hugeicons/react": "catalog:",
     "@tailwindcss/postcss": "catalog:",
+    "@tanstack/react-query": "^5.105.0",
     "@types/better-sqlite3": "^9.6.0",
     "@types/jsdom": "catalog:",
     "@types/node": "^26.6.5",

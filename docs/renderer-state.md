@@ -62,7 +62,9 @@ Each window has its own stores and query client. Cross-window consistency comes
 only from main-process broadcasts such as `article:patched`; do not synchronize
 renderer stores between windows directly.
 
-The query client defaults to `networkMode: 'always'`, `refetchOnWindowFocus:
+The main window creates its query client with
+`apps/desktop/src/renderer/src/shell/app-query-client.ts`. The query client
+defaults to `networkMode: 'always'`, `refetchOnWindowFocus:
 false`, and `retry: false`. IPC does not depend on `navigator.onLine`, focusing
 one of several windows must not repeat IPC reads, and most IPC failures are not
 transient. Locking the app clears the query cache together with the locked

@@ -11,6 +11,8 @@ import { AvatarImage } from './shell/app-ui';
 import { useAppAgentActions } from './shell/app-agent-actions';
 import { useAppArticleStoreActions } from './shell/app-article-store-actions';
 import { useAppCollectionStoreActions } from './shell/app-library-collection-store-actions';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { createAppQueryClient } from './shell/app-query-client';
 import {
   bindDesktopStoreEvents,
   bindMainWindowEvents,
@@ -403,8 +405,14 @@ function createMainWindow() {
   const sessionStore = createAppSessionStore(desktopStore);
   const themeStore = createReaderThemeStore({ applyStore: desktopStore.getState().applyStore });
   const settingsDraftStore = createSettingsDraftStore(desktopStore);
+  const queryClient = createAppQueryClient();
   const unbindDesktopStoreEvents = bindDesktopStoreEvents(desktopStore);
-  const unbindMainWindowEvents = bindMainWindowEvents({ desktopStore, sessionStore, themeStore });
+  const unbindMainWindowEvents = bindMainWindowEvents({
+    desktopStore,
+    queryClient,
+    sessionStore,
+    themeStore,
+  });
   const unbindSettingsDraftEvents = bindSettingsDraftEvents(desktopStore, settingsDraftStore);
   void desktopStore.getState().refreshStore();
   import.meta.hot?.dispose(() => {
@@ -413,15 +421,17 @@ function createMainWindow() {
     unbindDesktopStoreEvents();
   });
   return (
-    <DesktopStoreProvider store={desktopStore}>
-      <AppSessionStoreProvider store={sessionStore}>
-        <ReaderThemeStoreProvider store={themeStore}>
-          <SettingsDraftStoreProvider store={settingsDraftStore}>
-            <App />
-          </SettingsDraftStoreProvider>
-        </ReaderThemeStoreProvider>
-      </AppSessionStoreProvider>
-    </DesktopStoreProvider>
+    <QueryClientProvider client={queryClient}>
+      <DesktopStoreProvider store={desktopStore}>
+        <AppSessionStoreProvider store={sessionStore}>
+          <ReaderThemeStoreProvider store={themeStore}>
+            <SettingsDraftStoreProvider store={settingsDraftStore}>
+              <App />
+            </SettingsDraftStoreProvider>
+          </ReaderThemeStoreProvider>
+        </AppSessionStoreProvider>
+      </DesktopStoreProvider>
+    </QueryClientProvider>
   );
 }
 

@@ -11,7 +11,9 @@ import {
   ViewIcon,
   ViewOffIcon,
 } from '@hugeicons/core-free-icons';
-import { useEffect, useRef, useState } from 'react';
+import { useReducer, useRef } from 'react';
+import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import {
   normalizeUiLanguage,
   type WeReadOpenMethod,
@@ -40,23 +42,136 @@ const WEREAD_API_KEY_HELP_URLS = {
   ja: 'https://yomitomo.app/ja/docs/weread-api-key/',
 } as const;
 
+type WeReadTestState = 'idle' | 'testing' | 'success' | 'error';
+
+type WeReadPanelState = {
+  apiKey: string;
+  apiKeyMessage: string;
+  apiKeyVisible: boolean;
+  lastOpenMethod: WeReadOpenMethod;
+  lastSyncMode: WeReadSyncMode;
+  removeConfirmOpen: boolean;
+  revealLoading: boolean;
+  revealedStoredApiKey: string;
+  testMessage: string;
+  testState: WeReadTestState;
+};
+
+type WeReadPanelEvent =
+  | { type: 'apiKeyEdited'; apiKey: string }
+  | { type: 'apiKeyHidden' }
+  | { type: 'apiKeyShown' }
+  | { type: 'credentialSaveStarted' }
+  | { type: 'credentialSaved' }
+  | { type: 'openMethodChosen'; openMethod: WeReadOpenMethod }
+  | { type: 'removeConfirmClosed' }
+  | { type: 'removeConfirmOpened' }
+  | { type: 'revealFailed'; message: string }
+  | { type: 'revealStarted' }
+  | { type: 'revealSucceeded'; apiKey: string; message: string }
+  | { type: 'storedApiKeyRemoved' }
+  | { type: 'syncModeChosen'; syncMode: WeReadSyncMode }
+  | { type: 'testFinished'; message: string; ok: boolean }
+  | { type: 'testReset' }
+  | { type: 'testStarted' };
+
+const initialWeReadPanelState: WeReadPanelState = {
+  apiKey: '',
+  apiKeyMessage: '',
+  apiKeyVisible: false,
+  lastOpenMethod: 'deeplink',
+  lastSyncMode: 'manual',
+  removeConfirmOpen: false,
+  revealLoading: false,
+  revealedStoredApiKey: '',
+  testMessage: '',
+  testState: 'idle',
+};
+
+function weReadPanelReducer(state: WeReadPanelState, event: WeReadPanelEvent): WeReadPanelState {
+  switch (event.type) {
+    case 'apiKeyEdited':
+      return { ...state, apiKey: event.apiKey, apiKeyMessage: '', revealedStoredApiKey: '' };
+    case 'apiKeyHidden':
+      return {
+        ...state,
+        apiKeyMessage: '',
+        apiKeyVisible: false,
+        revealLoading: false,
+        revealedStoredApiKey: '',
+      };
+    case 'apiKeyShown':
+      return { ...state, apiKeyVisible: true };
+    case 'credentialSaveStarted':
+      return { ...state, apiKeyMessage: '', removeConfirmOpen: false };
+    case 'credentialSaved':
+      return { ...state, apiKey: '', apiKeyVisible: false, revealedStoredApiKey: '' };
+    case 'openMethodChosen':
+      return { ...state, lastOpenMethod: event.openMethod };
+    case 'removeConfirmClosed':
+      return { ...state, removeConfirmOpen: false };
+    case 'removeConfirmOpened':
+      return { ...state, removeConfirmOpen: true };
+    case 'revealFailed':
+      return { ...state, apiKeyMessage: event.message, revealLoading: false };
+    case 'revealStarted':
+      return { ...state, apiKeyMessage: '', revealLoading: true };
+    case 'revealSucceeded':
+      return {
+        ...state,
+        apiKeyMessage: event.message,
+        apiKeyVisible: true,
+        revealLoading: false,
+        revealedStoredApiKey: event.apiKey,
+      };
+    case 'storedApiKeyRemoved':
+      return {
+        ...state,
+        apiKey: '',
+        apiKeyVisible: false,
+        revealedStoredApiKey: '',
+        testMessage: '',
+        testState: 'idle',
+      };
+    case 'syncModeChosen':
+      return { ...state, lastSyncMode: event.syncMode };
+    case 'testFinished':
+      return { ...state, testMessage: event.message, testState: event.ok ? 'success' : 'error' };
+    case 'testReset':
+      return { ...state, testState: 'idle' };
+    case 'testStarted':
+      return { ...state, testMessage: '', testState: 'testing' };
+  }
+}
+
+const defaultWeReadSettings: WeReadSettings = {
+  configured: false,
+  openMethod: 'deeplink',
+  syncMode: 'manual',
+};
+
+const weReadSettingsQuery = queryOptions({
+  queryKey: ['weread', 'settings'],
+  queryFn: async () => (await getDesktopApi().weRead.getState()).settings,
+});
+
 export function WeReadSettingsPanel() {
   const { i18n, t } = useTranslation();
-  const [settings, setSettings] = useState<WeReadSettings>({
-    configured: false,
-    openMethod: 'deeplink',
-    syncMode: 'manual',
-  });
-  const [apiKey, setApiKey] = useState('');
-  const [apiKeyVisible, setApiKeyVisible] = useState(false);
-  const [revealedStoredApiKey, setRevealedStoredApiKey] = useState('');
-  const [revealLoading, setRevealLoading] = useState(false);
-  const [apiKeyMessage, setApiKeyMessage] = useState('');
-  const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
-  const [testState, setTestState] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
-  const [testMessage, setTestMessage] = useState('');
-  const [lastOpenMethod, setLastOpenMethod] = useState<WeReadOpenMethod>('deeplink');
-  const [lastSyncMode, setLastSyncMode] = useState<WeReadSyncMode>('manual');
+  const queryClient = useQueryClient();
+  const { data: settings = defaultWeReadSettings } = useQuery(weReadSettingsQuery);
+  const [panel, dispatch] = useReducer(weReadPanelReducer, initialWeReadPanelState);
+  const {
+    apiKey,
+    apiKeyMessage,
+    apiKeyVisible,
+    lastOpenMethod,
+    lastSyncMode,
+    removeConfirmOpen,
+    revealLoading,
+    revealedStoredApiKey,
+    testMessage,
+    testState,
+  } = panel;
   const revealRequestRef = useRef(0);
   const testResetTimerRef = useRef<number | undefined>(undefined);
   const credentialSave = useSaveStatus({
@@ -70,27 +185,13 @@ export function WeReadSettingsPanel() {
   });
   const displayedApiKey = apiKey || (apiKeyVisible ? revealedStoredApiKey : '');
 
-  useEffect(() => {
-    return () => {
-      if (testResetTimerRef.current !== undefined) {
-        window.clearTimeout(testResetTimerRef.current);
-      }
-    };
-  }, []);
+  useMountEffect(() => clearTestResetTimer);
 
-  useEffect(() => {
-    let cancelled = false;
-    void getDesktopApi()
-      .weRead.getState()
-      .then((state) => {
-        if (cancelled) return;
-        setSettings(state.settings);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  function setSettings(update: WeReadSettings | ((current: WeReadSettings) => WeReadSettings)) {
+    queryClient.setQueryData(weReadSettingsQuery.queryKey, (current) =>
+      typeof update === 'function' ? update(current ?? defaultWeReadSettings) : update,
+    );
+  }
 
   function clearTestResetTimer() {
     if (testResetTimerRef.current === undefined) return;
@@ -102,13 +203,13 @@ export function WeReadSettingsPanel() {
     clearTestResetTimer();
     testResetTimerRef.current = window.setTimeout(() => {
       testResetTimerRef.current = undefined;
-      setTestState('idle');
+      dispatch({ type: 'testReset' });
     }, 1400);
   }
 
   async function saveSettings() {
     if (!apiKey.trim()) return;
-    setApiKeyMessage('');
+    dispatch({ type: 'credentialSaveStarted' });
     await credentialSave.run(
       async () => {
         const state = await getDesktopApi().weRead.saveSettings({
@@ -117,20 +218,13 @@ export function WeReadSettingsPanel() {
         });
         setSettings(state.settings);
       },
-      {
-        onSaved: () => {
-          setApiKey('');
-          setApiKeyVisible(false);
-          setRevealedStoredApiKey('');
-        },
-      },
+      { onSaved: () => dispatch({ type: 'credentialSaved' }) },
     );
   }
 
   async function removeStoredApiKey() {
     if (!settings.configured) return;
-    setRemoveConfirmOpen(false);
-    setApiKeyMessage('');
+    dispatch({ type: 'credentialSaveStarted' });
     await credentialSave.run(
       async () => {
         const state = await getDesktopApi().weRead.saveSettings({
@@ -139,32 +233,25 @@ export function WeReadSettingsPanel() {
         });
         setSettings(state.settings);
       },
-      {
-        onSaved: () => {
-          setApiKey('');
-          setApiKeyVisible(false);
-          setRevealedStoredApiKey('');
-          setTestState('idle');
-          setTestMessage('');
-        },
-      },
+      { onSaved: () => dispatch({ type: 'storedApiKeyRemoved' }) },
     );
   }
 
   async function testConnection() {
     clearTestResetTimer();
-    setTestState('testing');
-    setTestMessage('');
+    dispatch({ type: 'testStarted' });
     try {
       const { result, state } = await appSettingsActions.testWeReadAndRefresh(apiKey);
-      setTestState(result.ok ? 'success' : 'error');
-      setTestMessage(
-        result.ok ? t('settings.weread.testSuccess') : wereadResultMessage(result.message, t),
-      );
+      dispatch({
+        type: 'testFinished',
+        message: result.ok
+          ? t('settings.weread.testSuccess')
+          : wereadResultMessage(result.message, t),
+        ok: result.ok,
+      });
       setSettings(state.settings);
     } catch (error) {
-      setTestState('error');
-      setTestMessage(wereadErrorMessage(error, t));
+      dispatch({ type: 'testFinished', message: wereadErrorMessage(error, t), ok: false });
     } finally {
       scheduleTestReset();
     }
@@ -173,38 +260,34 @@ export function WeReadSettingsPanel() {
   async function toggleApiKeyVisible() {
     if (apiKeyVisible) {
       revealRequestRef.current += 1;
-      setApiKeyVisible(false);
-      setRevealedStoredApiKey('');
-      setRevealLoading(false);
-      setApiKeyMessage('');
+      dispatch({ type: 'apiKeyHidden' });
       return;
     }
 
     if (apiKey || !settings.configured) {
-      setApiKeyVisible(true);
+      dispatch({ type: 'apiKeyShown' });
       return;
     }
 
-    setRevealLoading(true);
-    setApiKeyMessage('');
+    dispatch({ type: 'revealStarted' });
     const requestId = ++revealRequestRef.current;
     try {
       const storedApiKey = (await getDesktopApi().weRead.readApiKey()) || '';
       if (requestId !== revealRequestRef.current) return;
-      setRevealedStoredApiKey(storedApiKey);
-      setApiKeyVisible(true);
-      if (!storedApiKey) setApiKeyMessage(t('settings.weread.noStoredApiKey'));
+      dispatch({
+        type: 'revealSucceeded',
+        apiKey: storedApiKey,
+        message: storedApiKey ? '' : t('settings.weread.noStoredApiKey'),
+      });
     } catch {
       if (requestId !== revealRequestRef.current) return;
-      setApiKeyMessage(t('settings.weread.readStoredApiKeyFailed'));
-    } finally {
-      if (requestId === revealRequestRef.current) setRevealLoading(false);
+      dispatch({ type: 'revealFailed', message: t('settings.weread.readStoredApiKeyFailed') });
     }
   }
 
   async function saveOpenMethod(openMethod: WeReadOpenMethod) {
     const previous = settings.openMethod;
-    setLastOpenMethod(openMethod);
+    dispatch({ type: 'openMethodChosen', openMethod });
     setSettings((current) => ({ ...current, openMethod }));
     await openMethodSave.run(() => getDesktopApi().weRead.saveSettings({ openMethod }), {
       onError: () => setSettings((current) => ({ ...current, openMethod: previous })),
@@ -214,7 +297,7 @@ export function WeReadSettingsPanel() {
 
   async function saveSyncMode(syncMode: WeReadSyncMode) {
     const previous = settings.syncMode ?? 'manual';
-    setLastSyncMode(syncMode);
+    dispatch({ type: 'syncModeChosen', syncMode });
     setSettings((current) => ({ ...current, syncMode }));
     await syncModeSave.run(() => getDesktopApi().weRead.saveSettings({ syncMode }), {
       onError: () => setSettings((current) => ({ ...current, syncMode: previous })),
@@ -288,10 +371,8 @@ export function WeReadSettingsPanel() {
               autoComplete="off"
               spellCheck={false}
               onChange={(event) => {
-                setApiKey(event.target.value);
-                setRevealedStoredApiKey('');
+                dispatch({ type: 'apiKeyEdited', apiKey: event.target.value });
                 credentialSave.reset();
-                setApiKeyMessage('');
               }}
             />
             <button
@@ -358,7 +439,7 @@ export function WeReadSettingsPanel() {
             disabled={!canRemove}
             type="button"
             variant="secondary"
-            onClick={() => setRemoveConfirmOpen(true)}
+            onClick={() => dispatch({ type: 'removeConfirmOpened' })}
           >
             <HugeiconsIcon icon={Delete02Icon} size={15} />
             {t('settings.weread.remove')}
@@ -383,7 +464,7 @@ export function WeReadSettingsPanel() {
         description={t('settings.weread.removeConfirmDescription')}
         open={removeConfirmOpen}
         title={t('settings.weread.removeConfirmTitle')}
-        onCancel={() => setRemoveConfirmOpen(false)}
+        onCancel={() => dispatch({ type: 'removeConfirmClosed' })}
         onConfirm={() => void removeStoredApiKey()}
       />
 
