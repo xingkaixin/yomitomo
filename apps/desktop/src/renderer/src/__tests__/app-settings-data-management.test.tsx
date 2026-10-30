@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DataManagementSettings } from '../settings/app-settings-panels';
 import { emptyStore } from '../settings/app-settings';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { appToast } from '../shell/app-toast';
+import { renderWithQueryClient } from './query-test-utils';
 
 vi.mock('../sound/app-sound-effects', () => ({
   playAppSoundEffect: vi.fn(),
@@ -105,7 +106,7 @@ describe('DataManagementSettings', () => {
   it('shows data paths and opens the selected location', async () => {
     const desktop = installDesktopDataApi();
 
-    render(<DataManagementSettings settings={{}} onStoreUpdated={vi.fn()} />);
+    renderWithQueryClient(<DataManagementSettings settings={{}} onStoreUpdated={vi.fn()} />);
 
     expect(await screen.findByText('/tmp/yomitomo/yomitomo.sqlite')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '打开数据库文件' }));
@@ -119,7 +120,7 @@ describe('DataManagementSettings', () => {
     const desktop = installDesktopDataApi();
     const onStoreUpdated = vi.fn();
 
-    render(
+    renderWithQueryClient(
       <DataManagementSettings
         settings={{ onboardingCompletedAt: '2026-05-12T00:00:00.000Z' }}
         onStoreUpdated={onStoreUpdated}
@@ -147,7 +148,7 @@ describe('DataManagementSettings', () => {
       .mockResolvedValueOnce({ ...emptyStore, settings: { logRetentionDays: 15 } });
     const onStoreUpdated = vi.fn();
 
-    render(<DataManagementSettings settings={{}} onStoreUpdated={onStoreUpdated} />);
+    renderWithQueryClient(<DataManagementSettings settings={{}} onStoreUpdated={onStoreUpdated} />);
 
     fireEvent.click(screen.getByRole('button', { name: '15 天' }));
 
@@ -166,7 +167,7 @@ describe('DataManagementSettings', () => {
     const desktop = installDesktopDataApi();
     const onStoreUpdated = vi.fn();
 
-    render(
+    renderWithQueryClient(
       <DataManagementSettings
         settings={{ logRetentionDays: 30 }}
         onStoreUpdated={onStoreUpdated}
@@ -203,7 +204,7 @@ describe('DataManagementSettings', () => {
   it('confirms full replacement and applies the restored store', async () => {
     const desktop = installDesktopDataApi();
     const onStoreUpdated = vi.fn();
-    render(<DataManagementSettings settings={{}} onStoreUpdated={onStoreUpdated} />);
+    renderWithQueryClient(<DataManagementSettings settings={{}} onStoreUpdated={onStoreUpdated} />);
     fireEvent.click(screen.getByRole('button', { name: '创建完整备份' }));
     await waitFor(() =>
       expect(appToast.success).toHaveBeenCalledWith('完整备份已创建', {
@@ -227,7 +228,7 @@ describe('DataManagementSettings', () => {
     desktop.backupDatabase.mockResolvedValueOnce({ canceled: true });
     desktop.restoreDatabase.mockResolvedValueOnce({ canceled: true });
 
-    render(<DataManagementSettings settings={{}} onStoreUpdated={vi.fn()} />);
+    renderWithQueryClient(<DataManagementSettings settings={{}} onStoreUpdated={vi.fn()} />);
 
     fireEvent.click(screen.getByRole('button', { name: '备份数据库' }));
     await waitFor(() => expect(desktop.backupDatabase).toHaveBeenCalledOnce());
@@ -258,7 +259,7 @@ describe('DataManagementSettings', () => {
       new Error('DATA_MANAGEMENT_RESTORE_SOURCE_IS_CURRENT_DATABASE'),
     );
 
-    render(<DataManagementSettings settings={{}} onStoreUpdated={vi.fn()} />);
+    renderWithQueryClient(<DataManagementSettings settings={{}} onStoreUpdated={vi.fn()} />);
 
     fireEvent.click(await screen.findByRole('button', { name: '清空日志文件' }));
     fireEvent.click(
@@ -295,7 +296,7 @@ describe('DataManagementSettings', () => {
   it('confirms before clearing the log file', async () => {
     const desktop = installDesktopDataApi();
 
-    render(<DataManagementSettings settings={{}} onStoreUpdated={vi.fn()} />);
+    renderWithQueryClient(<DataManagementSettings settings={{}} onStoreUpdated={vi.fn()} />);
 
     fireEvent.click(await screen.findByRole('button', { name: '清空日志文件' }));
     expect(screen.getByRole('dialog', { name: '清空日志文件？' })).toBeTruthy();
