@@ -116,8 +116,6 @@
         "apps/desktop/src/renderer/src/reading-stats/app-reading-stats-chart.tsx",
         "apps/desktop/src/renderer/src/reading-stats/app-reading-stats-weread.tsx",
         "apps/desktop/src/renderer/src/reading-stats/app-reading-stats.tsx",
-        "apps/desktop/src/renderer/src/settings/app-settings-agent-panel.tsx",
-        "apps/desktop/src/renderer/src/settings/app-settings-profile-dialog.tsx",
         "apps/desktop/src/renderer/src/shell/app-agent-actions.ts",
         "apps/desktop/src/renderer/src/shell/app-article-book.tsx",
         "apps/desktop/src/renderer/src/shell/app-assistant-diagnostics.tsx",
