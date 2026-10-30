@@ -1,6 +1,6 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Add01Icon, Delete02Icon, PencilIcon, Settings02Icon } from '@hugeicons/core-free-icons';
-import { useState, type KeyboardEvent } from 'react';
+import { useReducer, type KeyboardEvent } from 'react';
 import type { LlmProvider } from '@yomitomo/shared';
 import { providerLogoMap } from './app-settings-provider-assets';
 import { useTranslation } from 'react-i18next';
@@ -91,19 +91,21 @@ function ProviderCard({
   onEdit: (provider: LlmProvider) => void;
 }) {
   const { t } = useTranslation();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [{ confirmOpen, menuOpen }, dispatch] = useReducer(providerCardReducer, {
+    confirmOpen: false,
+    menuOpen: false,
+  });
   const logo =
     providerLogoMap[provider.logo || 'anthropic.png'] || providerLogoMap['anthropic.png'];
   const displayName = providerDisplayName(provider);
 
   function editProvider() {
-    setMenuOpen(false);
+    dispatch({ type: 'menuOpenChanged', open: false });
     onEdit(provider);
   }
 
   function confirmDelete() {
-    setConfirmOpen(false);
+    dispatch({ type: 'deleteDismissed' });
     onDelete(provider.id);
   }
 
@@ -118,7 +120,10 @@ function ProviderCard({
       </header>
       <footer className="provider-card-footer">
         <span className="provider-card-model">{provider.modelName}</span>
-        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+        <DropdownMenu
+          open={menuOpen}
+          onOpenChange={(open) => dispatch({ type: 'menuOpenChanged', open })}
+        >
           <div className="provider-card-actions">
             <DropdownMenuTrigger asChild>
               <IconButton
@@ -140,10 +145,7 @@ function ProviderCard({
                   className="provider-delete-menu-item"
                   type="button"
                   aria-label={t('settings.models.deleteProviderAria', { name: displayName })}
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setConfirmOpen(true);
-                  }}
+                  onClick={() => dispatch({ type: 'deleteRequested' })}
                 >
                   <HugeiconsIcon icon={Delete02Icon} size={14} />
                   {t('settings.models.deleteProvider')}
@@ -159,9 +161,27 @@ function ProviderCard({
         description={t('settings.models.deleteProviderConfirmDescription')}
         open={confirmOpen}
         title={t('settings.models.deleteProviderConfirmTitle', { name: displayName })}
-        onCancel={() => setConfirmOpen(false)}
+        onCancel={() => dispatch({ type: 'deleteDismissed' })}
         onConfirm={confirmDelete}
       />
     </article>
   );
+}
+
+type ProviderCardState = { confirmOpen: boolean; menuOpen: boolean };
+
+type ProviderCardEvent =
+  | { type: 'deleteDismissed' }
+  | { type: 'deleteRequested' }
+  | { type: 'menuOpenChanged'; open: boolean };
+
+function providerCardReducer(state: ProviderCardState, event: ProviderCardEvent) {
+  switch (event.type) {
+    case 'deleteDismissed':
+      return { ...state, confirmOpen: false };
+    case 'deleteRequested':
+      return { confirmOpen: true, menuOpen: false };
+    case 'menuOpenChanged':
+      return { ...state, menuOpen: event.open };
+  }
 }
