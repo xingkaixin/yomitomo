@@ -36,10 +36,14 @@ function pdfFileReducer(
     : { buffer: null, loadError: event.message };
 }
 
+// contextBridge wraps each returned promise anew, so `use` needs one renderer-side promise to
+// read a settled value on later renders instead of suspending them again.
+let pdfiumWasmUrlPromise: Promise<string> | null = null;
+
 export function usePdfiumEngineSource() {
   const wasmUrl = import.meta.env.DEV
     ? devPdfiumWasmUrl
-    : use(getDesktopApi().app.readPdfiumWasmUrl());
+    : use((pdfiumWasmUrlPromise ??= getDesktopApi().app.readPdfiumWasmUrl()));
   return usePdfiumEngine({
     wasmUrl: new URL(wasmUrl, window.location.href).href,
     worker: true,
