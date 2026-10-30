@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useReducer } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   ArrowLeft01Icon,
@@ -49,11 +49,10 @@ export function ReadingMemorySourcePicker({
   onClose,
 }: SourcePickerProps) {
   const { t } = useTranslation();
-  const [query, setQuery] = useState('');
-  const [page, setPage] = useState(1);
-  const [retry, setRetry] = useState(0);
-  const [selection, setSelection] = useState(
-    () => new Map(selectedSources.map((source) => [contentRefKey(source.ref), source])),
+  const [{ page, query, retry, selection }, dispatch] = useReducer(
+    sourcePickerReducer,
+    selectedSources,
+    initialSourcePickerState,
   );
   const input = useMemo<LibraryCatalogListInput>(
     () => ({
@@ -76,11 +75,7 @@ export function ReadingMemorySourcePicker({
   const limitReached = selection.size >= readingLibrarySourceLimit;
 
   function toggle(source: ReadingMemorySourceSelection) {
-    setSelection((current) => {
-      if (!current.has(contentRefKey(source.ref)) && current.size >= readingLibrarySourceLimit)
-        return current;
-      return toggleCatalogSelection(current, source.ref, source);
-    });
+    dispatch({ type: 'sourceToggled', source });
   }
 
   function confirm() {
@@ -110,10 +105,9 @@ export function ReadingMemorySourcePicker({
                   value={query}
                   aria-label={t('readingMemory.library.sourcePicker.searchLabel')}
                   placeholder={t('readingMemory.library.sourcePicker.searchPlaceholder')}
-                  onChange={(event) => {
-                    setPage(1);
-                    setQuery(event.target.value);
-                  }}
+                  onChange={(event) =>
+                    dispatch({ type: 'queryChanged', query: event.target.value })
+                  }
                 />
               </div>
             </div>
@@ -129,7 +123,7 @@ export function ReadingMemorySourcePicker({
                 {catalog.status === 'error' ? (
                   <div className="space-y-2">
                     <p role="alert">{t('library.catalog.loadFailed')}</p>
-                    <Button variant="secondary" onClick={() => setRetry((current) => current + 1)}>
+                    <Button variant="secondary" onClick={() => dispatch({ type: 'retried' })}>
                       {t('readingMemory.library.sourcePicker.retry')}
                     </Button>
                   </div>
@@ -176,7 +170,7 @@ export function ReadingMemorySourcePicker({
                       variant="ghost"
                       aria-label={t('library.pagination.previous')}
                       disabled={page <= 1 || catalog.status === 'loading'}
-                      onClick={() => setPage((current) => Math.max(1, current - 1))}
+                      onClick={() => dispatch({ type: 'pageChanged', page: Math.max(1, page - 1) })}
                     >
                       <HugeiconsIcon icon={ArrowLeft01Icon} size={16} aria-hidden="true" />
                     </Button>
@@ -189,7 +183,9 @@ export function ReadingMemorySourcePicker({
                       variant="ghost"
                       aria-label={t('library.pagination.next')}
                       disabled={page >= pageCount || catalog.status !== 'ready'}
-                      onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
+                      onClick={() =>
+                        dispatch({ type: 'pageChanged', page: Math.min(pageCount, page + 1) })
+                      }
                     >
                       <HugeiconsIcon icon={ArrowRight01Icon} size={16} aria-hidden="true" />
                     </Button>
@@ -254,4 +250,54 @@ export function ReadingMemorySourcePicker({
       </DialogPortal>
     </Dialog>
   );
+}
+
+type SourcePickerState = {
+  page: number;
+  query: string;
+  retry: number;
+  selection: Map<string, ReadingMemorySourceSelection>;
+};
+
+type SourcePickerEvent =
+  | { type: 'pageChanged'; page: number }
+  | { type: 'queryChanged'; query: string }
+  | { type: 'retried' }
+  | { type: 'sourceToggled'; source: ReadingMemorySourceSelection };
+
+function initialSourcePickerState(
+  selectedSources: ReadingMemorySourceSelection[],
+): SourcePickerState {
+  return {
+    page: 1,
+    query: '',
+    retry: 0,
+    selection: new Map(selectedSources.map((source) => [contentRefKey(source.ref), source])),
+  };
+}
+
+function sourcePickerReducer(
+  state: SourcePickerState,
+  event: SourcePickerEvent,
+): SourcePickerState {
+  switch (event.type) {
+    case 'pageChanged':
+      return { ...state, page: event.page };
+    case 'queryChanged':
+      return { ...state, page: 1, query: event.query };
+    case 'retried':
+      return { ...state, retry: state.retry + 1 };
+    case 'sourceToggled': {
+      const { selection } = state;
+      if (
+        !selection.has(contentRefKey(event.source.ref)) &&
+        selection.size >= readingLibrarySourceLimit
+      )
+        return state;
+      return {
+        ...state,
+        selection: toggleCatalogSelection(selection, event.source.ref, event.source),
+      };
+    }
+  }
 }

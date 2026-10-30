@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import type { ReadingEvidence, ReadingReviewEvent } from '@yomitomo/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
@@ -14,6 +14,7 @@ import type {
   ReadingReviewSubmitResult,
 } from '../../../ipc-contract';
 import type { YomitomoDesktopApi } from '../../../preload';
+import { renderWithQueryClient } from '../__tests__/query-test-utils';
 import { ReadingReview } from './reading-review';
 
 vi.mock('react-i18next', () => ({
@@ -450,7 +451,9 @@ function renderReview() {
   const onOpenEvidenceSource = vi.fn();
   return {
     onOpenEvidenceSource,
-    ...render(<ReadingReview catalogRevision={0} onOpenEvidenceSource={onOpenEvidenceSource} />),
+    ...renderWithQueryClient(
+      <ReadingReview catalogRevision={0} onOpenEvidenceSource={onOpenEvidenceSource} />,
+    ),
   };
 }
 

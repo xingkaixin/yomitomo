@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useReducer, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Collection, ReadingEvidenceScope, ReadingJudgmentClaim } from '@yomitomo/shared';
 import type { ReadingLibraryAnswerResult, ReadingLibraryContext } from '../../../ipc-contract';
@@ -37,13 +37,10 @@ export function ReadingLibraryQuestion({
   onOpenEvidenceSource: (target: ReadingEvidenceSourceTarget) => void;
 }) {
   const { t } = useTranslation();
-  const [selection, setSelection] = useState<ScopeSelection>({ kind: 'library' });
-  const [question, setQuestion] = useState('');
-  const [sourcePickerOpen, setSourcePickerOpen] = useState(false);
-  const [draft, setDraft] = useState<{
-    claim: ReadingJudgmentClaim;
-    result: ReadingLibraryAnswerResult;
-  } | null>(null);
+  const [{ draft, question, selection, sourcePickerOpen }, dispatch] = useReducer(
+    libraryQuestionReducer,
+    initialLibraryQuestionState,
+  );
   const submitRef = useRef<HTMLButtonElement>(null);
   const privacyRef = useRef<HTMLElement>(null);
   const answeringRef = useRef<HTMLParagraphElement>(null);
@@ -90,15 +87,22 @@ export function ReadingLibraryQuestion({
     ? { provider: result.provider.name, model: result.provider.modelName }
     : undefined;
 
-  useEffect(() => {
-    if (ready?.remote !== 'privacy' && ready?.remote !== 'answering') return;
-    const target = ready.remote === 'privacy' ? privacyRef : answeringRef;
-    target.current?.focus();
-    return () => submitRef.current?.focus();
-  }, [ready?.remote]);
+  const remote = ready?.remote;
+  const leftFocusedRemote = useRef(false);
+
+  // Attached to the root so it runs after the privacy, answering and submit elements commit.
+  const moveFocusWithRemote = useCallback(() => {
+    const focusedRemote = remote === 'privacy' || remote === 'answering';
+    if (focusedRemote) (remote === 'privacy' ? privacyRef : answeringRef).current?.focus();
+    else if (leftFocusedRemote.current) submitRef.current?.focus();
+    leftFocusedRemote.current = false;
+    return () => {
+      leftFocusedRemote.current = focusedRemote;
+    };
+  }, [remote]);
 
   return (
-    <div className="reading-library-question">
+    <div ref={moveFocusWithRemote} className="reading-library-question">
       <div className="reading-library-question-inner">
         <header className="reading-library-heading">
           <h1>{t('readingMemory.library.title')}</h1>
@@ -110,16 +114,7 @@ export function ReadingLibraryQuestion({
             <span>{t('readingMemory.library.scope')}</span>
             <select
               value={selection.kind}
-              onChange={(event) => {
-                const kind = event.target.value;
-                setSelection(
-                  kind === 'collection'
-                    ? { kind: 'collection', id: '' }
-                    : kind === 'sources'
-                      ? { kind: 'sources', sources: [] }
-                      : { kind: 'library' },
-                );
-              }}
+              onChange={(event) => dispatch({ type: 'scopeKindChosen', kind: event.target.value })}
             >
               <option value="library">{t('readingMemory.library.scopeLibrary')}</option>
               <option value="collection">{t('readingMemory.library.scopeCollection')}</option>
@@ -131,7 +126,7 @@ export function ReadingLibraryQuestion({
               <span>{t('readingMemory.library.collection')}</span>
               <select
                 value={scope?.kind === 'collection' ? scope.collectionId : ''}
-                onChange={(event) => setSelection({ kind: 'collection', id: event.target.value })}
+                onChange={(event) => dispatch({ type: 'collectionChosen', id: event.target.value })}
               >
                 <option value="">{t('readingMemory.library.collection')}</option>
                 {collections.map((collection) => (
@@ -144,7 +139,7 @@ export function ReadingLibraryQuestion({
           ) : null}
           {selection.kind === 'sources' ? (
             <div className="reading-library-source-selection">
-              <Button variant="secondary" onClick={() => setSourcePickerOpen(true)}>
+              <Button variant="secondary" onClick={() => dispatch({ type: 'sourcePickerOpened' })}>
                 {t('readingMemory.library.chooseSources')}
               </Button>
               <span>
@@ -194,7 +189,9 @@ export function ReadingLibraryQuestion({
               maxLength={10000}
               disabled={busy}
               placeholder={t('readingMemory.library.placeholder')}
-              onChange={(event) => setQuestion(event.target.value)}
+              onChange={(event) =>
+                dispatch({ type: 'questionEdited', question: event.target.value })
+              }
             />
           </label>
           <div className="reading-library-actions">
@@ -292,7 +289,9 @@ export function ReadingLibraryQuestion({
             output={output}
             evidence={evidence}
             onOpenEvidenceSource={onOpenEvidenceSource}
-            onSaveThought={(claim) => setDraft({ claim, result: judged })}
+            onSaveThought={(claim) =>
+              dispatch({ type: 'thoughtDraftOpened', claim, result: judged })
+            }
           />
         ) : null}
         {result ? (
@@ -321,20 +320,76 @@ export function ReadingLibraryQuestion({
           <ReadingMemorySourcePicker
             catalogRevision={catalogRevision}
             selectedSources={selection.sources}
-            onConfirm={(sources) => setSelection({ kind: 'sources', sources })}
-            onClose={() => setSourcePickerOpen(false)}
+            onConfirm={(sources) => dispatch({ type: 'sourcesConfirmed', sources })}
+            onClose={() => dispatch({ type: 'sourcePickerClosed' })}
           />
         ) : null}
         {draft && draft.result === judged ? (
           <ReadingLibraryThoughtDraft
             claim={draft.claim}
             evidence={evidence}
-            onClose={() => setDraft(null)}
+            onClose={() => dispatch({ type: 'thoughtDraftClosed' })}
           />
         ) : null}
       </div>
     </div>
   );
+}
+
+type LibraryQuestionState = {
+  draft: { claim: ReadingJudgmentClaim; result: ReadingLibraryAnswerResult } | null;
+  question: string;
+  selection: ScopeSelection;
+  sourcePickerOpen: boolean;
+};
+
+type LibraryQuestionEvent =
+  | { type: 'collectionChosen'; id: string }
+  | { type: 'questionEdited'; question: string }
+  | { type: 'scopeKindChosen'; kind: string }
+  | { type: 'sourcePickerClosed' }
+  | { type: 'sourcePickerOpened' }
+  | { type: 'sourcesConfirmed'; sources: ReadingMemorySourceSelection[] }
+  | { type: 'thoughtDraftClosed' }
+  | { type: 'thoughtDraftOpened'; claim: ReadingJudgmentClaim; result: ReadingLibraryAnswerResult };
+
+const initialLibraryQuestionState: LibraryQuestionState = {
+  draft: null,
+  question: '',
+  selection: { kind: 'library' },
+  sourcePickerOpen: false,
+};
+
+function libraryQuestionReducer(
+  state: LibraryQuestionState,
+  event: LibraryQuestionEvent,
+): LibraryQuestionState {
+  switch (event.type) {
+    case 'collectionChosen':
+      return { ...state, selection: { kind: 'collection', id: event.id } };
+    case 'questionEdited':
+      return { ...state, question: event.question };
+    case 'scopeKindChosen':
+      return {
+        ...state,
+        selection:
+          event.kind === 'collection'
+            ? { kind: 'collection', id: '' }
+            : event.kind === 'sources'
+              ? { kind: 'sources', sources: [] }
+              : { kind: 'library' },
+      };
+    case 'sourcePickerClosed':
+      return { ...state, sourcePickerOpen: false };
+    case 'sourcePickerOpened':
+      return { ...state, sourcePickerOpen: true };
+    case 'sourcesConfirmed':
+      return { ...state, selection: { kind: 'sources', sources: event.sources } };
+    case 'thoughtDraftClosed':
+      return { ...state, draft: null };
+    case 'thoughtDraftOpened':
+      return { ...state, draft: { claim: event.claim, result: event.result } };
+  }
 }
 
 function LibraryContextSummary({ context }: { context: ReadingLibraryContext }) {

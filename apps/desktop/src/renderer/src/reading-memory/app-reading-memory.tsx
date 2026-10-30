@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useReducer } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Collection } from '@yomitomo/shared';
 import { readingMemoryEnabled } from '../../../reading-memory-release';
@@ -22,7 +22,7 @@ export function ReadingMemory({
   onOpenEvidenceSource: (target: ReadingEvidenceSourceTarget) => void;
 }) {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<ReadingMemoryTab>('distillations');
+  const [tab, dispatch] = useReducer(readingMemoryTabReducer, 'distillations');
 
   if (!readingMemoryEnabled)
     return <DistillationLibrary onOpenEvidenceSource={onOpenEvidenceSource} />;
@@ -36,7 +36,7 @@ export function ReadingMemory({
           aria-label={t('readingMemory.tabs.label')}
           value={tab}
           onValueChange={(next) => {
-            setTab(next);
+            dispatch({ type: 'tabSelected', tab: next });
             if (next !== tab && next !== 'distillations')
               recordReadingMemoryUsage('feature_opened');
           }}
@@ -71,4 +71,11 @@ export function ReadingMemory({
       </div>
     </section>
   );
+}
+
+function readingMemoryTabReducer(
+  _tab: ReadingMemoryTab,
+  event: { type: 'tabSelected'; tab: ReadingMemoryTab },
+): ReadingMemoryTab {
+  return event.tab;
 }

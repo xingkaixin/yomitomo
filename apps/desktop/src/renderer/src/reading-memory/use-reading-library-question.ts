@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
 import { makeId, type ReadingEvidenceScope } from '@yomitomo/shared';
 import type {
   ReadingLibraryAnswerResult,
@@ -22,65 +22,79 @@ export type ReadingLibraryQuestionState =
       remote: 'idle' | 'privacy' | 'answering' | 'failed' | 'canceled';
     };
 
+type ReadingLibraryQuestionView = {
+  contextState: ReadingLibraryContextState | null;
+  state: ReadingLibraryQuestionState | null;
+};
+
 export function useReadingLibraryQuestion(
   scope: ReadingEvidenceScope | null,
   catalogRevision: unknown,
 ) {
-  const [refresh, setRefresh] = useState(0);
   const scopeKey = JSON.stringify(scope);
-  const frame = useMemo(() => ({ scope }), [scopeKey, catalogRevision, refresh]);
-  const currentFrame = useRef(frame);
-  currentFrame.current = frame;
-  const activeRequest = useRef<ReadingLibrarySearchInput | null>(null);
-  const [view, setView] = useState<{
-    frame: typeof frame;
-    contextState: ReadingLibraryContextState;
-    state: ReadingLibraryQuestionState | null;
-  } | null>(null);
+  // A new controller per scope and catalog revision starts empty and reloads its context;
+  // React unsubscribing the old one cancels its request.
+  const controller = useMemo(
+    () => createReadingLibraryQuestionController(scope),
+    [scopeKey, catalogRevision],
+  );
+  const { contextState, state } = useSyncExternalStore(controller.subscribe, controller.getView);
+  return {
+    contextState,
+    state,
+    ask: controller.ask,
+    answer: controller.answer,
+    dismissPrivacy: controller.dismissPrivacy,
+    cancel: controller.cancel,
+    reloadContext: controller.reloadContext,
+  };
+}
 
-  useEffect(() => {
-    if (!frame.scope) return;
-    setView({ frame, contextState: { phase: 'loading' }, state: null });
-    void getDesktopApi()
-      .readingMemory.library.context({ scope: frame.scope })
-      .then((context) => {
-        if (currentFrame.current !== frame) return;
-        setView({ frame, contextState: { phase: 'ready', context }, state: null });
-      })
-      .catch(() => {
-        if (currentFrame.current !== frame) return;
-        setView({ frame, contextState: { phase: 'failed' }, state: null });
-      });
-    return () => {
-      const request = activeRequest.current;
-      activeRequest.current = null;
-      if (request) cancelRequest(request);
-    };
-  }, [frame]);
+function createReadingLibraryQuestionController(scope: ReadingEvidenceScope | null) {
+  let view: ReadingLibraryQuestionView = {
+    contextState: scope ? { phase: 'loading' } : null,
+    state: null,
+  };
+  let activeRequest: ReadingLibrarySearchInput | null = null;
+  let contextLoad: object | null = null;
+  const listeners = new Set<() => void>();
 
-  const contextState = !scope
-    ? null
-    : view?.frame === frame
-      ? view.contextState
-      : ({ phase: 'loading' } as const);
-  const state = view?.frame === frame ? view.state : null;
-
-  function isCurrent(request: ReadingLibrarySearchInput) {
-    return currentFrame.current === frame && activeRequest.current === request;
+  function publish(next: ReadingLibraryQuestionView) {
+    view = next;
+    for (const listener of listeners) listener();
   }
 
   function updateState(next: ReadingLibraryQuestionState | null) {
-    setView((current) =>
-      current?.frame === frame
-        ? {
-            ...current,
-            state: next,
-            ...(next?.phase === 'ready'
-              ? { contextState: { phase: 'ready' as const, context: next.result } }
-              : {}),
-          }
-        : current,
-    );
+    publish({
+      contextState:
+        next?.phase === 'ready' ? { phase: 'ready', context: next.result } : view.contextState,
+      state: next,
+    });
+  }
+
+  function isCurrent(request: ReadingLibrarySearchInput) {
+    return activeRequest === request;
+  }
+
+  function endRequest() {
+    const request = activeRequest;
+    activeRequest = null;
+    if (request) cancelRequest(request);
+  }
+
+  function loadContext() {
+    if (!scope) return;
+    const load = {};
+    contextLoad = load;
+    void getDesktopApi()
+      .readingMemory.library.context({ scope })
+      .then((context) => {
+        if (contextLoad === load)
+          publish({ contextState: { phase: 'ready', context }, state: null });
+      })
+      .catch(() => {
+        if (contextLoad === load) publish({ contextState: { phase: 'failed' }, state: null });
+      });
   }
 
   async function generate(
@@ -122,16 +136,17 @@ export function useReadingLibraryQuestion(
   }
 
   async function ask(question: string) {
+    const { contextState } = view;
     if (!scope || contextState?.phase !== 'ready' || !question.trim()) return;
     if (scope.kind === 'sources' && !scope.sources.length) return;
-    if (activeRequest.current) cancelRequest(activeRequest.current);
+    endRequest();
     const request: ReadingLibrarySearchInput = {
       requestId: makeId('reading_library'),
       question: question.trim(),
       scope,
       expectedRouteRevision: contextState.context.routeRevision,
     };
-    activeRequest.current = request;
+    activeRequest = request;
     updateState({ phase: 'searching', request });
     try {
       const result = await getDesktopApi().readingMemory.library.search(request);
@@ -145,30 +160,46 @@ export function useReadingLibraryQuestion(
   }
 
   async function answer(confirmPrivacy = false) {
+    const { state } = view;
     if (state?.phase !== 'ready' || state.remote === 'answering') return;
     await generate(state.request, state.result, confirmPrivacy);
   }
 
   function dismissPrivacy() {
+    const { state } = view;
     if (state?.phase === 'ready' && state.remote === 'privacy')
       updateState({ ...state, remote: 'idle' });
   }
 
   function cancel() {
-    const request = activeRequest.current;
-    activeRequest.current = null;
-    if (request) cancelRequest(request);
+    const { state } = view;
+    endRequest();
     updateState(state?.phase === 'ready' ? { ...state, remote: 'canceled' } : null);
   }
 
+  function reloadContext() {
+    endRequest();
+    if (scope) publish({ contextState: { phase: 'loading' }, state: null });
+    loadContext();
+  }
+
   return {
-    contextState,
-    state,
+    getView: () => view,
+    subscribe: (listener: () => void) => {
+      if (!listeners.size) loadContext();
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+        if (listeners.size) return;
+        contextLoad = null;
+        endRequest();
+      };
+    },
     ask,
     answer,
     dismissPrivacy,
     cancel,
-    reloadContext: () => setRefresh((value) => value + 1),
+    reloadContext,
   };
 }
 

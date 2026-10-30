@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ReadingEvidenceRelation } from '@yomitomo/shared';
 import type {
@@ -44,17 +44,23 @@ export function ReadingReviewEvidence({
   const judgment = judged?.judgment;
   const relations = verifiedRelations(judged);
   const busy = state?.phase === 'searching' || state?.phase === 'comparing';
+  const phase = state?.phase;
+  const leftFocusedPhase = useRef(false);
 
-  useEffect(() => {
-    if (state?.phase !== 'privacy' && state?.phase !== 'searching' && state?.phase !== 'comparing')
-      return;
-    const target = state.phase === 'privacy' ? privacyRef : statusRef;
-    target.current?.focus();
-    return () => compareRef.current?.focus();
-  }, [state?.phase]);
+  // Attached to the section so it runs after the phase's elements commit.
+  const moveFocusWithPhase = useCallback(() => {
+    const focusedPhase = phase === 'privacy' || phase === 'searching' || phase === 'comparing';
+    if (focusedPhase) (phase === 'privacy' ? privacyRef : statusRef).current?.focus();
+    else if (leftFocusedPhase.current) compareRef.current?.focus();
+    leftFocusedPhase.current = false;
+    return () => {
+      leftFocusedPhase.current = focusedPhase;
+    };
+  }, [phase]);
 
   return (
     <section
+      ref={moveFocusWithPhase}
       className="reading-review-evidence"
       aria-label={t('readingMemory.review.evidence.title')}
     >

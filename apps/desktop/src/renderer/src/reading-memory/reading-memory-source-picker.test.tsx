@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ARTICLE_SOURCE_TYPES } from '@yomitomo/shared';
 import {
@@ -10,6 +10,7 @@ import {
   type LibraryCatalogListInput,
   type LibraryCatalogListResult,
 } from '../../../ipc-contract';
+import { renderWithQueryClient } from '../__tests__/query-test-utils';
 import {
   ReadingMemorySourcePicker,
   type ReadingMemorySourceSelection,
@@ -88,7 +89,7 @@ function installApi(
 
 function renderPicker(selectedSources: ReadingMemorySourceSelection[] = []) {
   const props = { catalogRevision: 0, selectedSources, onConfirm: vi.fn(), onClose: vi.fn() };
-  return { props, ...render(<ReadingMemorySourcePicker {...props} />) };
+  return { props, ...renderWithQueryClient(<ReadingMemorySourcePicker {...props} />) };
 }
 
 describe('ReadingMemorySourcePicker', () => {
@@ -224,7 +225,7 @@ describe('ReadingMemorySourcePicker', () => {
       source(`selected-${index}`),
     );
     const { props } = await act(async () => renderPicker(selected));
-    const checkbox = screen.getByRole('checkbox', { name: 'first' });
+    const checkbox = await screen.findByRole('checkbox', { name: 'first' });
     expect(checkbox.hasAttribute('disabled')).toBe(true);
     expect(screen.getByText(`${keys}.limitReached ${readingLibrarySourceLimit}`)).toBeTruthy();
 

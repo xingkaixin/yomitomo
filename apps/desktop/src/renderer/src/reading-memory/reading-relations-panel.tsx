@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useCallback, useReducer, useRef, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Cancel01Icon } from '@hugeicons/core-free-icons';
@@ -35,7 +35,7 @@ export function ReadingRelationsPanel({
   onOpenEvidenceSource?: (target: ReadingEvidenceSourceTarget) => void;
 }) {
   const { t } = useTranslation();
-  const [question, setQuestion] = useState(state.request.question ?? '');
+  const [question, dispatch] = useReducer(relationsQuestionReducer, state.request.question ?? '');
   const titleRef = useRef<HTMLHeadingElement>(null);
   const privacyRef = useRef<HTMLElement>(null);
   const judgeButtonRef = useRef<HTMLButtonElement>(null);
@@ -56,13 +56,20 @@ export function ReadingRelationsPanel({
     ? { provider: sentProvider.name, model: sentProvider.modelName }
     : recipient;
   const providerChanged = judged?.providerChanged;
+  const remote = ready?.remote;
+  const leftFocusedRemote = useRef(false);
 
-  useEffect(() => {
-    if (ready?.remote !== 'privacy' && ready?.remote !== 'judging') return;
-    const target = ready.remote === 'privacy' ? privacyRef : titleRef;
-    target.current?.focus();
-    return () => (judgeButtonRef.current ?? titleRef.current)?.focus();
-  }, [ready?.remote]);
+  // Attached to the footer, the last section to commit, so the title, privacy disclosure and
+  // judge button refs are already set.
+  const moveFocusWithRemote = useCallback(() => {
+    const focusedRemote = remote === 'privacy' || remote === 'judging';
+    if (focusedRemote) (remote === 'privacy' ? privacyRef : titleRef).current?.focus();
+    else if (leftFocusedRemote.current) (judgeButtonRef.current ?? titleRef.current)?.focus();
+    leftFocusedRemote.current = false;
+    return () => {
+      leftFocusedRemote.current = focusedRemote;
+    };
+  }, [remote]);
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -107,7 +114,9 @@ export function ReadingRelationsPanel({
                     maxLength={2000}
                     disabled={busy}
                     placeholder={t('readingMemory.relations.questionPlaceholder')}
-                    onChange={(event) => setQuestion(event.target.value)}
+                    onChange={(event) =>
+                      dispatch({ type: 'questionEdited', question: event.target.value })
+                    }
                   />
                 </label>
                 <Button className="action-button" type="submit" variant="secondary" disabled={busy}>
@@ -212,7 +221,7 @@ export function ReadingRelationsPanel({
                 <p className="reading-relations-status">{t('readingMemory.relations.abstained')}</p>
               ) : null}
             </div>
-            <footer className="reading-relations-footer">
+            <footer ref={moveFocusWithRemote} className="reading-relations-footer">
               <p role="status">
                 {receiptRecipient
                   ? t('readingMemory.privacy.recipient', receiptRecipient)
@@ -241,6 +250,13 @@ export function ReadingRelationsPanel({
       </DialogPortal>
     </Dialog>
   );
+}
+
+function relationsQuestionReducer(
+  _question: string,
+  event: { type: 'questionEdited'; question: string },
+) {
+  return event.question;
 }
 
 function judgmentFailureKey(result: ReadingJudgmentResult | undefined) {
