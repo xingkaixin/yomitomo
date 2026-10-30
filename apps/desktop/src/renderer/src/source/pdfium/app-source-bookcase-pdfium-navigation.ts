@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { createElement, useCallback, useEffectEvent } from 'react';
 import { useBookmarkCapability } from '@embedpdf/plugin-bookmark/react';
 import { isPdfTextAnchor, resolveTextAnchor, type Annotation } from '@yomitomo/shared';
 import type { TocItem } from '@yomitomo/core';
@@ -9,6 +9,9 @@ import { pdfiumBookmarkTocItems } from './pdfium-text-document';
 type PdfiumScroll = {
   scrollToPage: (options: { pageNumber: number; behavior: 'instant' | 'smooth' }) => void;
 };
+
+const completionCallbackIds = new WeakMap<object, number>();
+let nextCompletionCallbackId = 0;
 
 export function usePdfiumNavigation({
   annotations,
@@ -34,25 +37,36 @@ export function usePdfiumNavigation({
   onSetTocItems: (items: TocItem[]) => void;
 }) {
   const { provides: bookmark } = useBookmarkCapability();
-  const scrollToAnnotationRef = useRef<(annotationId: string) => boolean>(() => false);
+  const readBookmarkInput = useEffectEvent(() => ({
+    bookmark,
+    documentId,
+    onSetTocItems,
+    pageCount,
+  }));
 
-  useEffect(() => {
-    if (!bookmark) return;
+  const loadBookmarks = useCallback((marker: HTMLElement | null) => {
+    const {
+      bookmark: bookmarkCapability,
+      documentId: bookmarkDocumentId,
+      onSetTocItems: setTocItems,
+      pageCount: bookmarkPageCount,
+    } = readBookmarkInput();
+    if (!marker || !bookmarkCapability) return;
     let cancelled = false;
-    bookmark
-      .forDocument(documentId)
+    bookmarkCapability
+      .forDocument(bookmarkDocumentId)
       .getBookmarks()
       .toPromise()
       .then(({ bookmarks }) => {
-        if (!cancelled) onSetTocItems(pdfiumBookmarkTocItems(bookmarks, pageCount));
+        if (!cancelled) setTocItems(pdfiumBookmarkTocItems(bookmarks, bookmarkPageCount));
       })
       .catch(() => {
-        if (!cancelled) onSetTocItems([]);
+        if (!cancelled) setTocItems([]);
       });
     return () => {
       cancelled = true;
     };
-  }, [bookmark, documentId, onSetTocItems, pageCount]);
+  }, []);
 
   const scrollToAnnotation = useCallback(
     (annotationId: string) => {
@@ -75,34 +89,47 @@ export function usePdfiumNavigation({
     },
     [annotations, onOpenAnnotation, pageCount, scroll],
   );
-  useEffect(() => {
-    scrollToAnnotationRef.current = scrollToAnnotation;
-  }, [scrollToAnnotation]);
+  const readFocusRequest = useEffectEvent(() => ({
+    annotations,
+    documentId,
+    extractPageText,
+    focusAnnotationId,
+    onFocusedAnnotation,
+    scrollToAnnotation,
+  }));
 
-  useEffect(() => {
-    if (!focusAnnotationId || !scroll) return;
+  const attachFocusRequest = useCallback((marker: HTMLElement | null) => {
+    const {
+      annotations: currentAnnotations,
+      documentId: focusDocumentId,
+      extractPageText: extractFocusPageText,
+      focusAnnotationId: annotationId,
+      onFocusedAnnotation: completeFocus,
+      scrollToAnnotation: scrollToFocusAnnotation,
+    } = readFocusRequest();
+    if (!marker || !annotationId) return;
     recordRendererPerformanceTiming('reader_focus', {
       source: 'pdf',
       phase: 'effect_start',
-      articleId: documentId,
-      annotationId: focusAnnotationId,
-      annotationCount: annotations.length,
-      hasScroll: Boolean(scroll),
+      articleId: focusDocumentId,
+      annotationId,
+      annotationCount: currentAnnotations.length,
+      hasScroll: true,
     });
-    const navigated = scrollToAnnotationRef.current(focusAnnotationId);
-    const annotation = annotations.find((item) => item.id === focusAnnotationId);
+    const navigated = scrollToFocusAnnotation(annotationId);
+    const annotation = currentAnnotations.find((item) => item.id === annotationId);
     recordRendererPerformanceTiming('reader_focus', {
       source: 'pdf',
       phase: 'navigation_requested',
-      articleId: documentId,
-      annotationId: focusAnnotationId,
+      articleId: focusDocumentId,
+      annotationId,
       navigated,
     });
     let cancelled = false;
     let timer: number | null = null;
     const location =
       navigated && annotation && isPdfTextAnchor(annotation.anchor)
-        ? extractPageText(annotation.anchor.pageIndex)
+        ? extractFocusPageText(annotation.anchor.pageIndex)
             .then((pageText) => Boolean(resolveTextAnchor(pageText, annotation.anchor)))
             .catch(() => false)
         : Promise.resolve(false);
@@ -113,11 +140,11 @@ export function usePdfiumNavigation({
           recordRendererPerformanceTiming('reader_focus', {
             source: 'pdf',
             phase: 'complete_timer',
-            articleId: documentId,
-            annotationId: focusAnnotationId,
+            articleId: focusDocumentId,
+            annotationId,
             located,
           });
-          onFocusedAnnotation(located);
+          completeFocus(located);
         },
         located ? 520 : 0,
       );
@@ -127,12 +154,12 @@ export function usePdfiumNavigation({
       recordRendererPerformanceTiming('reader_focus', {
         source: 'pdf',
         phase: 'effect_cleanup',
-        articleId: documentId,
-        annotationId: focusAnnotationId,
+        articleId: focusDocumentId,
+        annotationId,
       });
       if (timer !== null) window.clearTimeout(timer);
     };
-  }, [documentId, extractPageText, focusAnnotationId, onFocusedAnnotation, scroll]);
+  }, []);
 
   function scrollToTocItem(item: TocItem) {
     onCloseToc();
@@ -142,5 +169,32 @@ export function usePdfiumNavigation({
     });
   }
 
-  return { scrollToAnnotation, scrollToTocItem };
+  return {
+    // Embedpdf exposes its bookmark and scroll capabilities after the registry initializes.
+    markers: [
+      bookmark
+        ? createElement('span', { hidden: true, key: `bookmarks:${pageCount}`, ref: loadBookmarks })
+        : null,
+      focusAnnotationId && scroll
+        ? createElement('span', {
+            hidden: true,
+            // A new completion callback starts a new focus request, so the request rechecks its target.
+            key: `focus:${documentId}\n${focusAnnotationId}\n${completionCallbackId(onFocusedAnnotation)}`,
+            ref: attachFocusRequest,
+          })
+        : null,
+    ],
+    scrollToAnnotation,
+    scrollToTocItem,
+  };
+}
+
+function completionCallbackId(callback: object) {
+  let id = completionCallbackIds.get(callback);
+  if (id === undefined) {
+    nextCompletionCallbackId += 1;
+    id = nextCompletionCallbackId;
+    completionCallbackIds.set(callback, id);
+  }
+  return id;
 }

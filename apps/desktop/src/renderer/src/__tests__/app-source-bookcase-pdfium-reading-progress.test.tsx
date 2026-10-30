@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, render, renderHook, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createPdfTextAnchor, type Annotation, type ArticleRecord } from '@yomitomo/shared';
@@ -121,6 +121,7 @@ function Probe({ onSave }: { onSave: (articleId: string, progress: unknown) => v
       <button type="button" onClick={() => progress.jumpToPdfiumPage(4)}>
         jump to page 4
       </button>
+      {progress.markers}
     </>
   );
 }
@@ -233,8 +234,8 @@ describe('usePdfiumReadingProgress', () => {
       onOpenAnnotation: vi.fn(),
       onSetTocItems: vi.fn(),
     };
-    const { rerender } = renderHook(() => {
-      const { scroll } = usePdfiumReadingProgress({
+    function FocusProbe() {
+      const progress = usePdfiumReadingProgress({
         article,
         documentId,
         documentReady: true,
@@ -242,13 +243,20 @@ describe('usePdfiumReadingProgress', () => {
         pageCount: article.pdf.metadata.pageCount,
         onSaveArticleReadingProgress: onSave,
       });
-      usePdfiumNavigation({ ...navigation, scroll });
-    });
+      const { markers } = usePdfiumNavigation({ ...navigation, scroll: progress.scroll });
+      return (
+        <>
+          {progress.markers}
+          {markers}
+        </>
+      );
+    }
+    const { rerender } = render(<FocusProbe />);
 
     await act(() => vi.advanceTimersByTimeAsync(250));
-    rerender();
+    rerender(<FocusProbe />);
     await act(() => vi.advanceTimersByTimeAsync(250));
-    rerender();
+    rerender(<FocusProbe />);
     await act(() => vi.advanceTimersByTimeAsync(20));
 
     expect(navigation.onFocusedAnnotation).toHaveBeenCalledExactlyOnceWith(true);

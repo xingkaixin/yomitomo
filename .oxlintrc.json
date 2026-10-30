@@ -76,16 +76,6 @@
     },
     {
       "files": [
-        "apps/desktop/src/renderer/src/source/pdfium/app-source-bookcase-pdfium-document-text.ts",
-        "apps/desktop/src/renderer/src/source/pdfium/app-source-bookcase-pdfium-navigation.ts",
-        "apps/desktop/src/renderer/src/source/pdfium/app-source-bookcase-pdfium-page-metrics.ts",
-        "apps/desktop/src/renderer/src/source/pdfium/app-source-bookcase-pdfium-reading-progress.ts",
-        "apps/desktop/src/renderer/src/source/pdfium/app-source-bookcase-pdfium-selection-bridge.tsx",
-        "apps/desktop/src/renderer/src/source/pdfium/app-source-bookcase-pdfium.tsx",
-        "apps/desktop/src/renderer/src/source/pdfium/use-pdfium-document-source.ts",
-        "apps/desktop/src/renderer/src/source/pdfium/use-pdfium-open-lifecycle.ts",
-        "apps/desktop/src/renderer/src/source/pdfium/use-pdfium-reader-layout.ts",
-        "apps/desktop/src/renderer/src/source/pdfium/use-pdfium-selection-adjustment.ts",
         "apps/web/src/components/landing/ReaderDemo.tsx",
         "packages/reader-ui/src/annotations/reader-annotation-card.tsx",
         "packages/reader-ui/src/annotations/reader-annotation-comment-composer.tsx",

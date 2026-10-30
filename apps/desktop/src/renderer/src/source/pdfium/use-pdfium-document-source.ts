@@ -1,7 +1,16 @@
-import { use, useEffect, useRef, useState } from 'react';
+import {
+  createElement,
+  use,
+  useCallback,
+  useEffectEvent,
+  useMemo,
+  useReducer,
+  useRef,
+} from 'react';
 import { usePdfiumEngine } from '@embedpdf/engines/react';
 import devPdfiumWasmUrl from '@embedpdf/pdfium/pdfium.wasm?url';
 import type { ArticleRecord } from '@yomitomo/shared';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import i18next from 'i18next';
 import { rendererPerformanceElapsedMs } from '../../shell/app-renderer-performance';
 import { getDesktopApi } from '../../shell/app-desktop-api';
@@ -14,53 +23,49 @@ import {
 
 type PdfArticleRecord = ArticleRecord & { pdf: NonNullable<ArticleRecord['pdf']> };
 
-export function usePdfiumDocumentSource(article: PdfArticleRecord) {
+export type PdfiumEngineSource = ReturnType<typeof usePdfiumEngineSource>;
+
+type PdfFileState = { buffer: ArrayBuffer | null; loadError: string };
+
+function pdfFileReducer(
+  _state: PdfFileState,
+  event: { type: 'fileRead'; buffer: ArrayBuffer } | { type: 'fileReadFailed'; message: string },
+): PdfFileState {
+  return event.type === 'fileRead'
+    ? { buffer: event.buffer, loadError: '' }
+    : { buffer: null, loadError: event.message };
+}
+
+export function usePdfiumEngineSource() {
   const wasmUrl = import.meta.env.DEV
     ? devPdfiumWasmUrl
     : use(getDesktopApi().app.readPdfiumWasmUrl());
-  const openTraceRef = useRef(pdfOpenTrace(article.id));
-  const recordedOpenPhasesRef = useRef(new Set<string>());
-  const [buffer, setBuffer] = useState<ArrayBuffer | null>(null);
-  const [loadError, setLoadError] = useState('');
-  if (openTraceRef.current.articleId !== article.id) {
-    openTraceRef.current = pdfOpenTrace(article.id);
-    recordedOpenPhasesRef.current = new Set();
-  }
-  const openTrace = openTraceRef.current;
-  const {
-    engine,
-    error: engineError,
-    isLoading,
-  } = usePdfiumEngine({
+  return usePdfiumEngine({
     wasmUrl: new URL(wasmUrl, window.location.href).href,
     worker: true,
     fontFallback: pdfiumFontFallback,
   });
+}
 
-  useEffect(() => {
+export function usePdfiumDocumentSource(
+  article: PdfArticleRecord,
+  { engine, error: engineError, isLoading }: PdfiumEngineSource,
+) {
+  const openTrace = useMemo(() => pdfOpenTrace(article.id), []);
+  const recordedOpenPhasesRef = useRef(new Set<string>());
+  const [{ buffer, loadError }, dispatch] = useReducer(pdfFileReducer, {
+    buffer: null,
+    loadError: '',
+  });
+  const readEngineState = useEffectEvent(() => ({ engine, engineError, isLoading }));
+
+  useMountEffect(() => {
+    let cancelled = false;
+    const fileReadStartedAt = performance.now();
     recordPdfOpenTimingOnce(recordedOpenPhasesRef, openTrace, 'open_requested', {
       fileSize: article.pdf.metadata.fileSize,
       pageCount: article.pdf.metadata.pageCount,
     });
-  }, [article.id, article.pdf.metadata.fileSize, article.pdf.metadata.pageCount, openTrace]);
-
-  useEffect(() => {
-    if (!engine || isLoading) return;
-    recordPdfOpenTimingOnce(recordedOpenPhasesRef, openTrace, 'engine_init_done');
-  }, [engine, isLoading, openTrace]);
-
-  useEffect(() => {
-    if (!engineError) return;
-    recordPdfOpenTimingOnce(recordedOpenPhasesRef, openTrace, 'engine_init_error', {
-      message: engineError.message,
-    });
-  }, [engineError, openTrace]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const fileReadStartedAt = performance.now();
-    setBuffer(null);
-    setLoadError('');
     recordPdfOpenTiming(openTrace, 'file_read_start', {
       fileSize: article.pdf.metadata.fileSize,
     });
@@ -69,7 +74,7 @@ export function usePdfiumDocumentSource(article: PdfArticleRecord) {
       .article.pdf.readFile(article.id)
       .then((data) => {
         if (!cancelled) {
-          setBuffer(data);
+          dispatch({ type: 'fileRead', buffer: data });
           recordPdfOpenTiming(openTrace, 'file_read_done', {
             byteLength: data.byteLength,
             copyDurationMs: 0,
@@ -82,7 +87,7 @@ export function usePdfiumDocumentSource(article: PdfArticleRecord) {
       .catch((error) => {
         if (!cancelled) {
           const message = pdfReadErrorMessage(error);
-          setLoadError(message);
+          dispatch({ type: 'fileReadFailed', message });
           recordPdfOpenTiming(openTrace, 'file_read_error', {
             durationMs: rendererPerformanceElapsedMs(fileReadStartedAt),
             message,
@@ -93,7 +98,23 @@ export function usePdfiumDocumentSource(article: PdfArticleRecord) {
     return () => {
       cancelled = true;
     };
-  }, [article.id, article.pdf.metadata.fileSize, openTrace]);
+  });
+
+  const recordEngineState = useCallback(
+    (marker: HTMLElement | null) => {
+      if (!marker) return;
+      const state = readEngineState();
+      if (state.engineError) {
+        recordPdfOpenTimingOnce(recordedOpenPhasesRef, openTrace, 'engine_init_error', {
+          message: state.engineError.message,
+        });
+      } else if (state.engine && !state.isLoading) {
+        recordPdfOpenTimingOnce(recordedOpenPhasesRef, openTrace, 'engine_init_done');
+      }
+    },
+    [openTrace],
+  );
+  const engineStatus = engineError ? 'error' : engine && !isLoading ? 'ready' : 'loading';
 
   return {
     buffer,
@@ -101,6 +122,7 @@ export function usePdfiumDocumentSource(article: PdfArticleRecord) {
     engineError,
     isLoading,
     loadError,
+    marker: createElement('span', { hidden: true, key: engineStatus, ref: recordEngineState }),
     openTrace,
   };
 }

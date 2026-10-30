@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { createElement, useCallback, useReducer, useRef, type RefObject } from 'react';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import { samePageMetrics, type PageMetric } from './pdfium-geometry';
 
 function pdfPageMetricsDebugEnabled() {
@@ -12,6 +13,37 @@ function pdfPageMetricsDebugEnabled() {
   }
 }
 
+type PdfPageMetricsState = {
+  pageMetrics: Record<number, PageMetric>;
+  viewportHeight: number;
+  viewportWidth: number;
+};
+
+function pdfPageMetricsReducer(
+  state: PdfPageMetricsState,
+  event: { type: 'pageMetricsMeasured' } & PdfPageMetricsState,
+): PdfPageMetricsState {
+  const viewportHeight =
+    Math.abs(state.viewportHeight - event.viewportHeight) < 0.5
+      ? state.viewportHeight
+      : event.viewportHeight;
+  const viewportWidth =
+    Math.abs(state.viewportWidth - event.viewportWidth) < 0.5
+      ? state.viewportWidth
+      : event.viewportWidth;
+  const pageMetrics = samePageMetrics(state.pageMetrics, event.pageMetrics)
+    ? state.pageMetrics
+    : event.pageMetrics;
+  if (
+    viewportHeight === state.viewportHeight &&
+    viewportWidth === state.viewportWidth &&
+    pageMetrics === state.pageMetrics
+  ) {
+    return state;
+  }
+  return { pageMetrics, viewportHeight, viewportWidth };
+}
+
 export function usePdfiumPageMetrics({
   canvasRef,
   pageCount,
@@ -22,9 +54,14 @@ export function usePdfiumPageMetrics({
   const pageMetricsFrameRef = useRef(0);
   const pageMetricsNeedsFollowupRef = useRef(false);
   const pageMetricsRef = useRef<Record<number, PageMetric>>({});
-  const [pageMetrics, setPageMetrics] = useState<Record<number, PageMetric>>({});
-  const [annotationRailViewportHeight, setAnnotationRailViewportHeight] = useState(0);
-  const [annotationRailViewportWidth, setAnnotationRailViewportWidth] = useState(0);
+  const [
+    {
+      pageMetrics,
+      viewportHeight: annotationRailViewportHeight,
+      viewportWidth: annotationRailViewportWidth,
+    },
+    dispatch,
+  ] = useReducer(pdfPageMetricsReducer, { pageMetrics: {}, viewportHeight: 0, viewportWidth: 0 });
 
   const updatePageMetrics = useCallback(() => {
     const canvas = canvasRef.current;
@@ -35,12 +72,6 @@ export function usePdfiumPageMetrics({
       ?.getBoundingClientRect();
     const nextViewportHeight = Math.max(0, viewportRect?.height ?? canvasRect.height);
     const nextViewportWidth = Math.max(0, canvasRect.width);
-    setAnnotationRailViewportHeight((current) =>
-      Math.abs(current - nextViewportHeight) < 0.5 ? current : nextViewportHeight,
-    );
-    setAnnotationRailViewportWidth((current) =>
-      Math.abs(current - nextViewportWidth) < 0.5 ? current : nextViewportWidth,
-    );
     const nextMetrics: Record<number, PageMetric> = {};
     const pageElements = canvas.querySelectorAll<HTMLElement>('[data-pdfium-page-index]');
     for (const page of pageElements) {
@@ -81,7 +112,12 @@ export function usePdfiumPageMetrics({
       });
     }
     pageMetricsRef.current = nextMetrics;
-    setPageMetrics((current) => (samePageMetrics(current, nextMetrics) ? current : nextMetrics));
+    dispatch({
+      type: 'pageMetricsMeasured',
+      pageMetrics: nextMetrics,
+      viewportHeight: nextViewportHeight,
+      viewportWidth: nextViewportWidth,
+    });
   }, [canvasRef]);
 
   const schedulePageMetricsUpdate = useCallback(() => {
@@ -99,52 +135,57 @@ export function usePdfiumPageMetrics({
     });
   }, [updatePageMetrics]);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    schedulePageMetricsUpdate();
+  const observeCanvas = useCallback(
+    (marker: HTMLElement | null) => {
+      const canvas = canvasRef.current;
+      if (!marker || !canvas) return;
+      schedulePageMetricsUpdate();
 
-    const viewport = canvas.querySelector<HTMLElement>('.pdfium-spike-viewport');
-    viewport?.addEventListener('scroll', schedulePageMetricsUpdate, { passive: true });
-    window.addEventListener('resize', schedulePageMetricsUpdate);
+      const viewport = canvas.querySelector<HTMLElement>('.pdfium-spike-viewport');
+      viewport?.addEventListener('scroll', schedulePageMetricsUpdate, { passive: true });
+      window.addEventListener('resize', schedulePageMetricsUpdate);
 
-    const mutationObserver =
-      typeof MutationObserver === 'undefined'
-        ? null
-        : new MutationObserver(schedulePageMetricsUpdate);
-    mutationObserver?.observe(canvas, { childList: true, subtree: true });
+      const mutationObserver =
+        typeof MutationObserver === 'undefined'
+          ? null
+          : new MutationObserver(schedulePageMetricsUpdate);
+      mutationObserver?.observe(canvas, { childList: true, subtree: true });
 
-    const resizeObserver =
-      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(schedulePageMetricsUpdate);
-    resizeObserver?.observe(canvas);
-    if (viewport) resizeObserver?.observe(viewport);
+      const resizeObserver =
+        typeof ResizeObserver === 'undefined'
+          ? null
+          : new ResizeObserver(schedulePageMetricsUpdate);
+      resizeObserver?.observe(canvas);
+      if (viewport) resizeObserver?.observe(viewport);
 
-    return () => {
-      if (pageMetricsFrameRef.current) {
-        window.cancelAnimationFrame(pageMetricsFrameRef.current);
-        pageMetricsFrameRef.current = 0;
-      }
-      pageMetricsNeedsFollowupRef.current = false;
-      viewport?.removeEventListener('scroll', schedulePageMetricsUpdate);
-      window.removeEventListener('resize', schedulePageMetricsUpdate);
-      mutationObserver?.disconnect();
-      resizeObserver?.disconnect();
-    };
-  }, [canvasRef, pageCount, schedulePageMetricsUpdate]);
+      return () => {
+        if (pageMetricsFrameRef.current) {
+          window.cancelAnimationFrame(pageMetricsFrameRef.current);
+          pageMetricsFrameRef.current = 0;
+        }
+        pageMetricsNeedsFollowupRef.current = false;
+        viewport?.removeEventListener('scroll', schedulePageMetricsUpdate);
+        window.removeEventListener('resize', schedulePageMetricsUpdate);
+        mutationObserver?.disconnect();
+        resizeObserver?.disconnect();
+      };
+    },
+    [canvasRef, schedulePageMetricsUpdate],
+  );
 
-  useEffect(() => {
-    return () => {
-      if (pageMetricsFrameRef.current) {
-        window.cancelAnimationFrame(pageMetricsFrameRef.current);
-        pageMetricsFrameRef.current = 0;
-      }
-      pageMetricsNeedsFollowupRef.current = false;
-    };
-  }, []);
+  useMountEffect(() => () => {
+    if (pageMetricsFrameRef.current) {
+      window.cancelAnimationFrame(pageMetricsFrameRef.current);
+      pageMetricsFrameRef.current = 0;
+    }
+    pageMetricsNeedsFollowupRef.current = false;
+  });
 
   return {
     annotationRailViewportHeight,
     annotationRailViewportWidth,
+    // Rendered after the reader canvas; a new page count re-scans the rendered pages.
+    marker: createElement('span', { hidden: true, key: pageCount, ref: observeCanvas }),
     pageMetrics,
     pageMetricsRef,
     schedulePageMetricsUpdate,

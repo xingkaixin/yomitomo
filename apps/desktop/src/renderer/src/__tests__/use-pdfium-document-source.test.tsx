@@ -3,7 +3,10 @@
 import { cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ArticleRecord } from '@yomitomo/shared';
-import { usePdfiumDocumentSource } from '../source/pdfium/use-pdfium-document-source';
+import {
+  usePdfiumDocumentSource,
+  usePdfiumEngineSource,
+} from '../source/pdfium/use-pdfium-document-source';
 
 type PdfArticleRecord = ArticleRecord & { pdf: NonNullable<ArticleRecord['pdf']> };
 type PdfiumDocumentSourceState = ReturnType<typeof usePdfiumDocumentSource>;
@@ -69,7 +72,7 @@ describe('usePdfiumDocumentSource', () => {
     let state: PdfiumDocumentSourceState | null = null;
 
     function Probe() {
-      state = usePdfiumDocumentSource(pdfArticle());
+      state = usePdfiumDocumentSource(pdfArticle(), usePdfiumEngineSource());
       return null;
     }
 
@@ -110,7 +113,7 @@ describe('usePdfiumDocumentSource', () => {
     });
 
     function Probe() {
-      usePdfiumDocumentSource(pdfArticle());
+      usePdfiumEngineSource();
       return null;
     }
 

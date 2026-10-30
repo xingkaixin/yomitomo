@@ -1,9 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffectEvent, useRef } from 'react';
 import i18next from 'i18next';
 import { useDocumentState } from '@embedpdf/core/react';
 import { useSelectionCapability } from '@embedpdf/plugin-selection/react';
 import type { PdfEngine } from '@embedpdf/models';
 import { createPdfTextAnchor } from '@yomitomo/shared';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import { rectToPdfRect } from './pdfium-geometry';
 
 export function EmbedPdfSelectionBridge({
@@ -21,18 +22,23 @@ export function EmbedPdfSelectionBridge({
   const { provides } = useSelectionCapability();
   const ignoreSelectionClearUntilRef = useRef(0);
   const selectionGenerationRef = useRef(0);
+  const selected = useEffectEvent(onSelection);
+  const selectionRejected = useEffectEvent(onInvalidSelection);
+  const readSelectionSource = useEffectEvent(() => ({
+    document: documentState?.document,
+    documentId,
+    engine,
+    provides,
+  }));
 
-  useEffect(
-    () => () => {
-      selectionGenerationRef.current += 1;
-    },
-    [documentId],
-  );
+  useMountEffect(() => () => {
+    selectionGenerationRef.current += 1;
+  });
 
-  useEffect(() => {
-    if (!provides || !documentState?.document) return;
-    const scope = provides.forDocument(documentId);
-    const document = documentState.document;
+  const subscribeToSelection = useCallback((marker: HTMLElement | null) => {
+    const { documentId: selectionDocumentId, provides: selection } = readSelectionSource();
+    if (!marker || !selection) return;
+    const scope = selection.forDocument(selectionDocumentId);
 
     const unsubscribeChange = scope.onSelectionChange((selectionRange) => {
       if (selectionRange) return;
@@ -40,16 +46,18 @@ export function EmbedPdfSelectionBridge({
         return;
       }
       selectionGenerationRef.current += 1;
-      onSelection(null);
+      selected(null);
     });
     const unsubscribeEnd = scope.onEndSelection(() => {
+      const { document, engine: selectionEngine } = readSelectionSource();
+      if (!document) return;
       const generation = ++selectionGenerationRef.current;
       const state = scope.getState();
       const formattedSelections = scope.getFormattedSelection();
       if (formattedSelections.length > 1) {
         clearEmbedPdfSelection(scope);
-        onSelection(null);
-        onInvalidSelection(i18next.t('pdfReader.crossPageSelectionUnsupported'));
+        selected(null);
+        selectionRejected(i18next.t('pdfReader.crossPageSelectionUnsupported'));
         return;
       }
 
@@ -59,7 +67,7 @@ export function EmbedPdfSelectionBridge({
       const page = document.pages[formatted.pageIndex];
       if (!slice || !page) return;
 
-      engine
+      selectionEngine
         .extractText(document, [formatted.pageIndex])
         .toPromise()
         .then((pageText) => {
@@ -76,12 +84,12 @@ export function EmbedPdfSelectionBridge({
             ),
           });
           ignoreSelectionClearUntilRef.current = performance.now() + 120;
-          onSelection(anchor.exact.trim() ? anchor : null);
+          selected(anchor.exact.trim() ? anchor : null);
           clearEmbedPdfSelection(scope);
         })
         .catch(() => {
           if (generation !== selectionGenerationRef.current) return;
-          onSelection(null);
+          selected(null);
         });
     });
 
@@ -89,9 +97,10 @@ export function EmbedPdfSelectionBridge({
       unsubscribeChange();
       unsubscribeEnd();
     };
-  }, [documentId, documentState?.document, engine, onInvalidSelection, onSelection, provides]);
+  }, []);
 
-  return null;
+  // Embedpdf exposes the selection capability and document after the registry initializes.
+  return provides && documentState?.document ? <span hidden ref={subscribeToSelection} /> : null;
 }
 
 function clearEmbedPdfSelection(scope: unknown) {
