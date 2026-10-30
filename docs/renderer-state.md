@@ -73,6 +73,10 @@ with its first caller and listed in the `.oxlintrc.json` allowlist override.
   lasts. A `null` delay stops the timer.
 - `useDesktopEvent(subscribe, handler)` in the desktop renderer: push events that
   only matter to a mounted view, such as revealing a passage in the open reader.
+- `useMountEffect(effect)` in reader-ui: work tied to a view's lifetime, such as
+  showing the main window after the first commit or scheduling idle preloads. It
+  takes no dependencies; work that follows a data change belongs in the action
+  that changes the data.
 
 `useWindowSize` reads window size through `useSyncExternalStore` and needs no
 effect.

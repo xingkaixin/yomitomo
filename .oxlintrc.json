@@ -65,6 +65,14 @@
     },
     {
       "files": [
+        "packages/reader-ui/src/hooks/use-mount-effect.ts"
+      ],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    },
+    {
+      "files": [
         "apps/desktop/src/renderer/src/annotation-discussion/app-annotation-discussion-add-dialog.tsx",
         "apps/desktop/src/renderer/src/annotation-discussion/app-annotation-discussion-hooks.ts",
         "apps/desktop/src/renderer/src/annotation-discussion/app-annotation-discussion-message.tsx",
