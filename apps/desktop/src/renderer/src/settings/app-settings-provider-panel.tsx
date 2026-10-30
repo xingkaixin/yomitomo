@@ -36,7 +36,7 @@ import {
 } from '../components/ui/select';
 import { useTranslation } from 'react-i18next';
 import { providerDisplayName, providerPresetDisplayName } from '../i18n/app-i18n-labels';
-import type { SaveableDraft } from './use-saveable-draft';
+import type { SaveableDraft } from './settings-draft-saver';
 import { ReadingMemoryModelSettings } from './reading-memory-model-settings';
 import { readingMemoryEnabled } from '../../../reading-memory-release';
 

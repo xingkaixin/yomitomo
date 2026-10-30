@@ -11,7 +11,7 @@ import {
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
 import type { SaveState } from '../shell/app-types';
-import type { SaveableDraft } from '../settings/use-saveable-draft';
+import type { SaveableDraft } from '../settings/settings-draft-saver';
 import {
   normalizeAppSettings,
   normalizeTranslationTargetLanguage,

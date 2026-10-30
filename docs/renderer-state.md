@@ -50,10 +50,12 @@ disposes its subscriptions through `import.meta.hot.dispose`.
 
 The main window creates its stores in `apps/desktop/src/renderer/src/main.tsx`:
 the desktop store from `apps/desktop/src/renderer/src/shell/app-desktop-store.tsx`,
-the session store from `apps/desktop/src/renderer/src/shell/app-session.tsx`, and
-the theme store from `apps/desktop/src/renderer/src/theme/use-reader-theme-controller.tsx`.
+the session store from `apps/desktop/src/renderer/src/shell/app-session.tsx`, the
+theme store from `apps/desktop/src/renderer/src/theme/use-reader-theme-controller.tsx`,
+and the settings draft store from `apps/desktop/src/renderer/src/settings/app-settings-drafts.tsx`.
 Push subscriptions and reactions between these stores, such as resetting the
-session on lock or syncing theme and UI language from settings, live in
+session on lock, syncing theme and UI language from settings, or resetting
+settings drafts when a sync snapshot arrives, live in
 `apps/desktop/src/renderer/src/shell/app-desktop-event-bindings.ts`.
 
 Each window has its own stores and query client. Cross-window consistency comes

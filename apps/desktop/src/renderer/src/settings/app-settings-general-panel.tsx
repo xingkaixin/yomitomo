@@ -39,7 +39,7 @@ import {
   DialogPortal,
   DialogTitle,
 } from '../components/ui/dialog';
-import type { SaveableDraft } from './use-saveable-draft';
+import type { SaveableDraft } from './settings-draft-saver';
 import { useAppLockSettingsWorkflow } from './use-app-lock-settings-workflow';
 
 const appLockShortcutKeys = [getShortcutModifier(), 'L'];
