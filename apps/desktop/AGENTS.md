@@ -23,6 +23,7 @@
 - 高频文章写入返回局部 `ArticleStorePatch`。跨窗口文章同步使用 `article:patched`；`store:updated` 只用于完整 store 替换。
 - `store:get`、数据库恢复和 `settings:save` 等全量快照或全量替换场景可以使用完整 `DesktopStore`；`store:get` 与 `settings:save` 返回不含文章摘要的快照，文章列表由书库目录分页查询。`provider:save/delete`、`agent:save/delete`、`user:save` 返回对应设置切片 patch；文章保存、导入、删除和阅读进度更新走局部 patch。
 - renderer 通过统一的 article store commit/apply 入口更新受影响文章，避免替换无关 store 数据。
+- renderer 的状态归属、推送订阅位置和允许使用 effect 的 hook 见 `docs/renderer-state.md`。
 
 ## UI
 
