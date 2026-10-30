@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, renderHook } from '@testing-library/react';
+import { act, cleanup, render } from '@testing-library/react';
 import { createPdfTextAnchor, createTextAnchor, type Annotation } from '@yomitomo/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { usePdfiumNavigation } from './app-source-bookcase-pdfium-navigation';
@@ -43,7 +43,7 @@ describe('usePdfiumNavigation focus', () => {
     const extraction = deferred<string>();
     const extractPageText = vi.fn(() => extraction.promise);
     const options = navigationOptions({ extractPageText });
-    renderHook(usePdfiumNavigation, { initialProps: options });
+    renderNavigation(options);
 
     expect(options.onOpenAnnotation).toHaveBeenCalledWith(annotation.id);
     expect(options.scroll?.scrollToPage).toHaveBeenCalledWith({
@@ -79,7 +79,7 @@ describe('usePdfiumNavigation focus', () => {
               ? [{ ...annotation, anchor: invalidPageAnchor }]
               : [annotation],
       });
-      renderHook(usePdfiumNavigation, { initialProps: options });
+      renderNavigation(options);
       await act(() => vi.runAllTimersAsync());
 
       expect(options.onFocusedAnnotation).toHaveBeenCalledExactlyOnceWith(false);
@@ -97,7 +97,7 @@ describe('usePdfiumNavigation focus', () => {
       .mockReturnValueOnce(extraction.promise)
       .mockResolvedValue('The new document has no matching excerpt.');
     const previous = navigationOptions({ extractPageText });
-    const { rerender } = renderHook(usePdfiumNavigation, { initialProps: previous });
+    const { rerender } = renderNavigation(previous);
     const current = {
       ...previous,
       documentId: 'document-2',
@@ -123,7 +123,7 @@ describe('usePdfiumNavigation focus', () => {
         .mockReturnValueOnce(extraction.promise)
         .mockResolvedValue(pageText);
       const previous = navigationOptions({ extractPageText });
-      const { rerender } = renderHook(usePdfiumNavigation, { initialProps: previous });
+      const { rerender } = renderNavigation(previous);
       const replacementText = 'Replacement excerpt.';
       const current = {
         ...previous,
@@ -157,7 +157,7 @@ describe('usePdfiumNavigation focus', () => {
     async (stage) => {
       const extraction = deferred<string>();
       const options = navigationOptions({ extractPageText: () => extraction.promise });
-      const { unmount } = renderHook(usePdfiumNavigation, { initialProps: options });
+      const { unmount } = renderNavigation(options);
       if (stage === 'pending-completion') {
         await act(async () => extraction.resolve(pageText));
       }
@@ -170,6 +170,19 @@ describe('usePdfiumNavigation focus', () => {
     },
   );
 });
+
+function NavigationProbe(options: NavigationOptions) {
+  return usePdfiumNavigation(options).markers;
+}
+
+function renderNavigation(options: NavigationOptions) {
+  const view = render(<NavigationProbe {...options} />);
+  return {
+    rerender: (nextOptions: NavigationOptions) =>
+      view.rerender(<NavigationProbe {...nextOptions} />),
+    unmount: view.unmount,
+  };
+}
 
 function navigationOptions(overrides: Partial<NavigationOptions> = {}): NavigationOptions {
   return {

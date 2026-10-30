@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { Annotation, ReaderQuestionContext } from '@yomitomo/shared';
 import { createTextAnchor, resolveTextAnchor } from '@yomitomo/shared';
 import {
@@ -47,7 +47,11 @@ import { useWebAnnotationFocus } from './use-web-annotation-focus';
 
 const WEB_HIGHLIGHT_HIT_PADDING = 8;
 
-export function WebSourceBookcase({
+export function WebSourceBookcase(props: WebSourceBookcaseProps) {
+  return <WebSourceReader key={props.content.article.id} {...props} />;
+}
+
+function WebSourceReader({
   annotationActions: { onArticleChange, onFocusedAnnotation, onOpenAnnotation },
   articleActions,
   content: { agents, annotations: articleAnnotations, article, userProfile },
@@ -84,7 +88,6 @@ export function WebSourceBookcase({
     newAnnotationIds,
     openAnnotation,
     session: sourceReaderSession,
-    setStatusMessage,
     statusMessage,
     surface: {
       articleRef,
@@ -102,7 +105,6 @@ export function WebSourceBookcase({
     scrollRef,
   });
   const { annotations, annotationsRef, annotationAgents, deleteAnnotation } = sourceReaderSession;
-  const [articleSearchText, setArticleSearchText] = useState('');
   const { canonicalUrl, contentHtml: articleHtml, excerpt, url: articleUrl } = article;
   const contentHtml = useMemo(
     () =>
@@ -121,22 +123,33 @@ export function WebSourceBookcase({
   });
   const translatedContentHtml = bilingualTranslation.renderedHtml;
   const translationSelectionDisabled = bilingualTranslation.selection.isDisabled;
-  const { boxes, tocItems } = useWebReaderBoxes({
+  const readerBoxes = useWebReaderBoxes({
     annotationAgents,
     annotations,
     article,
     articleRef,
     canvasRef,
     contentHtml: translatedContentHtml,
+    onMeasured: (measured, outlineChanged) => {
+      railDiagnostics.boxesMeasured();
+      if (!outlineChanged) return;
+      activeToc.tocItemsMeasured(measured.tocItems);
+      const headings = measured.tocItems.map((item) => ({ title: item.text, depth: item.depth }));
+      saveAssistantArticleText(article.id, {
+        text: measured.text,
+        sections: sectionsFromHeadings(measured.text, headings),
+      });
+    },
     userProfile,
   });
-  const activeTocIndex = useWebActiveTocIndex({
+  const { boxes, tocItems } = readerBoxes;
+  const activeToc = useWebActiveTocIndex({
     articleRef,
     contentVersion: translatedContentHtml,
     scrollRef,
     tocItems,
   });
-  useWebAnnotationRailDiagnostics({
+  const railDiagnostics = useWebAnnotationRailDiagnostics({
     articleId: article.id,
     boxes,
     canvasRef,
@@ -148,11 +161,6 @@ export function WebSourceBookcase({
     () => buildTocAnnotationStats(tocItems, annotations, userProfile, annotationAgents),
     [annotationAgents, annotations, tocItems, userProfile],
   );
-  useEffect(() => {
-    const text = currentArticleText();
-    const headings = tocItems.map((item) => ({ title: item.text, depth: item.depth }));
-    saveAssistantArticleText(article.id, { text, sections: sectionsFromHeadings(text, headings) });
-  }, [article.id, tocItems]);
   useAssistantPassageReveal(article.id, (start, end) => {
     const anchor = createTextAnchor(currentArticleText(), start, end);
     revealReaderChatContext({ sourceType: article.sourceType, quote: anchor.exact, anchor });
@@ -170,15 +178,6 @@ export function WebSourceBookcase({
     translation: bilingualTranslation,
     userProfile,
   });
-
-  useEffect(() => {
-    clearAnnotationUiState();
-  }, [article?.id, clearAnnotationUiState]);
-
-  useEffect(() => {
-    setStatusMessage('');
-    setArticleSearchText('');
-  }, [article?.id]);
 
   const scrollToAnnotation = useCallback(
     (annotationId: string) => {
@@ -200,7 +199,7 @@ export function WebSourceBookcase({
     },
     [boxes],
   );
-  useWebAnnotationFocus({
+  const annotationFocusMarker = useWebAnnotationFocus({
     annotationsRef,
     articleId: article.id,
     boxCount: boxes.length,
@@ -420,7 +419,7 @@ export function WebSourceBookcase({
     excerpt: statusMessage,
     content: contentHtml,
   };
-  const { searchOpen, viewProps: readerAppViewProps } = useSourceReaderAppView({
+  const { viewProps: readerAppViewProps } = useSourceReaderAppView({
     app: sourceReaderApp,
     adapter: {
       lifecycle: {
@@ -448,7 +447,7 @@ export function WebSourceBookcase({
       questionContext: readerQuestionContext,
       search: {
         revealSearchMatch: revealWebSearchMatch,
-        text: articleSearchText,
+        text: readerBoxes.text,
       },
       selection: {
         onMouseUp: webReaderSelection.actions.onMouseUp,
@@ -486,7 +485,7 @@ export function WebSourceBookcase({
     },
     shell: { onClose },
     toc: {
-      activeIndex: activeTocIndex,
+      activeIndex: activeToc.activeIndex,
       annotationStats: tocStats,
       items: tocItems,
     },
@@ -507,26 +506,21 @@ export function WebSourceBookcase({
         byline: article.byline,
         hasCover: Boolean(article.leadImageUrl),
       },
-      readingProgress,
+      readingProgress: readingProgress.progress,
     },
     userProfile,
   });
-  useEffect(() => {
-    if (!searchOpen) {
-      setArticleSearchText('');
-      return;
-    }
-
-    const frame = window.requestAnimationFrame(() => {
-      setArticleSearchText(articleRef.current ? sourceTextContent(articleRef.current) : '');
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [article.id, searchOpen, translatedContentHtml]);
   return (
     <section className="source-bookcase source-reader-shell">
       <style>{`${readerDesktopEmbeddedBundleStyles}\n${sourceReaderTocStyles}`}</style>
       <ReaderAppView {...readerAppViewProps} ref={readerSurfaceRef} />
       {bilingualTranslation.dialog}
+      {readingProgress.marker}
+      {bilingualTranslation.renderedMarker}
+      {readerBoxes.markers}
+      {activeToc.marker}
+      {railDiagnostics.marker}
+      {annotationFocusMarker}
     </section>
   );
 }

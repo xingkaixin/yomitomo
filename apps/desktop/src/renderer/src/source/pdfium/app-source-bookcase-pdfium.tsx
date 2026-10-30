@@ -6,7 +6,7 @@ import {
   SearchAddIcon,
 } from '@hugeicons/core-free-icons';
 import type React from 'react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffectEvent, useMemo, useReducer } from 'react';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { EmbedPDF, useDocumentState } from '@embedpdf/core/react';
@@ -64,7 +64,11 @@ import { usePdfiumDocumentText } from './app-source-bookcase-pdfium-document-tex
 import { usePdfiumReadingProgress } from './app-source-bookcase-pdfium-reading-progress';
 import { usePdfiumNavigation } from './app-source-bookcase-pdfium-navigation';
 import { useSourceReaderAppView } from '../bookcase/use-source-reader-app-view';
-import { usePdfiumDocumentSource } from './use-pdfium-document-source';
+import {
+  usePdfiumDocumentSource,
+  usePdfiumEngineSource,
+  type PdfiumEngineSource,
+} from './use-pdfium-document-source';
 import { usePdfiumPlugins } from './use-pdfium-plugins';
 import { usePdfiumSelectionAdjustment } from './use-pdfium-selection-adjustment';
 import { usePdfiumHighlightHitTesting } from './use-pdfium-highlight-hit-testing';
@@ -76,7 +80,33 @@ import { usePdfiumOpenLifecycle } from './use-pdfium-open-lifecycle';
 type PdfArticleRecord = ArticleRecord & { pdf: NonNullable<ArticleRecord['pdf']> };
 type PdfiumBookcaseProps = SourceBookcaseProps<PdfArticleRecord>;
 
-export function PdfiumBookcase({
+type PdfTocState = { items: TocItem[]; open: boolean; version: number };
+
+type PdfTocEvent =
+  | { type: 'bookmarksLoaded'; items: TocItem[] }
+  | { type: 'tocToggled' }
+  | { type: 'tocClosed' };
+
+function pdfTocReducer(state: PdfTocState, event: PdfTocEvent): PdfTocState {
+  switch (event.type) {
+    case 'bookmarksLoaded':
+      return { ...state, items: event.items, version: state.version + 1 };
+    case 'tocToggled':
+      return { ...state, open: !state.open };
+    case 'tocClosed':
+      return state.open ? { ...state, open: false } : state;
+  }
+}
+
+// The PDFium engine runs in a worker that outlives article switches; each article gets its own reader.
+export function PdfiumBookcase(props: PdfiumBookcaseProps) {
+  const engineSource = usePdfiumEngineSource();
+  return (
+    <PdfiumArticleReader key={props.content.article.id} {...props} engineSource={engineSource} />
+  );
+}
+
+function PdfiumArticleReader({
   annotationActions: { onArticleChange, onFocusedAnnotation, onOpenAnnotation },
   articleActions,
   content: { agents, annotations: articleAnnotations, article, userProfile },
@@ -88,12 +118,12 @@ export function PdfiumBookcase({
     uiLanguage,
   },
   readerControl: { focusAnnotationId, onClose, onOpenEvidenceSource, selectedAnnotationId },
-}: PdfiumBookcaseProps) {
+  engineSource,
+}: PdfiumBookcaseProps & { engineSource: PdfiumEngineSource }) {
   const { t } = useTranslation();
-  const [tocItems, setTocItems] = useState<TocItem[]>([]);
-  const [tocOpen, setTocOpen] = useState(false);
-  const { buffer, engine, engineError, isLoading, loadError, openTrace } =
-    usePdfiumDocumentSource(article);
+  const [toc, dispatchToc] = useReducer(pdfTocReducer, { items: [], open: false, version: 0 });
+  const documentSource = usePdfiumDocumentSource(article, engineSource);
+  const { buffer, engine, engineError, isLoading, loadError, openTrace } = documentSource;
   const documentId = `embedpdf-${article.id}`;
   const plugins = usePdfiumPlugins({ article, buffer, documentId });
 
@@ -153,11 +183,12 @@ export function PdfiumBookcase({
                           userProfile,
                         }}
                         toc={{
-                          items: tocItems,
-                          open: tocOpen,
-                          onClose: () => setTocOpen(false),
-                          onSetItems: setTocItems,
-                          onToggle: () => setTocOpen((open) => !open),
+                          items: toc.items,
+                          open: toc.open,
+                          version: toc.version,
+                          onClose: () => dispatchToc({ type: 'tocClosed' }),
+                          onSetItems: (items) => dispatchToc({ type: 'bookmarksLoaded', items }),
+                          onToggle: () => dispatchToc({ type: 'tocToggled' }),
                         }}
                       />
                     ) : isError ? (
@@ -182,6 +213,7 @@ export function PdfiumBookcase({
           </EmbedPDF>
         ) : null}
       </div>
+      {documentSource.marker}
     </section>
   );
 }
@@ -217,6 +249,7 @@ type PdfiumDocumentProps = {
   toc: {
     items: TocItem[];
     open: boolean;
+    version: number;
     onClose: () => void;
     onSetItems: (items: TocItem[]) => void;
     onToggle: () => void;
@@ -250,6 +283,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   const {
     items: tocItems,
     open: tocOpen,
+    version: tocVersion,
     onClose: onCloseToc,
     onSetItems: onSetTocItems,
     onToggle: onToggleToc,
@@ -264,6 +298,14 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     if (!pages || pages.length === 0) return 0;
     return pages.reduce((max, page) => Math.max(max, page.size.width), 0);
   }, [loadedDocument]);
+  const readingProgress = usePdfiumReadingProgress({
+    article,
+    documentId,
+    documentReady: Boolean(loadedDocument),
+    openTrace,
+    pageCount,
+    onSaveArticleReadingProgress: saveArticleReadingProgress,
+  });
   const {
     currentPage,
     initialPageNumber,
@@ -271,13 +313,12 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     markInitialPageReady,
     restoringInitialPage,
     scroll,
-  } = usePdfiumReadingProgress({
-    article,
-    documentId,
-    documentReady: Boolean(loadedDocument),
+  } = readingProgress;
+  const documentText = usePdfiumDocumentText({
+    currentPageIndex: currentPage - 1,
+    document: loadedDocument,
+    engine,
     openTrace,
-    pageCount,
-    onSaveArticleReadingProgress: saveArticleReadingProgress,
   });
   const {
     cachedPdfiumPageText,
@@ -287,14 +328,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     pdfFirstPageReady,
     pdfTextDocument,
     pdfTextIndexPreparing,
-    resetPdfiumTextDocument,
-  } = usePdfiumDocumentText({
-    articleId: article.id,
-    currentPageIndex: currentPage - 1,
-    document: loadedDocument,
-    engine,
-    openTrace,
-  });
+  } = documentText;
   const sourceReaderApp = useSourceReaderApp({
     articleActions,
     onOpenEvidenceSource,
@@ -319,13 +353,14 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     railRef: notesRef,
     viewportRef: surfaceRef,
   } = sourceReaderApp.surface;
+  const pageMetricsSource = usePdfiumPageMetrics({ canvasRef, pageCount });
   const {
     annotationRailViewportHeight,
     annotationRailViewportWidth,
     pageMetrics,
     pageMetricsRef,
     schedulePageMetricsUpdate,
-  } = usePdfiumPageMetrics({ canvasRef, pageCount });
+  } = pageMetricsSource;
   const {
     askSelection,
     newAnnotationIds,
@@ -342,7 +377,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     selectionAction,
     composer,
     clearSelection,
-    clearAnnotationUiState,
     openSelectionAction,
     setSelectionAction,
     setTemporaryBoxes,
@@ -355,7 +389,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     updatePdfiumSelectionAdjustment,
     finishPdfiumSelectionAdjustment,
   } = usePdfiumSelectionAdjustment({
-    articleId: article.id,
     canvasRef,
     contributorId: userProfile.id,
     document: loadedDocument,
@@ -396,7 +429,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     () => pdfiumVisibleAnnotations(annotations, boxes),
     [annotations, boxes],
   );
-  const { annotationRailLayout, disableAutoZoom } = usePdfiumReaderLayout({
+  const readerLayout = usePdfiumReaderLayout({
     annotationCount: annotations.length,
     articleId: article.id,
     canvasRef,
@@ -412,7 +445,8 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     visibleAnnotationCount: visiblePdfAnnotations.length,
     zoom,
   });
-  const { scrollToAnnotation, scrollToTocItem } = usePdfiumNavigation({
+  const { annotationRailLayout, disableAutoZoom } = readerLayout;
+  const navigation = usePdfiumNavigation({
     annotations,
     documentId,
     extractPageText: extractPdfiumPageText,
@@ -424,15 +458,14 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     onOpenAnnotation,
     onSetTocItems,
   });
+  const { scrollToAnnotation, scrollToTocItem } = navigation;
   const activeTocIndex = useMemo(
     () => activeTocIndexForOffset(tocItems, currentPage - 1),
     [currentPage, tocItems],
   );
 
-  usePdfiumOpenLifecycle({
+  const openLifecycleMarkers = usePdfiumOpenLifecycle({
     annotationCount: annotations.length,
-    articleId: article.id,
-    articlePageCount: article.pdf.metadata.pageCount,
     boxCount: boxes.length,
     currentPage,
     initialPageNumber,
@@ -441,15 +474,10 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     markPdfiumFirstPageReady,
     openTrace,
     pageMetrics,
-    resetPdfiumTextDocument,
     restoringInitialPage,
     schedulePageMetricsUpdate,
     scroll,
   });
-
-  useEffect(() => {
-    clearAnnotationUiState();
-  }, [article.id, clearAnnotationUiState]);
 
   const turnPdfPageFromKeyboard = useCallback(
     (direction: ReaderPageTurnDirection) => {
@@ -778,32 +806,40 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     },
     userProfile,
   });
-  useEffect(() => {
-    if (!loadedDocument || !pdfFirstPageReady) return;
+  const readAssistantTextInput = useEffectEvent(() => ({
+    articleId: article.id,
+    ensurePdfTextDocument,
+    loadedDocument,
+    pdfTextDocument,
+    tocItems,
+  }));
+  const saveAssistantText = useCallback((marker: HTMLElement | null) => {
+    const input = readAssistantTextInput();
+    const { loadedDocument: textSourceDocument } = input;
+    if (!marker || !textSourceDocument) return;
     let cancelled = false;
     void (async () => {
       const hasArticleText = getOptionalDesktopApi()?.assistant?.hasArticleText;
       // Full-text extraction is slow on long PDFs, so it runs only until main has a copy.
       if (!hasArticleText) return;
-      if (!pdfTextDocument && (await hasArticleText(article.id).catch(() => true))) return;
-      const textDocument = pdfTextDocument ?? (await ensurePdfTextDocument());
+      if (!input.pdfTextDocument && (await hasArticleText(input.articleId).catch(() => true))) {
+        return;
+      }
+      const textDocument = input.pdfTextDocument ?? (await input.ensurePdfTextDocument());
       if (cancelled) return;
-      saveAssistantArticleText(article.id, {
+      saveAssistantArticleText(input.articleId, {
         text: textDocument.text,
-        sections: pdfReaderReadingSections(textDocument, tocItems, loadedDocument.pages.length),
+        sections: pdfReaderReadingSections(
+          textDocument,
+          input.tocItems,
+          textSourceDocument.pages.length,
+        ),
       });
     })().catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, [
-    article.id,
-    ensurePdfTextDocument,
-    loadedDocument,
-    pdfFirstPageReady,
-    pdfTextDocument,
-    tocItems,
-  ]);
+  }, []);
   useAssistantPassageReveal(article.id, (start) => {
     void (async () => {
       const textDocument = pdfTextDocument ?? (await ensurePdfTextDocument());
@@ -811,16 +847,18 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
       if (page) scroll?.scrollToPage({ pageNumber: page.pageIndex + 1, behavior: 'smooth' });
     })().catch(() => undefined);
   });
-  useEffect(() => {
-    if (!searchOpen || !loadedDocument) return;
+  const readSearchTextInput = useEffectEvent(() => ({ ensurePdfTextDocument, setStatusMessage }));
+  const prepareSearchText = useCallback((marker: HTMLElement | null) => {
+    if (!marker) return;
+    const input = readSearchTextInput();
     let cancelled = false;
-    void ensurePdfTextDocument().catch(() => {
-      if (!cancelled) setStatusMessage(i18next.t('pdfReader.readFailed'));
+    void input.ensurePdfTextDocument().catch(() => {
+      if (!cancelled) input.setStatusMessage(i18next.t('pdfReader.readFailed'));
     });
     return () => {
       cancelled = true;
     };
-  }, [ensurePdfTextDocument, loadedDocument, searchOpen, setStatusMessage]);
+  }, []);
   const visibleReaderAppViewProps = selectionAction
     ? {
         ...readerAppViewProps,
@@ -860,6 +898,20 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
         </div>
       ) : null}
       <ReaderAppView {...visibleReaderAppViewProps} ref={readerSurfaceRef} />
+      {readingProgress.markers}
+      {documentText.prefetchMarker}
+      {pageMetricsSource.marker}
+      {readerLayout.markers}
+      {navigation.markers}
+      {openLifecycleMarkers}
+      {loadedDocument && pdfFirstPageReady ? (
+        <span
+          hidden
+          key={`${pdfTextDocument ? 'text' : 'pending'}:${tocVersion}`}
+          ref={saveAssistantText}
+        />
+      ) : null}
+      {searchOpen && loadedDocument ? <span hidden ref={prepareSearchText} /> : null}
     </section>
   );
 }

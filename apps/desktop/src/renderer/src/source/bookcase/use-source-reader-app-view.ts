@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
 import type { HighlightBox } from '@yomitomo/core';
-import type { SourceReaderAppSurface } from './use-source-reader-app';
+import type { SourceReaderAdapter, SourceReaderAppSurface } from './use-source-reader-app';
 import { useReaderSearchNavigation } from './use-reader-search-navigation';
 import type { useSourceReaderApp } from './use-source-reader-app';
 
@@ -11,6 +11,8 @@ type UseSourceReaderAppViewInput = Omit<SourceReaderAppSurface, 'annotations'> &
   app: SourceReaderApp;
 };
 
+type SearchReveal = () => ReturnType<SourceReaderAdapter['search']['revealSearchMatch']>;
+
 export function useSourceReaderAppView({
   adapter,
   annotations,
@@ -20,63 +22,25 @@ export function useSourceReaderAppView({
   userProfile,
   ...surface
 }: UseSourceReaderAppViewInput) {
-  const [searchBoxes, setSearchBoxes] = useState<HighlightBox[]>([]);
-  const clearSearchBoxes = useCallback(() => {
-    setSearchBoxes((current) => (current.length === 0 ? current : []));
-  }, []);
   const searchNavigation = useReaderSearchNavigation(adapter.search.text, {
     externalPreparing: adapter.search.externalPreparing,
-    onClose: clearSearchBoxes,
+    scopeKey: article.id,
   });
-
-  useEffect(() => {
-    searchNavigation.resetSearch();
-  }, [article.id, searchNavigation.resetSearch]);
-
-  useEffect(() => {
-    if (searchNavigation.preparing || !searchNavigation.open || !searchNavigation.activeMatch) {
-      clearSearchBoxes();
-    }
-  }, [
-    clearSearchBoxes,
-    searchNavigation.activeMatch,
-    searchNavigation.open,
-    searchNavigation.preparing,
-  ]);
-
-  useEffect(() => {
-    if (searchNavigation.preparing || !searchNavigation.open || !searchNavigation.activeMatch) {
-      return;
-    }
-
-    let cancelled = false;
-    void Promise.resolve(adapter.search.revealSearchMatch(searchNavigation.activeMatch)).then(
-      (nextBoxes) => {
-        if (!cancelled) {
-          setSearchBoxes(
-            nextBoxes.map((box) => ({
-              ...box,
-              annotationId: '__search__',
-              color: 'var(--reader-search-highlight-active)',
-              contributorId: '__search__',
-            })),
-          );
-        }
-      },
-      () => {
-        if (!cancelled) clearSearchBoxes();
-      },
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    adapter.search.revealSearchMatch,
-    clearSearchBoxes,
-    searchNavigation.activeMatch,
-    searchNavigation.open,
-    searchNavigation.preparing,
-  ]);
+  const { activeMatch } = searchNavigation;
+  const revealActive = Boolean(searchNavigation.open && !searchNavigation.preparing && activeMatch);
+  const { revealSearchMatch } = adapter.search;
+  const searchReveals = useMemo(createSearchRevealStore, []);
+  // Each reveal request is its own subscription, so a newer match unsubscribes and cancels the
+  // previous one.
+  const subscribeSearchReveal = useMemo(
+    () =>
+      searchReveals.reveal(
+        revealActive && activeMatch ? () => revealSearchMatch(activeMatch) : null,
+      ),
+    [activeMatch, revealActive, revealSearchMatch, searchReveals],
+  );
+  const revealedBoxes = useSyncExternalStore(subscribeSearchReveal, searchReveals.getBoxes);
+  const searchBoxes = revealActive ? revealedBoxes : noSearchBoxes;
 
   return {
     searchOpen: searchNavigation.open,
@@ -91,5 +55,41 @@ export function useSourceReaderAppView({
       },
       adapter.onAnnotationLayoutChange,
     ),
+  };
+}
+
+const noSearchBoxes: HighlightBox[] = [];
+
+function createSearchRevealStore() {
+  let boxes = noSearchBoxes;
+  return {
+    getBoxes: () => boxes,
+    reveal: (request: SearchReveal | null) => (listener: () => void) => {
+      if (!request) {
+        boxes = noSearchBoxes;
+        return () => undefined;
+      }
+      let cancelled = false;
+      const show = (nextBoxes: HighlightBox[]) => {
+        if (cancelled) return;
+        boxes = nextBoxes;
+        listener();
+      };
+      void Promise.resolve(request()).then(
+        (nextBoxes) =>
+          show(
+            nextBoxes.map((box) => ({
+              ...box,
+              annotationId: '__search__',
+              color: 'var(--reader-search-highlight-active)',
+              contributorId: '__search__',
+            })),
+          ),
+        () => show(noSearchBoxes),
+      );
+      return () => {
+        cancelled = true;
+      };
+    },
   };
 }

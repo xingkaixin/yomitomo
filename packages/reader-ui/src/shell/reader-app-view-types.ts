@@ -118,7 +118,7 @@ export type ReaderAnnotationModel = {
     token: number;
   } | null;
   filteredAnnotations: Annotation[];
-  newAnnotationIds?: Set<string>;
+  newAnnotationIds?: ReadonlySet<string>;
   searchBoxes?: HighlightBox[];
   showEmptyNotes?: boolean;
   temporaryBoxes: HighlightBox[];

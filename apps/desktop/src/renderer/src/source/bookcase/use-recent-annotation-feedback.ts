@@ -1,45 +1,73 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useReducer, useRef } from 'react';
 import type { ResolvedAppSettings } from '@yomitomo/shared';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import { playAppSoundEffect } from '../../sound/app-sound-effects';
 
 const annotationFeedbackDurationMs = 1200;
 
-export function useRecentAnnotationFeedback(scopeKey: string, settings?: ResolvedAppSettings) {
-  const [newAnnotationIds, setNewAnnotationIds] = useState<Set<string>>(() => new Set());
-  const timersRef = useRef(new Map<string, number>());
+type RecentAnnotationFeedbackState = {
+  newAnnotationIds: Set<string>;
+  scopeKey: string;
+};
 
-  const clearAll = useCallback(() => {
+type RecentAnnotationFeedbackEvent =
+  | { type: 'annotationCreated'; annotationId: string; scopeKey: string }
+  | { type: 'feedbackExpired'; annotationId: string; scopeKey: string }
+  | { type: 'scopeChanged'; scopeKey: string };
+
+function recentAnnotationFeedbackReducer(
+  state: RecentAnnotationFeedbackState,
+  event: RecentAnnotationFeedbackEvent,
+): RecentAnnotationFeedbackState {
+  switch (event.type) {
+    case 'annotationCreated':
+      if (event.scopeKey !== state.scopeKey) return state;
+      return {
+        ...state,
+        newAnnotationIds: new Set(state.newAnnotationIds).add(event.annotationId),
+      };
+    case 'feedbackExpired': {
+      if (event.scopeKey !== state.scopeKey || !state.newAnnotationIds.has(event.annotationId)) {
+        return state;
+      }
+      const newAnnotationIds = new Set(state.newAnnotationIds);
+      newAnnotationIds.delete(event.annotationId);
+      return { ...state, newAnnotationIds };
+    }
+    case 'scopeChanged':
+      return { newAnnotationIds: new Set(), scopeKey: event.scopeKey };
+  }
+}
+
+export function useRecentAnnotationFeedback(scopeKey: string, settings?: ResolvedAppSettings) {
+  const [state, dispatch] = useReducer(recentAnnotationFeedbackReducer, {
+    newAnnotationIds: new Set<string>(),
+    scopeKey,
+  });
+  const timersRef = useRef(new Map<string, number>());
+  if (state.scopeKey !== scopeKey) dispatch({ type: 'scopeChanged', scopeKey });
+
+  useMountEffect(() => () => {
     for (const timer of timersRef.current.values()) window.clearTimeout(timer);
     timersRef.current.clear();
-    setNewAnnotationIds(new Set());
-  }, []);
-
-  useEffect(() => {
-    clearAll();
-    return clearAll;
-  }, [clearAll, scopeKey]);
+  });
 
   const markAnnotationCreated = useCallback(
     (annotationId: string) => {
       playAppSoundEffect('reader.annotation_created', settings);
-      setNewAnnotationIds((current) => new Set(current).add(annotationId));
+      dispatch({ type: 'annotationCreated', annotationId, scopeKey });
 
       const existingTimer = timersRef.current.get(annotationId);
       if (existingTimer !== undefined) window.clearTimeout(existingTimer);
 
       const timer = window.setTimeout(() => {
         timersRef.current.delete(annotationId);
-        setNewAnnotationIds((current) => {
-          if (!current.has(annotationId)) return current;
-          const next = new Set(current);
-          next.delete(annotationId);
-          return next;
-        });
+        dispatch({ type: 'feedbackExpired', annotationId, scopeKey });
       }, annotationFeedbackDurationMs);
       timersRef.current.set(annotationId, timer);
     },
-    [settings],
+    [scopeKey, settings],
   );
 
-  return { markAnnotationCreated, newAnnotationIds };
+  return { markAnnotationCreated, newAnnotationIds: state.newAnnotationIds };
 }

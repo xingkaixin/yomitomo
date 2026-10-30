@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, type RefObject } from 'react';
+import { createElement, useCallback, useEffectEvent, useRef, type RefObject } from 'react';
 import type { HighlightBox } from '@yomitomo/core';
 import { recordRendererPerformanceTiming } from '../../shell/app-renderer-performance';
 import {
@@ -37,51 +37,67 @@ export function useWebAnnotationRailDiagnostics({
   selectedAnnotationId,
 }: UseWebAnnotationRailDiagnosticsInput) {
   const lastLogAtRef = useRef(0);
+  const scheduleRef = useRef<(() => void) | null>(null);
+  const readInput = useEffectEvent(() => ({ articleId, boxes, selectedAnnotationId }));
 
-  useLayoutEffect(() => {
-    if (!webAnnotationRailDebugEnabled()) return;
+  const attachRail = useCallback(
+    (marker: HTMLElement | null) => {
+      if (!marker || !webAnnotationRailDebugEnabled()) return;
 
-    const scrollElement = scrollRef.current;
-    const canvasElement = canvasRef.current;
-    const railElement = railRef.current;
-    if (!scrollElement || !canvasElement || !railElement) return;
+      const scrollElement = scrollRef.current;
+      const canvasElement = canvasRef.current;
+      const railElement = railRef.current;
+      if (!scrollElement || !canvasElement || !railElement) return;
 
-    let frame = 0;
-    const recordLayout = () => {
-      frame = 0;
-      const now = performance.now();
-      if (now - lastLogAtRef.current < WEB_ANNOTATION_RAIL_DEBUG_INTERVAL_MS) return;
-      lastLogAtRef.current = now;
-      recordAnnotationRailLayout({
-        articleId,
-        boxes,
-        canvasElement,
-        railElement,
-        scrollElement,
-        selectedAnnotationId,
-      });
-    };
-    const scheduleLayoutRecord = () => {
-      if (frame) return;
-      frame = window.requestAnimationFrame(recordLayout);
-    };
-    const resizeObserver =
-      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(scheduleLayoutRecord);
+      let frame = 0;
+      const recordLayout = () => {
+        frame = 0;
+        const now = performance.now();
+        if (now - lastLogAtRef.current < WEB_ANNOTATION_RAIL_DEBUG_INTERVAL_MS) return;
+        lastLogAtRef.current = now;
+        recordAnnotationRailLayout({
+          ...readInput(),
+          canvasElement,
+          railElement,
+          scrollElement,
+        });
+      };
+      const scheduleLayoutRecord = () => {
+        if (frame) return;
+        frame = window.requestAnimationFrame(recordLayout);
+      };
+      const resizeObserver =
+        typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(scheduleLayoutRecord);
 
-    scheduleLayoutRecord();
-    scrollElement.addEventListener('scroll', scheduleLayoutRecord, { passive: true });
-    window.addEventListener('resize', scheduleLayoutRecord);
-    resizeObserver?.observe(scrollElement);
-    resizeObserver?.observe(canvasElement);
-    resizeObserver?.observe(railElement);
+      scheduleRef.current = scheduleLayoutRecord;
+      scheduleLayoutRecord();
+      scrollElement.addEventListener('scroll', scheduleLayoutRecord, { passive: true });
+      window.addEventListener('resize', scheduleLayoutRecord);
+      resizeObserver?.observe(scrollElement);
+      resizeObserver?.observe(canvasElement);
+      resizeObserver?.observe(railElement);
 
-    return () => {
-      if (frame) window.cancelAnimationFrame(frame);
-      scrollElement.removeEventListener('scroll', scheduleLayoutRecord);
-      window.removeEventListener('resize', scheduleLayoutRecord);
-      resizeObserver?.disconnect();
-    };
-  }, [articleId, boxes, canvasRef, railRef, scrollRef, selectedAnnotationId]);
+      return () => {
+        if (scheduleRef.current === scheduleLayoutRecord) scheduleRef.current = null;
+        if (frame) window.cancelAnimationFrame(frame);
+        scrollElement.removeEventListener('scroll', scheduleLayoutRecord);
+        window.removeEventListener('resize', scheduleLayoutRecord);
+        resizeObserver?.disconnect();
+      };
+    },
+    [canvasRef, railRef, scrollRef],
+  );
+
+  const boxesMeasured = useCallback(() => scheduleRef.current?.(), []);
+
+  return {
+    boxesMeasured,
+    marker: createElement('span', {
+      hidden: true,
+      key: selectedAnnotationId ?? '',
+      ref: attachRail,
+    }),
+  };
 }
 
 function recordAnnotationRailLayout({

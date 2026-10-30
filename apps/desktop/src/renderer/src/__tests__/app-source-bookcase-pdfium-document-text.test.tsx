@@ -46,13 +46,12 @@ function renderPdfiumDocumentText({
 
   function Probe() {
     state = usePdfiumDocumentText({
-      articleId: 'article_1',
       currentPageIndex,
       document,
       engine,
       openTrace: { articleId: 'article_1', startedAt: performance.now() },
     });
-    return null;
+    return state.prefetchMarker;
   }
 
   render(<Probe />);
@@ -166,7 +165,7 @@ describe('usePdfiumDocumentText', () => {
     expect(extractText.mock.calls.map((call) => call[1]?.[0])).toEqual([1, 0, 2, 3]);
   });
 
-  it('stops queuing old pages when the document is reset', async () => {
+  it('stops queuing old pages when the reader unmounts', async () => {
     const pending = createDeferred<string>();
     const extractText = vi.fn(() => ({ toPromise: () => pending.promise }));
     const state = renderPdfiumDocumentText({
@@ -184,14 +183,12 @@ describe('usePdfiumDocumentText', () => {
     expect(extractText).toHaveBeenCalledTimes(2);
     expect(state().pdfTextIndexPreparing).toBe(true);
 
+    cleanup();
     await act(async () => {
-      state().resetPdfiumTextDocument();
       pending.resolve('old page');
       await rejected;
     });
 
     expect(extractText).toHaveBeenCalledTimes(2);
-    expect(state().pdfTextDocument).toBeNull();
-    expect(state().pdfTextIndexPreparing).toBe(false);
   });
 });

@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import {
+  createElement,
+  useCallback,
+  useEffectEvent,
+  useReducer,
+  useRef,
+  type RefObject,
+} from 'react';
 import type { Annotation, ArticleRecord, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { resolveTextAnchor } from '@yomitomo/shared';
 import {
@@ -31,8 +38,27 @@ type UseWebReaderBoxesInput = {
   articleRef: RefObject<HTMLElement | null>;
   canvasRef: RefObject<HTMLDivElement | null>;
   contentHtml: string;
+  onMeasured?: (result: WebReaderBoxesResult, outlineChanged: boolean) => void;
   userProfile: UserProfile;
 };
+
+export type WebReaderBoxesResult = {
+  boxes: HighlightBox[];
+  text: string;
+  tocItems: TocItem[];
+};
+
+type WebReaderBoxesEvent = { type: 'measured' } & WebReaderBoxesResult;
+
+const emptyWebReaderBoxes: WebReaderBoxesResult = { boxes: [], text: '', tocItems: [] };
+const emptyResultSignature = { boxes: '', text: '', tocItems: '' };
+
+function webReaderBoxesReducer(
+  _state: WebReaderBoxesResult,
+  { boxes, text, tocItems }: WebReaderBoxesEvent,
+) {
+  return { boxes, text, tocItems };
+}
 
 export function useWebReaderBoxes({
   annotationAgents,
@@ -41,113 +67,148 @@ export function useWebReaderBoxes({
   articleRef,
   canvasRef,
   contentHtml,
+  onMeasured,
   userProfile,
 }: UseWebReaderBoxesInput) {
-  const [boxes, setBoxes] = useState<HighlightBox[]>([]);
-  const [tocItems, setTocItems] = useState<TocItem[]>([]);
-  const lastResultSignatureRef = useRef('');
-  const inputRef = useRef({ annotationAgents, annotations, article, contentHtml, userProfile });
-  inputRef.current = { annotationAgents, annotations, article, contentHtml, userProfile };
-  const articleId = article.id;
-  const articleTitle = article.title;
-  const annotationBoxesSignature = webReaderAnnotationBoxesSignature(
+  const [result, dispatch] = useReducer(webReaderBoxesReducer, emptyWebReaderBoxes);
+  const lastResultRef = useRef(emptyResultSignature);
+  const measureRef = useRef<((force?: boolean) => void) | null>(null);
+  const readInput = useEffectEvent(() => ({
+    annotationAgents,
+    annotations,
+    article,
+    contentHtml,
+    onMeasured,
+    userProfile,
+  }));
+  const annotationLayoutKey = `annotations\n${article.title}\n${webReaderAnnotationBoxesSignature(
     annotations,
     userProfile,
     annotationAgents,
+  )}`;
+
+  const publish = useCallback((next: WebReaderBoxesResult, outlineChanged: boolean) => {
+    dispatch({ type: 'measured', ...next });
+    readInput().onMeasured?.(next, outlineChanged);
+  }, []);
+
+  // Rendered html replaces the article body, so measurement restarts with new observers.
+  const attachContent = useCallback(
+    (marker: HTMLElement | null) => {
+      if (!marker) return;
+      const articleElement = articleRef.current;
+      const canvasElement = canvasRef.current;
+      if (!articleElement || !canvasElement) {
+        lastResultRef.current = emptyResultSignature;
+        publish(emptyWebReaderBoxes, true);
+        return;
+      }
+
+      let frame = 0;
+      let lastLayoutSignature = '';
+      const updateBoxes = (force = false) => {
+        const layoutSignature = webReaderBoxesLayoutSignature(articleElement, canvasElement);
+        if (!force && layoutSignature === lastLayoutSignature) return;
+        lastLayoutSignature = layoutSignature;
+        if (frame) return;
+        frame = window.requestAnimationFrame(() => {
+          frame = 0;
+          const currentInput = readInput();
+          const startedAt = performance.now();
+          const sourceRangeResolver = prepareTextOffsetRangeResolver(
+            articleElement,
+            '[data-reader-translation]',
+          );
+          const text = sourceRangeResolver.text;
+          const canvasRect = canvasElement.getBoundingClientRect();
+          const extractedTocItems = extractTocItems(articleElement, sourceTocOptions);
+          const nextTocItems =
+            extractedTocItems.length > 0
+              ? extractedTocItems
+              : articleTitleTocItems(articleElement, currentInput.article.title);
+          let resolvedAnchorCount = 0;
+          let rangeCount = 0;
+          const nextBoxes = currentInput.annotations.flatMap((annotation) => {
+            const range = annotation.anchor.segmentId
+              ? rangeForTranslationTextAnchor(articleElement, annotation.anchor)
+              : (() => {
+                  const position = resolveTextAnchor(text, annotation.anchor);
+                  if (!position) return null;
+                  return sourceRangeResolver.range(position.start, position.end);
+                })();
+            if (!range) return [];
+            resolvedAnchorCount += 1;
+            rangeCount += 1;
+            return rangeHighlightBoxes(range, canvasRect, annotation.id).map((box) =>
+              Object.assign(box, {
+                annotationId: annotation.id,
+                contributorId: webReaderAnnotationContributorId(annotation),
+                color: annotationColor(
+                  annotation,
+                  currentInput.userProfile,
+                  currentInput.annotationAgents,
+                ),
+              }),
+            );
+          });
+          const resultSignature = {
+            boxes: webReaderBoxesSignature(nextBoxes),
+            text,
+            tocItems: webReaderTocItemsSignature(nextTocItems),
+          };
+          const lastResult = lastResultRef.current;
+          const outlineChanged =
+            lastResult.text !== text || lastResult.tocItems !== resultSignature.tocItems;
+          if (!outlineChanged && lastResult.boxes === resultSignature.boxes) return;
+          lastResultRef.current = resultSignature;
+          publish({ boxes: nextBoxes, text, tocItems: nextTocItems }, outlineChanged);
+          recordRendererPerformanceTiming('reader_highlight_boxes', {
+            source: 'web',
+            elapsedMs: rendererPerformanceElapsedMs(startedAt),
+            articleId: currentInput.article.id,
+            annotationCount: currentInput.annotations.length,
+            resolvedAnchorCount,
+            rangeCount,
+            boxCount: nextBoxes.length,
+            textChars: text.length,
+            tocItemCount: nextTocItems.length,
+            contentHtmlChars: currentInput.contentHtml.length,
+          });
+        });
+      };
+
+      measureRef.current = updateBoxes;
+      updateBoxes(true);
+      const resizeObserver = new ResizeObserver(() => updateBoxes());
+      resizeObserver.observe(articleElement);
+      resizeObserver.observe(canvasElement);
+      const updateBoxesForWindowResize = () => updateBoxes();
+      window.addEventListener('resize', updateBoxesForWindowResize);
+
+      return () => {
+        if (measureRef.current === updateBoxes) measureRef.current = null;
+        window.cancelAnimationFrame(frame);
+        resizeObserver.disconnect();
+        window.removeEventListener('resize', updateBoxesForWindowResize);
+      };
+    },
+    [articleRef, canvasRef, publish],
   );
 
-  useEffect(() => {
-    const articleElement = articleRef.current;
-    const canvasElement = canvasRef.current;
-    if (!articleElement || !canvasElement) {
-      lastResultSignatureRef.current = '';
-      setBoxes([]);
-      setTocItems([]);
-      return;
-    }
+  const remeasure = useCallback((marker: HTMLElement | null) => {
+    if (marker) measureRef.current?.(true);
+  }, []);
 
-    let frame = 0;
-    let lastLayoutSignature = '';
-    const updateBoxes = (force = false) => {
-      const layoutSignature = webReaderBoxesLayoutSignature(articleElement, canvasElement);
-      if (!force && layoutSignature === lastLayoutSignature) return;
-      lastLayoutSignature = layoutSignature;
-      if (frame) return;
-      frame = window.requestAnimationFrame(() => {
-        frame = 0;
-        const currentInput = inputRef.current;
-        const startedAt = performance.now();
-        const sourceRangeResolver = prepareTextOffsetRangeResolver(
-          articleElement,
-          '[data-reader-translation]',
-        );
-        const text = sourceRangeResolver.text;
-        const canvasRect = canvasElement.getBoundingClientRect();
-        const extractedTocItems = extractTocItems(articleElement, sourceTocOptions);
-        const nextTocItems =
-          extractedTocItems.length > 0
-            ? extractedTocItems
-            : articleTitleTocItems(articleElement, currentInput.article.title);
-        let resolvedAnchorCount = 0;
-        let rangeCount = 0;
-        const nextBoxes = currentInput.annotations.flatMap((annotation) => {
-          const range = annotation.anchor.segmentId
-            ? rangeForTranslationTextAnchor(articleElement, annotation.anchor)
-            : (() => {
-                const position = resolveTextAnchor(text, annotation.anchor);
-                if (!position) return null;
-                return sourceRangeResolver.range(position.start, position.end);
-              })();
-          if (!range) return [];
-          resolvedAnchorCount += 1;
-          rangeCount += 1;
-          return rangeHighlightBoxes(range, canvasRect, annotation.id).map((box) =>
-            Object.assign(box, {
-              annotationId: annotation.id,
-              contributorId: webReaderAnnotationContributorId(annotation),
-              color: annotationColor(
-                annotation,
-                currentInput.userProfile,
-                currentInput.annotationAgents,
-              ),
-            }),
-          );
-        });
-        const resultSignature = webReaderBoxesResultSignature(nextBoxes, nextTocItems);
-        if (lastResultSignatureRef.current === resultSignature) return;
-        lastResultSignatureRef.current = resultSignature;
-        setTocItems(nextTocItems);
-        setBoxes(nextBoxes);
-        recordRendererPerformanceTiming('reader_highlight_boxes', {
-          source: 'web',
-          elapsedMs: rendererPerformanceElapsedMs(startedAt),
-          articleId: currentInput.article.id,
-          annotationCount: currentInput.annotations.length,
-          resolvedAnchorCount,
-          rangeCount,
-          boxCount: nextBoxes.length,
-          textChars: text.length,
-          tocItemCount: nextTocItems.length,
-          contentHtmlChars: currentInput.contentHtml.length,
-        });
-      });
-    };
-
-    updateBoxes(true);
-    const resizeObserver = new ResizeObserver(() => updateBoxes());
-    resizeObserver.observe(articleElement);
-    resizeObserver.observe(canvasElement);
-    const updateBoxesForWindowResize = () => updateBoxes();
-    window.addEventListener('resize', updateBoxesForWindowResize);
-
-    return () => {
-      window.cancelAnimationFrame(frame);
-      resizeObserver.disconnect();
-      window.removeEventListener('resize', updateBoxesForWindowResize);
-    };
-  }, [annotationBoxesSignature, articleId, articleTitle, articleRef, canvasRef, contentHtml]);
-
-  return { boxes, tocItems };
+  return {
+    boxes: result.boxes,
+    // Rendered after the reader surface so the article and canvas exist when the markers mount.
+    markers: [
+      createElement('span', { hidden: true, key: contentHtml, ref: attachContent }),
+      createElement('span', { hidden: true, key: annotationLayoutKey, ref: remeasure }),
+    ],
+    text: result.text,
+    tocItems: result.tocItems,
+  };
 }
 
 function webReaderBoxesLayoutSignature(articleElement: HTMLElement, canvasElement: HTMLElement) {
@@ -166,18 +227,19 @@ function canvasCoordinateSignature(element: HTMLElement) {
   return `${Math.round(rect.left)}:${Math.round(rect.width)}`;
 }
 
-function webReaderBoxesResultSignature(boxes: HighlightBox[], tocItems: TocItem[]) {
-  return [
-    boxes
-      .map(
-        (box) =>
-          `${box.id}:${box.annotationId}:${box.contributorId || ''}:${box.color}:${roundedBoxValue(box.top)}:${roundedBoxValue(box.left)}:${roundedBoxValue(box.width)}:${roundedBoxValue(box.height)}`,
-      )
-      .join('|'),
-    tocItems
-      .map((item) => `${item.index}:${item.depth}:${item.start}:${item.end}:${item.text}`)
-      .join('|'),
-  ].join('||');
+function webReaderBoxesSignature(boxes: HighlightBox[]) {
+  return boxes
+    .map(
+      (box) =>
+        `${box.id}:${box.annotationId}:${box.contributorId || ''}:${box.color}:${roundedBoxValue(box.top)}:${roundedBoxValue(box.left)}:${roundedBoxValue(box.width)}:${roundedBoxValue(box.height)}`,
+    )
+    .join('|');
+}
+
+function webReaderTocItemsSignature(tocItems: TocItem[]) {
+  return tocItems
+    .map((item) => `${item.index}:${item.depth}:${item.start}:${item.end}:${item.text}`)
+    .join('|');
 }
 
 function roundedBoxValue(value: number) {

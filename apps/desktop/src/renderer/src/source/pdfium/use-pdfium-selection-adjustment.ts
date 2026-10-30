@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import type { PdfEngine, PdfPageGeometry } from '@embedpdf/models';
 import { isPdfTextAnchor } from '@yomitomo/shared';
 import { selectionActionPosition, type HighlightBox } from '@yomitomo/core';
@@ -38,8 +38,13 @@ type PdfiumSelectionAdjustmentSource = {
 
 type PdfiumSelectionAdjustmentState = PdfiumSelectionAdjustment & PdfiumSelectionAdjustmentSource;
 
+type PdfiumSelectionAdjustmentCache = {
+  document: PdfiumLoadedDocument | undefined;
+  geometries: Map<number, Promise<PdfPageGeometry | null>>;
+  sources: Map<number, PdfiumSelectionAdjustmentSource>;
+};
+
 type PdfiumSelectionAdjustmentOptions = {
-  articleId: string;
   canvasRef: React.RefObject<HTMLDivElement | null>;
   contributorId: string;
   document: PdfiumLoadedDocument | undefined;
@@ -52,7 +57,6 @@ type PdfiumSelectionAdjustmentOptions = {
 };
 
 export function usePdfiumSelectionAdjustment({
-  articleId,
   canvasRef,
   contributorId,
   document,
@@ -65,18 +69,25 @@ export function usePdfiumSelectionAdjustment({
 }: PdfiumSelectionAdjustmentOptions) {
   const adjustmentRef = useRef<PdfiumSelectionAdjustmentState | null>(null);
   const requestRef = useRef(0);
-  const sourceRef = useRef(new Map<number, PdfiumSelectionAdjustmentSource>());
-  const geometryRef = useRef(new Map<number, Promise<PdfPageGeometry | null>>());
+  const cacheRef = useRef<PdfiumSelectionAdjustmentCache>({
+    document,
+    geometries: new Map(),
+    sources: new Map(),
+  });
 
-  useEffect(() => {
-    adjustmentRef.current = null;
-    requestRef.current += 1;
-    sourceRef.current = new Map();
-    geometryRef.current = new Map();
-  }, [articleId, document]);
+  // Page sources belong to one loaded document; a new document drops them and any pending drag.
+  function currentCache() {
+    if (cacheRef.current.document !== document) {
+      adjustmentRef.current = null;
+      requestRef.current += 1;
+      cacheRef.current = { document, geometries: new Map(), sources: new Map() };
+    }
+    return cacheRef.current;
+  }
 
   function ensurePdfiumSelectionGeometry(pageIndex: number) {
-    const cached = geometryRef.current.get(pageIndex);
+    const { geometries } = currentCache();
+    const cached = geometries.get(pageIndex);
     if (cached) return cached;
 
     const page = document?.pages[pageIndex];
@@ -86,12 +97,13 @@ export function usePdfiumSelectionAdjustment({
       .getPageGeometry(document, page)
       .toPromise()
       .catch(() => null);
-    geometryRef.current.set(pageIndex, pending);
+    geometries.set(pageIndex, pending);
     return pending;
   }
 
   async function preparePdfiumSelectionAdjustmentSource(pageIndex: number) {
-    const cached = sourceRef.current.get(pageIndex);
+    const { sources } = currentCache();
+    const cached = sources.get(pageIndex);
     if (cached) return cached;
 
     const page = document?.pages[pageIndex];
@@ -111,11 +123,12 @@ export function usePdfiumSelectionAdjustment({
       pageText,
       pageWidth: page.size.width,
     };
-    sourceRef.current.set(pageIndex, adjustmentSource);
+    sources.set(pageIndex, adjustmentSource);
     return adjustmentSource;
   }
 
   function startPdfiumSelectionAdjustment(point: SelectionAdjustmentPointer) {
+    const { sources } = currentCache();
     const anchor = selectionAction?.anchor;
     if (
       !anchor ||
@@ -141,7 +154,7 @@ export function usePdfiumSelectionAdjustment({
       };
     };
 
-    const cached = sourceRef.current.get(anchor.pageIndex);
+    const cached = sources.get(anchor.pageIndex);
     if (cached) {
       commitAdjustment(cached);
       return;
@@ -151,6 +164,7 @@ export function usePdfiumSelectionAdjustment({
   }
 
   function updatePdfiumSelectionAdjustment(point: SelectionAdjustmentPointer) {
+    currentCache();
     const adjustment = adjustmentRef.current;
     const canvas = canvasRef.current;
     if (!adjustment || adjustment.handle !== point.handle || !canvas) return;

@@ -628,7 +628,7 @@ function WebFocusDriver(props: SourceBookcaseProps) {
   const annotationsRef = useRef(props.content.annotations);
   annotationsRef.current = props.content.annotations;
   const scrollRef = useRef(document.createElement('div'));
-  useWebAnnotationFocus({
+  const focusMarker = useWebAnnotationFocus({
     annotationsRef,
     articleId: props.content.article!.id,
     boxCount: 1,
@@ -637,7 +637,7 @@ function WebFocusDriver(props: SourceBookcaseProps) {
     scrollRef,
     scrollToAnnotation: () => true,
   });
-  return <div data-testid="source-bookcase" />;
+  return <div data-testid="source-bookcase">{focusMarker}</div>;
 }
 
 function renderReadingLibrary(options: ReadingLibraryTestOptions) {

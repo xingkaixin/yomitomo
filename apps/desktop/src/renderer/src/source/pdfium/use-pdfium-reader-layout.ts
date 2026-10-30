@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import {
+  createElement,
+  useCallback,
+  useEffectEvent,
+  useMemo,
+  useReducer,
+  useRef,
+  type RefObject,
+} from 'react';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import { computeAutoPdfZoom, pdfiumAnnotationRailLayout } from './pdfium-annotation-layout';
 import {
   firstVisiblePdfPageWidth,
@@ -13,6 +22,61 @@ import {
   debugRect,
   pdfLayoutDebugEnabled,
 } from './pdfium-layout-debug';
+
+type PdfReaderLayoutState = {
+  autoZoomEnabled: boolean;
+  documentScale: number | undefined;
+  layoutPageWidth: number;
+  pageMetrics: Record<number, PageMetric> | null;
+  resetLayoutPageWidth: boolean;
+};
+
+type PdfReaderLayoutEvent =
+  | {
+      type: 'layoutInputsChanged';
+      documentScale: number | undefined;
+      pageMetrics: Record<number, PageMetric>;
+    }
+  | { type: 'zoomChangedByUser' };
+
+const initialPdfReaderLayoutState: PdfReaderLayoutState = {
+  autoZoomEnabled: true,
+  documentScale: undefined,
+  layoutPageWidth: 0,
+  pageMetrics: null,
+  resetLayoutPageWidth: true,
+};
+
+function pdfReaderLayoutReducer(
+  state: PdfReaderLayoutState,
+  event: PdfReaderLayoutEvent,
+): PdfReaderLayoutState {
+  if (event.type === 'zoomChangedByUser') {
+    return state.autoZoomEnabled ? { ...state, autoZoomEnabled: false } : state;
+  }
+  let { layoutPageWidth, resetLayoutPageWidth } = state;
+  if (event.pageMetrics !== state.pageMetrics) {
+    const pageWidth = firstVisiblePdfPageWidth(event.pageMetrics);
+    if (pageWidth) {
+      layoutPageWidth =
+        resetLayoutPageWidth || layoutPageWidth <= 0
+          ? pageWidth
+          : Math.min(layoutPageWidth, pageWidth);
+      resetLayoutPageWidth = false;
+    }
+  }
+  // A new zoom scale lets the next measured page width replace the narrowest one seen so far.
+  if (event.documentScale !== state.documentScale && event.documentScale) {
+    resetLayoutPageWidth = true;
+  }
+  return {
+    ...state,
+    documentScale: event.documentScale,
+    layoutPageWidth,
+    pageMetrics: event.pageMetrics,
+    resetLayoutPageWidth,
+  };
+}
 
 export function usePdfiumReaderLayout({
   annotationCount,
@@ -45,25 +109,23 @@ export function usePdfiumReaderLayout({
   visibleAnnotationCount: number;
   zoom: number;
 }) {
-  const [layoutPageWidth, setLayoutPageWidth] = useState(0);
-  const resetLayoutPageWidthRef = useRef(true);
-  const [autoZoomEnabled, setAutoZoomEnabled] = useState(true);
+  const [layout, dispatch] = useReducer(
+    pdfReaderLayoutReducer,
+    { documentScale, pageMetrics },
+    (inputs) =>
+      pdfReaderLayoutReducer(initialPdfReaderLayoutState, {
+        type: 'layoutInputsChanged',
+        ...inputs,
+      }),
+  );
+  if (layout.pageMetrics !== pageMetrics || layout.documentScale !== documentScale) {
+    dispatch({ type: 'layoutInputsChanged', documentScale, pageMetrics });
+  }
+  const { autoZoomEnabled, layoutPageWidth } = layout;
   const appliedAutoZoomRef = useRef<number | null>(null);
-  // EmbedPDF recreates its controls object during render, so effects must read its latest method
+  // EmbedPDF recreates its controls object during render, so markers read its latest method
   // without treating that object identity as a zoom trigger.
-  const requestZoomRef = useRef(requestZoom);
-  requestZoomRef.current = requestZoom;
-
-  useEffect(() => {
-    const pageWidth = firstVisiblePdfPageWidth(pageMetrics);
-    if (!pageWidth) return;
-    const shouldReset = resetLayoutPageWidthRef.current;
-    if (shouldReset) resetLayoutPageWidthRef.current = false;
-    setLayoutPageWidth((current) => {
-      const nextWidth = shouldReset || current <= 0 ? pageWidth : Math.min(current, pageWidth);
-      return current === nextWidth ? current : nextWidth;
-    });
-  }, [pageMetrics]);
+  const zoomRequested = useEffectEvent((scale: number) => requestZoom?.(scale));
 
   const annotationRailLayout = useMemo(
     () =>
@@ -76,133 +138,176 @@ export function usePdfiumReaderLayout({
       ),
     [canvasRef, layoutPageWidth, pageMetrics, viewportHeight, viewportWidth],
   );
+  const autoZoomScale = autoZoomEnabled
+    ? computeAutoPdfZoom({ viewportWidth, baseWidth: pdfBaseWidth })
+    : null;
+  const readAutoZoomScale = useEffectEvent(() => autoZoomScale);
 
-  useEffect(() => {
-    if (!autoZoomEnabled) return;
-    const scale = computeAutoPdfZoom({ viewportWidth, baseWidth: pdfBaseWidth });
-    if (scale == null || appliedAutoZoomRef.current === scale) return;
+  const applyAutoZoom = useCallback((marker: HTMLElement | null) => {
+    const scale = readAutoZoomScale();
+    if (!marker || scale == null || appliedAutoZoomRef.current === scale) return;
     appliedAutoZoomRef.current = scale;
-    requestZoomRef.current?.(scale);
-  }, [autoZoomEnabled, pdfBaseWidth, viewportWidth]);
+    zoomRequested(scale);
+  }, []);
 
-  useEffect(() => {
-    if (annotationRailLayout) schedulePageMetricsUpdate();
-  }, [annotationRailLayout?.mode, schedulePageMetricsUpdate]);
+  const remeasurePages = useCallback(
+    (marker: HTMLElement | null) => {
+      if (marker) schedulePageMetricsUpdate();
+    },
+    [schedulePageMetricsUpdate],
+  );
 
-  useEffect(() => {
-    if (!documentScale) return;
-    resetLayoutPageWidthRef.current = true;
-    schedulePageMetricsUpdate();
-  }, [documentScale, schedulePageMetricsUpdate]);
-
-  useEffect(() => {
+  useMountEffect(() => {
     debugPdfLayout('debug-enabled', { articleId });
-  }, [articleId]);
+  });
 
-  useEffect(() => {
-    if (!annotationRailLayout || !pdfLayoutDebugEnabled()) return;
-    const pageWidth = firstVisiblePdfPageWidth(pageMetrics);
-    debugPdfLayout('layout', {
-      layoutPageWidth,
-      mode: annotationRailLayout.mode,
-      pageWidth,
-      railWidth: annotationRailLayout.railWidth,
-      rightRailLeft: annotationRailLayout.rightRailLeft,
-      viewportWidth,
-      zoom,
-    });
-  }, [annotationRailLayout, layoutPageWidth, pageMetrics, viewportWidth, zoom]);
-
-  useEffect(() => {
-    if (!pdfLayoutDebugEnabled()) return;
-    const frame = window.requestAnimationFrame(() => {
-      const canvas = canvasRef.current;
-      const surface = surfaceRef.current;
-      const rail = notesRef.current;
-      const empty = canvas?.querySelector<HTMLElement>('.reader-empty') ?? null;
-      const viewport = canvas?.querySelector<HTMLElement>('.pdfium-spike-viewport') ?? null;
-      const firstPage = canvas?.querySelector<HTMLElement>('[data-pdfium-page-index]') ?? null;
-      const readerApp = canvas?.closest<HTMLElement>('.reader-app') ?? null;
-      const readerMain = canvas?.closest<HTMLElement>('.reader-main') ?? null;
-      const pdfReaderMain = canvas?.closest<HTMLElement>('.pdf-reader-main') ?? null;
-      const shell = canvas?.closest<HTMLElement>('.source-pdf-reader-shell') ?? null;
-
-      debugPdfLayout('empty-state', {
-        annotationCount,
-        appClasses: readerApp?.className ?? null,
-        canvasRect: debugRect(canvas?.getBoundingClientRect()),
-        emptyComputed: debugComputedStyle(empty),
-        emptyExists: Boolean(empty),
-        emptyRect: debugRect(empty?.getBoundingClientRect()),
-        firstPageRect: debugRect(firstPage?.getBoundingClientRect()),
-        layout: annotationRailLayout ?? null,
-        layoutPageWidth,
-        pageMetricKeys: Object.keys(pageMetrics),
-        pdfReaderMainComputed: debugComputedStyle(pdfReaderMain),
-        pdfReaderMainRect: debugRect(pdfReaderMain?.getBoundingClientRect()),
-        railComputed: debugComputedStyle(rail),
-        railRect: debugRect(rail?.getBoundingClientRect()),
-        readerMainComputed: debugComputedStyle(readerMain),
-        readerMainRect: debugRect(readerMain?.getBoundingClientRect()),
-        shellComputed: debugComputedStyle(shell),
-        shellRect: debugRect(shell?.getBoundingClientRect()),
-        surfaceRect: debugRect(surface?.getBoundingClientRect()),
-        viewportHeight,
-        viewportRect: debugRect(viewport?.getBoundingClientRect()),
-        viewportWidth,
-        visibleAnnotationCount,
-        zoom,
-      });
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [
+  const readDebugInput = useEffectEvent(() => ({
     annotationCount,
     annotationRailLayout,
-    canvasRef,
     layoutPageWidth,
-    notesRef,
     pageMetrics,
-    surfaceRef,
     viewportHeight,
     viewportWidth,
     visibleAnnotationCount,
     zoom,
-  ]);
+  }));
 
-  useEffect(() => {
-    const rail = notesRef.current;
-    if (!rail) return;
-    const handleWheel = (event: WheelEvent) => {
-      const target = event.target instanceof Element ? event.target : null;
-      const viewport =
-        canvasRef.current?.querySelector<HTMLElement>('.pdfium-spike-viewport') ?? null;
-      if (!viewport) return;
-      const delta = pdfiumWheelDeltaPixels(event, viewport.clientHeight);
-      const viewportCanScroll =
-        pdfiumScrollSnapshotCanConsumeDelta(
-          {
-            clientSize: viewport.clientHeight,
-            scrollOffset: viewport.scrollTop,
-            scrollSize: viewport.scrollHeight,
-          },
-          delta.y,
-        ) ||
-        pdfiumScrollSnapshotCanConsumeDelta(
-          {
-            clientSize: viewport.clientWidth,
-            scrollOffset: viewport.scrollLeft,
-            scrollSize: viewport.scrollWidth,
-          },
-          delta.x,
-        );
-      if (!viewportCanScroll || pdfiumRailWheelHasLocalScrollTarget(target, rail, delta)) return;
-      event.preventDefault();
-      viewport.scrollBy({ left: delta.x, top: delta.y, behavior: 'auto' });
-    };
-    rail.addEventListener('wheel', handleWheel, { passive: false });
-    return () => rail.removeEventListener('wheel', handleWheel);
-  }, [canvasRef, notesRef]);
+  const logLayout = useCallback(
+    (marker: HTMLElement | null) => {
+      if (!marker) return;
+      const input = readDebugInput();
+      if (input.annotationRailLayout) {
+        debugPdfLayout('layout', {
+          layoutPageWidth: input.layoutPageWidth,
+          mode: input.annotationRailLayout.mode,
+          pageWidth: firstVisiblePdfPageWidth(input.pageMetrics),
+          railWidth: input.annotationRailLayout.railWidth,
+          rightRailLeft: input.annotationRailLayout.rightRailLeft,
+          viewportWidth: input.viewportWidth,
+          zoom: input.zoom,
+        });
+      }
+      const frame = window.requestAnimationFrame(() => {
+        const canvas = canvasRef.current;
+        const surface = surfaceRef.current;
+        const rail = notesRef.current;
+        const empty = canvas?.querySelector<HTMLElement>('.reader-empty') ?? null;
+        const viewport = canvas?.querySelector<HTMLElement>('.pdfium-spike-viewport') ?? null;
+        const firstPage = canvas?.querySelector<HTMLElement>('[data-pdfium-page-index]') ?? null;
+        const readerApp = canvas?.closest<HTMLElement>('.reader-app') ?? null;
+        const readerMain = canvas?.closest<HTMLElement>('.reader-main') ?? null;
+        const pdfReaderMain = canvas?.closest<HTMLElement>('.pdf-reader-main') ?? null;
+        const shell = canvas?.closest<HTMLElement>('.source-pdf-reader-shell') ?? null;
 
-  const disableAutoZoom = useCallback(() => setAutoZoomEnabled(false), []);
-  return { annotationRailLayout, disableAutoZoom };
+        debugPdfLayout('empty-state', {
+          annotationCount: input.annotationCount,
+          appClasses: readerApp?.className ?? null,
+          canvasRect: debugRect(canvas?.getBoundingClientRect()),
+          emptyComputed: debugComputedStyle(empty),
+          emptyExists: Boolean(empty),
+          emptyRect: debugRect(empty?.getBoundingClientRect()),
+          firstPageRect: debugRect(firstPage?.getBoundingClientRect()),
+          layout: input.annotationRailLayout ?? null,
+          layoutPageWidth: input.layoutPageWidth,
+          pageMetricKeys: Object.keys(input.pageMetrics),
+          pdfReaderMainComputed: debugComputedStyle(pdfReaderMain),
+          pdfReaderMainRect: debugRect(pdfReaderMain?.getBoundingClientRect()),
+          railComputed: debugComputedStyle(rail),
+          railRect: debugRect(rail?.getBoundingClientRect()),
+          readerMainComputed: debugComputedStyle(readerMain),
+          readerMainRect: debugRect(readerMain?.getBoundingClientRect()),
+          shellComputed: debugComputedStyle(shell),
+          shellRect: debugRect(shell?.getBoundingClientRect()),
+          surfaceRect: debugRect(surface?.getBoundingClientRect()),
+          viewportHeight: input.viewportHeight,
+          viewportRect: debugRect(viewport?.getBoundingClientRect()),
+          viewportWidth: input.viewportWidth,
+          visibleAnnotationCount: input.visibleAnnotationCount,
+          zoom: input.zoom,
+        });
+      });
+      return () => window.cancelAnimationFrame(frame);
+    },
+    [canvasRef, notesRef, surfaceRef],
+  );
+
+  const attachRailWheel = useCallback(
+    (marker: HTMLElement | null) => {
+      const rail = notesRef.current;
+      if (!marker || !rail) return;
+      const handleWheel = (event: WheelEvent) => {
+        const target = event.target instanceof Element ? event.target : null;
+        const viewport =
+          canvasRef.current?.querySelector<HTMLElement>('.pdfium-spike-viewport') ?? null;
+        if (!viewport) return;
+        const delta = pdfiumWheelDeltaPixels(event, viewport.clientHeight);
+        const viewportCanScroll =
+          pdfiumScrollSnapshotCanConsumeDelta(
+            {
+              clientSize: viewport.clientHeight,
+              scrollOffset: viewport.scrollTop,
+              scrollSize: viewport.scrollHeight,
+            },
+            delta.y,
+          ) ||
+          pdfiumScrollSnapshotCanConsumeDelta(
+            {
+              clientSize: viewport.clientWidth,
+              scrollOffset: viewport.scrollLeft,
+              scrollSize: viewport.scrollWidth,
+            },
+            delta.x,
+          );
+        if (!viewportCanScroll || pdfiumRailWheelHasLocalScrollTarget(target, rail, delta)) return;
+        event.preventDefault();
+        viewport.scrollBy({ left: delta.x, top: delta.y, behavior: 'auto' });
+      };
+      rail.addEventListener('wheel', handleWheel, { passive: false });
+      return () => rail.removeEventListener('wheel', handleWheel);
+    },
+    [canvasRef, notesRef],
+  );
+
+  const disableAutoZoom = useCallback(() => dispatch({ type: 'zoomChangedByUser' }), []);
+  const debugLayoutKey = pdfLayoutDebugEnabled()
+    ? JSON.stringify([
+        annotationCount,
+        annotationRailLayout ?? null,
+        layoutPageWidth,
+        pageMetrics,
+        viewportHeight,
+        viewportWidth,
+        visibleAnnotationCount,
+        zoom,
+      ])
+    : null;
+
+  return {
+    annotationRailLayout,
+    disableAutoZoom,
+    // Rendered after the reader surface so the canvas and annotation rail exist when they attach.
+    markers: [
+      autoZoomScale == null
+        ? null
+        : createElement('span', { hidden: true, key: `zoom:${autoZoomScale}`, ref: applyAutoZoom }),
+      annotationRailLayout
+        ? createElement('span', {
+            hidden: true,
+            key: `rail:${annotationRailLayout.mode}`,
+            ref: remeasurePages,
+          })
+        : null,
+      documentScale
+        ? createElement('span', {
+            hidden: true,
+            key: `scale:${documentScale}`,
+            ref: remeasurePages,
+          })
+        : null,
+      debugLayoutKey === null
+        ? null
+        : createElement('span', { hidden: true, key: `debug:${debugLayoutKey}`, ref: logLayout }),
+      createElement('span', { hidden: true, key: 'rail-wheel', ref: attachRailWheel }),
+    ],
+  };
 }

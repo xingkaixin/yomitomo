@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffectEvent, useMemo, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ArticleTranslation, ArticleTranslationSourceBlockInput } from '@yomitomo/shared';
 import { normalizeArticleTranslationTargetLanguage } from '@yomitomo/shared';
 import { assistantRuntimeErrorMessage } from '../../shell/app-assistant-runtime-progress';
 import { getDesktopApi, getOptionalDesktopApi } from '../../shell/app-desktop-api';
 import { appToast } from '../../shell/app-toast';
+import { useDesktopEvent } from '../../shell/use-desktop-event';
 import {
   ReaderTranslationConfirmDialog,
   ReaderTranslationToolbarButton,
@@ -34,51 +35,67 @@ type TranslationRequestOptions = {
 type UseSourceBilingualTranslationInput<ApplyResult> = {
   articleId: string;
   contentKind: TranslationContentKind;
+  onTranslationReceived?: (
+    translation: ArticleTranslation,
+    previous: ArticleTranslation | null,
+  ) => void;
   surface: TranslationSurfaceAdapter<ApplyResult> | null;
   targetLanguage?: string;
   translationAnnotations?: TranslationAnnotationsAdapter;
 };
 
+type TranslationScope = {
+  articleId: string;
+  sourceId: string | undefined;
+  targetLanguage: string | undefined;
+};
+
+type TranslationSessionState = {
+  busy: boolean;
+  confirmAction: TranslationConfirmAction | null;
+  menuOpen: boolean;
+  translation: ArticleTranslation | null;
+  visible: boolean;
+};
+
+type TranslationSession = {
+  getState: () => TranslationSessionState;
+  scope: TranslationScope | null;
+  subscribe: (listener: () => void) => () => void;
+  update: (change: Partial<TranslationSessionState>) => void;
+};
+
+const idleTranslationSession: TranslationSessionState = {
+  busy: false,
+  confirmAction: null,
+  menuOpen: false,
+  translation: null,
+  visible: false,
+};
+
 export function useSourceBilingualTranslation<ApplyResult>({
   articleId,
   contentKind,
+  onTranslationReceived,
   surface,
   targetLanguage,
   translationAnnotations,
 }: UseSourceBilingualTranslationInput<ApplyResult>) {
   const { t } = useTranslation();
-  const surfaceRef = useRef(surface);
-  const articleIdRef = useRef(articleId);
-  const targetLanguageRef = useRef(targetLanguage);
-  const translationAnnotationsRef = useRef(translationAnnotations);
-  const loadTokenRef = useRef(0);
-  const operationTokenRef = useRef(0);
-  const requestTranslationRef = useRef<(options?: TranslationRequestOptions) => Promise<void>>(
-    async () => {},
-  );
-  const busyRef = useRef(false);
-  const [busy, setBusy] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<TranslationConfirmAction | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [translation, setTranslation] = useState<ArticleTranslation | null>(null);
-  const [visible, setVisible] = useState(false);
-  surfaceRef.current = surface;
-  articleIdRef.current = articleId;
-  targetLanguageRef.current = targetLanguage;
-  translationAnnotationsRef.current = translationAnnotations;
-
   const sourceId = surface?.sourceId;
   const hasSurface = Boolean(surface);
   const contentLabels = translationContentLabels(contentKind, t);
 
-  const revealFirstFailedTranslationSegment = useCallback((nextTranslation: ArticleTranslation) => {
-    const blockId = nextTranslation.segments.find(
-      (segment) => segment.status === 'failed',
-    )?.sourceBlockId;
-    if (!blockId) return;
-    setVisible(true);
-    window.requestAnimationFrame(() => surfaceRef.current?.scrollToBlock(blockId));
-  }, []);
+  const revealFirstFailedTranslationSegment = useEffectEvent(
+    (nextTranslation: ArticleTranslation) => {
+      const blockId = nextTranslation.segments.find(
+        (segment) => segment.status === 'failed',
+      )?.sourceBlockId;
+      if (!blockId) return;
+      translationSession.update({ visible: true });
+      window.requestAnimationFrame(() => readSurface()?.scrollToBlock(blockId));
+    },
+  );
 
   const progressToast = useSourceTranslationProgressToast({
     failureKey: contentLabels.failureKey,
@@ -88,210 +105,155 @@ export function useSourceBilingualTranslation<ApplyResult>({
     translatingLabel: contentLabels.translating,
   });
 
-  const setSessionBusy = useCallback((nextBusy: boolean) => {
-    busyRef.current = nextBusy;
-    setBusy(nextBusy);
-  }, []);
-
-  const receiveTranslation = useCallback(
-    (nextTranslation: ArticleTranslation) => {
-      if (!hasSurface || !translationMatches(nextTranslation, articleId, sourceId, targetLanguage))
-        return;
-      progressToast.update(nextTranslation);
-      setTranslation(nextTranslation);
-      setVisible(true);
-    },
-    [articleId, hasSurface, progressToast, sourceId, targetLanguage],
-  );
-
-  const requestTranslation = useCallback(
-    async (options: TranslationRequestOptions = {}) => {
-      const activeSurface = surfaceRef.current;
-      if (!activeSurface || busyRef.current) return;
-      if (!options.force && !options.sourceBlockIds?.length && translation && !visible) {
-        setVisible(true);
-        return;
-      }
-
-      const blocks = activeSurface.extractBlocks();
-      if (blocks.length === 0) {
-        appToast.error(t(contentLabels.noTextKey));
-        return;
-      }
-
-      const requestedSourceId = activeSurface.sourceId;
-      const operationToken = ++operationTokenRef.current;
-      setVisible(true);
-      setSessionBusy(true);
-      progressToast.start();
-      let stopWatchingStart: (() => void) | undefined;
-      try {
-        const replacedBlockIds = options.force
-          ? currentTranslationBlockIds(translation)
-          : new Set(options.sourceBlockIds || []);
-        const removeReplacedAnnotations = runOnce(
-          translationAnnotationsRef.current?.prepareRemoval(replacedBlockIds),
-        );
-        // Main emits the first update only after it resets the replaced segments, so failures
-        // before that point, such as a missing provider or API key, keep the annotations.
-        stopWatchingStart = getOptionalDesktopApi()?.article?.translation?.onUpdated((update) => {
-          if (translationMatches(update, articleId, requestedSourceId, targetLanguage)) {
-            removeReplacedAnnotations().catch(() => {});
-          }
-        });
-        const nextTranslation = await getDesktopApi().article.translation.translate({
-          articleId,
-          force: options.force,
-          sourceBlockIds: options.sourceBlockIds,
-          ...(requestedSourceId
-            ? {
-                sourceBlocks: blocks,
-                sourceId: requestedSourceId,
-              }
-            : {}),
-          targetLanguage,
-        });
-        await removeReplacedAnnotations();
-        if (
-          operationToken !== operationTokenRef.current ||
-          articleIdRef.current !== articleId ||
-          targetLanguageRef.current !== targetLanguage ||
-          !surfaceRef.current ||
-          surfaceRef.current.sourceId !== requestedSourceId
-        ) {
-          return;
-        }
-        receiveTranslation(nextTranslation);
-        progressToast.finish(nextTranslation);
-      } catch (error) {
-        if (operationToken === operationTokenRef.current) progressToast.fail(error);
-      } finally {
-        stopWatchingStart?.();
-        if (operationToken === operationTokenRef.current) setSessionBusy(false);
-      }
-    },
-    [
-      articleId,
-      contentLabels.noTextKey,
-      progressToast,
-      receiveTranslation,
-      setSessionBusy,
-      t,
-      targetLanguage,
-      translation,
-      visible,
-    ],
-  );
-  requestTranslationRef.current = requestTranslation;
-
-  const deleteTranslation = useCallback(async () => {
-    const activeSurface = surfaceRef.current;
-    if (!activeSurface || busyRef.current) return;
-    const deletedSourceId = activeSurface.sourceId;
-    const operationToken = ++operationTokenRef.current;
-    setSessionBusy(true);
-    try {
-      await translationAnnotationsRef.current?.prepareRemoval(
-        currentTranslationBlockIds(translation),
-      )();
-      await getDesktopApi().article.translation.deleteCurrent({
-        articleId,
-        ...(deletedSourceId ? { sourceId: deletedSourceId } : {}),
-        targetLanguage,
-      });
+  const receiveTranslation = useEffectEvent(
+    (session: TranslationSession, nextTranslation: ArticleTranslation) => {
+      const { scope } = session;
       if (
-        operationToken !== operationTokenRef.current ||
-        articleIdRef.current !== articleId ||
-        targetLanguageRef.current !== targetLanguage ||
-        !surfaceRef.current ||
-        surfaceRef.current.sourceId !== deletedSourceId
+        !scope ||
+        !translationMatches(nextTranslation, scope.articleId, scope.sourceId, scope.targetLanguage)
       ) {
         return;
       }
-      progressToast.dismiss();
-      setTranslation(null);
-      setVisible(false);
-      setMenuOpen(false);
+      const previous = session.getState().translation;
+      progressToast.update(nextTranslation);
+      session.update({ translation: nextTranslation, visible: true });
+      onTranslationReceived?.(nextTranslation, previous);
+    },
+  );
+
+  // Each article, chapter, and target language gets a fresh session, like a remount would.
+  const translationSession = useMemo(
+    () =>
+      createTranslationSession(hasSurface ? { articleId, sourceId, targetLanguage } : null, {
+        ended: () => progressToast.dismiss(),
+        loaded: (session, current) => {
+          if (current) receiveTranslation(session, current);
+          else session.update({ translation: null, visible: false });
+        },
+      }),
+    [articleId, hasSurface, progressToast, sourceId, targetLanguage],
+  );
+  const { busy, confirmAction, menuOpen, translation, visible } = useSyncExternalStore(
+    translationSession.subscribe,
+    translationSession.getState,
+  );
+  const readSurface = useEffectEvent(() => surface);
+  const isCurrentSession = useEffectEvent(
+    (session: TranslationSession) => session === translationSession,
+  );
+
+  useDesktopEvent(getOptionalDesktopApi()?.article?.translation?.onUpdated, (update) =>
+    receiveTranslation(translationSession, update),
+  );
+
+  const requestTranslation = useEffectEvent(async (options: TranslationRequestOptions = {}) => {
+    const session = translationSession;
+    const activeSurface = surface;
+    const { scope } = session;
+    if (!activeSurface || !scope || session.getState().busy) return;
+    const current = session.getState();
+    if (
+      !options.force &&
+      !options.sourceBlockIds?.length &&
+      current.translation &&
+      !current.visible
+    ) {
+      session.update({ visible: true });
+      return;
+    }
+
+    const blocks = activeSurface.extractBlocks();
+    if (blocks.length === 0) {
+      appToast.error(t(contentLabels.noTextKey));
+      return;
+    }
+
+    const requestedSourceId = activeSurface.sourceId;
+    session.update({ busy: true, visible: true });
+    progressToast.start();
+    let stopWatchingStart: (() => void) | undefined;
+    try {
+      const replacedBlockIds = options.force
+        ? currentTranslationBlockIds(current.translation)
+        : new Set(options.sourceBlockIds || []);
+      const removeReplacedAnnotations = runOnce(
+        translationAnnotations?.prepareRemoval(replacedBlockIds),
+      );
+      // Main emits the first update only after it resets the replaced segments, so failures
+      // before that point, such as a missing provider or API key, keep the annotations.
+      stopWatchingStart = getOptionalDesktopApi()?.article?.translation?.onUpdated((update) => {
+        if (translationMatches(update, scope.articleId, requestedSourceId, scope.targetLanguage)) {
+          removeReplacedAnnotations().catch(() => {});
+        }
+      });
+      const nextTranslation = await getDesktopApi().article.translation.translate({
+        articleId: scope.articleId,
+        force: options.force,
+        sourceBlockIds: options.sourceBlockIds,
+        ...(requestedSourceId
+          ? {
+              sourceBlocks: blocks,
+              sourceId: requestedSourceId,
+            }
+          : {}),
+        targetLanguage: scope.targetLanguage,
+      });
+      await removeReplacedAnnotations();
+      if (!isCurrentSession(session)) return;
+      receiveTranslation(session, nextTranslation);
+      progressToast.finish(nextTranslation);
     } catch (error) {
-      if (operationToken === operationTokenRef.current) {
+      if (isCurrentSession(session)) progressToast.fail(error);
+    } finally {
+      stopWatchingStart?.();
+      session.update({ busy: false });
+    }
+  });
+
+  async function deleteTranslation() {
+    const session = translationSession;
+    const { scope } = session;
+    if (!surface || !scope || session.getState().busy) return;
+    const deletedSourceId = surface.sourceId;
+    session.update({ busy: true });
+    try {
+      await translationAnnotations?.prepareRemoval(
+        currentTranslationBlockIds(session.getState().translation),
+      )();
+      await getDesktopApi().article.translation.deleteCurrent({
+        articleId: scope.articleId,
+        ...(deletedSourceId ? { sourceId: deletedSourceId } : {}),
+        targetLanguage: scope.targetLanguage,
+      });
+      if (!isCurrentSession(session)) return;
+      progressToast.dismiss();
+      session.update({ menuOpen: false, translation: null, visible: false });
+    } catch (error) {
+      if (isCurrentSession(session)) {
         appToast.error(assistantRuntimeErrorMessage(error, contentLabels.deleteFailureKey));
       }
     } finally {
-      if (operationToken === operationTokenRef.current) setSessionBusy(false);
+      session.update({ busy: false });
     }
-  }, [
-    articleId,
-    contentLabels.deleteFailureKey,
-    progressToast,
-    setSessionBusy,
-    targetLanguage,
-    translation,
-  ]);
+  }
 
-  useEffect(() => {
-    loadTokenRef.current += 1;
-    operationTokenRef.current += 1;
-    setSessionBusy(false);
-    setTranslation(null);
-    setVisible(false);
-    setMenuOpen(false);
-    setConfirmAction(null);
-    progressToast.dismiss();
-  }, [articleId, hasSurface, progressToast, setSessionBusy, sourceId, targetLanguage]);
-
-  useEffect(() => {
-    if (!hasSurface) return;
-    const token = ++loadTokenRef.current;
-    void getDesktopApi()
-      .article.translation.getCurrent({
-        articleId,
-        ...(sourceId ? { sourceId } : {}),
-        targetLanguage,
-      })
-      .then((current) => {
-        if (token !== loadTokenRef.current) return;
-        if (current) receiveTranslation(current);
-        else {
-          setTranslation(null);
-          setVisible(false);
-        }
-      })
-      .catch(() => {
-        if (token === loadTokenRef.current) setTranslation(null);
-      });
-  }, [articleId, hasSurface, receiveTranslation, sourceId, targetLanguage]);
-
-  useEffect(() => {
-    const subscribe = getOptionalDesktopApi()?.article?.translation?.onUpdated;
-    if (!subscribe) return;
-    return subscribe(receiveTranslation);
-  }, [receiveTranslation]);
-
-  useEffect(() => () => progressToast.dismiss(), [progressToast]);
-
-  const activeTranslation =
-    hasSurface &&
-    translation &&
-    translationMatches(translation, articleId, sourceId, targetLanguage)
-      ? translation
-      : null;
-  const translationInProgress = busy || activeTranslation?.status === 'translating';
+  const translationInProgress = busy || translation?.status === 'translating';
   const surfaceOutput = useMemo(
-    () => surface?.applyTranslation(activeTranslation, visible) ?? null,
-    [activeTranslation, surface, visible],
+    () => surface?.applyTranslation(translation, visible) ?? null,
+    [surface, translation, visible],
   );
   const translationAnnotationCount = useMemo(
     () =>
-      activeTranslation && translationAnnotations
-        ? translationAnnotations.count(currentTranslationBlockIds(activeTranslation))
+      translation && translationAnnotations
+        ? translationAnnotations.count(currentTranslationBlockIds(translation))
         : 0,
-    [activeTranslation, translationAnnotations],
+    [translation, translationAnnotations],
   );
 
   const toolbar = hasSurface ? (
     <ReaderTranslationToolbarButton
       busy={translationInProgress}
-      hasTranslation={Boolean(activeTranslation)}
+      hasTranslation={Boolean(translation)}
       labels={{
         deleteTranslation: contentLabels.deleteTranslation,
         hideTranslation: contentLabels.hideTranslation,
@@ -301,9 +263,9 @@ export function useSourceBilingualTranslation<ApplyResult>({
       }}
       menuOpen={menuOpen}
       visible={visible}
-      onConfirm={setConfirmAction}
-      onMenuOpenChange={setMenuOpen}
-      onSetVisible={setVisible}
+      onConfirm={(action) => translationSession.update({ confirmAction: action })}
+      onMenuOpenChange={(open) => translationSession.update({ menuOpen: open })}
+      onSetVisible={(nextVisible) => translationSession.update({ visible: nextVisible })}
     />
   ) : null;
 
@@ -329,9 +291,9 @@ export function useSourceBilingualTranslation<ApplyResult>({
         confirmTranslateDescription: contentLabels.confirmTranslateDescription,
         confirmTranslateTitle: contentLabels.confirmTranslateTitle,
       }}
-      onClose={() => setConfirmAction(null)}
+      onClose={() => translationSession.update({ confirmAction: null })}
       onConfirm={async (action) => {
-        setConfirmAction(null);
+        translationSession.update({ confirmAction: null });
         if (action === 'delete') await deleteTranslation();
         else await requestTranslation({ force: action === 'retranslate' });
       }}
@@ -339,7 +301,7 @@ export function useSourceBilingualTranslation<ApplyResult>({
   ) : null;
 
   const retryBlock = useCallback((blockId: string) => {
-    void requestTranslationRef.current({ sourceBlockIds: [blockId] });
+    void requestTranslation({ sourceBlockIds: [blockId] });
   }, []);
 
   return {
@@ -347,10 +309,56 @@ export function useSourceBilingualTranslation<ApplyResult>({
     retryBlock,
     surfaceOutput,
     toolbar,
-    translation: activeTranslation,
+    translation,
     translationInProgress,
     visible,
   };
+}
+
+function createTranslationSession(
+  scope: TranslationScope | null,
+  lifecycle: {
+    ended: () => void;
+    loaded: (session: TranslationSession, current: ArticleTranslation | null) => void;
+  },
+) {
+  let state = idleTranslationSession;
+  const listeners = new Set<() => void>();
+  const session: TranslationSession = {
+    scope,
+    getState: () => state,
+    update: (change: Partial<TranslationSessionState>) => {
+      const next = { ...state, ...change };
+      const keys = Object.keys(change) as (keyof TranslationSessionState)[];
+      if (keys.every((key) => next[key] === state[key])) return;
+      state = next;
+      for (const listener of listeners) listener();
+    },
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      let active = true;
+      if (scope) {
+        void getDesktopApi()
+          .article.translation.getCurrent({
+            articleId: scope.articleId,
+            ...(scope.sourceId ? { sourceId: scope.sourceId } : {}),
+            targetLanguage: scope.targetLanguage,
+          })
+          .then((current) => {
+            if (active) lifecycle.loaded(session, current);
+          })
+          .catch(() => {
+            if (active) session.update({ translation: null });
+          });
+      }
+      return () => {
+        active = false;
+        listeners.delete(listener);
+        lifecycle.ended();
+      };
+    },
+  };
+  return session;
 }
 
 function runOnce(task: (() => Promise<void>) | undefined) {

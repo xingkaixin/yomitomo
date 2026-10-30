@@ -91,7 +91,6 @@ function pointer(clientX: number, handle: SelectionAdjustmentPointer['handle'] =
 }
 
 function renderHarness({
-  articleId = 'article_1',
   canvas = true,
   document = createDocument(),
   engine = createEngine(),
@@ -110,7 +109,6 @@ function renderHarness({
   let controls: HarnessControls | null = null;
 
   type HarnessProps = {
-    articleId: string;
     document: PdfiumLoadedDocument | undefined;
     metrics: Record<number, PageMetric>;
     selectionAction: SelectionAction | null;
@@ -123,7 +121,6 @@ function renderHarness({
     const pageMetricsRef = useRef(props.metrics);
     pageMetricsRef.current = props.metrics;
     const state = usePdfiumSelectionAdjustment({
-      articleId: props.articleId,
       canvasRef,
       contributorId: 'user_1',
       document: props.document,
@@ -141,12 +138,7 @@ function renderHarness({
   }
 
   const view = render(
-    <Harness
-      articleId={articleId}
-      document={document}
-      metrics={metrics}
-      selectionAction={selectionAction}
-    />,
+    <Harness document={document} metrics={metrics} selectionAction={selectionAction} />,
   );
   function mockCanvasRect() {
     const canvasElement = view.queryByTestId('canvas');
@@ -174,7 +166,6 @@ function renderHarness({
     rerenderHarness: (props: Partial<HarnessProps>) => {
       view.rerender(
         <Harness
-          articleId={props.articleId ?? articleId}
           document={props.document ?? document}
           metrics={props.metrics ?? metrics}
           selectionAction={props.selectionAction ?? selectionAction}
@@ -282,7 +273,7 @@ describe('usePdfiumSelectionAdjustment', () => {
     const view = renderHarness({ engine, extractPageText });
 
     void view.controls().preparePdfiumSelectionAdjustmentSource(0);
-    view.rerenderHarness({ articleId: 'article_2', document: createDocument() });
+    view.rerenderHarness({ document: createDocument() });
 
     await act(async () => {
       deferred.resolve('stale');

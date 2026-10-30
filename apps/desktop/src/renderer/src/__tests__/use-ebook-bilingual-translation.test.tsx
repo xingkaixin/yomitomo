@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
+import { act, cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ArticleTranslation, ArticleTranslationRequest } from '@yomitomo/shared';
 import { extractBilingualTranslationBlocks } from '@yomitomo/core';
@@ -166,17 +166,28 @@ function installDesktopApi(
   };
 }
 
+type EbookTranslationState = ReturnType<typeof useEbookBilingualTranslation>;
+
 function renderTranslationHook(onLayoutChange = vi.fn()) {
-  return renderHook(
-    ({ targetLanguage }) =>
-      useEbookBilingualTranslation({
-        article: ebookArticle(),
-        style: 'dashedLine',
-        targetLanguage,
-        onLayoutChange,
-      }),
-    { initialProps: { targetLanguage: 'zh-CN' } },
-  );
+  const result = { current: null as unknown as EbookTranslationState };
+  function TranslationProbe({ targetLanguage }: { targetLanguage: string }) {
+    result.current = useEbookBilingualTranslation({
+      article: ebookArticle(),
+      style: 'dashedLine',
+      targetLanguage,
+      onLayoutChange,
+    });
+    return result.current.marker;
+  }
+  // The probe renders outside document.body so the chapter body only holds source text.
+  const view = render(<TranslationProbe targetLanguage="zh-CN" />, {
+    container: document.createElement('div'),
+  });
+  return {
+    result,
+    rerender: ({ targetLanguage }: { targetLanguage: string }) =>
+      view.rerender(<TranslationProbe targetLanguage={targetLanguage} />),
+  };
 }
 
 describe('useEbookBilingualTranslation', () => {

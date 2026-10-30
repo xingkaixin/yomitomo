@@ -22,7 +22,6 @@ const mocks = vi.hoisted(() => ({
   goToProgress: vi.fn(),
   goToTocItem: vi.fn(),
   hideEbookBoxLayer: vi.fn(),
-  resetEbookBoxState: vi.fn(),
   scheduleEbookBoxUpdate: vi.fn(),
   boxes: [] as HighlightBox[],
   readerShellProps: undefined as
@@ -35,6 +34,7 @@ const mocks = vi.hoisted(() => ({
       }
     | undefined,
   view: null as unknown,
+  viewRef: { current: null } as { current: unknown },
   openSettled: true,
   pageInfo: null as { sectionIndex: number; pageIndex: number; pageCount: number } | null,
   sectionPageCounts: [] as Array<number | null>,
@@ -64,10 +64,11 @@ vi.mock('../source/ebook/app-source-ebook-reader-shell', () => ({
 vi.mock('../source/ebook/use-ebook-foliate-view', () => ({
   useEbookFoliateView: (input: { onBeforePageTurn: (trace: EbookPageTurnTrace) => void }) => {
     mocks.foliateViewInput = input;
+    mocks.viewRef.current = mocks.view;
     return {
       viewHostRef: { current: null },
       measureHostRef: { current: null },
-      viewRef: { current: mocks.view },
+      viewRef: mocks.viewRef,
       pageInfoSectionIndexRef: { current: undefined },
       paginationLayoutKeyRef: { current: '' },
       readerSettingsRef: {
@@ -85,6 +86,7 @@ vi.mock('../source/ebook/use-ebook-foliate-view', () => ({
       goRight: mocks.goRight,
       goToProgress: mocks.goToProgress,
       goToTocItem: mocks.goToTocItem,
+      markers: [],
     };
   },
 }));
@@ -93,7 +95,7 @@ vi.mock('../source/ebook/use-ebook-reader-boxes', () => ({
   useEbookReaderBoxes: () => ({
     boxes: mocks.boxes,
     hideEbookBoxLayer: mocks.hideEbookBoxLayer,
-    resetEbookBoxState: mocks.resetEbookBoxState,
+    markers: [],
     scheduleEbookBoxUpdate: mocks.scheduleEbookBoxUpdate,
   }),
 }));
@@ -102,6 +104,7 @@ vi.mock('../source/ebook/use-foliate-input-bridge', () => ({
   useFoliateInputBridge: () => ({
     attachFoliateDocumentListeners: mocks.attachFoliateDocumentListeners,
     cleanupFoliateDocumentListeners: mocks.cleanupFoliateDocumentListeners,
+    marker: null,
   }),
 }));
 
@@ -215,12 +218,11 @@ function renderEbookBookcase(sourceArticle: EbookArticleRecord, annotations: Ann
 }
 
 describe('EbookBookcase', () => {
-  it('does not reset ebook boxes when the same article only updates reading progress', () => {
+  it('keeps the reader mounted when the same article only updates reading progress', () => {
     const annotations = [annotation('note-1')];
     const article = ebookArticle({ annotations });
-    const { rerender } = renderEbookBookcase(article, annotations);
-
-    expect(mocks.resetEbookBoxState).toHaveBeenCalledTimes(1);
+    const { getByTestId, rerender } = renderEbookBookcase(article, annotations);
+    const readerShell = getByTestId('ebook-reader-shell');
 
     const progressArticle = ebookArticle({
       annotations: [...annotations],
@@ -238,13 +240,17 @@ describe('EbookBookcase', () => {
       <EbookBookcase {...ebookBookcaseProps(progressArticle, progressArticle.annotations)} />,
     );
 
-    expect(mocks.resetEbookBoxState).toHaveBeenCalledTimes(1);
+    expect(getByTestId('ebook-reader-shell')).toBe(readerShell);
+
+    const otherArticle = ebookArticle({ id: 'ebook-2' });
+    rerender(<EbookBookcase {...ebookBookcaseProps(otherArticle, [])} />);
+
+    expect(getByTestId('ebook-reader-shell')).not.toBe(readerShell);
   });
 
   it('clears ebook page overlays before a page turn', () => {
     renderEbookBookcase(ebookArticle(), []);
 
-    expect(mocks.resetEbookBoxState).toHaveBeenCalledTimes(1);
     act(() => {
       mocks.foliateViewInput?.onBeforePageTurn({
         articleId: 'ebook-1',
@@ -255,7 +261,6 @@ describe('EbookBookcase', () => {
       });
     });
 
-    expect(mocks.resetEbookBoxState).toHaveBeenCalledTimes(1);
     expect(mocks.hideEbookBoxLayer).toHaveBeenCalledTimes(1);
   });
 

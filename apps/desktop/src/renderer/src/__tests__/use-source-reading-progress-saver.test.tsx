@@ -197,7 +197,7 @@ describe('useSourceReadingProgressSaver', () => {
     expect(completed).toBe(true);
   });
 
-  it('flushes pending progress on unmount and resets for the next article', () => {
+  it('saves the previous article progress and resets for the next article', () => {
     vi.useFakeTimers();
     const onSave = vi.fn();
     const { rerender } = render(
@@ -210,6 +210,9 @@ describe('useSourceReadingProgressSaver', () => {
     rerender(
       <Probe articleId="article-b" initialProgress={progress({ progress: 0.8 })} onSave={onSave} />,
     );
+    act(() => {
+      vi.advanceTimersByTime(450);
+    });
 
     expect(onSave).toHaveBeenCalledWith('article-a', expect.objectContaining({ progress: 0.2 }));
     onSave.mockClear();

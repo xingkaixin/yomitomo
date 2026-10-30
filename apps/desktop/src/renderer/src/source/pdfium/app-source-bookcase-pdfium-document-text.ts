@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { createElement, useCallback, useEffectEvent, useReducer, useRef } from 'react';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import type { PdfEngine } from '@embedpdf/models';
 import type { useDocumentState } from '@embedpdf/core/react';
 import { rendererPerformanceElapsedMs } from '../../shell/app-renderer-performance';
@@ -71,14 +72,37 @@ async function extractPdfTextPages({
   return pageTexts;
 }
 
+type PdfTextState = {
+  firstPageReady: boolean;
+  textDocument: PdfTextDocument | null;
+  textIndexPreparing: boolean;
+};
+
+type PdfTextEvent =
+  | { type: 'firstPageShown' }
+  | { type: 'textExtractionStarted' }
+  | { type: 'textExtractionFinished'; textDocument: PdfTextDocument }
+  | { type: 'textExtractionFailed' };
+
+function pdfTextReducer(state: PdfTextState, event: PdfTextEvent): PdfTextState {
+  switch (event.type) {
+    case 'firstPageShown':
+      return state.firstPageReady ? state : { ...state, firstPageReady: true };
+    case 'textExtractionStarted':
+      return { ...state, textIndexPreparing: true };
+    case 'textExtractionFinished':
+      return { ...state, textDocument: event.textDocument, textIndexPreparing: false };
+    case 'textExtractionFailed':
+      return { ...state, textDocument: null, textIndexPreparing: false };
+  }
+}
+
 export function usePdfiumDocumentText({
-  articleId,
   currentPageIndex,
   document,
   engine,
   openTrace,
 }: {
-  articleId: string;
   currentPageIndex: number;
   document: PdfiumLoadedDocument | undefined;
   engine: PdfEngine;
@@ -87,27 +111,23 @@ export function usePdfiumDocumentText({
   const pageTextCacheRef = useRef(new Map<number, { promise: Promise<string>; text?: string }>());
   const pdfTextDocumentRef = useRef<PdfTextDocument | null>(null);
   const fullTextDocumentPromiseRef = useRef<Promise<PdfTextDocument> | null>(null);
-  const currentPageIndexRef = useRef(currentPageIndex);
   const textExtractionGenerationRef = useRef(0);
-  const [pdfTextDocument, setPdfTextDocument] = useState<PdfTextDocument | null>(null);
-  const [pdfFirstPageReady, setPdfFirstPageReady] = useState(false);
-  const [pdfTextIndexPreparing, setPdfTextIndexPreparing] = useState(false);
-
-  useEffect(
-    () => () => {
-      textExtractionGenerationRef.current += 1;
+  const [
+    {
+      firstPageReady: pdfFirstPageReady,
+      textDocument: pdfTextDocument,
+      textIndexPreparing: pdfTextIndexPreparing,
     },
-    [],
-  );
+    dispatch,
+  ] = useReducer(pdfTextReducer, {
+    firstPageReady: false,
+    textDocument: null,
+    textIndexPreparing: false,
+  });
 
-  useEffect(() => {
-    currentPageIndexRef.current = currentPageIndex;
-  }, [currentPageIndex]);
-
-  const commitPdfTextDocument = useCallback((textDocument: PdfTextDocument | null) => {
-    pdfTextDocumentRef.current = textDocument;
-    setPdfTextDocument(textDocument);
-  }, []);
+  useMountEffect(() => () => {
+    textExtractionGenerationRef.current += 1;
+  });
 
   const extractPdfiumPageText = useCallback(
     async (pageIndex: number) => {
@@ -135,6 +155,12 @@ export function usePdfiumDocumentText({
     [document, engine],
   );
 
+  const readPrefetchInput = useEffectEvent(() => ({
+    currentPageIndex,
+    document,
+    extractPdfiumPageText,
+  }));
+
   const ensurePdfTextDocument = useCallback(async () => {
     const existingTextDocument = pdfTextDocumentRef.current;
     if (existingTextDocument) return existingTextDocument;
@@ -145,9 +171,12 @@ export function usePdfiumDocumentText({
 
     const generation = textExtractionGenerationRef.current;
     const pageCount = document.pages.length;
-    const orderedPageIndexes = pdfTextExtractionOrder(pageCount, currentPageIndexRef.current);
+    const orderedPageIndexes = pdfTextExtractionOrder(
+      pageCount,
+      readPrefetchInput().currentPageIndex,
+    );
     const textExtractStartedAt = performance.now();
-    setPdfTextIndexPreparing(true);
+    dispatch({ type: 'textExtractionStarted' });
     recordPdfOpenTiming(openTrace, 'text_extract_start', { pageCount });
     const textDocumentPromise = extractPdfTextPages({
       extractPageText: extractPdfiumPageText,
@@ -158,8 +187,8 @@ export function usePdfiumDocumentText({
       .then((pageTexts) => {
         const nextTextDocument = buildPdfTextDocument(pageTexts);
         if (textExtractionGenerationRef.current === generation) {
-          commitPdfTextDocument(nextTextDocument);
-          setPdfTextIndexPreparing(false);
+          pdfTextDocumentRef.current = nextTextDocument;
+          dispatch({ type: 'textExtractionFinished', textDocument: nextTextDocument });
           recordPdfOpenTiming(openTrace, 'text_extract_done', {
             durationMs: rendererPerformanceElapsedMs(textExtractStartedAt),
             pageCount,
@@ -171,8 +200,8 @@ export function usePdfiumDocumentText({
       .catch((error: unknown) => {
         if (textExtractionGenerationRef.current === generation) {
           fullTextDocumentPromiseRef.current = null;
-          commitPdfTextDocument(null);
-          setPdfTextIndexPreparing(false);
+          pdfTextDocumentRef.current = null;
+          dispatch({ type: 'textExtractionFailed' });
           recordPdfOpenTiming(openTrace, 'text_extract_error', {
             durationMs: rendererPerformanceElapsedMs(textExtractStartedAt),
             pageCount,
@@ -183,47 +212,38 @@ export function usePdfiumDocumentText({
 
     fullTextDocumentPromiseRef.current = textDocumentPromise;
     return textDocumentPromise;
-  }, [commitPdfTextDocument, document, extractPdfiumPageText, openTrace]);
+  }, [document, extractPdfiumPageText, openTrace]);
 
   const cachedPdfiumPageText = useCallback(
     (pageIndex: number) => pageTextCacheRef.current.get(pageIndex)?.text,
     [],
   );
 
-  const resetPdfiumTextDocument = useCallback(() => {
-    textExtractionGenerationRef.current += 1;
-    pageTextCacheRef.current = new Map();
-    fullTextDocumentPromiseRef.current = null;
-    setPdfFirstPageReady(false);
-    setPdfTextIndexPreparing(false);
-    commitPdfTextDocument(null);
-  }, [commitPdfTextDocument]);
-
   const markPdfiumFirstPageReady = useCallback(() => {
-    setPdfFirstPageReady(true);
+    dispatch({ type: 'firstPageShown' });
   }, []);
 
-  useEffect(() => {
-    if (!document) {
-      textExtractionGenerationRef.current += 1;
-      pageTextCacheRef.current = new Map();
-      fullTextDocumentPromiseRef.current = null;
-      setPdfFirstPageReady(false);
-      setPdfTextIndexPreparing(false);
-      commitPdfTextDocument(null);
-      return;
-    }
-    if (!pdfFirstPageReady) return;
+  const prefetchNearbyPages = useCallback((marker: HTMLElement | null) => {
+    const {
+      currentPageIndex: prefetchPageIndex,
+      document: prefetchDocument,
+      extractPdfiumPageText: extractPageText,
+    } = readPrefetchInput();
+    if (!marker || !prefetchDocument) return;
 
     let cancelled = false;
     const timer = window.setTimeout(() => {
       if (cancelled) return;
       const generation = textExtractionGenerationRef.current;
       void extractPdfTextPages({
-        extractPageText: extractPdfiumPageText,
+        extractPageText,
         isCurrent: () => !cancelled && textExtractionGenerationRef.current === generation,
-        orderedPageIndexes: pdfTextExtractionOrder(document.pages.length, currentPageIndex, true),
-        pageCount: document.pages.length,
+        orderedPageIndexes: pdfTextExtractionOrder(
+          prefetchDocument.pages.length,
+          prefetchPageIndex,
+          true,
+        ),
+        pageCount: prefetchDocument.pages.length,
       }).catch(() => undefined);
     }, PDF_TEXT_EXTRACT_DELAY_MS);
 
@@ -231,14 +251,7 @@ export function usePdfiumDocumentText({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [
-    articleId,
-    commitPdfTextDocument,
-    currentPageIndex,
-    document,
-    extractPdfiumPageText,
-    pdfFirstPageReady,
-  ]);
+  }, []);
 
   return {
     cachedPdfiumPageText,
@@ -248,6 +261,9 @@ export function usePdfiumDocumentText({
     pdfFirstPageReady,
     pdfTextIndexPreparing,
     pdfTextDocument,
-    resetPdfiumTextDocument,
+    prefetchMarker:
+      document && pdfFirstPageReady
+        ? createElement('span', { hidden: true, key: currentPageIndex, ref: prefetchNearbyPages })
+        : null,
   };
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffectEvent, useMemo, useReducer, useRef } from 'react';
 import type {
   ArticleRecord,
   PublicAgent,
@@ -30,6 +30,90 @@ type ArticleChatState = {
   state: ReaderChatState | undefined;
 };
 
+type ArticleChatScope = {
+  articleId: string;
+  base: ReaderChatState | undefined;
+};
+
+type ReaderChatSessionState = {
+  articleId: string;
+  draftContext: ReaderQuestionContext | undefined;
+  error: string;
+  open: boolean;
+  // A local chat state stays visible until the article's saved chat state changes.
+  override: (ArticleChatScope & { value: ReaderChatState | undefined }) | null;
+  submittingArticleId: string | undefined;
+};
+
+type ReaderChatSessionEvent =
+  | { type: 'articleOpened'; articleId: string }
+  | { type: 'closed' }
+  | { type: 'draftContextCleared' }
+  | { type: 'errorCleared' }
+  | { type: 'failed'; articleId: string; message: string }
+  | { type: 'opened' }
+  | { type: 'questionSubmitted'; articleId: string }
+  | {
+      type: 'saveFailed';
+      attempted: ReaderChatState;
+      message: string;
+      previous: ReaderChatState | undefined;
+      scope: ArticleChatScope;
+    }
+  | { type: 'saveStarted'; scope: ArticleChatScope; value: ReaderChatState }
+  | { type: 'selectionAsked'; context: ReaderQuestionContext }
+  | { type: 'submissionSettled'; articleId: string };
+
+function readerChatSessionReducer(
+  state: ReaderChatSessionState,
+  event: ReaderChatSessionEvent,
+): ReaderChatSessionState {
+  switch (event.type) {
+    case 'articleOpened':
+      return { ...state, articleId: event.articleId, draftContext: undefined, error: '' };
+    case 'closed':
+      return { ...state, open: false };
+    case 'draftContextCleared':
+      return { ...state, draftContext: undefined };
+    case 'errorCleared':
+      return { ...state, error: '' };
+    case 'failed':
+      return event.articleId === state.articleId ? { ...state, error: event.message } : state;
+    case 'opened':
+      return { ...state, open: true };
+    case 'questionSubmitted':
+      return {
+        ...state,
+        draftContext: undefined,
+        error: '',
+        submittingArticleId: event.articleId,
+      };
+    case 'saveFailed':
+      if (event.scope.articleId !== state.articleId) return state;
+      return {
+        ...state,
+        error: event.message,
+        // A later local change wins over the rollback of an earlier save.
+        override:
+          state.override?.value === event.attempted
+            ? { ...state.override, value: event.previous }
+            : state.override,
+      };
+    case 'saveStarted':
+      if (event.scope.articleId !== state.articleId) return state;
+      return {
+        ...state,
+        override: { articleId: event.scope.articleId, base: event.scope.base, value: event.value },
+      };
+    case 'selectionAsked':
+      return { ...state, draftContext: event.context, error: '', open: true };
+    case 'submissionSettled':
+      return state.submittingArticleId === event.articleId
+        ? { ...state, submittingArticleId: undefined }
+        : state;
+  }
+}
+
 function updateActiveSession(
   current: ReaderChatState,
   update: (messages: ReaderChatMessage[]) => ReaderChatMessage[],
@@ -51,84 +135,80 @@ export function useReaderChatSession({
   article,
   onSaveArticleReaderChatState,
 }: UseReaderChatSessionInput) {
-  const [open, setOpen] = useState(false);
-  const [state, setState] = useState<ReaderChatState | undefined>(() => article.readerChatState);
-  const [draftContext, setDraftContext] = useState<ReaderQuestionContext | undefined>();
-  const [submittingArticleId, setSubmittingArticleId] = useState<string>();
-  const [error, setError] = useState('');
-  const articleChatRef = useRef<ArticleChatState>({ articleId: article.id, state });
+  const [session, dispatch] = useReducer(readerChatSessionReducer, {
+    articleId: article.id,
+    draftContext: undefined,
+    error: '',
+    open: false,
+    override: null,
+    submittingArticleId: undefined,
+  });
+  // Ebook and PDF readers stay mounted across articles, so the draft resets while rendering.
+  if (session.articleId !== article.id) dispatch({ type: 'articleOpened', articleId: article.id });
+  const { draftContext, error, open, override } = session;
+  const state =
+    override?.articleId === article.id && override.base === article.readerChatState
+      ? override.value
+      : article.readerChatState;
   const submittingRef = useRef<string | undefined>(undefined);
-
-  useEffect(() => {
-    articleChatRef.current = { articleId: article.id, state: article.readerChatState };
-    setState(article.readerChatState);
-  }, [article.id, article.readerChatState]);
-
-  useEffect(() => {
-    setDraftContext(undefined);
-    setError('');
-  }, [article.id]);
+  const readChat = useEffectEvent(() => ({
+    articleId: article.id,
+    base: article.readerChatState,
+    state,
+  }));
 
   const activeSessionId = state?.activeSessionId;
-  const { runs, settle } = useAssistantRuns(
+  const { runs } = useAssistantRuns(
     article.id,
     activeSessionId ? assistantRunScope({ kind: 'chat', sessionId: activeSessionId }) : '',
   );
+  const pendingRuns = useMemo(() => unsavedAssistantRuns(state, runs), [runs, state]);
 
-  useEffect(() => {
-    const session = state?.sessions.find((item) => item.id === state.activeSessionId);
-    const ids = new Set(session?.messages.map((message) => message.id));
-    for (const run of runs) if (run.commentId && ids.has(run.commentId)) settle(run.runKey);
-  }, [runs, settle, state]);
-
-  const viewState = useMemo(() => stateWithAssistantRuns(state, runs), [runs, state]);
+  const viewState = useMemo(() => stateWithAssistantRuns(state, pendingRuns), [pendingRuns, state]);
   // The assistant reply is appended by the main process, so a new question waits for it to
   // land instead of rewriting the chat state underneath the run.
-  const sending = submittingArticleId === article.id || runs.length > 0;
+  const sending = session.submittingArticleId === article.id || pendingRuns.length > 0;
 
   const selectedAssistantId = useMemo(
     () => state?.selectedAssistantId || agents[0]?.id,
     [agents, state?.selectedAssistantId],
   );
 
-  function replaceState(chat: ArticleChatState, nextState: ReaderChatState | undefined) {
-    chat.state = nextState;
-    if (articleChatRef.current === chat) setState(nextState);
-  }
-
   async function persistState(
-    chat: ArticleChatState,
+    scope: ArticleChatScope,
     nextState: ReaderChatState,
     previousState: ReaderChatState | undefined,
   ) {
-    replaceState(chat, nextState);
+    dispatch({ type: 'saveStarted', scope, value: nextState });
     if (!onSaveArticleReaderChatState) return true;
     try {
-      await onSaveArticleReaderChatState(chat.articleId, nextState);
+      await onSaveArticleReaderChatState(scope.articleId, nextState);
       return true;
     } catch (persistError) {
       console.warn('[reader-chat] state persistence failed', {
-        articleId: chat.articleId,
+        articleId: scope.articleId,
         error: persistError instanceof Error ? persistError.message : String(persistError),
       });
-      replaceState(chat, previousState);
-      if (articleChatRef.current === chat) setError(i18next.t('common.saveFailed'));
+      dispatch({
+        type: 'saveFailed',
+        attempted: nextState,
+        message: i18next.t('common.saveFailed'),
+        previous: previousState,
+        scope,
+      });
       return false;
     }
   }
 
   function askSelection(context: ReaderQuestionContext) {
-    setDraftContext(context);
-    setOpen(true);
-    setError('');
+    dispatch({ type: 'selectionAsked', context });
   }
 
   async function selectAssistant(assistantId: string) {
-    const chat = articleChatRef.current;
-    const previousState = chat.state;
+    const chat = readChat();
     const nextState = { ...ensureState(chat, assistantId), selectedAssistantId: assistantId };
-    setError('');
-    await persistState(chat, nextState, previousState);
+    dispatch({ type: 'errorCleared' });
+    await persistState(chat, nextState, chat.state);
   }
 
   async function submit(content: string) {
@@ -136,7 +216,7 @@ export function useReaderChatSession({
     const assistant = agents.find((agent) => agent.id === selectedAssistantId) || agents[0];
     if (!question || !assistant || sending || submittingRef.current) return;
 
-    const chat = articleChatRef.current;
+    const chat = readChat();
     const userMessage: ReaderChatMessage = {
       id: makeId('reader_chat_message'),
       role: 'user',
@@ -144,21 +224,17 @@ export function useReaderChatSession({
       context: draftContext,
       createdAt: new Date().toISOString(),
     };
-    const previousState = chat.state;
     const nextState = updateActiveSession(ensureState(chat, assistant.id), (messages) => [
       ...messages,
       userMessage,
     ]);
 
-    setDraftContext(undefined);
-    setError('');
     submittingRef.current = chat.articleId;
-    setSubmittingArticleId(chat.articleId);
-    const showError = (message: string) => {
-      if (articleChatRef.current.articleId === chat.articleId) setError(message);
-    };
+    dispatch({ type: 'questionSubmitted', articleId: chat.articleId });
+    const showError = (message: string) =>
+      dispatch({ type: 'failed', articleId: chat.articleId, message });
     try {
-      if (!(await persistState(chat, nextState, previousState))) return;
+      if (!(await persistState(chat, nextState, chat.state))) return;
       const delivery = await deliverAssistantMessage({
         articleId: chat.articleId,
         channel: { kind: 'chat', sessionId: nextState.activeSessionId },
@@ -174,15 +250,15 @@ export function useReaderChatSession({
       showError(assistantRuntimeErrorMessage(requestError, 'source.readerChatFailed'));
     } finally {
       submittingRef.current = undefined;
-      setSubmittingArticleId((current) => (current === chat.articleId ? undefined : current));
+      dispatch({ type: 'submissionSettled', articleId: chat.articleId });
     }
   }
 
   return {
     actions: {
-      onClearDraftContext: () => setDraftContext(undefined),
-      onClose: () => setOpen(false),
-      onOpen: () => setOpen(true),
+      onClearDraftContext: () => dispatch({ type: 'draftContextCleared' }),
+      onClose: () => dispatch({ type: 'closed' }),
+      onOpen: () => dispatch({ type: 'opened' }),
       onSelectAssistant: selectAssistant,
       onSubmit: submit,
     },
@@ -198,23 +274,28 @@ export function useReaderChatSession({
   };
 }
 
+// A finished run keeps its placeholder until the saved reply reaches the chat state.
+function unsavedAssistantRuns(state: ReaderChatState | undefined, runs: AssistantRunView[]) {
+  if (runs.length === 0) return runs;
+  const session = state?.sessions.find((item) => item.id === state.activeSessionId);
+  const saved = new Set(session?.messages.map((message) => message.id));
+  const pending = runs.filter((run) => !run.commentId || !saved.has(run.commentId));
+  return pending.length === runs.length ? runs : pending;
+}
+
 function stateWithAssistantRuns(
   state: ReaderChatState | undefined,
   runs: AssistantRunView[],
 ): ReaderChatState | undefined {
   if (!state || runs.length === 0) return state;
-  const session = state.sessions.find((item) => item.id === state.activeSessionId);
-  const saved = new Set(session?.messages.map((message) => message.id));
-  const pending = runs
-    .filter((run) => !run.commentId || !saved.has(run.commentId))
-    .map((run): ReaderChatMessage => ({
-      id: `assistant-run:${run.runKey}`,
-      role: 'assistant',
-      content: run.text,
-      assistantId: run.agentId,
-      assistantProgress: run.steps?.length ? { steps: run.steps } : undefined,
-      createdAt: run.startedAt,
-    }));
+  const pending = runs.map((run): ReaderChatMessage => ({
+    id: `assistant-run:${run.runKey}`,
+    role: 'assistant',
+    content: run.text,
+    assistantId: run.agentId,
+    assistantProgress: run.steps?.length ? { steps: run.steps } : undefined,
+    createdAt: run.startedAt,
+  }));
   if (pending.length === 0) return state;
   return {
     ...state,

@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import {
+  createElement,
+  useCallback,
+  useEffectEvent,
+  useReducer,
+  useRef,
+  type RefObject,
+} from 'react';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { hashText } from '@yomitomo/shared';
 import { annotationColor, type HighlightBox } from '@yomitomo/core';
@@ -43,6 +51,13 @@ type UseEbookReaderBoxesInput = {
   userProfile: UserProfile;
 };
 
+function ebookBoxesReducer(
+  _boxes: HighlightBox[],
+  event: { type: 'boxesMeasured'; boxes: HighlightBox[] },
+) {
+  return event.boxes;
+}
+
 export function useEbookReaderBoxes({
   annotationAgents,
   annotationsRef,
@@ -57,7 +72,7 @@ export function useEbookReaderBoxes({
   readerStateStatusRef,
   userProfile,
 }: UseEbookReaderBoxesInput) {
-  const [boxes, setBoxes] = useState<HighlightBox[]>([]);
+  const [boxes, dispatch] = useReducer(ebookBoxesReducer, []);
   const updateBoxesFrameRef = useRef(0);
   const ebookBoxScheduleRef = useRef<EbookBoxScheduleState>({
     count: 0,
@@ -72,24 +87,7 @@ export function useEbookReaderBoxes({
     resolvedAnchorCount: 0,
   });
 
-  const resetEbookBoxState = useCallback(() => {
-    if (updateBoxesFrameRef.current) {
-      window.cancelAnimationFrame(updateBoxesFrameRef.current);
-      updateBoxesFrameRef.current = 0;
-    }
-    ebookBoxScheduleRef.current = {
-      count: 0,
-      cancelledFrameCount: 0,
-      reasons: [],
-      firstScheduledAt: 0,
-    };
-    lastEbookBoxInputFingerprintRef.current = '';
-    lastEbookBoxMetricsRef.current = { boxCount: 0, rangeCount: 0, resolvedAnchorCount: 0 };
-    const canvas = canvasRef.current;
-    canvas?.classList.remove('is-ebook-page-turning');
-    if (canvas) delete canvas.dataset.ebookClickPagingHover;
-    setBoxes([]);
-  }, [canvasRef]);
+  const readInput = useEffectEvent(() => ({ annotationAgents, article, userProfile }));
 
   const setEbookBoxLayerHidden = useCallback(
     (hidden: boolean) => {
@@ -117,6 +115,7 @@ export function useEbookReaderBoxes({
 
   const updateEbookBoxes = useCallback(
     (reason: EbookBoxUpdateReason, schedule?: EbookBoxScheduleSnapshot) => {
+      const { annotationAgents: agents, article: boxArticle, userProfile: profile } = readInput();
       const pageTurnTrace = pageTurnTraceRef.current;
       const finishPageTurnTrace = () => {
         if (pageTurnTraceRef.current === pageTurnTrace) pageTurnTraceRef.current = null;
@@ -126,8 +125,8 @@ export function useEbookReaderBoxes({
       const canvasElement = canvasRef.current;
       const content = currentFoliateContent(view);
       const doc = content?.doc;
-      if (!article.ebook || !view || !canvasElement || !doc) {
-        setBoxes([]);
+      if (!boxArticle.ebook || !view || !canvasElement || !doc) {
+        dispatch({ type: 'boxesMeasured', boxes: [] });
         setEbookBoxLayerHidden(false);
         recordEbookPageTurnTrace(pageTurnTrace, 'boxes_update_empty', {
           reason,
@@ -146,7 +145,7 @@ export function useEbookReaderBoxes({
       const pageInfoKey = currentPageInfo
         ? `${currentPageInfo.sectionIndex}:${currentPageInfo.pageIndex}:${currentPageInfo.pageCount}`
         : '';
-      const chapter = ebookChapterForFoliateSection(article, view, sectionIndex);
+      const chapter = ebookChapterForFoliateSection(boxArticle, view, sectionIndex);
       const canvasRect = canvasElement.getBoundingClientRect();
       const firstFrameRect = canvasElement
         .querySelector<HTMLIFrameElement>('iframe')
@@ -156,12 +155,12 @@ export function useEbookReaderBoxes({
       const visibleAnnotations = annotationsRef.current ?? [];
       const annotationSignature = ebookHighlightAnnotationsSignature(
         visibleAnnotations,
-        userProfile,
-        annotationAgents,
+        profile,
+        agents,
       );
       const inputFingerprint = hashText(
         [
-          article.id,
+          boxArticle.id,
           sectionIndex,
           chapter?.id || '',
           annotationSignature,
@@ -177,7 +176,7 @@ export function useEbookReaderBoxes({
       const sameInputAsPrevious = lastEbookBoxInputFingerprintRef.current === inputFingerprint;
       const forceUpdate =
         schedule?.reasons.includes('resize_observer') || reason === 'resize_observer';
-      const constrainToChapter = ebookHasStableSectionChapterMapping(article);
+      const constrainToChapter = ebookHasStableSectionChapterMapping(boxArticle);
       let skippedChapterCount = 0;
       const searchableAnnotations = visibleAnnotations.filter((annotation) => {
         if (
@@ -234,7 +233,7 @@ export function useEbookReaderBoxes({
           readerFontSize: readerSettingsSnapshot?.fontSize,
           readerContentWidth: readerSettingsSnapshot?.contentWidth,
           elapsedMs: rendererPerformanceElapsedMs(startedAt),
-          articleId: article.id,
+          articleId: boxArticle.id,
           sectionIndex,
           pageIndex: currentPageInfo?.pageIndex,
           pageCount: currentPageInfo?.pageCount,
@@ -279,7 +278,7 @@ export function useEbookReaderBoxes({
               annotation.author.kind === 'agent'
                 ? annotation.author.agentId
                 : annotation.author.userId || annotation.author.username,
-            color: annotationColor(annotation, userProfile, annotationAgents),
+            color: annotationColor(annotation, profile, agents),
           }),
         );
       });
@@ -288,7 +287,7 @@ export function useEbookReaderBoxes({
         rangeCount,
         resolvedAnchorCount,
       };
-      setBoxes(nextBoxes);
+      dispatch({ type: 'boxesMeasured', boxes: nextBoxes });
       setEbookBoxLayerHidden(false);
       debugEbookLayout('boxes-update', {
         boxCount: nextBoxes.length,
@@ -341,7 +340,7 @@ export function useEbookReaderBoxes({
         readerFontSize: readerSettingsSnapshot?.fontSize,
         readerContentWidth: readerSettingsSnapshot?.contentWidth,
         elapsedMs: rendererPerformanceElapsedMs(startedAt),
-        articleId: article.id,
+        articleId: boxArticle.id,
         sectionIndex,
         pageIndex: currentPageInfo?.pageIndex,
         pageCount: currentPageInfo?.pageCount,
@@ -360,9 +359,7 @@ export function useEbookReaderBoxes({
       });
     },
     [
-      annotationAgents,
       annotationsRef,
-      article,
       canvasRef,
       pageInfoSectionIndexRef,
       pageTurnTraceRef,
@@ -370,7 +367,6 @@ export function useEbookReaderBoxes({
       readerSettingsRef,
       readerStateStatusRef,
       setEbookBoxLayerHidden,
-      userProfile,
       viewRef,
     ],
   );
@@ -403,43 +399,52 @@ export function useEbookReaderBoxes({
     [updateEbookBoxes],
   );
 
-  useLayoutEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    let resizeTimer = 0;
-    const scheduleCanvasResizeUpdate = () => {
-      window.clearTimeout(resizeTimer);
-      resizeTimer = window.setTimeout(() => {
-        scheduleEbookBoxUpdate('resize_observer');
-      }, 80);
-    };
+  const observeCanvas = useCallback(
+    (marker: HTMLElement | null) => {
+      const canvas = canvasRef.current;
+      if (!marker || !canvas) return;
+      let resizeTimer = 0;
+      const scheduleCanvasResizeUpdate = () => {
+        window.clearTimeout(resizeTimer);
+        resizeTimer = window.setTimeout(() => {
+          scheduleEbookBoxUpdate('resize_observer');
+        }, 80);
+      };
 
-    window.addEventListener('resize', scheduleCanvasResizeUpdate);
-    const observer =
-      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(scheduleCanvasResizeUpdate);
-    observer?.observe(canvas);
-    return () => {
-      window.clearTimeout(resizeTimer);
-      window.removeEventListener('resize', scheduleCanvasResizeUpdate);
-      observer?.disconnect();
-    };
-  }, [article.id, canvasRef, scheduleEbookBoxUpdate]);
-
-  useLayoutEffect(() => {
-    updateEbookBoxes('layout_effect');
-  }, [readerStateStatus, updateEbookBoxes]);
-
-  useEffect(
-    () => () => {
-      if (updateBoxesFrameRef.current) window.cancelAnimationFrame(updateBoxesFrameRef.current);
+      window.addEventListener('resize', scheduleCanvasResizeUpdate);
+      const observer =
+        typeof ResizeObserver === 'undefined'
+          ? null
+          : new ResizeObserver(scheduleCanvasResizeUpdate);
+      observer?.observe(canvas);
+      return () => {
+        window.clearTimeout(resizeTimer);
+        window.removeEventListener('resize', scheduleCanvasResizeUpdate);
+        observer?.disconnect();
+      };
     },
-    [],
+    [canvasRef, scheduleEbookBoxUpdate],
   );
+
+  const updateForReaderState = useCallback(
+    (marker: HTMLElement | null) => {
+      if (marker) updateEbookBoxes('layout_effect');
+    },
+    [updateEbookBoxes],
+  );
+
+  useMountEffect(() => () => {
+    if (updateBoxesFrameRef.current) window.cancelAnimationFrame(updateBoxesFrameRef.current);
+  });
 
   return {
     boxes,
     hideEbookBoxLayer,
-    resetEbookBoxState,
+    // Rendered after the reader canvas so the canvas and foliate view exist when they attach.
+    markers: [
+      createElement('span', { hidden: true, key: 'canvas', ref: observeCanvas }),
+      createElement('span', { hidden: true, key: readerStateStatus, ref: updateForReaderState }),
+    ],
     scheduleEbookBoxUpdate,
   };
 }
