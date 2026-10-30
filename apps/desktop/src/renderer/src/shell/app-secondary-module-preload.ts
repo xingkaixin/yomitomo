@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import { recordStartupTiming, rendererPerformanceElapsedMs } from './app-renderer-performance';
 
 type ReadingStatsModule = typeof import('../reading-stats/app-reading-stats');
@@ -27,6 +28,8 @@ type PreloadEntry<TModule> = {
 };
 
 const preloadListeners = new Set<() => void>();
+let preloadVersion = 0;
+let idlePreloadStarted = false;
 
 export function subscribePreloadModules(listener: () => void) {
   preloadListeners.add(listener);
@@ -36,6 +39,7 @@ export function subscribePreloadModules(listener: () => void) {
 }
 
 function notifyPreloadModules() {
+  preloadVersion += 1;
   for (const listener of preloadListeners) listener();
 }
 
@@ -170,6 +174,18 @@ function scheduleIdlePreloadQueue(tasks: Array<() => Promise<unknown>>) {
 }
 
 export function useSecondaryModulePreload() {
-  const [, setPreloadVersion] = useState(0);
-  useEffect(() => subscribePreloadModules(() => setPreloadVersion((version) => version + 1)), []);
+  useSyncExternalStore(subscribePreloadModules, () => preloadVersion);
+}
+
+export function IdleModulePreload() {
+  useMountEffect(() => {
+    if (idlePreloadStarted) return;
+    const idleId = scheduleIdlePreload(() => {
+      idlePreloadStarted = true;
+      recordStartupTiming('secondary_modules.preload_start');
+      preloadIdleModules();
+    });
+    return () => cancelIdlePreload(idleId);
+  });
+  return null;
 }
