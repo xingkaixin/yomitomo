@@ -3,9 +3,10 @@
 ## Decision
 
 Business code in the desktop renderer, `packages/reader-ui`, and `apps/web` does
-not call `useState`, `useEffect`, `useLayoutEffect`, or `useInsertionEffect`.
-oxlint enforces this with `no-restricted-imports` and `no-restricted-properties`
-in the root `.oxlintrc.json`. Import React as a default import; a namespace
+not call `useState`, `useEffect`, `useLayoutEffect`, `useInsertionEffect`, or
+`useEffectEvent`. oxlint enforces this with `no-restricted-imports` and
+`no-restricted-properties` in the root `.oxlintrc.json`, and checks hook call
+order with `react/rules-of-hooks`. Import React as a default import; a namespace
 import (`import * as React`) fails `no-restricted-imports`.
 
 Test files are exempt. Production code has no other exemptions; effects go
@@ -30,8 +31,11 @@ query result into zustand.
   `useState` replacement.
 - State that must change when another value changes belongs in the reducer
   transition or action that changes that value, not in an effect.
-- Read the latest props inside callbacks with `useEffectEvent`. Do not write
-  `ref.current` during render.
+- Read the latest props from ref callbacks, event handlers, timers, and
+  subscriptions through `useStableCallback`, and do not call the result during
+  render. `useEffectEvent` is only for the effect primitives below, because React
+  allows calling Effect Events only from Effects. Do not write `ref.current`
+  during render.
 - Pass `use` a promise created once outside render, for example in a module.
   Promises returned through the preload bridge are new objects on every call.
   Updates from ref callbacks render synchronously, and a synchronous render
@@ -84,8 +88,9 @@ renderer store.
 
 ## Effect allowlist
 
-Only these primitives may call `useEffect` or `useLayoutEffect`. Each is added
-with its first caller and listed in the `.oxlintrc.json` allowlist override.
+Only these primitives may call `useEffect`, `useLayoutEffect`,
+`useInsertionEffect`, or `useEffectEvent`. Each is added with its first caller
+and listed in the `.oxlintrc.json` allowlist override.
 
 - `useEventListener(target, type, handler, options)` in reader-ui: window or
   document events scoped to a mounted view, such as reader keyboard shortcuts.
