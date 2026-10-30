@@ -4,7 +4,7 @@ import {
   PopoverTrigger,
   type PopoverSurfaceProps,
 } from '@yomitomo/reader-ui/ui-popover';
-import * as React from 'react';
+import React from 'react';
 
 type PopoverContentProps = Omit<
   PopoverSurfaceProps,

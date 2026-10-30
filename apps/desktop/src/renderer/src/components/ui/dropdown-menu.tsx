@@ -5,7 +5,7 @@ import {
   DropdownMenuTrigger,
   type DropdownMenuSurfaceProps,
 } from '@yomitomo/reader-ui/ui-dropdown-menu';
-import * as React from 'react';
+import React from 'react';
 
 type DropdownMenuContentProps = Omit<DropdownMenuSurfaceProps, 'baseClassName' | 'positionerStyle'>;
 
