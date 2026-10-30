@@ -77,11 +77,6 @@
     {
       "files": [
         "apps/web/src/components/landing/ReaderDemo.tsx",
-        "packages/reader-ui/src/annotations/reader-annotation-card.tsx",
-        "packages/reader-ui/src/annotations/reader-annotation-comment-composer.tsx",
-        "packages/reader-ui/src/annotations/use-reader-annotation-rail.ts",
-        "packages/reader-ui/src/shared/floating-composer.tsx",
-        "packages/reader-ui/src/shared/reader-component-primitives.tsx",
         "packages/reader-ui/src/shell/reader-app-view.tsx",
         "packages/reader-ui/src/shell/reader-chat-panel.tsx",
         "packages/reader-ui/src/shell/reader-composer.tsx",

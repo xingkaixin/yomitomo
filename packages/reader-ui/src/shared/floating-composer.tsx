@@ -1,7 +1,7 @@
 import {
   forwardRef,
   useMemo,
-  useState,
+  useReducer,
   type CSSProperties,
   type ReactNode,
   type TextareaHTMLAttributes,
@@ -45,7 +45,7 @@ export const FloatingComposer = forwardRef<HTMLTextAreaElement, FloatingComposer
     },
     ref,
   ) {
-    const [textareaScroll, setTextareaScroll] = useState({ left: 0, top: 0 });
+    const [textareaScroll, dispatch] = useReducer(textareaScrollReducer, { left: 0, top: 0 });
     const textareaValue =
       typeof textarea.value === 'string'
         ? textarea.value
@@ -113,7 +113,8 @@ export const FloatingComposer = forwardRef<HTMLTextAreaElement, FloatingComposer
             className={textareaClassName}
             onScroll={(event) => {
               if (showMentionOverlay) {
-                setTextareaScroll({
+                dispatch({
+                  type: 'textareaScrolled',
                   left: event.currentTarget.scrollLeft,
                   top: event.currentTarget.scrollTop,
                 });
@@ -143,6 +144,17 @@ export const FloatingComposer = forwardRef<HTMLTextAreaElement, FloatingComposer
     );
   },
 );
+
+type TextareaScroll = { left: number; top: number };
+
+type TextareaScrollEvent = { type: 'textareaScrolled'; left: number; top: number };
+
+function textareaScrollReducer(
+  _scroll: TextareaScroll,
+  event: TextareaScrollEvent,
+): TextareaScroll {
+  return { left: event.left, top: event.top };
+}
 
 function mentionChipStyle(value: string) {
   return /^#[0-9a-f]{3}([0-9a-f]{3})?$/iu.test(value)

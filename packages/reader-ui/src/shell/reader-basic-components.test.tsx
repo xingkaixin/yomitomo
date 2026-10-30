@@ -258,6 +258,7 @@ describe('ReaderSurfaceView', () => {
         annotationRail={{
           annotationRailItems: [],
           exitingAnnotationIds: new Set(),
+          layoutChangeRef: () => {},
           noteRefForAnnotation: () => vi.fn(),
           visibleAnnotationIds: new Set(annotations.map((item) => item.id)),
           visibleAnnotations: annotations,
