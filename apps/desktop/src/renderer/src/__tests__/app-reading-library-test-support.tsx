@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react';
+import { notifyManager } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, vi } from 'vitest';
 import { articleCounts } from '@yomitomo/core';
@@ -18,8 +19,7 @@ import type {
 } from '@yomitomo/shared';
 import { createLibraryCatalogTestAdapter } from '../../../main/library/library-catalog-test-adapter';
 import { ReadingLibrary } from '../reading-library/app-reading-library';
-import { useLibraryQueryState } from '../reading-library/use-library-query-state';
-import type { AppMenuCommandRequest } from '../../../app-menu-types';
+import type { AppMenuCommand } from '../../../app-menu-types';
 import type {
   ArticleImportResult,
   LibraryCatalogListInput,
@@ -31,6 +31,10 @@ import { defaultTheme } from '../theme/app-theme';
 import { articleActionStubs, articleStoreSinkStub } from './article-actions-test-utils';
 import { normalizeAppSettings } from '../../../settings/app-settings-normalization';
 import { annotation, article, now } from './app-reading-library-fixtures';
+import {
+  createReadingLibraryTestStores,
+  ReadingLibraryTestProviders,
+} from './reading-library-test-providers';
 
 export {
   annotation,
@@ -54,15 +58,19 @@ vi.mock('../shell/app-toast', () => ({
 
 export const { appToast, playAppSoundEffect } = feedbackSpies;
 
+// Query notifies through setTimeout by default, which never fires while a test fakes timers.
+notifyManager.setScheduler(queueMicrotask);
+
 type TestReadingLibraryProps = Omit<
   React.ComponentProps<typeof ReadingLibrary>,
-  'catalogRevision' | 'libraryQuery'
-> & { active?: boolean };
+  'catalogRevision'
+> & {
+  active?: boolean;
+};
 
 export function TestReadingLibrary({ active = true, ...props }: TestReadingLibraryProps) {
-  const libraryQuery = useLibraryQueryState();
   if (!active) return null;
-  return <ReadingLibrary {...props} catalogRevision={0} libraryQuery={libraryQuery} />;
+  return <ReadingLibrary {...props} catalogRevision={0} />;
 }
 
 export const articleStore = articleStoreSinkStub();
@@ -224,7 +232,7 @@ export function installDefaultCatalog(
   });
 }
 
-export function renderLibrary(
+export async function renderLibrary(
   articles: Array<ArticleRecord | ArticleSummaryRecord>,
   options: {
     onAddCollectionMembers?: (collectionId: string, members: ContentRef[]) => Promise<void>;
@@ -254,7 +262,6 @@ export function renderLibrary(
     onOpenDataSources?: () => void;
     collections?: Collection[];
     collectionMembers?: CollectionMember[];
-    menuRequest?: AppMenuCommandRequest | null;
     pins?: LibraryPin[];
     wereadBooks?: WeReadBook[];
     settings?: AppSettingsPatch;
@@ -262,6 +269,7 @@ export function renderLibrary(
 ) {
   const summaries = articles.map((item) => ('counts' in item ? item : articleSummary(item)));
   installDefaultCatalog(summaries, options);
+  const stores = createReadingLibraryTestStores(summaries, normalizeAppSettings(options.settings));
   const library = (
     <TestReadingLibrary
       agents={[]}
@@ -287,10 +295,8 @@ export function renderLibrary(
         },
       })}
       articleStore={articleStore}
-      articles={summaries}
       collectionMembers={options.collectionMembers}
       collections={options.collections}
-      menuRequest={options.menuRequest}
       readerTheme={defaultTheme.reader}
       settings={normalizeAppSettings(options.settings)}
       userProfile={userProfile}
@@ -305,10 +311,15 @@ export function renderLibrary(
       onOpenDataSources={options.onOpenDataSources}
     />
   );
-  const view = render(library);
+  const view = render(library, {
+    wrapper: ({ children }) => (
+      <ReadingLibraryTestProviders stores={stores}>{children}</ReadingLibraryTestProviders>
+    ),
+  });
+  await flushMicrotasks();
   return Object.assign(view, {
-    updateMenuRequest: (menuRequest: AppMenuCommandRequest) => {
-      view.rerender(React.cloneElement(library, { menuRequest }));
+    runMenuCommand: (command: AppMenuCommand) => {
+      act(() => stores.sessionStore.getState().actions.runMenuCommand(command));
     },
     updateReadingModeChange: (onReadingModeChange: (open: boolean) => void) => {
       view.rerender(React.cloneElement(library, { onReadingModeChange }));

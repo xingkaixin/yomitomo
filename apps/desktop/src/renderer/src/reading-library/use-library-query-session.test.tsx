@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 
+import type { ReactElement, ReactNode } from 'react';
+import { QueryClientProvider } from '@tanstack/react-query';
 import {
   act,
   cleanup,
@@ -10,15 +12,23 @@ import {
   waitFor,
 } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import type { AppSettingsPatch } from '@yomitomo/shared';
-import type {
-  LibraryCatalogItemType,
-  LibraryCatalogListInput,
-  LibraryCatalogListResult,
-} from '../../../ipc-contract';
-import { useLibraryQuerySession as useLibraryQuerySessionRuntime } from './use-library-query-session';
-import { useLibraryQueryState, type LibraryQueryState } from './use-library-query-state';
+import { useStore } from 'zustand';
+import { ARTICLE_SOURCE_TYPES, type AppSettingsPatch } from '@yomitomo/shared';
+import type { LibraryCatalogListInput, LibraryCatalogListResult } from '../../../ipc-contract';
+import { emptyDesktopStore } from '../../../app-store';
 import { normalizeAppSettings } from '../../../settings/app-settings-normalization';
+import { bindLibraryQueryEvents } from '../shell/app-desktop-event-bindings';
+import { createDesktopStore, DesktopStoreProvider } from '../shell/app-desktop-store';
+import { createAppQueryClient } from '../shell/app-query-client';
+import {
+  AppSessionStoreProvider,
+  createAppSessionStore,
+  useAppSessionStoreApi,
+  type AppSessionState,
+} from '../shell/app-session';
+import type { LibraryTypeFilter } from './library-filter-types';
+import { useLibraryQuerySession } from './use-library-query-session';
+import { weReadLibraryStateQuery } from './use-weread-library-session';
 
 afterEach(() => {
   cleanup();
@@ -32,18 +42,20 @@ it('preserves a saved WeRead filter while the remounted catalog loads', async ()
     reloading ? pending.promise : Promise.resolve(catalogResult({ wereadCount: 1 })),
   );
   vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list: listCatalog } } });
-  const view = render(<RestorableQueryHarness showCatalog availableTypes={['web']} />);
+  const stores = createLibraryStores({ weReadAvailable: false });
+  const view = renderWithStores(<RestorableQueryHarness showCatalog />, stores);
   await waitFor(() => expect(screen.getByTestId('catalog-status').textContent).toBe('ready'));
   fireEvent.click(screen.getByRole('button', { name: 'filter WeRead' }));
   await waitFor(() => expect(screen.getByTestId('catalog-status').textContent).toBe('ready'));
   expect(screen.getByTestId('selected-types').textContent).toBe('weread');
-  view.rerender(<RestorableQueryHarness showCatalog={false} availableTypes={['web']} />);
+  view.rerender(<RestorableQueryHarness showCatalog={false} />);
   reloading = true;
-  view.rerender(<RestorableQueryHarness showCatalog availableTypes={['web']} />);
+  view.rerender(<RestorableQueryHarness showCatalog />);
 
   expect(screen.getByTestId('catalog-status').textContent).toBe('loading');
   expect(screen.getByTestId('selected-types').textContent).toBe('weread');
   await act(async () => pending.resolve(catalogResult({ wereadCount: 1 })));
+  await waitFor(() => expect(screen.getByTestId('catalog-status').textContent).toBe('ready'));
   expect(screen.getByTestId('selected-types').textContent).toBe('weread');
   expect(listCatalog.mock.calls.at(-1)?.[0]).toMatchObject({ types: ['weread'] });
 });
@@ -53,20 +65,16 @@ it.each([true, false])(
   async (wereadAvailable) => {
     const listCatalog = vi.fn(async () => catalogResult());
     vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list: listCatalog } } });
-    const initialProps: { availableTypes: LibraryCatalogItemType[] | null } = {
-      availableTypes: null,
-    };
-    const { result, rerender } = renderHook(
-      ({ availableTypes }) =>
-        useLibraryQuerySession(
-          sessionOptions({ availableTypes, initial: { selectedTypes: new Set(['weread']) } }),
-        ),
-      { initialProps },
-    );
+    const { result, stores } = renderQuerySession({
+      weReadAvailable: null,
+      initial: { selectedTypes: ['weread'] },
+    });
     await waitFor(() => expect(result.current.catalog.status).toBe('ready'));
 
     expect(result.current.state.selectedTypes).toEqual(new Set(['weread']));
-    rerender({ availableTypes: wereadAvailable ? ['web', 'weread'] : ['web'] });
+    act(() => {
+      stores.setWeReadAvailable(wereadAvailable);
+    });
 
     expect(result.current.state.selectedTypes).toEqual(new Set(wereadAvailable ? ['weread'] : []));
   },
@@ -77,14 +85,13 @@ it('keeps the saved WeRead filter when the catalog cannot load', async () => {
   vi.stubGlobal('yomitomoDesktop', {
     library: { catalog: { list: () => pending.promise } },
   });
-  const { result } = renderHook(() =>
-    useLibraryQuerySession(
-      sessionOptions({ availableTypes: ['web'], initial: { selectedTypes: new Set(['weread']) } }),
-    ),
-  );
+  const { result } = renderQuerySession({
+    weReadAvailable: false,
+    initial: { selectedTypes: ['weread'] },
+  });
   await act(async () => pending.reject(new Error('database busy')));
 
-  expect(result.current.catalog.status).toBe('error');
+  await waitFor(() => expect(result.current.catalog.status).toBe('error'));
   expect(result.current.state.selectedTypes).toEqual(new Set(['weread']));
 });
 
@@ -95,31 +102,20 @@ it('does not prune against a previous catalog while its revision is refreshing',
     .mockResolvedValueOnce(catalogResult())
     .mockReturnValue(pending.promise);
   vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list: listCatalog } } });
-  const { result, rerender } = renderHook(
-    ({
-      availableTypes,
-      localRevision,
-    }: {
-      availableTypes: LibraryCatalogItemType[];
-      localRevision: number;
-    }) =>
-      useLibraryQuerySession(
-        sessionOptions({
-          availableTypes,
-          localRevision,
-          initial: { selectedTypes: new Set(['weread']) },
-        }),
-      ),
-    { initialProps: { availableTypes: ['web', 'weread'], localRevision: 0 } },
-  );
+  const { result, rerender, stores } = renderQuerySession({
+    initial: { selectedTypes: ['weread'] },
+  });
   await waitFor(() => expect(result.current.catalog.status).toBe('ready'));
 
-  rerender({ availableTypes: ['web'], localRevision: 1 });
+  rerender({ revision: 1 });
+  act(() => {
+    stores.setWeReadAvailable(false);
+  });
   expect(result.current.catalog.status).toBe('loading');
   expect(result.current.state.selectedTypes).toEqual(new Set(['weread']));
   await act(async () => pending.resolve(catalogResult({ wereadCount: 1 })));
 
-  expect(result.current.catalog.status).toBe('ready');
+  await waitFor(() => expect(result.current.catalog.status).toBe('ready'));
   expect(result.current.state.selectedTypes).toEqual(new Set(['weread']));
 });
 
@@ -135,7 +131,8 @@ it.each([60, 14, 0])(
       }))
       .mockReturnValueOnce(pending.promise);
     vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list: listCatalog } } });
-    const view = render(<RestorableQueryHarness showCatalog={false} />);
+    const stores = createLibraryStores();
+    const view = renderWithStores(<RestorableQueryHarness showCatalog={false} />, stores);
     fireEvent.click(screen.getByRole('button', { name: 'page five' }));
     expect(screen.getByTestId('current-page').textContent).toBe('5');
 
@@ -159,24 +156,23 @@ it('keeps the saved page when the remounted catalog cannot load', async () => {
   vi.stubGlobal('yomitomoDesktop', {
     library: { catalog: { list: vi.fn(() => pending.promise) } },
   });
-  const view = render(<RestorableQueryHarness showCatalog={false} />);
+  const stores = createLibraryStores();
+  const view = renderWithStores(<RestorableQueryHarness showCatalog={false} />, stores);
   fireEvent.click(screen.getByRole('button', { name: 'page five' }));
   view.rerender(<RestorableQueryHarness showCatalog />);
 
   await act(async () => pending.reject(new Error('database busy')));
 
-  expect(screen.getByTestId('catalog-status').textContent).toBe('error');
+  await waitFor(() => expect(screen.getByTestId('catalog-status').textContent).toBe('error'));
   expect(screen.getByTestId('current-page').textContent).toBe('5');
 });
 
 it('derives the catalog input directly from the owned query state', async () => {
   const listCatalog = vi.fn(async () => catalogResult());
   vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list: listCatalog } } });
-  const { result } = renderHook(() =>
-    useLibraryQuerySession(
-      sessionOptions({ initial: { searchQuery: 'saved query', selectedTypes: new Set(['web']) } }),
-    ),
-  );
+  const { result } = renderQuerySession({
+    initial: { searchQuery: 'saved query', selectedTypes: ['web'] },
+  });
 
   await waitFor(() => expect(listCatalog).toHaveBeenCalledOnce());
   expect(result.current.input).toMatchObject({
@@ -195,18 +191,15 @@ it('derives the catalog input directly from the owned query state', async () => 
 it('prunes unavailable types and exits a removed collection from external facts', async () => {
   const listCatalog = vi.fn(async () => catalogResult());
   vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list: listCatalog } } });
-  const { result } = renderHook(() =>
-    useLibraryQuerySession(
-      sessionOptions({
-        availableTypes: ['web'],
-        collectionIds: ['collection_available'],
-        initial: {
-          activeCollectionId: 'collection_missing',
-          selectedTypes: new Set(['collection']),
-        },
-      }),
-    ),
-  );
+  const { result, stores } = renderQuerySession({
+    weReadAvailable: false,
+    collections: ['collection_available', 'collection_removed'],
+    initial: { activeCollectionId: 'collection_removed', selectedTypes: ['collection'] },
+  });
+
+  act(() => {
+    stores.setCollections(['collection_available']);
+  });
 
   await waitFor(() => {
     expect(result.current.state.scope).toEqual({ kind: 'library' });
@@ -217,11 +210,11 @@ it('prunes unavailable types and exits a removed collection from external facts'
 it('exposes WeRead when the catalog reports available books', async () => {
   const listCatalog = vi.fn(async () => catalogResult({ wereadCount: 1 }));
   vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list: listCatalog } } });
-  const { result } = renderHook(() =>
-    useLibraryQuerySession(sessionOptions({ availableTypes: ['web'] })),
-  );
+  const { result } = renderQuerySession({ weReadAvailable: false });
 
-  await waitFor(() => expect(result.current.availableTypes).toEqual(['web', 'weread']));
+  await waitFor(() =>
+    expect(result.current.availableTypes).toEqual([...ARTICLE_SOURCE_TYPES, 'weread']),
+  );
 });
 
 it('serializes page-size saves as partial settings patches', async () => {
@@ -233,11 +226,10 @@ it('serializes page-size saves as partial settings patches', async () => {
     .mockReturnValueOnce(secondSave.promise);
   const listCatalog = vi.fn(async () => catalogResult());
   vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list: listCatalog } } });
-  const { result } = renderHook(() =>
-    useLibraryQuerySession(
-      sessionOptions({ onSaveSettings, settings: { libraryPageSize: 12, themeId: 'ink-paper' } }),
-    ),
-  );
+  const { result } = renderQuerySession({
+    onSaveSettings,
+    settings: { libraryPageSize: 12, themeId: 'ink-paper' },
+  });
 
   act(() => {
     result.current.actions.changePageSize(18);
@@ -264,9 +256,7 @@ it('serializes page-size saves as partial settings patches', async () => {
 it('adopts the configured page size on its first mount', async () => {
   const listCatalog = vi.fn(async () => catalogResult());
   vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list: listCatalog } } });
-  const { result } = renderHook(() =>
-    useLibraryQuerySession(sessionOptions({ settings: { libraryPageSize: 24 } })),
-  );
+  const { result } = renderQuerySession({ settings: { libraryPageSize: 24 } });
 
   await waitFor(() => expect(result.current.state.pageSize).toBe(24));
 });
@@ -285,17 +275,13 @@ it('serializes page-size saves across a remounted home', async () => {
   });
   const listCatalog = vi.fn(async () => catalogResult());
   vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list: listCatalog } } });
-  const first = renderHook(() =>
-    useLibraryQuerySession(sessionOptions({ onSaveSettings, settings: { libraryPageSize: 12 } })),
-  );
+  const first = renderQuerySession({ onSaveSettings, settings: { libraryPageSize: 12 } });
 
   act(() => first.result.current.actions.changePageSize(18));
   await waitFor(() => expect(onSaveSettings).toHaveBeenCalledOnce());
   first.unmount();
 
-  const second = renderHook(() =>
-    useLibraryQuerySession(sessionOptions({ onSaveSettings, settings: { libraryPageSize: 12 } })),
-  );
+  const second = renderQuerySession({ onSaveSettings, settings: { libraryPageSize: 12 } });
   act(() => second.result.current.actions.changePageSize(24));
   await act(async () => {
     await Promise.resolve();
@@ -323,17 +309,13 @@ it('rolls back the latest remounted save to the globally confirmed page size', a
     .mockReturnValueOnce(secondSave.promise);
   const listCatalog = vi.fn(async () => catalogResult());
   vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list: listCatalog } } });
-  const first = renderHook(() =>
-    useLibraryQuerySession(sessionOptions({ onSaveSettings, settings: { libraryPageSize: 12 } })),
-  );
+  const first = renderQuerySession({ onSaveSettings, settings: { libraryPageSize: 12 } });
 
   act(() => first.result.current.actions.changePageSize(18));
   await waitFor(() => expect(onSaveSettings).toHaveBeenCalledOnce());
   first.unmount();
 
-  const second = renderHook(() =>
-    useLibraryQuerySession(sessionOptions({ onSaveSettings, settings: { libraryPageSize: 12 } })),
-  );
+  const second = renderQuerySession({ onSaveSettings, settings: { libraryPageSize: 12 } });
   act(() => second.result.current.actions.changePageSize(24));
   expect(second.result.current.state.pageSize).toBe(24);
 
@@ -359,9 +341,7 @@ it('keeps a newer page size when an older queued save fails', async () => {
     .mockReturnValueOnce(secondSave.promise);
   const listCatalog = vi.fn(async () => catalogResult());
   vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list: listCatalog } } });
-  const { result } = renderHook(() =>
-    useLibraryQuerySession(sessionOptions({ onSaveSettings, settings: { libraryPageSize: 12 } })),
-  );
+  const { result } = renderQuerySession({ onSaveSettings, settings: { libraryPageSize: 12 } });
 
   act(() => {
     result.current.actions.changePageSize(18);
@@ -391,9 +371,7 @@ it('continues page-size saves after a synchronous failure', async () => {
   });
   const listCatalog = vi.fn(async () => catalogResult());
   vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list: listCatalog } } });
-  const { result } = renderHook(() =>
-    useLibraryQuerySession(sessionOptions({ onSaveSettings, settings: { libraryPageSize: 12 } })),
-  );
+  const { result } = renderQuerySession({ onSaveSettings, settings: { libraryPageSize: 12 } });
 
   act(() => {
     result.current.actions.changePageSize(18);
@@ -414,9 +392,7 @@ it('rolls back the latest failed page-size save to the last confirmed size', asy
     .mockReturnValueOnce(secondSave.promise);
   const listCatalog = vi.fn(async () => catalogResult());
   vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list: listCatalog } } });
-  const { result } = renderHook(() =>
-    useLibraryQuerySession(sessionOptions({ onSaveSettings, settings: { libraryPageSize: 12 } })),
-  );
+  const { result } = renderQuerySession({ onSaveSettings, settings: { libraryPageSize: 12 } });
 
   act(() => {
     result.current.actions.changePageSize(18);
@@ -441,12 +417,14 @@ it('adopts external page-size settings without saving them again', async () => {
   const onSaveSettings = vi.fn().mockReturnValue(failedSave.promise);
   const listCatalog = vi.fn(async () => catalogResult());
   vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list: listCatalog } } });
-  const { result, rerender } = renderHook(
-    ({ settings }) => useLibraryQuerySession(sessionOptions({ onSaveSettings, settings })),
-    { initialProps: { settings: { libraryPageSize: 12 } } },
-  );
+  const { result, stores } = renderQuerySession({
+    onSaveSettings,
+    settings: { libraryPageSize: 12 },
+  });
 
-  rerender({ settings: { libraryPageSize: 24 } });
+  act(() => {
+    stores.setSettings({ libraryPageSize: 24 });
+  });
 
   await waitFor(() => expect(result.current.state.pageSize).toBe(24));
   expect(onSaveSettings).not.toHaveBeenCalled();
@@ -466,15 +444,17 @@ it('keeps an optimistic page size while observing external settings during a sav
   const onSaveSettings = vi.fn().mockReturnValue(failedSave.promise);
   const listCatalog = vi.fn(async () => catalogResult());
   vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list: listCatalog } } });
-  const { result, rerender } = renderHook(
-    ({ settings }) => useLibraryQuerySession(sessionOptions({ onSaveSettings, settings })),
-    { initialProps: { settings: { libraryPageSize: 12 } } },
-  );
+  const { result, stores } = renderQuerySession({
+    onSaveSettings,
+    settings: { libraryPageSize: 12 },
+  });
 
   act(() => result.current.actions.changePageSize(18));
   await waitFor(() => expect(onSaveSettings).toHaveBeenCalledOnce());
 
-  rerender({ settings: { libraryPageSize: 24 } });
+  act(() => {
+    stores.setSettings({ libraryPageSize: 24 });
+  });
 
   expect(result.current.state.pageSize).toBe(18);
   expect(onSaveSettings).toHaveBeenCalledOnce();
@@ -487,77 +467,113 @@ it('keeps an optimistic page size while observing external settings during a sav
   await waitFor(() => expect(result.current.state.pageSize).toBe(24));
 });
 
-function sessionOptions({
-  availableTypes = ['web', 'ebook', 'pdf', 'text', 'weread'],
-  collectionIds = [],
-  initial = {},
-  localRevision = 0,
-  onSaveSettings = vi.fn(),
-  settings = {},
-}: {
-  availableTypes?: LibraryCatalogItemType[] | null;
-  collectionIds?: string[];
-  initial?: Parameters<typeof useLibraryQueryState>[0];
-  localRevision?: number;
-  onSaveSettings?: (settings: AppSettingsPatch) => Promise<void> | void;
+type LibraryStoresSetup = {
+  collections?: string[];
+  initial?: {
+    activeCollectionId?: string;
+    searchQuery?: string;
+    selectedTypes?: LibraryTypeFilter[];
+  };
   settings?: AppSettingsPatch;
-} = {}) {
+  weReadAvailable?: boolean | null;
+};
+
+function createLibraryStores({
+  collections = [],
+  initial = {},
+  settings = {},
+  weReadAvailable = true,
+}: LibraryStoresSetup = {}) {
+  const desktopStore = createDesktopStore();
+  const queryClient = createAppQueryClient();
+  const sessionStore = createAppSessionStore(desktopStore);
+  bindLibraryQueryEvents({ desktopStore, queryClient, sessionStore });
+  const applyStore = (patch: Partial<typeof emptyDesktopStore>) =>
+    desktopStore.getState().applyStore({
+      ...(desktopStore.getState().getStore() || emptyDesktopStore),
+      ...patch,
+    });
+  const setCollections = (ids: string[]) =>
+    applyStore({
+      collections: ids.map((id) => ({ id, name: id, createdAt: '', updatedAt: '' })),
+    });
+  const setWeReadAvailable = (configured: boolean) =>
+    queryClient.setQueryData(weReadLibraryStateQuery.queryKey, {
+      settings: { configured, openMethod: 'deeplink' },
+      books: [],
+    });
+  applyStore({ settings: normalizeAppSettings(settings) });
+  setCollections(collections);
+  if (weReadAvailable !== null) setWeReadAvailable(weReadAvailable);
+  const { dispatchLibraryQuery } = sessionStore.getState().actions;
+  for (const value of initial.selectedTypes || []) {
+    dispatchLibraryQuery({ type: 'type-toggled', value, availableCount: 6 });
+  }
+  if (initial.searchQuery) {
+    dispatchLibraryQuery({ type: 'query-changed', query: initial.searchQuery });
+  }
+  if (initial.activeCollectionId) {
+    dispatchLibraryQuery({ type: 'collection-opened', collectionId: initial.activeCollectionId });
+  }
   return {
-    availableTypes,
-    collectionIds,
-    initial,
-    localRevision,
-    onSaveSettings,
-    settings: normalizeAppSettings(settings),
+    setCollections,
+    setSettings: (patch: AppSettingsPatch) => applyStore({ settings: normalizeAppSettings(patch) }),
+    setWeReadAvailable,
+    wrapper: ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>
+        <DesktopStoreProvider store={desktopStore}>
+          <AppSessionStoreProvider store={sessionStore}>{children}</AppSessionStoreProvider>
+        </DesktopStoreProvider>
+      </QueryClientProvider>
+    ),
   };
 }
 
-function RestorableQueryHarness({
-  showCatalog,
-  availableTypes,
-}: {
-  showCatalog: boolean;
-  availableTypes?: LibraryCatalogItemType[];
-}) {
-  const query = useLibraryQueryState();
+function renderWithStores(ui: ReactElement, stores: ReturnType<typeof createLibraryStores>) {
+  return render(ui, { wrapper: stores.wrapper });
+}
+
+function renderQuerySession({
+  onSaveSettings = vi.fn(),
+  ...setup
+}: LibraryStoresSetup & {
+  onSaveSettings?: (settings: AppSettingsPatch) => Promise<void> | void;
+} = {}) {
+  const stores = createLibraryStores(setup);
+  const view = renderHook(
+    ({ revision }: { revision: number }) =>
+      useLibraryQuerySession({ catalogRevision: revision, onSaveSettings }),
+    { initialProps: { revision: 0 }, wrapper: stores.wrapper },
+  );
+  return { ...view, stores };
+}
+
+function RestorableQueryHarness({ showCatalog }: { showCatalog: boolean }) {
+  const sessionStore = useAppSessionStoreApi();
+  const state = useStore(sessionStore, ({ libraryQuery }: AppSessionState) => libraryQuery);
+  const { dispatchLibraryQuery } = sessionStore.getState().actions;
   return (
     <>
-      <button onClick={() => query.dispatch({ type: 'page-changed', page: 5 })}>page five</button>
+      <button onClick={() => dispatchLibraryQuery({ type: 'page-changed', page: 5 })}>
+        page five
+      </button>
       <button
-        onClick={() => query.dispatch({ type: 'type-toggled', value: 'weread', availableCount: 6 })}
+        onClick={() =>
+          dispatchLibraryQuery({ type: 'type-toggled', value: 'weread', availableCount: 6 })
+        }
       >
         filter WeRead
       </button>
-      <span data-testid="selected-types">{[...query.state.selectedTypes].join(',')}</span>
-      <span data-testid="current-page">{query.state.page}</span>
-      {showCatalog ? <RestoredCatalog query={query} availableTypes={availableTypes} /> : null}
+      <span data-testid="selected-types">{[...state.selectedTypes].join(',')}</span>
+      <span data-testid="current-page">{state.page}</span>
+      {showCatalog ? <RestoredCatalog /> : null}
     </>
   );
 }
 
-function RestoredCatalog({
-  query,
-  availableTypes,
-}: {
-  query: LibraryQueryState;
-  availableTypes?: LibraryCatalogItemType[];
-}) {
-  const { catalog } = useLibraryQuerySessionRuntime({
-    ...sessionOptions({ availableTypes }),
-    catalogRevision: 0,
-    query,
-  });
+function RestoredCatalog() {
+  const { catalog } = useLibraryQuerySession({ catalogRevision: 0, onSaveSettings: vi.fn() });
   return <span data-testid="catalog-status">{catalog.status}</span>;
-}
-
-function useLibraryQuerySession(options: ReturnType<typeof sessionOptions>) {
-  const { initial, localRevision, ...runtimeOptions } = options;
-  const query = useLibraryQueryState(initial);
-  return useLibraryQuerySessionRuntime({
-    ...runtimeOptions,
-    catalogRevision: localRevision,
-    query,
-  });
 }
 
 function catalogResult({

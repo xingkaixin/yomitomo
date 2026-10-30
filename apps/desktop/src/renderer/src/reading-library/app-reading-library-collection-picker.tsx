@@ -8,7 +8,7 @@ import {
   LibraryIcon,
   Search01Icon,
 } from '@hugeicons/core-free-icons';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useReducer } from 'react';
 import {
   ReaderTooltip,
   ReaderTooltipProvider,
@@ -54,6 +54,56 @@ import { toggleCatalogSelection } from './library-catalog-selection';
 
 const PICKER_PAGE_SIZE = 30;
 
+type CollectionPickerState = {
+  query: string;
+  typeScope: LibraryTypeScope;
+  page: number;
+  selectedRefs: Map<string, LibraryCatalogItem>;
+  error: string;
+  submitting: boolean;
+};
+
+type CollectionPickerEvent =
+  | { type: 'queryChanged'; query: string }
+  | { type: 'typeScopeChanged'; typeScope: LibraryTypeScope }
+  | { type: 'previousPageRequested' }
+  | { type: 'nextPageRequested'; pageCount: number }
+  | { type: 'itemToggled'; item: LibraryCatalogItem }
+  | { type: 'submitStarted' }
+  | { type: 'submitFailed'; message: string }
+  | { type: 'submitSucceeded' };
+
+function collectionPickerReducer(
+  state: CollectionPickerState,
+  event: CollectionPickerEvent,
+): CollectionPickerState {
+  switch (event.type) {
+    case 'queryChanged':
+      return { ...state, query: event.query, page: 1 };
+    case 'typeScopeChanged':
+      return { ...state, typeScope: event.typeScope, page: 1 };
+    case 'previousPageRequested':
+      return { ...state, page: Math.max(1, state.page - 1) };
+    case 'nextPageRequested':
+      return { ...state, page: Math.min(event.pageCount, state.page + 1) };
+    case 'itemToggled':
+      return {
+        ...state,
+        selectedRefs: toggleCatalogSelection(
+          state.selectedRefs,
+          libraryCatalogItemRef(event.item),
+          event.item,
+        ),
+      };
+    case 'submitStarted':
+      return { ...state, error: '', submitting: true };
+    case 'submitFailed':
+      return { ...state, error: event.message, submitting: false };
+    case 'submitSucceeded':
+      return { ...state, submitting: false };
+  }
+}
+
 type CollectionPickerDialogProps = {
   catalogRevision: unknown;
   collection: Collection;
@@ -78,14 +128,18 @@ function CollectionPickerDialogContent({
   onClose,
 }: CollectionPickerDialogProps) {
   const { t } = useTranslation();
-  const [query, setQuery] = useState('');
-  const [typeScope, setTypeScope] = useState<LibraryTypeScope>('all');
-  const [page, setPage] = useState(1);
-  const [selectedRefs, setSelectedRefs] = useState<Map<string, LibraryCatalogItem>>(
-    () => new Map(),
+  const [{ query, typeScope, page, selectedRefs, error, submitting }, dispatch] = useReducer(
+    collectionPickerReducer,
+    undefined,
+    (): CollectionPickerState => ({
+      query: '',
+      typeScope: 'all',
+      page: 1,
+      selectedRefs: new Map(),
+      error: '',
+      submitting: false,
+    }),
   );
-  const [error, setError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
   const catalogInput = useMemo<LibraryCatalogListInput>(
     () => ({
       scope: { kind: 'picker', collectionId: collection.id },
@@ -117,9 +171,7 @@ function CollectionPickerDialogContent({
     typeOptions.find((option) => option.value === typeScope)?.label || t('library.typeFilter.all');
 
   function toggleItem(item: LibraryCatalogItem) {
-    setSelectedRefs((current) =>
-      toggleCatalogSelection(current, libraryCatalogItemRef(item), item),
-    );
+    dispatch({ type: 'itemToggled', item });
   }
   function toggleItemRef(ref: ContentRef) {
     const key = contentRefKey(ref);
@@ -136,15 +188,16 @@ function CollectionPickerDialogContent({
 
   async function confirm() {
     if (selectedItems.length === 0) return;
-    setSubmitting(true);
-    setError('');
+    dispatch({ type: 'submitStarted' });
     try {
       await onAddMembers(selectedItems.map(libraryCatalogItemRef));
       onClose();
+      dispatch({ type: 'submitSucceeded' });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('library.collection.saveFailed'));
-    } finally {
-      setSubmitting(false);
+      dispatch({
+        type: 'submitFailed',
+        message: cause instanceof Error ? cause.message : t('library.collection.saveFailed'),
+      });
     }
   }
 
@@ -172,17 +225,15 @@ function CollectionPickerDialogContent({
                     value={query}
                     placeholder={t('library.collection.pickerSearchPlaceholder')}
                     aria-label={t('library.collection.pickerSearchLabel')}
-                    onChange={(event) => {
-                      setPage(1);
-                      setQuery(event.target.value);
-                    }}
+                    onChange={(event) =>
+                      dispatch({ type: 'queryChanged', query: event.target.value })
+                    }
                   />
                   <Select
                     value={typeScope}
-                    onValueChange={(value) => {
-                      setPage(1);
-                      setTypeScope(value as LibraryTypeScope);
-                    }}
+                    onValueChange={(value) =>
+                      dispatch({ type: 'typeScopeChanged', typeScope: value as LibraryTypeScope })
+                    }
                   >
                     <SelectTrigger
                       className="library-type-filter-trigger"
@@ -227,7 +278,7 @@ function CollectionPickerDialogContent({
                         type="button"
                         aria-label={t('library.pagination.previous')}
                         disabled={page === 1}
-                        onClick={() => setPage((current) => Math.max(1, current - 1))}
+                        onClick={() => dispatch({ type: 'previousPageRequested' })}
                       >
                         <HugeiconsIcon icon={ArrowLeft01Icon} size={16} />
                       </button>
@@ -236,7 +287,7 @@ function CollectionPickerDialogContent({
                         type="button"
                         aria-label={t('library.pagination.next')}
                         disabled={page === pageCount}
-                        onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
+                        onClick={() => dispatch({ type: 'nextPageRequested', pageCount })}
                       >
                         <HugeiconsIcon icon={ArrowRight01Icon} size={16} />
                       </button>

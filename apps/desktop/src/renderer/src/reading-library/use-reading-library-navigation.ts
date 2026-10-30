@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
+import { useCallback, useEffectEvent, useMemo, useReducer, useRef } from 'react';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import { articleCounts } from '@yomitomo/core';
 import type {
   ArticleRecord,
@@ -33,6 +34,13 @@ type ReadingLibraryNavigationEvent =
       update: (article: ArticleRecord) => ArticleRecord;
     };
 
+export type ReadingLibraryNavigationModel = ReturnType<typeof readingLibraryNavigationModel>;
+
+type RouteListener = (
+  model: ReadingLibraryNavigationModel,
+  previous: ReadingLibraryNavigationModel,
+) => void;
+
 type UseReadingLibraryNavigationOptions = {
   onCloseArticleDiscussions?: (articleId: string) => Promise<void> | void;
   onReadArticle: (articleId: string) => Promise<ArticleRecord | null>;
@@ -46,25 +54,39 @@ export function useReadingLibraryNavigation({
   const routeRef = useRef<ReadingLibraryRoute>(route);
   const contentLoadRef = useRef<ContentRef | null>(null);
   const discussionArticleIdRef = useRef<string | null>(null);
+  const routeListenersRef = useRef(new Set<RouteListener>());
+  const closeDiscussions = useEffectEvent((articleId: string) => {
+    void onCloseArticleDiscussions?.(articleId);
+  });
 
   const send = useCallback((event: ReadingLibraryNavigationEvent) => {
-    routeRef.current = readingLibraryRoute(routeRef.current, event);
+    const previous = routeRef.current;
+    const next = readingLibraryRoute(previous, event);
+    routeRef.current = next;
     dispatch(event);
+    if (next === previous || routeListenersRef.current.size === 0) return;
+    const model = readingLibraryNavigationModel(next);
+    const previousModel = readingLibraryNavigationModel(previous);
+    for (const listener of routeListenersRef.current) listener(model, previousModel);
+  }, []);
+
+  const subscribeRoute = useCallback((listener: RouteListener) => {
+    routeListenersRef.current.add(listener);
+    return () => {
+      routeListenersRef.current.delete(listener);
+    };
   }, []);
 
   const cancelContentLoad = useCallback(() => {
     contentLoadRef.current = null;
   }, []);
 
-  const closeCurrentArticle = useCallback(
-    (nextArticleId?: string) => {
-      const articleId = discussionArticleIdRef.current;
-      if (!articleId || articleId === nextArticleId) return;
-      discussionArticleIdRef.current = null;
-      void onCloseArticleDiscussions?.(articleId);
-    },
-    [onCloseArticleDiscussions],
-  );
+  const closeCurrentArticle = useCallback((nextArticleId?: string) => {
+    const articleId = discussionArticleIdRef.current;
+    if (!articleId || articleId === nextArticleId) return;
+    discussionArticleIdRef.current = null;
+    closeDiscussions(articleId);
+  }, []);
 
   const resetLibrary = useCallback(() => {
     cancelContentLoad();
@@ -195,15 +217,12 @@ export function useReadingLibraryNavigation({
     [isCurrentArticle, removeArticleRoute, updateArticle],
   );
 
-  useEffect(
-    () => () => {
-      cancelContentLoad();
-      const articleId = discussionArticleIdRef.current;
-      discussionArticleIdRef.current = null;
-      if (articleId) void onCloseArticleDiscussions?.(articleId);
-    },
-    [cancelContentLoad, onCloseArticleDiscussions],
-  );
+  useMountEffect(() => () => {
+    cancelContentLoad();
+    const articleId = discussionArticleIdRef.current;
+    discussionArticleIdRef.current = null;
+    if (articleId) closeDiscussions(articleId);
+  });
 
   const model = useMemo(() => readingLibraryNavigationModel(route), [route]);
   const actions = useMemo(
@@ -218,6 +237,7 @@ export function useReadingLibraryNavigation({
       returnToLibrary,
       selectAnnotation,
       openWeReadBook,
+      subscribeRoute,
       updateArticle,
     }),
     [
@@ -231,6 +251,7 @@ export function useReadingLibraryNavigation({
       returnToLibrary,
       selectAnnotation,
       openWeReadBook,
+      subscribeRoute,
       updateArticle,
     ],
   );

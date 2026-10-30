@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
-import { useLayoutEffect } from 'react';
+import type { ReactNode } from 'react';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import type {
@@ -8,6 +9,7 @@ import type {
   LibraryCatalogListResult,
   LibraryCatalogScope,
 } from '../../../ipc-contract';
+import { createAppQueryClient } from '../shell/app-query-client';
 import { useLibraryCatalog } from './use-library-catalog';
 
 afterEach(() => {
@@ -32,12 +34,10 @@ it.each(['filter', 'revision', 'search'] as const)(
     const { result, rerender } = renderHook(
       ({ input, revision }) => {
         const catalog = useLibraryCatalog(input, revision);
-        useLayoutEffect(() => {
-          statuses.push(catalog.status);
-        });
+        statuses.push(catalog.status);
         return catalog;
       },
-      { initialProps: { input: initialInput, revision: 0 } },
+      { initialProps: { input: initialInput, revision: 0 }, wrapper: queryWrapper() },
     );
     await waitFor(() => expect(result.current.status).toBe('ready'));
     statuses.length = 0;
@@ -56,7 +56,7 @@ it.each(['filter', 'revision', 'search'] as const)(
     expect(result.current.status).toBe('loading');
     await waitFor(() => expect(list).toHaveBeenCalledTimes(2));
     await act(async () => refresh.resolve(catalogResult('next')));
-    expect(result.current.status).toBe('ready');
+    await waitFor(() => expect(result.current.status).toBe('ready'));
   },
 );
 
@@ -71,7 +71,7 @@ it('invalidates the current catalog page when its explicit revision changes', as
     unfilteredCount: 0,
   }));
   vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list: listLibraryCatalog } } });
-  const view = render(<Harness revision={0} />);
+  const view = render(<Harness revision={0} />, { wrapper: queryWrapper() });
   await waitFor(() => expect(listLibraryCatalog).toHaveBeenCalledOnce());
 
   view.rerender(<Harness revision={1} />);
@@ -86,7 +86,7 @@ it('does not expose the previous catalog while a new scope is loading', async ()
     .mockResolvedValueOnce(catalogResult('library'))
     .mockReturnValueOnce(collectionResult.promise);
   vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list: listLibraryCatalog } } });
-  const view = render(<ResultHarness scope={{ kind: 'library' }} />);
+  const view = render(<ResultHarness scope={{ kind: 'library' }} />, { wrapper: queryWrapper() });
   await screen.findByText('library:ready');
 
   view.rerender(<ResultHarness scope={{ kind: 'collection', collectionId: 'collection_1' }} />);
@@ -104,7 +104,9 @@ it('keeps the last good result and exposes an explicit refresh error', async () 
     .mockResolvedValueOnce(catalogResult('first'))
     .mockReturnValueOnce(refresh.promise);
   vi.stubGlobal('yomitomoDesktop', { library: { catalog: { list: listLibraryCatalog } } });
-  const view = render(<ResultHarness scope={{ kind: 'library' }} query="first" />);
+  const view = render(<ResultHarness scope={{ kind: 'library' }} query="first" />, {
+    wrapper: queryWrapper(),
+  });
   await screen.findByText('first:ready');
 
   view.rerender(<ResultHarness scope={{ kind: 'library' }} query="second" />);
@@ -121,7 +123,7 @@ it('defers hidden catalog revisions and refreshes once when the library returns'
   const { result, rerender } = renderHook(
     ({ revision, enabled }) =>
       useLibraryCatalog({ scope: { kind: 'library' }, page: 1, pageSize: 12 }, revision, enabled),
-    { initialProps: { revision: 0, enabled: true } },
+    { initialProps: { revision: 0, enabled: true }, wrapper: queryWrapper() },
   );
   await waitFor(() => expect(result.current.status).toBe('ready'));
   for (let revision = 1; revision <= 20; revision++) rerender({ revision, enabled: false });
@@ -143,7 +145,7 @@ it('discards a response from before suspension and loads the latest request on r
   const { result, rerender } = renderHook(
     ({ page, enabled }) =>
       useLibraryCatalog({ scope: { kind: 'library' }, page, pageSize: 12 }, 0, enabled),
-    { initialProps: { page: 1, enabled: true } },
+    { initialProps: { page: 1, enabled: true }, wrapper: queryWrapper() },
   );
   rerender({ page: 2, enabled: false });
   await act(async () => stale.resolve(catalogResult('stale')));
@@ -153,6 +155,13 @@ it('discards a response from before suspension and loads the latest request on r
   await waitFor(() => expect(result.current.result?.query).toBe('latest'));
   expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 }));
 });
+
+function queryWrapper() {
+  const queryClient = createAppQueryClient();
+  return ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+}
 
 function Harness({ revision }: { revision: number }) {
   useLibraryCatalog({ scope: { kind: 'library' }, page: 1, pageSize: 12 }, revision);

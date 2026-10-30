@@ -1,20 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useReducer } from 'react';
 import type {
   AnnotationDiscussionWindowState,
   AnnotationDiscussionWindowStateEvent,
 } from '../../../ipc-contract';
 import { getOptionalDesktopApi } from '../shell/app-desktop-api';
+import { useDesktopEvent } from '../shell/use-desktop-event';
 
 export function useMinimizedDiscussionWindows(articleId: string | null) {
-  const [windows, setWindows] = useState<AnnotationDiscussionWindowState[]>([]);
+  const [windows, dispatch] = useReducer(applyDiscussionWindowEvent, []);
 
-  useEffect(() => {
-    const subscribe = getOptionalDesktopApi()?.annotations?.onDiscussionWindowState;
-    if (!subscribe) return;
-    return subscribe((event) =>
-      setWindows((current) => applyDiscussionWindowEvent(current, event)),
-    );
-  }, []);
+  useDesktopEvent(getOptionalDesktopApi()?.annotations?.onDiscussionWindowState, dispatch);
 
   return useMemo(
     () => (articleId ? windows.filter((window) => window.articleId === articleId) : []),
@@ -25,7 +20,7 @@ export function useMinimizedDiscussionWindows(articleId: string | null) {
 export function applyDiscussionWindowEvent(
   windows: AnnotationDiscussionWindowState[],
   event: AnnotationDiscussionWindowStateEvent,
-) {
+): AnnotationDiscussionWindowState[] {
   if (event.type === 'remove') {
     return windows.filter(
       (window) =>

@@ -2,7 +2,8 @@ import { createContext, useContext, type ReactNode } from 'react';
 import { createStore, useStore, type StoreApi } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import type { ArticleSummaryRecord } from '@yomitomo/shared';
-import type { AppMenuCommand, AppMenuCommandRequest } from '../../../app-menu-types';
+import type { AppMenuCommand } from '../../../app-menu-types';
+import type { WeReadState } from '../../../ipc-contract';
 import type { SettingsSectionKey } from '../settings/app-settings-panels';
 import type { DesktopStoreApi } from './app-desktop-store';
 import { getDesktopApi } from './app-desktop-api';
@@ -14,12 +15,26 @@ import {
   recordStatsTiming,
   rendererPerformanceElapsedMs,
 } from './app-renderer-performance';
-import { useLibraryQueryState } from '../reading-library/use-library-query-state';
+import {
+  createLibraryQuerySessionState,
+  libraryQuerySessionReducer,
+  type LibraryQuerySessionEvent,
+  type LibraryQuerySessionState,
+} from '../reading-library/library-query-session';
+import { syncWeReadLibraryState } from '../reading-library/use-weread-library-session';
 
 export type AppSurfaceKey = 'agents' | 'reading-memory' | 'library' | 'settings' | 'stats';
 
+export type LibraryImportDialogKind = 'article' | 'ebook' | 'pdf' | 'text';
+
+export type LibraryView = {
+  showHome: () => void;
+  receiveWeReadState: (state: WeReadState) => void;
+};
+
 type AppNavigationState =
   | {
+      importDialog: LibraryImportDialogKind | null;
       pendingOpenArticle: ReadingEvidenceSourceTarget | null;
       readerOpen: boolean;
       surface: 'library';
@@ -30,12 +45,15 @@ type AppNavigationState =
 
 type AppNavigationEvent =
   | { type: 'article-opened' }
+  | { type: 'import-dialog-closed' }
+  | { type: 'import-dialog-opened'; kind: LibraryImportDialogKind }
   | { type: 'open-article'; target: ReadingEvidenceSourceTarget }
   | { type: 'open-surface'; surface: AppSurfaceKey }
   | { type: 'reset-transients' }
   | { type: 'set-reader-open'; open: boolean };
 
 const initialNavigation: AppNavigationState = {
+  importDialog: null,
   pendingOpenArticle: null,
   readerOpen: false,
   surface: 'library',
@@ -52,11 +70,19 @@ export function appNavigationReducer(
       }
       return { surface: event.surface };
     case 'set-reader-open':
-      return state.surface === 'library' && state.readerOpen !== event.open
-        ? { ...state, readerOpen: event.open }
+      if (state.surface !== 'library' || state.readerOpen === event.open) return state;
+      return event.open
+        ? { ...state, importDialog: null, readerOpen: true }
+        : { ...state, readerOpen: false };
+    case 'import-dialog-opened':
+      return state.surface === 'library' ? { ...state, importDialog: event.kind } : state;
+    case 'import-dialog-closed':
+      return state.surface === 'library' && state.importDialog
+        ? { ...state, importDialog: null }
         : state;
     case 'open-article':
       return {
+        importDialog: null,
         pendingOpenArticle: event.target,
         readerOpen: false,
         surface: 'library',
@@ -68,39 +94,44 @@ export function appNavigationReducer(
   }
 }
 
-const libraryMenuCommands = new Set<AppMenuCommand>([
-  'import-web',
-  'import-ebook',
-  'import-pdf',
-  'sync-weread',
-]);
+const libraryImportMenuCommands: Partial<Record<AppMenuCommand, LibraryImportDialogKind>> = {
+  'import-ebook': 'ebook',
+  'import-pdf': 'pdf',
+  'import-web': 'article',
+};
 
 export type AppSessionActions = {
   changeSettingsSection: (section: SettingsSectionKey) => void;
+  closeLibraryImport: () => void;
   closeProfileDialog: () => void;
   completeOnboarding: () => void;
+  dispatchLibraryQuery: (event: LibraryQuerySessionEvent) => void;
   openAgents: () => void;
   openEvidenceSource: (target: ReadingEvidenceSourceTarget) => void;
   openLibrary: () => void;
+  openLibraryImport: (kind: LibraryImportDialogKind) => void;
   openProfileDialog: (sourceElement?: Element) => void;
   openReadingMemory: () => void;
   openSettings: () => void;
   openSettingsSection: (section: SettingsSectionKey) => void;
   openStats: () => Promise<void>;
   refreshStatsArticles: () => void;
+  registerLibraryView: (view: LibraryView) => () => void;
   requestUpdateDialog: () => void;
   resetForLock: () => void;
   runMenuCommand: (command: AppMenuCommand) => void;
+  setLibraryImportBusy: (busy: boolean) => void;
   setPendingArticleOpened: () => void;
   setReaderOpen: (open: boolean) => void;
   setThemeDialogOpen: (open: boolean) => void;
   startOnboarding: () => void;
+  syncWeReadLibrary: () => Promise<void>;
 };
 
 export type AppSessionState = {
+  libraryQuery: LibraryQuerySessionState;
   navigation: AppNavigationState;
   requestedSettingsSection: SettingsSectionKey;
-  menuRequest: AppMenuCommandRequest | null;
   onboardingForced: boolean;
   onboardingFlowKey: number;
   statsArticles: ArticleSummaryRecord[] | null;
@@ -109,6 +140,7 @@ export type AppSessionState = {
   profileDialogSourceRect: DialogSourceRect | undefined;
   themeDialogOpen: boolean;
   updateDialogRequest: number;
+  weReadLibrarySyncing: boolean;
   actions: AppSessionActions;
 };
 
@@ -120,7 +152,8 @@ export type AppSessionStoreApi = StoreApi<AppSessionState>;
  */
 export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSessionStoreApi {
   return createStore<AppSessionState>()((set, get) => {
-    let menuRequestId = 0;
+    let libraryImportBusy = false;
+    let libraryView: LibraryView | null = null;
     const navigate = (event: AppNavigationEvent) =>
       set((state) => ({ navigation: appNavigationReducer(state.navigation, event) }));
     const storeArticles = () => desktopStore.getState().store?.articles ?? [];
@@ -175,6 +208,18 @@ export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSession
       await refreshStatsArticles();
     }
 
+    function openLibraryImport(kind: LibraryImportDialogKind) {
+      if (libraryImportBusy) return;
+      navigate({ type: 'import-dialog-opened', kind });
+    }
+
+    async function syncWeReadLibrary() {
+      set({ weReadLibrarySyncing: true });
+      const state = await syncWeReadLibraryState();
+      set({ weReadLibrarySyncing: false });
+      if (state) libraryView?.receiveWeReadState(state);
+    }
+
     function runMenuCommand(command: AppMenuCommand) {
       if (command === 'open-settings') return openSettings();
       if (command === 'open-about') return openSettingsSection('about');
@@ -199,17 +244,28 @@ export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSession
           .catch(() => undefined);
         return;
       }
-      if (libraryMenuCommands.has(command)) {
+      const importKind = libraryImportMenuCommands[command];
+      if (importKind) {
         navigate({ type: 'open-surface', surface: 'library' });
-        menuRequestId += 1;
-        set({ menuRequest: { command, id: menuRequestId } });
+        libraryView?.showHome();
+        openLibraryImport(importKind);
+        return;
+      }
+      if (command === 'sync-weread') {
+        navigate({ type: 'open-surface', surface: 'library' });
+        void syncWeReadLibrary();
       }
     }
 
     return {
+      libraryQuery: createLibraryQuerySessionState({
+        activeCollectionId: null,
+        pageSize: 12,
+        searchQuery: '',
+        selectedTypes: new Set(),
+      }),
       navigation: initialNavigation,
       requestedSettingsSection: 'collection',
-      menuRequest: null,
       onboardingForced: false,
       onboardingFlowKey: 0,
       statsArticles: null,
@@ -218,10 +274,19 @@ export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSession
       profileDialogSourceRect: undefined,
       themeDialogOpen: false,
       updateDialogRequest: 0,
+      weReadLibrarySyncing: false,
       actions: {
         changeSettingsSection,
+        closeLibraryImport: () => {
+          if (!libraryImportBusy) navigate({ type: 'import-dialog-closed' });
+        },
         closeProfileDialog: () => set({ profileDialogOpen: false }),
         completeOnboarding: () => set({ onboardingForced: false }),
+        dispatchLibraryQuery: (event) =>
+          set((state) => {
+            const libraryQuery = libraryQuerySessionReducer(state.libraryQuery, event);
+            return libraryQuery === state.libraryQuery ? state : { libraryQuery };
+          }),
         openAgents: () => {
           recordStartupTiming('secondary_modules.navigation', {
             key: 'agents',
@@ -231,6 +296,7 @@ export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSession
         },
         openEvidenceSource: (target) => navigate({ type: 'open-article', target }),
         openLibrary: () => navigate({ type: 'open-surface', surface: 'library' }),
+        openLibraryImport,
         openProfileDialog: (sourceElement) => {
           recordStartupTiming('secondary_modules.navigation', {
             key: 'profile-dialog',
@@ -248,6 +314,12 @@ export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSession
         openSettingsSection,
         openStats,
         refreshStatsArticles: () => void refreshStatsArticles(),
+        registerLibraryView: (view) => {
+          libraryView = view;
+          return () => {
+            if (libraryView === view) libraryView = null;
+          };
+        },
         requestUpdateDialog: () => {
           openSettingsSection('about');
           set((state) => ({ updateDialogRequest: state.updateDialogRequest + 1 }));
@@ -263,6 +335,9 @@ export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSession
           });
         },
         runMenuCommand,
+        setLibraryImportBusy: (busy) => {
+          libraryImportBusy = busy;
+        },
         setPendingArticleOpened: () => navigate({ type: 'article-opened' }),
         setReaderOpen: (open) => navigate({ type: 'set-reader-open', open }),
         setThemeDialogOpen: (themeDialogOpen) => set({ themeDialogOpen }),
@@ -271,6 +346,7 @@ export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSession
             onboardingForced: true,
             onboardingFlowKey: state.onboardingFlowKey + 1,
           })),
+        syncWeReadLibrary,
       },
     };
   });
@@ -288,7 +364,7 @@ export function AppSessionStoreProvider({
   return <AppSessionStoreContext value={store}>{children}</AppSessionStoreContext>;
 }
 
-function useAppSessionStoreApi() {
+export function useAppSessionStoreApi() {
   const store = useContext(AppSessionStoreContext);
   if (!store) throw new Error('AppSessionStoreProvider is missing');
   return store;
@@ -300,16 +376,16 @@ export function useAppSession(input: {
   onboardingCompletedAt?: string;
 }) {
   const sessionStore = useAppSessionStoreApi();
-  const libraryQuery = useLibraryQueryState();
   const state = useStore(
     sessionStore,
-    useShallow(({ actions: _actions, ...sessionState }: AppSessionState) => sessionState),
+    useShallow(
+      ({ actions: _actions, libraryQuery: _libraryQuery, ...sessionState }: AppSessionState) =>
+        sessionState,
+    ),
   );
   const { navigation } = state;
 
   return {
-    libraryQuery,
-    menuRequest: state.menuRequest,
     onboardingFlowKey: state.onboardingFlowKey,
     pendingOpenArticle: navigation.surface === 'library' ? navigation.pendingOpenArticle : null,
     profileDialogOpen: state.profileDialogOpen,
@@ -327,6 +403,18 @@ export function useAppSession(input: {
     updateDialogRequest: state.updateDialogRequest,
     actions: sessionStore.getState().actions,
   };
+}
+
+export function useLibrarySession() {
+  const sessionStore = useAppSessionStoreApi();
+  const state = useStore(
+    sessionStore,
+    useShallow(({ navigation, weReadLibrarySyncing }: AppSessionState) => ({
+      importDialog: navigation.surface === 'library' ? navigation.importDialog : null,
+      weReadSyncing: weReadLibrarySyncing,
+    })),
+  );
+  return { ...state, actions: sessionStore.getState().actions };
 }
 
 function visibleSettingsSection(section: SettingsSectionKey, developerModeEnabled: boolean) {

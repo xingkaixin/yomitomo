@@ -1,6 +1,6 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Delete02Icon } from '@hugeicons/core-free-icons';
-import { useState } from 'react';
+import { useReducer } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SettingsConfirmDialog } from '../settings/app-settings-confirm-dialog';
 import { DropdownMenuItem } from '../components/ui/dropdown-menu';
@@ -8,7 +8,7 @@ import { DropdownMenuItem } from '../components/ui/dropdown-menu';
 // 文章卡片视图和列表视图共用同一确认状态和文案生成逻辑，避免两套删除行为漂移。
 export function useArticleDeleteConfirm(title: string, onDelete: () => void) {
   const { t } = useTranslation();
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmOpen, dispatch] = useReducer(deleteConfirmReducer, false);
 
   const dialog = (
     <SettingsConfirmDialog
@@ -17,15 +17,21 @@ export function useArticleDeleteConfirm(title: string, onDelete: () => void) {
       description={t('library.actions.deleteArticleConfirmDescription')}
       open={confirmOpen}
       title={t('library.actions.deleteArticleConfirmTitle', { title })}
-      onCancel={() => setConfirmOpen(false)}
+      onCancel={() => dispatch({ type: 'dismissed' })}
       onConfirm={() => {
-        setConfirmOpen(false);
+        dispatch({ type: 'confirmed' });
         onDelete();
       }}
     />
   );
 
-  return { dialog, requestDelete: () => setConfirmOpen(true) };
+  return { dialog, requestDelete: () => dispatch({ type: 'requested' }) };
+}
+
+type DeleteConfirmEvent = { type: 'requested' } | { type: 'dismissed' } | { type: 'confirmed' };
+
+function deleteConfirmReducer(_open: boolean, event: DeleteConfirmEvent) {
+  return event.type === 'requested';
 }
 
 export function ArticleDeleteMenuItem({

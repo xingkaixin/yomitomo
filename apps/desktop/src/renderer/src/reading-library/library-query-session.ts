@@ -1,3 +1,5 @@
+import { ARTICLE_SOURCE_TYPES } from '@yomitomo/shared';
+import type { LibraryCatalogItemType, LibraryCatalogListInput } from '../../../ipc-contract';
 import type { LibraryTypeFilter } from './library-filter-types';
 
 export const LIBRARY_PAGE_SIZE_OPTIONS = [6, 12, 18, 24] as const;
@@ -86,6 +88,7 @@ export function libraryQuerySessionReducer(
       return {
         ...state,
         scope: { kind: 'collection', collectionId: event.collectionId },
+        selectedTypes: withoutCollectionType(state.selectedTypes),
         page: 1,
         listTransition: 'forward',
         pageTransition: 'none',
@@ -115,6 +118,41 @@ export function libraryQuerySessionReducer(
     case 'page-size-changed':
       return resetList(state, { pageSize: normalizeLibraryPageSize(event.pageSize) });
   }
+}
+
+export function libraryCatalogInput(state: LibraryQuerySessionState): LibraryCatalogListInput {
+  return {
+    scope: state.scope,
+    types:
+      state.selectedTypes.size > 0
+        ? ([...state.selectedTypes] as LibraryCatalogListInput['types'])
+        : undefined,
+    query: state.searchQuery,
+    page: state.page,
+    pageSize: state.pageSize,
+  };
+}
+
+export function resolvedLibraryAvailableTypes(
+  availableTypes: readonly LibraryCatalogItemType[] | null,
+  wereadCount: number | undefined,
+): readonly LibraryCatalogItemType[] {
+  const knownTypes = availableTypes ?? ARTICLE_SOURCE_TYPES;
+  if (knownTypes.includes('weread') || !wereadCount) return knownTypes;
+  return [...knownTypes, 'weread'];
+}
+
+export function librarySelectableTypes(
+  scope: LibraryQueryScope,
+  availableTypes: readonly LibraryCatalogItemType[],
+): ReadonlySet<LibraryTypeFilter> {
+  return new Set<LibraryTypeFilter>(
+    scope.kind === 'library' ? ['collection', ...availableTypes] : availableTypes,
+  );
+}
+
+export function libraryPageCount(totalCount: number | undefined, pageSize: number) {
+  return Math.max(1, Math.ceil((totalCount || 0) / pageSize));
 }
 
 export function normalizeLibraryPageSize(value: unknown): LibraryPageSize {
@@ -170,6 +208,11 @@ function pruneTypes(
 ): LibraryQuerySessionState {
   const selectedTypes = new Set([...state.selectedTypes].filter((type) => available.has(type)));
   return sameTypes(state.selectedTypes, selectedTypes) ? state : { ...state, selectedTypes };
+}
+
+function withoutCollectionType(selectedTypes: ReadonlySet<LibraryTypeFilter>) {
+  if (!selectedTypes.has('collection')) return selectedTypes;
+  return new Set([...selectedTypes].filter((type) => type !== 'collection'));
 }
 
 function removeMissingCollection(

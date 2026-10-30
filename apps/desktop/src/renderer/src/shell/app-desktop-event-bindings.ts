@@ -1,8 +1,24 @@
-import type { QueryClient } from '@tanstack/react-query';
+import { partialMatchKey, type QueryClient } from '@tanstack/react-query';
 import { normalizeUiLanguage, type DesktopStore } from '@yomitomo/shared';
 import { isAppLockSettingsLocked } from '../../../app-store';
 import { changeAppI18nLanguage } from '../i18n/app-i18n';
 import { writeCachedUiLanguage } from '../i18n/app-language-cache';
+import { libraryPageSizePersistence } from '../reading-library/library-page-size-persistence';
+import {
+  libraryCatalogInput,
+  libraryPageCount,
+  librarySelectableTypes,
+  normalizeLibraryPageSize,
+  resolvedLibraryAvailableTypes,
+} from '../reading-library/library-query-session';
+import {
+  libraryCatalogQueryKey,
+  observedLibraryCatalogResult,
+} from '../reading-library/use-library-catalog';
+import {
+  libraryCatalogTypes,
+  weReadLibraryStateQuery,
+} from '../reading-library/use-weread-library-session';
 import type { SettingsDraftStoreApi } from '../settings/app-settings-drafts';
 import type { ReaderThemeStoreApi } from '../theme/use-reader-theme-controller';
 import type { DesktopStoreApi } from './app-desktop-store';
@@ -39,6 +55,11 @@ export function bindMainWindowEvents(stores: {
   const unsubscribeUpdateStatus = getDesktopApi().updates.onStatus((state) =>
     queryClient.setQueryData(appUpdateStateQuery.queryKey, state),
   );
+  const unbindLibraryQueryEvents = bindLibraryQueryEvents({
+    desktopStore,
+    queryClient,
+    sessionStore,
+  });
   const unsubscribeStore = desktopStore.subscribe((state, previousState) => {
     const store = state.store;
     const previousStore = previousState.store;
@@ -67,6 +88,70 @@ export function bindMainWindowEvents(stores: {
     unsubscribeStore();
     unsubscribeMenuCommands();
     unsubscribeUpdateStatus();
+    unbindLibraryQueryEvents();
+  };
+}
+
+export function bindLibraryQueryEvents(stores: {
+  desktopStore: DesktopStoreApi;
+  queryClient: QueryClient;
+  sessionStore: AppSessionStoreApi;
+}) {
+  const { desktopStore, queryClient, sessionStore } = stores;
+  const { dispatchLibraryQuery } = sessionStore.getState().actions;
+  const unsubscribeQueries = queryClient.getQueryCache().subscribe((event) => {
+    if (event.type !== 'updated' || event.action.type !== 'success') return;
+    const { queryKey } = event.query;
+    if (
+      !partialMatchKey(queryKey, libraryCatalogQueryKey) &&
+      !partialMatchKey(queryKey, weReadLibraryStateQuery.queryKey)
+    ) {
+      return;
+    }
+    const state = sessionStore.getState().libraryQuery;
+    const catalog = observedLibraryCatalogResult(queryClient, libraryCatalogInput(state));
+    if (!catalog) return;
+    const availableTypes = libraryCatalogTypes(
+      queryClient.getQueryData(weReadLibraryStateQuery.queryKey),
+    );
+    if (availableTypes) {
+      dispatchLibraryQuery({
+        type: 'types-pruned',
+        available: librarySelectableTypes(
+          state.scope,
+          resolvedLibraryAvailableTypes(availableTypes, catalog.itemCounts.weread),
+        ),
+      });
+    }
+    dispatchLibraryQuery({
+      type: 'page-clamped',
+      pageCount: libraryPageCount(catalog.totalCount, state.pageSize),
+    });
+  });
+  const unsubscribeStore = desktopStore.subscribe(({ store }, { store: previousStore }) => {
+    if (!store || store === previousStore || isStoreLocked(store)) return;
+    if (store.collections !== previousStore?.collections) {
+      dispatchLibraryQuery({
+        type: 'collection-removed',
+        existingIds: new Set(store.collections.map((collection) => collection.id)),
+      });
+    }
+    const pageSize = normalizeLibraryPageSize(store.settings.libraryPageSize);
+    if (
+      previousStore &&
+      pageSize === normalizeLibraryPageSize(previousStore.settings.libraryPageSize)
+    ) {
+      return;
+    }
+    libraryPageSizePersistence.observeConfirmed(pageSize);
+    // An external value arriving during a save waits; a failed save rolls back to it.
+    if (libraryPageSizePersistence.hasPendingSave()) return;
+    if (pageSize === sessionStore.getState().libraryQuery.pageSize) return;
+    dispatchLibraryQuery({ type: 'page-size-changed', pageSize });
+  });
+  return () => {
+    unsubscribeQueries();
+    unsubscribeStore();
   };
 }
 

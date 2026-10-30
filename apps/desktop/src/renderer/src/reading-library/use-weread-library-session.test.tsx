@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, renderHook } from '@testing-library/react';
+import type { ReactNode } from 'react';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ArticleRecord, WeReadBook, WeReadBookDetail } from '@yomitomo/shared';
 import type { WeReadState } from '../../../ipc-contract';
+import { createAppQueryClient } from '../shell/app-query-client';
 import { useWeReadLibrarySession } from './use-weread-library-session';
 import { useReadingLibraryNavigation } from './use-reading-library-navigation';
 
@@ -22,14 +25,14 @@ describe('useWeReadLibrarySession', () => {
     async ({ configured, books, available }) => {
       const pending = createDeferred<WeReadState>();
       vi.stubGlobal('yomitomoDesktop', { weRead: { getState: () => pending.promise } });
-      const { result } = renderHook(() => useLibrarySession());
+      const { result } = renderHook(() => useLibrarySession(), { wrapper: queryWrapper() });
 
       expect(result.current.session.available).toBeNull();
       await act(async () =>
         pending.resolve({ settings: { configured, openMethod: 'deeplink' }, books }),
       );
 
-      expect(result.current.session.available).toBe(available);
+      await waitFor(() => expect(result.current.session.available).toBe(available));
     },
   );
 
@@ -41,7 +44,7 @@ describe('useWeReadLibrarySession', () => {
         getBook: (bookId: string) => (bookId === 'weread_1' ? first.promise : second.promise),
       },
     });
-    const { result } = renderHook(() => useLibrarySession());
+    const { result } = renderHook(() => useLibrarySession(), { wrapper: queryWrapper() });
     let firstRequest!: Promise<void>;
     let secondRequest!: Promise<void>;
     act(() => {
@@ -73,7 +76,7 @@ describe('useWeReadLibrarySession', () => {
         syncBook,
       },
     });
-    const { result } = renderHook(() => useLibrarySession());
+    const { result } = renderHook(() => useLibrarySession(), { wrapper: queryWrapper() });
 
     await act(() => result.current.session.openBook(detail.book));
 
@@ -90,7 +93,7 @@ describe('useWeReadLibrarySession', () => {
         syncBook,
       },
     });
-    const { result } = renderHook(() => useLibrarySession());
+    const { result } = renderHook(() => useLibrarySession(), { wrapper: queryWrapper() });
 
     await act(() => result.current.session.openBook(detail.book));
 
@@ -106,7 +109,7 @@ describe('useWeReadLibrarySession', () => {
       vi.stubGlobal('yomitomoDesktop', {
         weRead: { syncBook: () => pending.promise },
       });
-      const { result } = renderHook(() => useLibrarySession());
+      const { result } = renderHook(() => useLibrarySession(), { wrapper: queryWrapper() });
       let request!: Promise<WeReadBookDetail | null>;
       act(() => {
         request = result.current.session.syncBook('weread_1');
@@ -135,7 +138,7 @@ describe('useWeReadLibrarySession', () => {
         syncBook: () => pending.promise,
       },
     });
-    const { result } = renderHook(() => useLibrarySession());
+    const { result } = renderHook(() => useLibrarySession(), { wrapper: queryWrapper() });
     await act(() => result.current.session.openBook(detail.book));
     let request!: Promise<WeReadBookDetail | null>;
     act(() => {
@@ -157,7 +160,9 @@ describe('useWeReadLibrarySession', () => {
     vi.stubGlobal('yomitomoDesktop', {
       weRead: { getBook: () => bookRead.promise },
     });
-    const { result } = renderHook(() => useLibrarySession(() => articleRead.promise));
+    const { result } = renderHook(() => useLibrarySession(() => articleRead.promise), {
+      wrapper: queryWrapper(),
+    });
     let bookRequest!: Promise<void>;
     let articleRequest!: Promise<ArticleRecord | null>;
     act(() => {
@@ -182,7 +187,9 @@ describe('useWeReadLibrarySession', () => {
     vi.stubGlobal('yomitomoDesktop', {
       weRead: { getBook: vi.fn().mockResolvedValue(weReadDetail()) },
     });
-    const { result } = renderHook(() => useLibrarySession(() => pending.promise));
+    const { result } = renderHook(() => useLibrarySession(() => pending.promise), {
+      wrapper: queryWrapper(),
+    });
     let request!: Promise<ArticleRecord | null>;
     act(() => {
       request = result.current.navigation.actions.openArticle('article_1');
@@ -205,7 +212,7 @@ describe('useWeReadLibrarySession', () => {
         syncBook: vi.fn().mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise),
       },
     });
-    const { result } = renderHook(() => useLibrarySession());
+    const { result } = renderHook(() => useLibrarySession(), { wrapper: queryWrapper() });
     let firstRequest!: Promise<WeReadBookDetail | null>;
     let secondRequest!: Promise<WeReadBookDetail | null>;
     act(() => {
@@ -237,7 +244,7 @@ describe('useWeReadLibrarySession', () => {
           .mockResolvedValueOnce(weReadDetail('weread_2')),
       },
     });
-    const { result } = renderHook(() => useLibrarySession());
+    const { result } = renderHook(() => useLibrarySession(), { wrapper: queryWrapper() });
     await act(() => result.current.session.openBook(weReadDetail().book));
     await act(() => result.current.session.syncBook('weread_1'));
     expect(result.current.navigation.model.routeType).toBe('library');
@@ -254,7 +261,7 @@ describe('useWeReadLibrarySession', () => {
     vi.stubGlobal('yomitomoDesktop', {
       weRead: { syncBook: () => pending.promise },
     });
-    const { result, unmount } = renderHook(() => useLibrarySession());
+    const { result, unmount } = renderHook(() => useLibrarySession(), { wrapper: queryWrapper() });
     let request!: Promise<WeReadBookDetail | null>;
     act(() => {
       request = result.current.session.syncBook('weread_1');
@@ -265,6 +272,13 @@ describe('useWeReadLibrarySession', () => {
     await expect(request).resolves.toBeNull();
   });
 });
+
+function queryWrapper() {
+  const queryClient = createAppQueryClient();
+  return ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+}
 
 function useLibrarySession(
   onReadArticle: (id: string) => Promise<ArticleRecord | null> = async () => null,

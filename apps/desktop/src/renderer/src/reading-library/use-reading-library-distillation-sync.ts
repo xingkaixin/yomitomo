@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffectEvent, useMemo, useReducer, useRef } from 'react';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import type { ResolvedAppSettings, ArticleRecord } from '@yomitomo/shared';
 import type { AnnotationDistillationCommittedEvent } from '../../../ipc-contract';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
@@ -54,6 +55,10 @@ type DistillationSyncLifecycle =
       timer: number;
     };
 
+type DistillationAnimationEvent =
+  | { type: 'stopped' }
+  | { type: 'phaseStarted'; animation: ReadingLibraryDistillationAnimation };
+
 type UseReadingLibraryDistillationSyncOptions = {
   navigation: ReadingLibraryNavigation;
   onReadArticle: (articleId: string) => Promise<ArticleRecord | null>;
@@ -63,21 +68,20 @@ type UseReadingLibraryDistillationSyncOptions = {
 export function useReadingLibraryDistillationSync(
   options: UseReadingLibraryDistillationSyncOptions,
 ) {
-  const contextRef = useRef(options);
-  contextRef.current = options;
+  const readOptions = useEffectEvent(() => options);
   const lifecycleRef = useRef<DistillationSyncLifecycle>({ status: 'idle', token: 0 });
   const reservedUpdatedAtRef = useRef(new Map<string, number>());
-  const [animation, setAnimation] = useState<ReadingLibraryDistillationAnimation | null>(null);
+  const [animation, dispatchAnimation] = useReducer(distillationAnimation, null);
 
   const completeLifecycle = useCallback((token: number) => {
     const lifecycle = lifecycleRef.current;
     if (lifecycle.token !== token || lifecycle.status === 'idle') return;
     clearLifecycleTimer(lifecycle);
     lifecycleRef.current = { status: 'idle', token };
-    setAnimation(null);
+    dispatchAnimation({ type: 'stopped' });
     const pendingArticle = pendingLifecycleArticle(lifecycle);
     if (!pendingArticle) return;
-    const { navigation } = contextRef.current;
+    const { navigation } = readOptions();
     if (navigation.actions.isCurrentArticle(pendingArticle.id)) {
       navigation.actions.replaceArticle(pendingArticle);
     }
@@ -87,7 +91,7 @@ export function useReadingLibraryDistillationSync(
     const lifecycle = lifecycleRef.current;
     clearLifecycleTimer(lifecycle);
     lifecycleRef.current = { status: 'idle', token: lifecycle.token + 1 };
-    setAnimation(null);
+    dispatchAnimation({ type: 'stopped' });
   }, []);
 
   const onCommitted = useCallback(
@@ -95,7 +99,7 @@ export function useReadingLibraryDistillationSync(
       const previousLifecycle = lifecycleRef.current;
       clearLifecycleTimer(previousLifecycle);
       const token = previousLifecycle.token + 1;
-      const { navigation, onReadArticle } = contextRef.current;
+      const { navigation, onReadArticle } = readOptions();
       const startedAt = performance.now();
       lifecycleRef.current = {
         status: 'loading-committed-article',
@@ -104,7 +108,7 @@ export function useReadingLibraryDistillationSync(
         originArticleId: navigation.model.article?.id || null,
         pendingArticle: null,
       };
-      setAnimation(null);
+      dispatchAnimation({ type: 'stopped' });
       recordRendererPerformanceTiming('reader_focus', {
         source: 'library',
         phase: 'distillation_event_received',
@@ -146,7 +150,7 @@ export function useReadingLibraryDistillationSync(
         pendingArticle,
         event,
       );
-      contextRef.current.navigation.actions.focusArticle(
+      readOptions().navigation.actions.focusArticle(
         articleWithDistillationAnimationStart(pendingArticle, event, updatedAt),
         event.annotationId,
       );
@@ -167,7 +171,7 @@ export function useReadingLibraryDistillationSync(
   );
 
   const onFocusedAnnotation = useCallback(() => {
-    const { navigation, settings } = contextRef.current;
+    const { navigation, settings } = readOptions();
     const lifecycle = lifecycleRef.current;
     navigation.actions.consumeArticleFocus();
     recordRendererPerformanceTiming('reader_focus', {
@@ -201,11 +205,14 @@ export function useReadingLibraryDistillationSync(
           reserveAnimationUpdatedAt(reservedUpdatedAtRef.current, article, event),
         ),
       );
-      setAnimation({
-        annotationId: event.annotationId,
-        transition: 'update',
-        phase: 'update',
-        token,
+      dispatchAnimation({
+        type: 'phaseStarted',
+        animation: {
+          annotationId: event.annotationId,
+          transition: 'update',
+          phase: 'update',
+          token,
+        },
       });
       const timer = window.setTimeout(() => completeLifecycle(token), DISTILLATION_UPDATE_MS);
       lifecycleRef.current = { ...lifecycle, status: 'animating', timer };
@@ -213,17 +220,20 @@ export function useReadingLibraryDistillationSync(
     }
 
     const overlayDistillation = distillationOverlayForAnimation(navigation.model.article, event);
-    setAnimation({
-      annotationId: event.annotationId,
-      transition: event.transition,
-      phase: 'morph-out',
-      overlayDistillation,
-      token,
+    dispatchAnimation({
+      type: 'phaseStarted',
+      animation: {
+        annotationId: event.annotationId,
+        transition: event.transition,
+        phase: 'morph-out',
+        overlayDistillation,
+        token,
+      },
     });
     const timer = window.setTimeout(() => {
       const current = lifecycleRef.current;
       if (current.status !== 'animating' || current.token !== token) return;
-      const currentNavigation = contextRef.current.navigation;
+      const currentNavigation = readOptions().navigation;
       currentNavigation.actions.updateArticle(event.articleId, (article) =>
         articleWithCommittedDistillation(
           article,
@@ -231,12 +241,15 @@ export function useReadingLibraryDistillationSync(
           reserveAnimationUpdatedAt(reservedUpdatedAtRef.current, article, event),
         ),
       );
-      setAnimation({
-        annotationId: event.annotationId,
-        transition: event.transition,
-        phase: 'morph-in',
-        overlayDistillation,
-        token,
+      dispatchAnimation({
+        type: 'phaseStarted',
+        animation: {
+          annotationId: event.annotationId,
+          transition: event.transition,
+          phase: 'morph-in',
+          overlayDistillation,
+          token,
+        },
       });
       const morphTimer = window.setTimeout(() => completeLifecycle(token), DISTILLATION_MORPH_MS);
       lifecycleRef.current = { ...current, timer: morphTimer };
@@ -245,7 +258,7 @@ export function useReadingLibraryDistillationSync(
   }, [completeLifecycle]);
 
   const acceptExternalArticle = useCallback((nextArticle: ArticleRecord) => {
-    const { navigation } = contextRef.current;
+    const { navigation } = readOptions();
     const currentArticle = navigation.actions.getCurrentArticle();
     if (!currentArticle || currentArticle.id !== nextArticle.id) return;
     const lifecycle = lifecycleRef.current;
@@ -272,7 +285,7 @@ export function useReadingLibraryDistillationSync(
       const current = lifecycleRef.current;
       if (current.status !== 'waiting-for-commit-event' || current.token !== token) return;
       lifecycleRef.current = { status: 'idle', token };
-      const currentNavigation = contextRef.current.navigation;
+      const currentNavigation = readOptions().navigation;
       if (currentNavigation.actions.isCurrentArticle(current.article.id)) {
         currentNavigation.actions.replaceArticle(current.article);
       }
@@ -286,27 +299,33 @@ export function useReadingLibraryDistillationSync(
     };
   }, []);
 
-  useEffect(() => {
-    const currentArticleId = options.navigation.model.article?.id || null;
-    const lifecycle = lifecycleRef.current;
-    const expectedArticleId = lifecycleArticleId(lifecycle);
-    if (expectedArticleId === undefined || expectedArticleId === currentArticleId) return;
-    cancelLifecycle();
-  }, [cancelLifecycle, options.navigation.model.article?.id]);
-
-  useEffect(
-    () => () => {
+  useMountEffect(() => {
+    const unsubscribe = readOptions().navigation.actions.subscribeRoute((model, previous) => {
+      const currentArticleId = model.article?.id || null;
+      if (currentArticleId === (previous.article?.id || null)) return;
+      const expectedArticleId = lifecycleArticleId(lifecycleRef.current);
+      if (expectedArticleId === undefined || expectedArticleId === currentArticleId) return;
+      cancelLifecycle();
+    });
+    return () => {
+      unsubscribe();
       const lifecycle = lifecycleRef.current;
       clearLifecycleTimer(lifecycle);
       lifecycleRef.current = { status: 'idle', token: lifecycle.token + 1 };
-    },
-    [],
-  );
+    };
+  });
 
   return useMemo(
     () => ({ acceptExternalArticle, animation, onCommitted, onFocusedAnnotation }),
     [acceptExternalArticle, animation, onCommitted, onFocusedAnnotation],
   );
+}
+
+function distillationAnimation(
+  _animation: ReadingLibraryDistillationAnimation | null,
+  event: DistillationAnimationEvent,
+) {
+  return event.type === 'stopped' ? null : event.animation;
 }
 
 function clearLifecycleTimer(lifecycle: DistillationSyncLifecycle) {

@@ -20,7 +20,7 @@ import {
 describe('ReadingLibrary actions', () => {
   it('reports unavailable local content without opening the reader', async () => {
     const onReadArticle = vi.fn().mockRejectedValue(new Error('source payload invalid'));
-    renderLibrary([article({ title: '损坏电子书' })], { onReadArticle });
+    await renderLibrary([article({ title: '损坏电子书' })], { onReadArticle });
 
     fireEvent.click(screen.getByRole('button', { name: '打开文章：损坏电子书' }));
 
@@ -41,7 +41,7 @@ describe('ReadingLibrary actions', () => {
       },
       pinned: true,
     });
-    renderLibrary([article({ title: '待置顶文章' })], { onSetLibraryPin: setLibraryPin });
+    await renderLibrary([article({ title: '待置顶文章' })], { onSetLibraryPin: setLibraryPin });
 
     const moreButton = screen.getByRole('button', { name: '更多操作：待置顶文章' });
     fireEvent.click(moreButton);
@@ -58,7 +58,7 @@ describe('ReadingLibrary actions', () => {
 
   it('shows pin errors from the collection action surface', async () => {
     const onSetLibraryPin = vi.fn().mockRejectedValue(new Error('pin write failed'));
-    renderLibrary([article({ title: '置顶失败文章' })], { onSetLibraryPin });
+    await renderLibrary([article({ title: '置顶失败文章' })], { onSetLibraryPin });
 
     fireEvent.click(screen.getByRole('button', { name: '更多操作：置顶失败文章' }));
     fireEvent.click(screen.getByRole('menuitem', { name: '置顶' }));
@@ -72,7 +72,7 @@ describe('ReadingLibrary actions', () => {
 
   it('falls back to user-facing copy when a pin error has no message', async () => {
     const onSetLibraryPin = vi.fn().mockRejectedValue(new Error(''));
-    renderLibrary([article({ title: '空错误文章' })], { onSetLibraryPin });
+    await renderLibrary([article({ title: '空错误文章' })], { onSetLibraryPin });
 
     fireEvent.click(screen.getByRole('button', { name: '更多操作：空错误文章' }));
     fireEvent.click(screen.getByRole('menuitem', { name: '置顶' }));
@@ -84,14 +84,14 @@ describe('ReadingLibrary actions', () => {
     );
   });
 
-  it('marks collection card actions active while the menu is open', () => {
+  it('marks collection card actions active while the menu is open', async () => {
     const collection: Collection = {
       id: 'collection_menu',
       name: '菜单状态合集',
       createdAt: now,
       updatedAt: now,
     };
-    renderLibrary([], { collections: [collection] });
+    await renderLibrary([], { collections: [collection] });
 
     const moreButton = screen.getByRole('button', { name: '更多操作：菜单状态合集' });
     fireEvent.click(moreButton);
@@ -117,7 +117,7 @@ describe('ReadingLibrary actions', () => {
       member: { kind: 'article', id: collectedArticle.id },
       addedAt: '2026-05-10T12:00:00.000Z',
     };
-    renderLibrary([collectedArticle], {
+    await renderLibrary([collectedArticle], {
       collections: [collection],
       collectionMembers: [member],
     });
@@ -131,11 +131,11 @@ describe('ReadingLibrary actions', () => {
 
     await selectLibraryType(/网页文章/);
 
+    await waitFor(() => expect(screen.queryByText('研究合集')).toBeNull());
     expect(screen.getAllByText('合集内文章').length).toBeGreaterThan(0);
-    expect(screen.queryByText('研究合集')).toBeNull();
   });
 
-  it('keeps collection search independent from the cover preview limit', () => {
+  it('keeps collection search independent from the cover preview limit', async () => {
     const previewArticles = Array.from({ length: 10 }, (_, index) =>
       article({
         id: `article_preview_${index}`,
@@ -164,7 +164,7 @@ describe('ReadingLibrary actions', () => {
         addedAt: '2026-05-01T12:00:00.000Z',
       },
     ];
-    renderLibrary([...previewArticles, hiddenMatch], {
+    await renderLibrary([...previewArticles, hiddenMatch], {
       collections: [collection],
       collectionMembers,
     });
@@ -194,7 +194,7 @@ describe('ReadingLibrary actions', () => {
     vi.stubGlobal('cancelAnimationFrame', cancelAnimationFrameMock);
     window.requestAnimationFrame = requestAnimationFrameMock;
     window.cancelAnimationFrame = cancelAnimationFrameMock;
-    renderLibrary([
+    await renderLibrary([
       article({ id: 'alpha_article', title: 'Alpha 阅读' }),
       article({ id: 'beta_article', title: 'Beta 阅读' }),
     ]);
@@ -248,7 +248,7 @@ describe('ReadingLibrary actions', () => {
     vi.stubGlobal('cancelAnimationFrame', cancelAnimationFrameMock);
     window.requestAnimationFrame = requestAnimationFrameMock;
     window.cancelAnimationFrame = cancelAnimationFrameMock;
-    renderLibrary([
+    await renderLibrary([
       article({ id: 'alpha_article', title: 'Alpha 阅读' }),
       article({ id: 'beta_article', title: 'Beta 阅读' }),
     ]);
@@ -307,7 +307,7 @@ describe('ReadingLibrary actions', () => {
         addedAt: '2026-05-09T12:00:00.000Z',
       },
     ];
-    renderLibrary([firstArticle, secondArticle], {
+    await renderLibrary([firstArticle, secondArticle], {
       collections: [collection],
       collectionMembers,
     });
@@ -340,13 +340,13 @@ describe('ReadingLibrary actions', () => {
       createdAt: '2026-05-01T12:00:00.000Z',
       updatedAt: '2026-05-10T12:00:00.000Z',
     };
-    renderLibrary([article({ title: '普通文章' })], { collections: [collection] });
+    await renderLibrary([article({ title: '普通文章' })], { collections: [collection] });
 
     await selectLibraryType(/^合集$/);
 
+    expect(await screen.findByText('共 1 个合集')).toBeTruthy();
     expect(screen.getByRole('button', { name: '打开合集：只看合集' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: '打开文章：普通文章' })).toBeNull();
-    expect(screen.getByText('共 1 个合集')).toBeTruthy();
   });
 
   it('opens a collection and removes a member from its article menu', async () => {
@@ -367,7 +367,7 @@ describe('ReadingLibrary actions', () => {
       updatedAt: '2026-05-10T12:00:00.000Z',
     };
 
-    renderLibrary([collectedArticle], {
+    await renderLibrary([collectedArticle], {
       collections: [collection],
       collectionMembers: [
         {
@@ -381,7 +381,7 @@ describe('ReadingLibrary actions', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '打开合集：研究合集' }));
     expect(screen.getByRole('button', { name: '返回全部' }).textContent).toContain('阅读库');
-    fireEvent.click(screen.getByRole('button', { name: '更多操作：合集内文章' }));
+    fireEvent.click(await screen.findByRole('button', { name: '更多操作：合集内文章' }));
     fireEvent.click(screen.getByRole('menuitem', { name: '从合集中移除' }));
 
     await waitFor(() =>
@@ -392,7 +392,7 @@ describe('ReadingLibrary actions', () => {
     );
   });
 
-  it('orders pinned collection members before unpinned members without a pinned heading', () => {
+  it('orders pinned collection members before unpinned members without a pinned heading', async () => {
     const pinnedArticle = article({
       id: 'article_pinned',
       title: '置顶合集文章',
@@ -410,7 +410,7 @@ describe('ReadingLibrary actions', () => {
       updatedAt: '2026-05-10T12:00:00.000Z',
     };
 
-    renderLibrary([unpinnedArticle, pinnedArticle], {
+    await renderLibrary([unpinnedArticle, pinnedArticle], {
       collections: [collection],
       collectionMembers: [
         {
@@ -435,6 +435,7 @@ describe('ReadingLibrary actions', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '打开合集：研究合集' }));
 
+    await screen.findByRole('heading', { name: '未置顶合集文章' });
     expect(screen.queryByRole('heading', { name: '置顶' })).toBeNull();
     expect(screen.getAllByRole('heading', { level: 3 }).map((item) => item.textContent)).toEqual([
       '置顶合集文章',
@@ -476,7 +477,7 @@ describe('ReadingLibrary actions', () => {
       updatedAt: '2026-05-10T12:00:00.000Z',
     };
 
-    renderLibrary([], {
+    await renderLibrary([], {
       collections: [collection],
       onAddCollectionMembers: addCollectionMembers,
       wereadBooks: state.books,
@@ -505,7 +506,7 @@ describe('ReadingLibrary actions', () => {
       createdAt: '2026-05-01T12:00:00.000Z',
       updatedAt: '2026-05-10T12:00:00.000Z',
     };
-    renderLibrary([article({ id: 'article_drag_picker', title: '待拖入合集' })], {
+    await renderLibrary([article({ id: 'article_drag_picker', title: '待拖入合集' })], {
       collections: [collection],
     });
 
@@ -514,17 +515,17 @@ describe('ReadingLibrary actions', () => {
     fireEvent.click(await screen.findByRole('menuitem', { name: '添加已有文章' }));
     const picker = document.querySelector<HTMLElement>('.library-collection-picker-dialog');
     expect(picker).toBeTruthy();
-    expect(within(picker!).getByRole('button', { name: '拖动「待拖入合集」' })).toBeTruthy();
+    expect(await within(picker!).findByRole('button', { name: '拖动「待拖入合集」' })).toBeTruthy();
   });
 
-  it('does not enable dragging from the reading library list', () => {
+  it('does not enable dragging from the reading library list', async () => {
     const collection: Collection = {
       id: 'collection_1',
       name: '研究合集',
       createdAt: '2026-05-01T12:00:00.000Z',
       updatedAt: '2026-05-10T12:00:00.000Z',
     };
-    renderLibrary([article({ id: 'article_drag', title: '可拖文章' })], {
+    await renderLibrary([article({ id: 'article_drag', title: '可拖文章' })], {
       collections: [collection],
     });
 
@@ -537,7 +538,7 @@ describe('ReadingLibrary actions', () => {
 
   it('plays the shared delete sound after confirming a reading item delete', async () => {
     const onDeleteArticle = vi.fn().mockResolvedValue(undefined);
-    renderLibrary([article({ title: '待删除文章' })], {
+    await renderLibrary([article({ title: '待删除文章' })], {
       onDeleteArticle,
       settings: {
         soundEffectsEnabled: true,
@@ -558,7 +559,7 @@ describe('ReadingLibrary actions', () => {
 
   it('reports a failed delete without playing the success sound', async () => {
     const onDeleteArticle = vi.fn().mockRejectedValue(new Error('database busy'));
-    renderLibrary([article({ title: '删除失败文章' })], { onDeleteArticle });
+    await renderLibrary([article({ title: '删除失败文章' })], { onDeleteArticle });
 
     fireEvent.click(screen.getByRole('button', { name: '更多操作：删除失败文章' }));
     fireEvent.click(screen.getByRole('menuitem', { name: '删除阅读材料：删除失败文章' }));
@@ -582,7 +583,7 @@ describe('ReadingLibrary actions', () => {
       }),
     );
 
-    renderLibrary(articles, {
+    await renderLibrary(articles, {
       onSaveSettings,
       settings: { libraryPageSize: 18, themeId: 'ink-paper' },
     });
@@ -597,7 +598,7 @@ describe('ReadingLibrary actions', () => {
     await waitFor(() => expect(onSaveSettings).toHaveBeenCalledWith({ libraryPageSize: 24 }));
   });
 
-  it('marks pagination direction when moving between library pages', () => {
+  it('marks pagination direction when moving between library pages', async () => {
     const articles = Array.from({ length: 14 }, (_, index) =>
       article({
         id: `paged_article_${index + 1}`,
@@ -605,7 +606,7 @@ describe('ReadingLibrary actions', () => {
         createdAt: `2026-05-09T12:${String(index + 1).padStart(2, '0')}:00.000Z`,
       }),
     );
-    const { container } = renderLibrary(articles);
+    const { container } = await renderLibrary(articles);
 
     fireEvent.click(screen.getByRole('button', { name: '下一页' }));
 
@@ -632,7 +633,7 @@ describe('ReadingLibrary actions', () => {
   });
 
   it('searches source metadata without reading status filters', async () => {
-    renderLibrary([
+    await renderLibrary([
       article({ id: 'article_new', title: '新文章', siteName: 'Acme Daily' }),
       article({
         id: 'article_progress',
@@ -650,8 +651,8 @@ describe('ReadingLibrary actions', () => {
     expect(screen.getAllByText('新文章').length).toBeGreaterThan(0);
   });
 
-  it('renders the article domain without site icons', () => {
-    const { container } = renderLibrary([
+  it('renders the article domain without site icons', async () => {
+    const { container } = await renderLibrary([
       article({
         byline: '原始作者',
         annotations: [

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
-import { createElement } from 'react';
+import { createElement, type ReactNode } from 'react';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, render, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DesktopStore } from '@yomitomo/shared';
@@ -8,6 +9,7 @@ import { initializeAppI18n } from '../i18n/app-i18n';
 import { emptyStore } from '../settings/app-settings';
 import { useLibraryCatalog } from '../reading-library/use-library-catalog';
 import { createDesktopStore, type DesktopStoreState } from '../shell/app-desktop-store';
+import { createAppQueryClient } from '../shell/app-query-client';
 import { useStore } from 'zustand';
 import { appToast } from '../shell/app-toast';
 import {
@@ -150,19 +152,26 @@ describe('useAppCollectionStoreActions', () => {
       });
       const desktopStore = createDesktopStore();
       await desktopStore.getState().refreshStore();
-      const { result } = renderHook(() => {
-        const { getStore, applyStore } = desktopStore.getState();
-        const actions = useAppCollectionStoreActions({ getStore, applyStore });
-        const catalogRevision = useStore(
-          desktopStore,
-          (state: DesktopStoreState) => state.libraryCatalogRevision,
-        );
-        const catalog = useLibraryCatalog(
-          { scope: { kind: 'library' }, page: 1, pageSize: 12 },
-          catalogRevision,
-        );
-        return { actions, catalog };
-      });
+      const queryClient = createAppQueryClient();
+      const { result } = renderHook(
+        () => {
+          const { getStore, applyStore } = desktopStore.getState();
+          const actions = useAppCollectionStoreActions({ getStore, applyStore });
+          const catalogRevision = useStore(
+            desktopStore,
+            (state: DesktopStoreState) => state.libraryCatalogRevision,
+          );
+          const catalog = useLibraryCatalog(
+            { scope: { kind: 'library' }, page: 1, pageSize: 12 },
+            catalogRevision,
+          );
+          return { actions, catalog };
+        },
+        {
+          wrapper: ({ children }: { children: ReactNode }) =>
+            createElement(QueryClientProvider, { client: queryClient }, children),
+        },
+      );
       await waitFor(() => {
         expect(result.current.catalog).toMatchObject({
           status: 'ready',

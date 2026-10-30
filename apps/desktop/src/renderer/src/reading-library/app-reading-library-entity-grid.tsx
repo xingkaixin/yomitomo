@@ -11,7 +11,7 @@ import {
   PinOffIcon,
   SmartPhone01Icon,
 } from '@hugeicons/core-free-icons';
-import React, { useState } from 'react';
+import React, { useReducer } from 'react';
 import type { ArticleSummaryRecord, Collection, WeReadBook } from '@yomitomo/shared';
 import {
   libraryCatalogItemRef,
@@ -32,6 +32,7 @@ import { ArticleLibraryCard } from './app-reading-library-card';
 import { WeReadCover } from './app-reading-library-covers';
 import { contentRefKey } from './app-reading-library-entities';
 import { formatLibraryShortDate, weReadBookLibraryDate } from './app-reading-library-utils';
+import { libraryMenuReducer, type LibraryMenuEvent } from './library-menu-state';
 export function LibraryEntityGrid({
   activeCollectionId,
   actions,
@@ -140,7 +141,7 @@ function WeReadLibraryCard({
   pinned: boolean;
 }) {
   const { t } = useTranslation();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuOpen, dispatchMenu] = useReducer(libraryMenuReducer, false);
   const statsLabel = t('library.stats.label', {
     annotations: book.noteCount,
     distillations: 0,
@@ -156,7 +157,10 @@ function WeReadLibraryCard({
         onClick={onOpen}
       />
       <div className={menuOpen ? 'library-item-actions is-active' : 'library-item-actions'}>
-        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+        <DropdownMenu
+          open={menuOpen}
+          onOpenChange={(open) => dispatchMenu({ type: 'openChanged', open })}
+        >
           <div className="library-card-menu">
             <DropdownMenuTrigger asChild>
               <button
@@ -175,7 +179,7 @@ function WeReadLibraryCard({
               <LibraryPinMenuItem
                 pinned={pinned}
                 onSelect={() => {
-                  setMenuOpen(false);
+                  dispatchMenu({ type: 'itemChosen' });
                   onSetPinned(!pinned);
                 }}
               />
@@ -183,7 +187,7 @@ function WeReadLibraryCard({
                 <button
                   type="button"
                   onClick={() => {
-                    setMenuOpen(false);
+                    dispatchMenu({ type: 'itemChosen' });
                     onOpenExternal();
                   }}
                 >
@@ -196,7 +200,7 @@ function WeReadLibraryCard({
                   <button
                     type="button"
                     onClick={() => {
-                      setMenuOpen(false);
+                      dispatchMenu({ type: 'itemChosen' });
                       void onRemoveFromCollection();
                     }}
                   >
@@ -260,8 +264,10 @@ function LibraryCollectionCard({
   pinned: boolean;
 }) {
   const { t } = useTranslation();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [{ menuOpen, deleteConfirmOpen }, dispatchMenu] = useReducer(collectionCardMenuReducer, {
+    menuOpen: false,
+    deleteConfirmOpen: false,
+  });
   const title = entity.collection.name;
   const memberCount = entity.memberCount;
   const statsLabel = t('library.collection.memberCount', { count: memberCount });
@@ -275,7 +281,10 @@ function LibraryCollectionCard({
         onClick={onOpen}
       />
       <div className={menuOpen ? 'library-item-actions is-active' : 'library-item-actions'}>
-        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+        <DropdownMenu
+          open={menuOpen}
+          onOpenChange={(open) => dispatchMenu({ type: 'openChanged', open })}
+        >
           <div className="library-card-menu">
             <DropdownMenuTrigger asChild>
               <button
@@ -294,7 +303,7 @@ function LibraryCollectionCard({
               <LibraryPinMenuItem
                 pinned={pinned}
                 onSelect={() => {
-                  setMenuOpen(false);
+                  dispatchMenu({ type: 'itemChosen' });
                   onSetPinned(!pinned);
                 }}
               />
@@ -302,7 +311,7 @@ function LibraryCollectionCard({
                 <button
                   type="button"
                   onClick={() => {
-                    setMenuOpen(false);
+                    dispatchMenu({ type: 'itemChosen' });
                     onRename();
                   }}
                 >
@@ -314,7 +323,7 @@ function LibraryCollectionCard({
                 <button
                   type="button"
                   onClick={() => {
-                    setMenuOpen(false);
+                    dispatchMenu({ type: 'itemChosen' });
                     onOpenPicker();
                   }}
                 >
@@ -327,8 +336,7 @@ function LibraryCollectionCard({
                   className="library-item-delete"
                   type="button"
                   onClick={() => {
-                    setMenuOpen(false);
-                    setDeleteConfirmOpen(true);
+                    dispatchMenu({ type: 'deleteRequested' });
                   }}
                 >
                   <HugeiconsIcon icon={Delete02Icon} size={14} />
@@ -392,14 +400,32 @@ function LibraryCollectionCard({
         description={t('library.collection.deleteConfirmDescription')}
         open={deleteConfirmOpen}
         title={t('library.collection.deleteConfirmTitle', { name: title })}
-        onCancel={() => setDeleteConfirmOpen(false)}
+        onCancel={() => dispatchMenu({ type: 'deleteDismissed' })}
         onConfirm={() => {
-          setDeleteConfirmOpen(false);
+          dispatchMenu({ type: 'deleteDismissed' });
           onDelete();
         }}
       />
     </article>
   );
+}
+
+type CollectionCardMenu = { menuOpen: boolean; deleteConfirmOpen: boolean };
+
+function collectionCardMenuReducer(
+  menu: CollectionCardMenu,
+  event: LibraryMenuEvent | { type: 'deleteRequested' } | { type: 'deleteDismissed' },
+): CollectionCardMenu {
+  switch (event.type) {
+    case 'openChanged':
+      return { ...menu, menuOpen: libraryMenuReducer(menu.menuOpen, event) };
+    case 'itemChosen':
+      return { ...menu, menuOpen: false };
+    case 'deleteRequested':
+      return { menuOpen: false, deleteConfirmOpen: true };
+    case 'deleteDismissed':
+      return { ...menu, deleteConfirmOpen: false };
+  }
 }
 
 function LibraryPinMenuItem({ pinned, onSelect }: { pinned: boolean; onSelect: () => void }) {
