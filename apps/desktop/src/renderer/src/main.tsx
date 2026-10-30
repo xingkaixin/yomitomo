@@ -215,7 +215,7 @@ function ReadyApp({
               <div className="app-section-actions">
                 <AppUpdateNavButton
                   state={appUpdateState}
-                  onClick={session.actions.requestUpdateDialog}
+                  onClick={() => session.actions.requestUpdateDialog(appUpdateState)}
                 />
                 {lockEnabled ? (
                   <button
@@ -369,7 +369,6 @@ function ReadyApp({
             <UpdateReleaseDialog
               store={store}
               updateState={appUpdateState}
-              openRequest={session.updateDialogRequest}
               onSaveSettings={saveSettings}
             />
           ) : null}

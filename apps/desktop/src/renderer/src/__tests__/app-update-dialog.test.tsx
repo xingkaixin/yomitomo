@@ -1,11 +1,16 @@
 // @vitest-environment jsdom
 
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import type { DesktopStore, ReleaseNoteHighlight } from '@yomitomo/shared';
 import type { AppUpdateState } from '../../../app-update-types';
+import { bindUpdateDialogEvents } from '../shell/app-desktop-event-bindings';
+import { createDesktopStore } from '../shell/app-desktop-store';
+import { createAppQueryClient } from '../shell/app-query-client';
+import { AppSessionStoreProvider, createAppSessionStore } from '../shell/app-session';
 import { UpdateReleaseDialog, UpdateReleaseDialogView } from '../shell/app-update-dialog';
-import { renderWithQueryClient } from './query-test-utils';
+import { appUpdateStateQuery } from '../shell/use-app-update-state';
 import { initializeAppI18n } from '../i18n/app-i18n';
 
 beforeEach(() => {
@@ -214,19 +219,41 @@ describe('UpdateReleaseDialog before-update gating', () => {
     settings: { lastSeenVersion: '0.8.0', uiLanguage: 'zh-CN' },
   } as unknown as DesktopStore;
 
-  const container = (updateState: AppUpdateState | null, openRequest: number) => (
-    <UpdateReleaseDialog
-      store={store}
-      updateState={updateState}
-      openRequest={openRequest}
-      onSaveSettings={vi.fn().mockResolvedValue(store)}
-    />
-  );
+  // Mirrors the main window: update status reaches the dialog through the query cache binding.
+  function renderDialog(
+    initialState: AppUpdateState | null,
+    onSaveSettings = vi.fn().mockResolvedValue(store),
+  ) {
+    const queryClient = createAppQueryClient();
+    const sessionStore = createAppSessionStore(createDesktopStore());
+    onTestFinished(bindUpdateDialogEvents({ queryClient, sessionStore }));
+    const dialog = (updateState: AppUpdateState | null) => (
+      <QueryClientProvider client={queryClient}>
+        <AppSessionStoreProvider store={sessionStore}>
+          <UpdateReleaseDialog
+            store={store}
+            updateState={updateState}
+            onSaveSettings={onSaveSettings}
+          />
+        </AppSessionStoreProvider>
+      </QueryClientProvider>
+    );
+    queryClient.setQueryData(appUpdateStateQuery.queryKey, initialState);
+    const view = render(dialog(initialState));
+    return {
+      receive: (updateState: AppUpdateState) => {
+        queryClient.setQueryData(appUpdateStateQuery.queryKey, updateState);
+        view.rerender(dialog(updateState));
+      },
+      requestFromHeader: (updateState: AppUpdateState) =>
+        sessionStore.getState().actions.requestUpdateDialog(updateState),
+    };
+  }
 
   it('does not pop the dialog for an auto-check hit', async () => {
     stubDesktop();
     await act(async () => {
-      renderWithQueryClient(container(available('auto'), 0));
+      renderDialog(available('auto'));
     });
     expect(screen.queryByText('发现新版本')).toBeNull();
   });
@@ -234,7 +261,7 @@ describe('UpdateReleaseDialog before-update gating', () => {
   it('pops the dialog for a manual-check hit', async () => {
     stubDesktop();
     await act(async () => {
-      renderWithQueryClient(container(available('manual'), 0));
+      renderDialog(available('manual'));
     });
     expect(await screen.findByText('发现新版本')).toBeTruthy();
     expect(screen.getByText('v0.9.0')).toBeTruthy();
@@ -243,7 +270,7 @@ describe('UpdateReleaseDialog before-update gating', () => {
   it('shows the version prompt while the release note is still pending', async () => {
     stubDesktop(vi.fn(() => new Promise(() => {})));
     await act(async () => {
-      renderWithQueryClient(container(available('manual'), 0));
+      renderDialog(available('manual'));
     });
 
     expect(await screen.findByText('发现新版本')).toBeTruthy();
@@ -253,7 +280,7 @@ describe('UpdateReleaseDialog before-update gating', () => {
   it('keeps the version prompt when the release note request rejects', async () => {
     stubDesktop(vi.fn().mockRejectedValue(new Error('offline')));
     await act(async () => {
-      renderWithQueryClient(container(available('manual'), 0));
+      renderDialog(available('manual'));
     });
 
     expect(await screen.findByText('发现新版本')).toBeTruthy();
@@ -264,7 +291,7 @@ describe('UpdateReleaseDialog before-update gating', () => {
     let resolveNote: (note: unknown) => void = () => {};
     stubDesktop(vi.fn(() => new Promise((resolve) => (resolveNote = resolve))));
     await act(async () => {
-      renderWithQueryClient(container(available('manual'), 0));
+      renderDialog(available('manual'));
     });
     expect(await screen.findByText('发现新版本')).toBeTruthy();
 
@@ -278,13 +305,13 @@ describe('UpdateReleaseDialog before-update gating', () => {
 
   it('pops the dialog for an auto-check hit when the user requests it from the header', async () => {
     stubDesktop();
-    let view!: ReturnType<typeof renderWithQueryClient>;
+    let dialog!: ReturnType<typeof renderDialog>;
     await act(async () => {
-      view = renderWithQueryClient(container(available('auto'), 0));
+      dialog = renderDialog(available('auto'));
     });
     expect(screen.queryByText('发现新版本')).toBeNull();
     await act(async () => {
-      view.rerender(container(available('auto'), 1));
+      dialog.requestFromHeader(available('auto'));
     });
     expect(await screen.findByText('发现新版本')).toBeTruthy();
     expect(screen.getByText('v0.9.0')).toBeTruthy();
@@ -292,37 +319,27 @@ describe('UpdateReleaseDialog before-update gating', () => {
 
   it('reopens a dismissed download as a restart confirmation when it finishes', async () => {
     stubDesktop();
-    let view!: ReturnType<typeof renderWithQueryClient>;
+    let dialog!: ReturnType<typeof renderDialog>;
     await act(async () => {
-      view = renderWithQueryClient(container(available('manual'), 0));
+      dialog = renderDialog(available('manual'));
     });
 
     await act(async () => {
-      view.rerender(
-        container(
-          {
-            ...available('manual'),
-            status: 'downloading',
-            progress: { percent: 50, transferred: 50, total: 100, bytesPerSecond: 10 },
-          },
-          0,
-        ),
-      );
+      dialog.receive({
+        ...available('manual'),
+        status: 'downloading',
+        progress: { percent: 50, transferred: 50, total: 100, bytesPerSecond: 10 },
+      });
     });
     fireEvent.click(screen.getByText('后台下载'));
     expect(screen.queryByText('发现新版本')).toBeNull();
 
     await act(async () => {
-      view.rerender(
-        container(
-          {
-            ...available('manual'),
-            status: 'downloaded',
-            checkedAt: '2026-08-25T00:00:00.000Z',
-          },
-          0,
-        ),
-      );
+      dialog.receive({
+        ...available('manual'),
+        status: 'downloaded',
+        checkedAt: '2026-08-25T00:00:00.000Z',
+      });
     });
     expect(await screen.findByText('更新已就绪')).toBeTruthy();
 
@@ -337,13 +354,13 @@ describe('UpdateReleaseDialog before-update gating', () => {
       status: 'downloading',
       progress: { percent: 50, transferred: 50, total: 100, bytesPerSecond: 10 },
     };
-    let view!: ReturnType<typeof renderWithQueryClient>;
+    let dialog!: ReturnType<typeof renderDialog>;
     await act(async () => {
-      view = renderWithQueryClient(container(downloading, 0));
+      dialog = renderDialog(downloading);
     });
 
     await act(async () => {
-      view.rerender(container(downloading, 1));
+      dialog.requestFromHeader(downloading);
     });
     expect(await screen.findByRole('progressbar')).toBeTruthy();
   });
@@ -352,18 +369,14 @@ describe('UpdateReleaseDialog before-update gating', () => {
     const { install } = stubDesktop();
     const onSaveSettings = vi.fn().mockResolvedValue(store);
     await act(async () => {
-      renderWithQueryClient(
-        <UpdateReleaseDialog
-          store={store}
-          updateState={{
-            ...available('manual'),
-            status: 'downloaded',
-            checkedAt: '2026-08-25T00:00:00.000Z',
-            simulation: 'development',
-          }}
-          openRequest={0}
-          onSaveSettings={onSaveSettings}
-        />,
+      renderDialog(
+        {
+          ...available('manual'),
+          status: 'downloaded',
+          checkedAt: '2026-08-25T00:00:00.000Z',
+          simulation: 'development',
+        },
+        onSaveSettings,
       );
     });
 

@@ -1,7 +1,14 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { BubbleChatIcon, Cancel01Icon } from '@hugeicons/core-free-icons';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { createPortal, flushSync } from 'react-dom';
+import {
+  useCallback,
+  useEffectEvent,
+  useMemo,
+  useReducer,
+  useRef,
+  useSyncExternalStore,
+} from 'react';
+import { createPortal } from 'react-dom';
 import {
   getLandingContent,
   type Agent,
@@ -11,7 +18,7 @@ import {
 } from './data/article';
 
 type ConnectionPath = { d: string; arrow: string; sx: number; sy: number };
-type DiscussionModalPhase = 'closed' | 'opening' | 'open' | 'closing';
+type DiscussionModalPhase = 'opening' | 'open' | 'closing';
 
 function useAgentResolver(agents: Agent[]) {
   return useCallback((id: string) => agents.find((a) => a.id === id) ?? agents[0], [agents]);
@@ -28,6 +35,10 @@ function getCssDurationMs(variableName: string, fallback: number) {
   return raw.endsWith('ms') ? value : value * 1000;
 }
 
+function subscribeToNothing() {
+  return () => {};
+}
+
 /** Discussion modal: idea list on the left, selected thread on the right. */
 function DiscussionModal({
   annotation,
@@ -36,7 +47,7 @@ function DiscussionModal({
   returnFocusTarget,
   onClosed,
 }: {
-  annotation: Annotation | null;
+  annotation: Annotation;
   agents: Agent[];
   labels: {
     quote: string;
@@ -49,115 +60,85 @@ function DiscussionModal({
   onClosed: () => void;
 }) {
   const getAgent = useAgentResolver(agents);
-  const [selected, setSelected] = useState(0);
-  const [phase, setPhase] = useState<DiscussionModalPhase>('closed');
-  const [visibleAnnotation, setVisibleAnnotation] = useState<Annotation | null>(null);
+  const [{ phase, selected }, dispatch] = useReducer(discussionModalReducer, {
+    phase: 'opening',
+    selected: 0,
+  });
   // Portal to <body> so the fixed overlay centers against the viewport instead
   // of the demo section, whose backdrop-filter would otherwise contain it.
-  const [mounted, setMounted] = useState(false);
-  const overlayRef = useRef<HTMLDivElement>(null);
+  const hydrated = useSyncExternalStore(
+    subscribeToNothing,
+    () => true,
+    () => false,
+  );
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const closeTimerRef = useRef<number | null>(null);
-  const openFrameRef = useRef<number | null>(null);
-  const focusFrameRef = useRef<number | null>(null);
+  const frameRef = useRef<number | null>(null);
+  const releaseBackgroundRef = useRef<(() => void) | null>(null);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  function cancelFrame() {
+    if (frameRef.current === null) return;
+    window.cancelAnimationFrame(frameRef.current);
+    frameRef.current = null;
+  }
 
-  useEffect(() => {
-    return () => {
-      if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
-      if (openFrameRef.current !== null) window.cancelAnimationFrame(openFrameRef.current);
-      if (focusFrameRef.current !== null) window.cancelAnimationFrame(focusFrameRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!annotation) return;
-    if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
-    if (openFrameRef.current !== null) window.cancelAnimationFrame(openFrameRef.current);
-    setVisibleAnnotation(annotation);
-    setSelected(0);
-    setPhase('opening');
-    openFrameRef.current = window.requestAnimationFrame(() => {
-      setPhase('open');
-      openFrameRef.current = null;
-    });
-  }, [annotation]);
-
-  const finishClose = useCallback(() => {
-    setVisibleAnnotation(null);
-    setPhase('closed');
-    onClosed();
-  }, [onClosed]);
-
-  const requestClose = useCallback(() => {
-    if (phase === 'closed' || phase === 'closing') return;
-    if (openFrameRef.current !== null) {
-      window.cancelAnimationFrame(openFrameRef.current);
-      openFrameRef.current = null;
-    }
-    if (focusFrameRef.current !== null) {
-      window.cancelAnimationFrame(focusFrameRef.current);
-      focusFrameRef.current = null;
-    }
-    // Commit now so the background leaves inert before focus returns to it.
-    flushSync(() => setPhase('closing'));
+  function requestClose() {
+    if (phase === 'closing') return;
+    cancelFrame();
+    // Release the background before focus returns to it.
+    releaseBackgroundRef.current?.();
+    dispatch({ type: 'closeRequested' });
     returnFocusTarget?.focus({ preventScroll: true });
     const closeMs = prefersReducedMotion() ? 0 : getCssDurationMs('--modal-close-dur', 150);
     closeTimerRef.current = window.setTimeout(() => {
       closeTimerRef.current = null;
-      finishClose();
+      onClosed();
     }, closeMs);
-  }, [finishClose, phase, returnFocusTarget]);
+  }
 
-  const isOpen = phase === 'opening' || phase === 'open';
+  const onEscape = useEffectEvent(requestClose);
 
-  useLayoutEffect(() => {
-    const overlay = overlayRef.current;
-    if (!isOpen || !overlay) return;
+  const attachOverlay = useCallback((overlay: HTMLDivElement) => {
     const background = Array.from(document.body.children).filter(
       (el) => el !== overlay && !el.hasAttribute('inert'),
     );
     for (const el of background) el.setAttribute('inert', '');
-    return () => {
+    const releaseBackground = () => {
       for (const el of background) el.removeAttribute('inert');
+      releaseBackgroundRef.current = null;
     };
-  }, [isOpen]);
+    releaseBackgroundRef.current = releaseBackground;
 
-  useEffect(() => {
-    if (phase !== 'open' && phase !== 'opening') return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') requestClose();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onEscape();
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [phase, requestClose]);
 
-  useEffect(() => {
-    if (phase !== 'open') return;
-    focusFrameRef.current = requestAnimationFrame(() => {
-      focusFrameRef.current = null;
-      closeButtonRef.current?.focus({ preventScroll: true });
+    frameRef.current = window.requestAnimationFrame(() => {
+      dispatch({ type: 'opened' });
+      frameRef.current = window.requestAnimationFrame(() => {
+        frameRef.current = null;
+        closeButtonRef.current?.focus({ preventScroll: true });
+      });
     });
-    return () => {
-      if (focusFrameRef.current !== null) {
-        window.cancelAnimationFrame(focusFrameRef.current);
-        focusFrameRef.current = null;
-      }
-    };
-  }, [phase, visibleAnnotation?.id]);
 
-  const thoughts: Thought[] = visibleAnnotation?.thoughts ?? [];
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
+      if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
+      releaseBackgroundRef.current?.();
+    };
+  }, []);
+
+  const thoughts: Thought[] = annotation.thoughts ?? [];
   const current = thoughts[selected];
 
-  if (!mounted || !visibleAnnotation || phase === 'closed') return null;
+  if (!hydrated) return null;
 
   return createPortal(
     <div
       className="dm-overlay"
-      ref={overlayRef}
+      ref={attachOverlay}
       data-state={phase}
       aria-hidden={phase === 'closing'}
       inert={phase === 'closing' ? true : undefined}
@@ -172,7 +153,7 @@ function DiscussionModal({
       >
         <div className="dm-quote">
           <span className="lbl">{labels.quote}</span>
-          <p>{visibleAnnotation.quote}</p>
+          <p>{annotation.quote}</p>
           <button
             className="dm-close"
             ref={closeButtonRef}
@@ -197,7 +178,7 @@ function DiscussionModal({
                     key={thought.id}
                     type="button"
                     className={`dm-idea${index === selected ? ' sel' : ''}`}
-                    onClick={() => setSelected(index)}
+                    onClick={() => dispatch({ type: 'thoughtSelected', index })}
                   >
                     <span className="av">
                       <img src={author.avatar} alt="" width={96} height={96} />
@@ -330,64 +311,22 @@ export default function ReaderDemo({ lang = 'zh-CN' }: { lang?: Locale }) {
   const isEnglish = lang === 'en';
   const isJapanese = lang === 'ja';
 
-  const [active, setActive] = useState<string | null>(null);
-  const [modal, setModal] = useState<Annotation | null>(null);
-  const [path, setPath] = useState<ConnectionPath | null>(null);
-  const readerRef = useRef<HTMLDivElement>(null);
-  const modalReturnFocusRef = useRef<HTMLElement | null>(null);
-
-  const draw = useCallback(() => {
-    const root = readerRef.current;
-    if (!root || !active) {
-      setPath(null);
-      return;
-    }
-    const noteEl = root.querySelector<HTMLElement>(`[data-note="${active}"]`);
-    if (!noteEl) {
-      setPath(null);
-      return;
-    }
-    // Distillation cards point back to the highlight they reuse.
-    const annObj = annotations.find((n) => n.id === active);
-    const srcId = annObj?.highlightId ?? active;
-    const hlEls = root.querySelectorAll<HTMLElement>(`[data-ann="${srcId}"]`);
-    if (!hlEls.length) {
-      setPath(null);
-      return;
-    }
-    const rr = root.getBoundingClientRect();
-    const b = noteEl.getBoundingClientRect();
-    const ty = b.top - rr.top + Math.min(30, b.height / 2);
-    const tipX = b.left - rr.left - 2;
-    let best = hlEls[0];
-    let bestD = Infinity;
-    hlEls.forEach((el) => {
-      const r = el.getBoundingClientRect();
-      const cy = r.top - rr.top + r.height / 2;
-      const d = Math.abs(cy - ty);
-      if (d < bestD) {
-        bestD = d;
-        best = el;
-      }
-    });
-    const a = best.getBoundingClientRect();
-    const x1 = a.right - rr.left;
-    const y1 = a.top - rr.top + a.height / 2;
-    const cx = (x1 + tipX) / 2;
-    const d = `M ${x1} ${y1} C ${cx} ${y1}, ${cx} ${ty}, ${tipX} ${ty}`;
-    const arrow = `M ${tipX - 9} ${ty - 5} L ${tipX} ${ty} L ${tipX - 9} ${ty + 5}`;
-    setPath({ d, arrow, sx: x1, sy: y1 });
-  }, [active, annotations]);
-
-  useLayoutEffect(() => {
-    draw();
-  }, [draw]);
-
-  useEffect(() => {
-    const on = () => draw();
-    window.addEventListener('resize', on);
-    return () => window.removeEventListener('resize', on);
-  }, [draw]);
+  const [{ active, modal, path }, dispatch] = useReducer(readerDemoReducer, {
+    active: null,
+    modal: null,
+    path: null,
+  });
+  // Recreated when the active note changes, so the path is measured after that commit.
+  const attachReader = useCallback(
+    (root: HTMLDivElement) => {
+      const measure = () =>
+        dispatch({ type: 'pathMeasured', path: connectionPath(root, active, annotations) });
+      measure();
+      window.addEventListener('resize', measure);
+      return () => window.removeEventListener('resize', measure);
+    },
+    [active, annotations],
+  );
 
   const modalLabels = {
     quote: ui.quoteLabel,
@@ -409,17 +348,13 @@ export default function ReaderDemo({ lang = 'zh-CN' }: { lang?: Locale }) {
     : isJapanese
       ? 'Yomitomoについて · 読書中'
       : '关于 Yomitomo · 阅读中';
+  const activateNote = useCallback((id: string) => dispatch({ type: 'noteActivated', id }), []);
   const openDiscussionModal = useCallback(
-    (annotation: Annotation, returnFocusTarget: HTMLElement) => {
-      modalReturnFocusRef.current = returnFocusTarget;
-      setModal(annotation);
-    },
+    (annotation: Annotation, returnFocusTarget: HTMLElement) =>
+      dispatch({ type: 'discussionOpened', annotation, returnFocusTarget }),
     [],
   );
-  const handleModalClosed = useCallback(() => {
-    setModal(null);
-    modalReturnFocusRef.current = null;
-  }, []);
+  const handleModalClosed = useCallback(() => dispatch({ type: 'discussionClosed' }), []);
 
   return (
     <div className="win">
@@ -435,7 +370,7 @@ export default function ReaderDemo({ lang = 'zh-CN' }: { lang?: Locale }) {
         </div>
         <div className="win-spacer" />
       </div>
-      <div className="reader" ref={readerRef}>
+      <div className="reader" ref={attachReader}>
         <svg className="reader-svg">
           <defs>
             <filter id="rdRough" x="-25%" y="-25%" width="150%" height="150%">
@@ -483,7 +418,7 @@ export default function ReaderDemo({ lang = 'zh-CN' }: { lang?: Locale }) {
                       className={`hl${active === segment.annotationId ? ' active' : ''}`}
                       data-ann={segment.annotationId}
                       onClick={() =>
-                        setActive(active === segment.annotationId ? null : segment.annotationId)
+                        dispatch({ type: 'highlightToggled', id: segment.annotationId })
                       }
                     >
                       {segment.content}
@@ -505,19 +440,111 @@ export default function ReaderDemo({ lang = 'zh-CN' }: { lang?: Locale }) {
               agents={agents}
               active={active === annotation.id}
               labels={noteLabels}
-              onActivate={setActive}
+              onActivate={activateNote}
               onOpen={openDiscussionModal}
             />
           ))}
         </div>
       </div>
-      <DiscussionModal
-        annotation={modal}
-        agents={agents}
-        labels={modalLabels}
-        returnFocusTarget={modalReturnFocusRef.current}
-        onClosed={handleModalClosed}
-      />
+      {modal ? (
+        <DiscussionModal
+          key={modal.annotation.id}
+          annotation={modal.annotation}
+          agents={agents}
+          labels={modalLabels}
+          returnFocusTarget={modal.returnFocusTarget}
+          onClosed={handleModalClosed}
+        />
+      ) : null}
     </div>
   );
+}
+
+type DiscussionModalState = { phase: DiscussionModalPhase; selected: number };
+
+type DiscussionModalEvent =
+  | { type: 'closeRequested' }
+  | { type: 'opened' }
+  | { type: 'thoughtSelected'; index: number };
+
+function discussionModalReducer(
+  state: DiscussionModalState,
+  event: DiscussionModalEvent,
+): DiscussionModalState {
+  switch (event.type) {
+    case 'closeRequested':
+      return { ...state, phase: 'closing' };
+    case 'opened':
+      return state.phase === 'opening' ? { ...state, phase: 'open' } : state;
+    case 'thoughtSelected':
+      return { ...state, selected: event.index };
+  }
+}
+
+type ReaderDemoState = {
+  active: string | null;
+  modal: { annotation: Annotation; returnFocusTarget: HTMLElement } | null;
+  path: ConnectionPath | null;
+};
+
+type ReaderDemoEvent =
+  | { type: 'discussionClosed' }
+  | { type: 'discussionOpened'; annotation: Annotation; returnFocusTarget: HTMLElement }
+  | { type: 'highlightToggled'; id: string }
+  | { type: 'noteActivated'; id: string }
+  | { type: 'pathMeasured'; path: ConnectionPath | null };
+
+function readerDemoReducer(state: ReaderDemoState, event: ReaderDemoEvent): ReaderDemoState {
+  switch (event.type) {
+    case 'discussionClosed':
+      return { ...state, modal: null };
+    case 'discussionOpened':
+      return {
+        ...state,
+        modal: { annotation: event.annotation, returnFocusTarget: event.returnFocusTarget },
+      };
+    case 'highlightToggled':
+      return { ...state, active: state.active === event.id ? null : event.id };
+    case 'noteActivated':
+      return { ...state, active: event.id };
+    case 'pathMeasured':
+      return { ...state, path: event.path };
+  }
+}
+
+function connectionPath(
+  root: HTMLElement,
+  active: string | null,
+  annotations: Annotation[],
+): ConnectionPath | null {
+  if (!active) return null;
+  const noteEl = root.querySelector<HTMLElement>(`[data-note="${active}"]`);
+  if (!noteEl) return null;
+  // Distillation cards point back to the highlight they reuse.
+  const annObj = annotations.find((n) => n.id === active);
+  const srcId = annObj?.highlightId ?? active;
+  const hlEls = root.querySelectorAll<HTMLElement>(`[data-ann="${srcId}"]`);
+  if (!hlEls.length) return null;
+  const rr = root.getBoundingClientRect();
+  const b = noteEl.getBoundingClientRect();
+  const ty = b.top - rr.top + Math.min(30, b.height / 2);
+  const tipX = b.left - rr.left - 2;
+  let best = hlEls[0];
+  let bestD = Infinity;
+  hlEls.forEach((el) => {
+    const r = el.getBoundingClientRect();
+    const cy = r.top - rr.top + r.height / 2;
+    const d = Math.abs(cy - ty);
+    if (d < bestD) {
+      bestD = d;
+      best = el;
+    }
+  });
+  const a = best.getBoundingClientRect();
+  const x1 = a.right - rr.left;
+  const y1 = a.top - rr.top + a.height / 2;
+  const cx = (x1 + tipX) / 2;
+  const d = `M ${x1} ${y1} C ${cx} ${y1}, ${cx} ${ty}, ${tipX} ${ty}`;
+  const arrow = `M ${tipX - 9} ${ty - 5} L ${tipX} ${ty} L ${tipX - 9} ${ty + 5}`;
+  return { d, arrow, sx: x1, sy: y1 };
 }

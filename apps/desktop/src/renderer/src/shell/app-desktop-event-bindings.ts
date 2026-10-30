@@ -60,6 +60,7 @@ export function bindMainWindowEvents(stores: {
     queryClient,
     sessionStore,
   });
+  const unbindUpdateDialogEvents = bindUpdateDialogEvents({ queryClient, sessionStore });
   const unsubscribeStore = desktopStore.subscribe((state, previousState) => {
     const store = state.store;
     const previousStore = previousState.store;
@@ -89,7 +90,27 @@ export function bindMainWindowEvents(stores: {
     unsubscribeMenuCommands();
     unsubscribeUpdateStatus();
     unbindLibraryQueryEvents();
+    unbindUpdateDialogEvents();
   };
+}
+
+/**
+ * Opens the update dialog from update status changes, whether main pushed them, the initial read
+ * returned them, or the About page wrote a manual check result.
+ */
+export function bindUpdateDialogEvents(stores: {
+  queryClient: QueryClient;
+  sessionStore: AppSessionStoreApi;
+}) {
+  const { queryClient, sessionStore } = stores;
+  return queryClient.getQueryCache().subscribe((event) => {
+    if (event.type !== 'updated' || event.action.type !== 'success') return;
+    if (!partialMatchKey(event.query.queryKey, appUpdateStateQuery.queryKey)) return;
+    sessionStore.getState().actions.dispatchUpdateDialog({
+      type: 'updateStateChanged',
+      updateState: queryClient.getQueryData(appUpdateStateQuery.queryKey) ?? null,
+    });
+  });
 }
 
 export function bindLibraryQueryEvents(stores: {

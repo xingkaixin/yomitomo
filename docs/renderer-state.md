@@ -8,9 +8,8 @@ oxlint enforces this with `no-restricted-imports` and `no-restricted-properties`
 in the root `.oxlintrc.json`. Import React as a default import; a namespace
 import (`import * as React`) fails `no-restricted-imports`.
 
-Test files are exempt. Files that still use these hooks are listed in the
-exemption override of `.oxlintrc.json`. A migration removes its files from that
-list; new code never adds to it.
+Test files are exempt. Production code has no other exemptions; effects go
+through the primitives in the effect allowlist below.
 
 ## State ownership
 
@@ -33,6 +32,11 @@ query result into zustand.
   transition or action that changes that value, not in an effect.
 - Read the latest props inside callbacks with `useEffectEvent`. Do not write
   `ref.current` during render.
+- Pass `use` a promise created once outside render, for example in a module.
+  Promises returned through the preload bridge are new objects on every call.
+  Updates from ref callbacks render synchronously, and a synchronous render
+  that suspends on a pending promise replaces the view with the Suspense
+  fallback.
 - Attach element listeners, observers, focus, and measurement with ref callbacks
   that return a cleanup function. When DOM work must follow a data change, attach
   the ref to an element whose `key` changes with that data.
@@ -54,8 +58,9 @@ the session store from `apps/desktop/src/renderer/src/shell/app-session.tsx`, th
 theme store from `apps/desktop/src/renderer/src/theme/use-reader-theme-controller.tsx`,
 and the settings draft store from `apps/desktop/src/renderer/src/settings/app-settings-drafts.tsx`.
 Push subscriptions and reactions between these stores, such as resetting the
-session on lock, syncing theme and UI language from settings, or resetting
-settings drafts when a sync snapshot arrives, live in
+session on lock, syncing theme and UI language from settings, opening the update
+dialog when update status changes, or resetting settings drafts when a sync
+snapshot arrives, live in
 `apps/desktop/src/renderer/src/shell/app-desktop-event-bindings.ts`.
 
 Annotation windows create their store and bind its subscriptions in
