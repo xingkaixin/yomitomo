@@ -269,6 +269,15 @@ describe('GeneralSettings', () => {
     expect(onSave).toHaveBeenLastCalledWith(pointerDraft);
     expect(playAppSoundEffect).toHaveBeenLastCalledWith('settings.sound_preview', pointerDraft);
 
+    view.rerender(
+      <GeneralSettings
+        settingsDraft={{ soundEffectsEnabled: true, soundEffectsVolume: 0.35 }}
+        canSave={false}
+        onSettingsChange={onSettingsChange}
+        onSave={onSave}
+        saveState="idle"
+      />,
+    );
     fireEvent.keyDown(slider, { key: 'ArrowRight' });
     expect(onSave).toHaveBeenCalledTimes(2);
 

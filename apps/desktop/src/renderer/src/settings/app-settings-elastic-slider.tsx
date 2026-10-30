@@ -52,16 +52,13 @@ export function SettingsElasticSlider({
 }: SettingsElasticSliderProps) {
   const trackRef = React.useRef<HTMLDivElement | null>(null);
   const draggingRef = React.useRef(false);
-  const latestValueRef = React.useRef(value);
-  const [active, setActive] = React.useState(false);
-  const [rubberStretch, setRubberStretch] = React.useState(0);
+  const [{ active, rubberStretch }, dispatch] = React.useReducer(elasticSliderReducer, {
+    active: false,
+    rubberStretch: 0,
+  });
   const percent = ((value - min) / (max - min)) * 100;
   const displayValue = formatValue(value);
   const tickCount = Math.max(0, Math.floor((max - min) / step) - 1);
-
-  React.useEffect(() => {
-    latestValueRef.current = value;
-  }, [value]);
 
   function valueFromClientX(clientX: number) {
     const track = trackRef.current;
@@ -75,14 +72,16 @@ export function SettingsElasticSlider({
 
   function applyPointerValue(clientX: number) {
     const nextValue = valueFromClientX(clientX);
-    latestValueRef.current = nextValue;
     onValueChange(nextValue);
 
     const rect = trackRef.current?.getBoundingClientRect();
     if (!rect || rect.width === 0) return nextValue;
     const overflowLeft = Math.max(0, rect.left - clientX);
     const overflowRight = Math.max(0, clientX - rect.right);
-    setRubberStretch(Math.min(8, Math.sqrt(Math.max(overflowLeft, overflowRight))));
+    dispatch({
+      type: 'stretched',
+      stretch: Math.min(8, Math.sqrt(Math.max(overflowLeft, overflowRight))),
+    });
     return nextValue;
   }
 
@@ -91,7 +90,7 @@ export function SettingsElasticSlider({
     event.preventDefault();
     event.currentTarget.setPointerCapture?.(event.pointerId);
     draggingRef.current = true;
-    setActive(true);
+    dispatch({ type: 'activated' });
     applyPointerValue(event.clientX);
   }
 
@@ -104,15 +103,14 @@ export function SettingsElasticSlider({
     if (!draggingRef.current || disabled) return;
     const nextValue = applyPointerValue(event.clientX);
     draggingRef.current = false;
-    setActive(false);
-    setRubberStretch(0);
+    dispatch({ type: 'released' });
     onCommit(nextValue);
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
     if (disabled) return;
     let nextValue: number | null = null;
-    const currentValue = latestValueRef.current;
+    const currentValue = value;
     if (event.key === 'ArrowRight' || event.key === 'ArrowUp') nextValue = currentValue + step;
     if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') nextValue = currentValue - step;
     if (event.key === 'PageUp') nextValue = currentValue + step * 4;
@@ -121,14 +119,12 @@ export function SettingsElasticSlider({
     if (event.key === 'End') nextValue = max;
     if (nextValue === null) return;
     event.preventDefault();
-    const roundedValue = roundToStep(nextValue, min, max, step);
-    latestValueRef.current = roundedValue;
-    onValueChange(roundedValue);
+    onValueChange(roundToStep(nextValue, min, max, step));
   }
 
   function handleKeyUp(event: React.KeyboardEvent<HTMLDivElement>) {
     if (disabled || !elasticSliderCommitKeys.has(event.key)) return;
-    onCommit(latestValueRef.current);
+    onCommit(value);
   }
 
   return (
@@ -153,16 +149,16 @@ export function SettingsElasticSlider({
             '--settings-elastic-slider-stretch': `${rubberStretch}px`,
           } as React.CSSProperties
         }
-        onBlur={() => onCommit(latestValueRef.current)}
-        onFocus={() => setActive(true)}
+        onBlur={() => onCommit(value)}
+        onFocus={() => dispatch({ type: 'activated' })}
         onKeyDown={handleKeyDown}
         onKeyUp={handleKeyUp}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        onMouseEnter={() => setActive(true)}
+        onMouseEnter={() => dispatch({ type: 'activated' })}
         onMouseLeave={() => {
-          if (!draggingRef.current) setActive(false);
+          if (!draggingRef.current) dispatch({ type: 'released' });
         }}
       >
         <span className="settings-elastic-slider-fill" aria-hidden="true" />
@@ -184,4 +180,25 @@ export function SettingsElasticSlider({
       </div>
     </div>
   );
+}
+
+type ElasticSliderState = { active: boolean; rubberStretch: number };
+
+type ElasticSliderEvent =
+  | { type: 'activated' }
+  | { type: 'released' }
+  | { type: 'stretched'; stretch: number };
+
+function elasticSliderReducer(
+  state: ElasticSliderState,
+  event: ElasticSliderEvent,
+): ElasticSliderState {
+  switch (event.type) {
+    case 'activated':
+      return { ...state, active: true };
+    case 'released':
+      return { active: false, rubberStretch: 0 };
+    case 'stretched':
+      return { ...state, rubberStretch: event.stretch };
+  }
 }

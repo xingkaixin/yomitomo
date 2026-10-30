@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useReducer, useRef } from 'react';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import type { ResolvedAppSettings } from '@yomitomo/shared';
 import {
   desktopIpcErrorCodes,
@@ -60,33 +61,26 @@ export function useAppLockSettingsWorkflow({
   messages,
   onSettingsChange,
 }: UseAppLockSettingsWorkflowOptions) {
-  const [state, setState] = useState<AppLockSettingsWorkflowState>(closedState);
+  const [state, dispatch] = useReducer(appLockWorkflowReducer, undefined, closedState);
   const resetTimerRef = useRef<number | null>(null);
   const requestVersionRef = useRef(0);
 
-  useEffect(
-    () => () => {
-      requestVersionRef.current += 1;
-      clearResetTimer(resetTimerRef);
-    },
-    [],
-  );
+  useMountEffect(() => () => {
+    requestVersionRef.current += 1;
+    clearResetTimer(resetTimerRef);
+  });
 
   function open(checked: boolean) {
     clearResetTimer(resetTimerRef);
-    setState((current) => {
-      if (current.phase === 'saving') return current;
-      return checked ? { phase: 'enable-pin', pin: '' } : { phase: 'disable', pin: '' };
-    });
+    dispatch({ type: 'opened', checked });
   }
 
   function close() {
-    setState((current) => (current.phase === 'saving' ? current : closedState()));
+    dispatch({ type: 'dismissed' });
   }
 
   function updatePin(value: string) {
-    const pin = digitsOnly(value);
-    setState((current) => editableStateWithPin(current, pin));
+    dispatch({ type: 'pinEdited', pin: digitsOnly(value) });
   }
 
   async function submit(completedValue?: string) {
@@ -98,22 +92,28 @@ export function useAppLockSettingsWorkflow({
     if (editable.phase === 'enable-pin') {
       const pin = completedPin ?? editable.pin;
       if (!validPin(pin)) {
-        setState({ phase: 'error', step: 'enable-pin', pin, message: messages.pinRequired });
+        dispatch({
+          type: 'pinRejected',
+          error: { phase: 'error', step: 'enable-pin', pin, message: messages.pinRequired },
+        });
         return;
       }
-      setState({ phase: 'confirm', pin, confirmPin: '' });
+      dispatch({ type: 'pinChosen', pin });
       return;
     }
 
     if (editable.phase === 'confirm') {
       const confirmPin = completedPin ?? editable.confirmPin;
       if (!validPin(editable.pin) || editable.pin !== confirmPin) {
-        setState({
-          phase: 'error',
-          step: 'confirm',
-          pin: editable.pin,
-          confirmPin: '',
-          message: messages.confirmPinMismatch,
+        dispatch({
+          type: 'pinRejected',
+          error: {
+            phase: 'error',
+            step: 'confirm',
+            pin: editable.pin,
+            confirmPin: '',
+            message: messages.confirmPinMismatch,
+          },
         });
         return;
       }
@@ -123,7 +123,10 @@ export function useAppLockSettingsWorkflow({
 
     const pin = completedPin ?? editable.pin;
     if (!validPin(pin)) {
-      setState({ phase: 'error', step: 'disable', pin, message: messages.disablePinRequired });
+      dispatch({
+        type: 'pinRejected',
+        error: { phase: 'error', step: 'disable', pin, message: messages.disablePinRequired },
+      });
       return;
     }
     await disable(pin);
@@ -164,25 +167,23 @@ export function useAppLockSettingsWorkflow({
     clearResetTimer(resetTimerRef);
     const requestVersion = requestVersionRef.current + 1;
     requestVersionRef.current = requestVersion;
-    setState({ phase: 'saving', operation });
+    dispatch({ type: 'saveStarted', operation });
     return requestVersion;
   }
 
   function finishSaving(requestVersion: number, settings: ResolvedAppSettings) {
     if (requestVersion !== requestVersionRef.current) return;
     onSettingsChange(settings);
-    setState({ phase: 'closed', saveState: 'saved' });
+    dispatch({ type: 'saveSucceeded' });
     resetTimerRef.current = window.setTimeout(() => {
-      setState((current) =>
-        current.phase === 'closed' && current.saveState === 'saved' ? closedState() : current,
-      );
+      dispatch({ type: 'savedNoticeExpired' });
       resetTimerRef.current = null;
     }, 1200);
   }
 
   function failSaving(requestVersion: number, errorState: ErrorState) {
     if (requestVersion !== requestVersionRef.current) return;
-    setState(errorState);
+    dispatch({ type: 'saveFailed', error: errorState });
   }
 
   const dialog = useMemo(() => dialogModel(state), [state]);
@@ -205,6 +206,43 @@ export function useAppLockSettingsWorkflow({
     submit,
     updatePin,
   };
+}
+
+type AppLockWorkflowEvent =
+  | { type: 'dismissed' }
+  | { type: 'opened'; checked: boolean }
+  | { type: 'pinChosen'; pin: string }
+  | { type: 'pinEdited'; pin: string }
+  | { type: 'pinRejected'; error: ErrorState }
+  | { type: 'savedNoticeExpired' }
+  | { type: 'saveFailed'; error: ErrorState }
+  | { type: 'saveStarted'; operation: SavingState['operation'] }
+  | { type: 'saveSucceeded' };
+
+function appLockWorkflowReducer(
+  state: AppLockSettingsWorkflowState,
+  event: AppLockWorkflowEvent,
+): AppLockSettingsWorkflowState {
+  switch (event.type) {
+    case 'dismissed':
+      return state.phase === 'saving' ? state : closedState();
+    case 'opened':
+      if (state.phase === 'saving') return state;
+      return event.checked ? { phase: 'enable-pin', pin: '' } : { phase: 'disable', pin: '' };
+    case 'pinChosen':
+      return { phase: 'confirm', pin: event.pin, confirmPin: '' };
+    case 'pinEdited':
+      return editableStateWithPin(state, event.pin);
+    case 'pinRejected':
+    case 'saveFailed':
+      return event.error;
+    case 'savedNoticeExpired':
+      return state.phase === 'closed' && state.saveState === 'saved' ? closedState() : state;
+    case 'saveStarted':
+      return { phase: 'saving', operation: event.operation };
+    case 'saveSucceeded':
+      return { phase: 'closed', saveState: 'saved' };
+  }
 }
 
 function closedState(): ClosedState {

@@ -9,7 +9,7 @@ import {
   Tick01Icon,
   VolumeHighIcon,
 } from '@hugeicons/core-free-icons';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useReducer } from 'react';
 import type { ResolvedAppSettings } from '@yomitomo/shared';
 import {
   normalizeSoundEffectsVolume,
@@ -75,11 +75,16 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<ResolvedAppSet
   const savedSoundVolumePercent = Math.round(
     normalizeSoundEffectsVolume(settingsDraft.soundEffectsVolume) * 100,
   );
-  const [soundVolumePercent, setSoundVolumePercent] = useState(savedSoundVolumePercent);
-  const [translationLanguageOpen, setTranslationLanguageOpen] = useState(false);
-  const [translationStyleOpen, setTranslationStyleOpen] = useState(false);
-  const [saveSection, setSaveSection] = useState<GeneralSaveSection | null>(null);
-  const committedSoundVolumePercentRef = useRef(savedSoundVolumePercent);
+  const [
+    { draggedSoundVolumePercent, saveSection, translationLanguageOpen, translationStyleOpen },
+    dispatch,
+  ] = useReducer(generalSettingsReducer, {
+    draggedSoundVolumePercent: null,
+    saveSection: null,
+    translationLanguageOpen: false,
+    translationStyleOpen: false,
+  });
+  const soundVolumePercent = draggedSoundVolumePercent ?? savedSoundVolumePercent;
   const appLockWorkflow = useAppLockSettingsWorkflow({
     messages: {
       confirmPinMismatch: t('settings.general.appLockPinMismatch'),
@@ -91,18 +96,13 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<ResolvedAppSet
     onSettingsChange,
   });
 
-  useEffect(() => {
-    setSoundVolumePercent(savedSoundVolumePercent);
-    committedSoundVolumePercentRef.current = savedSoundVolumePercent;
-  }, [savedSoundVolumePercent]);
-
   function saveUiLanguage(language: UiLanguage) {
     const nextDraft = {
       ...settingsDraft,
       uiLanguage: language,
     };
     onSettingsChange(nextDraft);
-    setSaveSection('language');
+    dispatch({ type: 'saveStarted', section: 'language' });
     onSave(nextDraft);
   }
 
@@ -121,7 +121,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<ResolvedAppSet
       ...patch,
     };
     onSettingsChange(nextDraft);
-    setSaveSection('translation');
+    dispatch({ type: 'saveStarted', section: 'translation' });
     onSave(nextDraft);
   }
 
@@ -133,7 +133,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<ResolvedAppSet
       ...patch,
     };
     onSettingsChange(nextDraft);
-    setSaveSection('sound');
+    dispatch({ type: 'saveStarted', section: 'sound' });
     onSave(nextDraft);
     return nextDraft;
   }
@@ -149,7 +149,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<ResolvedAppSet
       ...patch,
     };
     onSettingsChange(nextDraft);
-    setSaveSection('collection');
+    dispatch({ type: 'saveStarted', section: 'collection' });
     onSave(nextDraft);
   }
 
@@ -159,7 +159,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<ResolvedAppSet
       ...patch,
     };
     onSettingsChange(nextDraft);
-    setSaveSection('telemetry');
+    dispatch({ type: 'saveStarted', section: 'telemetry' });
     onSave(nextDraft);
   }
 
@@ -169,20 +169,20 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<ResolvedAppSet
       appLockLockOnStartup: checked,
     };
     onSettingsChange(nextDraft);
-    setSaveSection('appLock');
+    dispatch({ type: 'saveStarted', section: 'appLock' });
     onSave(nextDraft);
   }
 
-  function commitSoundVolume(nextPercent = soundVolumePercent) {
-    if (committedSoundVolumePercentRef.current === nextPercent) return;
-    committedSoundVolumePercentRef.current = nextPercent;
+  function commitSoundVolume(nextPercent: number) {
+    dispatch({ type: 'soundVolumeReleased' });
+    if (nextPercent === savedSoundVolumePercent) return;
     const nextVolume = nextPercent / 100;
     const nextDraft = saveSoundSettings({ soundEffectsVolume: nextVolume });
     playAppSoundEffect('settings.sound_preview', nextDraft);
   }
 
   function retrySave(section: GeneralSaveSection) {
-    setSaveSection(section);
+    dispatch({ type: 'saveStarted', section });
     onSave();
   }
 
@@ -234,7 +234,10 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<ResolvedAppSet
           title={t('settings.general.translationTargetTitle')}
           description={t('settings.general.translationTargetDescription')}
         >
-          <Popover open={translationLanguageOpen} onOpenChange={setTranslationLanguageOpen}>
+          <Popover
+            open={translationLanguageOpen}
+            onOpenChange={(open) => dispatch({ type: 'translationLanguageOpenChanged', open })}
+          >
             <PopoverTrigger asChild>
               <button
                 aria-expanded={translationLanguageOpen}
@@ -275,7 +278,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<ResolvedAppSet
                         saveTranslationSettings({
                           bilingualTranslationTargetLanguage: option.value,
                         });
-                        setTranslationLanguageOpen(false);
+                        dispatch({ type: 'translationLanguageOpenChanged', open: false });
                       }}
                     >
                       <span>{t(option.labelKey)}</span>
@@ -296,7 +299,10 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<ResolvedAppSet
         >
           <>
             <div className="settings-translation-style-control">
-              <Popover open={translationStyleOpen} onOpenChange={setTranslationStyleOpen}>
+              <Popover
+                open={translationStyleOpen}
+                onOpenChange={(open) => dispatch({ type: 'translationStyleOpenChanged', open })}
+              >
                 <PopoverTrigger asChild>
                   <button
                     aria-expanded={translationStyleOpen}
@@ -337,7 +343,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<ResolvedAppSet
                             saveTranslationSettings({
                               bilingualTranslationStyle: option.value,
                             });
-                            setTranslationStyleOpen(false);
+                            dispatch({ type: 'translationStyleOpenChanged', open: false });
                           }}
                         >
                           <span>{t(option.labelKey)}</span>
@@ -413,7 +419,7 @@ export function GeneralSettings({ draft }: { draft: SaveableDraft<ResolvedAppSet
             step={5}
             value={soundVolumePercent}
             onCommit={commitSoundVolume}
-            onValueChange={setSoundVolumePercent}
+            onValueChange={(percent) => dispatch({ type: 'soundVolumeDragged', percent })}
           />
         </SettingsRow>
       </SettingsGroup>
@@ -679,4 +685,36 @@ function PinOtpInput({
       </InputOTPGroup>
     </InputOTP>
   );
+}
+
+type GeneralSettingsState = {
+  draggedSoundVolumePercent: number | null;
+  saveSection: GeneralSaveSection | null;
+  translationLanguageOpen: boolean;
+  translationStyleOpen: boolean;
+};
+
+type GeneralSettingsEvent =
+  | { type: 'saveStarted'; section: GeneralSaveSection }
+  | { type: 'soundVolumeDragged'; percent: number }
+  | { type: 'soundVolumeReleased' }
+  | { type: 'translationLanguageOpenChanged'; open: boolean }
+  | { type: 'translationStyleOpenChanged'; open: boolean };
+
+function generalSettingsReducer(
+  state: GeneralSettingsState,
+  event: GeneralSettingsEvent,
+): GeneralSettingsState {
+  switch (event.type) {
+    case 'saveStarted':
+      return { ...state, saveSection: event.section };
+    case 'soundVolumeDragged':
+      return { ...state, draggedSoundVolumePercent: event.percent };
+    case 'soundVolumeReleased':
+      return { ...state, draggedSoundVolumePercent: null };
+    case 'translationLanguageOpenChanged':
+      return { ...state, translationLanguageOpen: event.open };
+    case 'translationStyleOpenChanged':
+      return { ...state, translationStyleOpen: event.open };
+  }
 }
