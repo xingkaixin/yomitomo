@@ -41,7 +41,7 @@ vi.mock('./app-desktop-api', () => ({
       restoreDatabase: desktopApi.restoreDatabase,
     },
     store: { saveSettings: desktopApi.saveSettings },
-    updates: { check: desktopApi.checkUpdates },
+    updates: { check: desktopApi.checkUpdates, onStatus: () => () => undefined },
   }),
 }));
 

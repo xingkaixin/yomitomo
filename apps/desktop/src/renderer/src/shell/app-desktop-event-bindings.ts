@@ -8,6 +8,7 @@ import type { ReaderThemeStoreApi } from '../theme/use-reader-theme-controller';
 import type { DesktopStoreApi } from './app-desktop-store';
 import type { AppSessionStoreApi } from './app-session';
 import { getDesktopApi, getOptionalDesktopApi } from './app-desktop-api';
+import { appUpdateStateQuery } from './use-app-update-state';
 
 export function bindDesktopStoreEvents(desktopStore: DesktopStoreApi) {
   const { receiveStore, receiveArticlePatch, receiveCollectionPatch, receiveLibraryPinPatch } =
@@ -35,6 +36,9 @@ export function bindMainWindowEvents(stores: {
     if (isStoreLocked(desktopStore.getState().store)) return;
     sessionStore.getState().actions.runMenuCommand(command);
   });
+  const unsubscribeUpdateStatus = getDesktopApi().updates.onStatus((state) =>
+    queryClient.setQueryData(appUpdateStateQuery.queryKey, state),
+  );
   const unsubscribeStore = desktopStore.subscribe((state, previousState) => {
     const store = state.store;
     const previousStore = previousState.store;
@@ -62,6 +66,7 @@ export function bindMainWindowEvents(stores: {
   return () => {
     unsubscribeStore();
     unsubscribeMenuCommands();
+    unsubscribeUpdateStatus();
   };
 }
 
