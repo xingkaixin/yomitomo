@@ -29,7 +29,7 @@ import {
   type SettingsEditorSection,
 } from './app-settings-change-detection';
 import { getDesktopApi } from '../shell/app-desktop-api';
-import type { SettingsSyncSnapshot } from '../shell/app-desktop-store-state';
+import type { SettingsSyncSnapshot } from '../shell/app-desktop-store';
 import { normalizeAppSettings } from '../../../settings/app-settings-normalization';
 
 type SettingsDraftDesktopApi = Pick<YomitomoDesktopApi, 'provider' | 'store'>;

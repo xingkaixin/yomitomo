@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   AppSettingsPatch,
@@ -12,7 +11,8 @@ import type {
 
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { emptyStore } from '../settings/app-settings';
-import { useDesktopStoreState } from '../shell/app-desktop-store-state';
+import { bindDesktopStoreEvents } from '../shell/app-desktop-event-bindings';
+import { createDesktopStore } from '../shell/app-desktop-store';
 import { normalizeAppSettings } from '../../../settings/app-settings-normalization';
 
 beforeEach(() => {
@@ -20,12 +20,11 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  cleanup();
   Reflect.deleteProperty(window, 'yomitomoDesktop');
   vi.clearAllMocks();
 });
 
-describe('useDesktopStoreState', () => {
+describe('createDesktopStore', () => {
   it('does not expose a desktop store before loading completes', () => {
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
@@ -36,21 +35,13 @@ describe('useDesktopStoreState', () => {
         },
       },
     });
-    const latest: { current?: ReturnType<typeof useDesktopStoreState> } = {};
+    const desktopStore = startDesktopStore();
 
-    function Harness() {
-      latest.current = useDesktopStoreState();
-      return null;
-    }
-
-    render(<Harness />);
-
-    expect(latest.current?.status).toBe('loading');
-    expect(latest.current?.storeRef.current).toBeNull();
-    expect(latest.current && 'store' in latest.current).toBe(false);
+    expect(desktopStore.getState().store).toBeNull();
+    expect(desktopStore.getState().loadError).toBeNull();
   });
 
-  it('keeps storeRef synchronized with loaded, updated, and applied stores', async () => {
+  it('keeps the store synchronized with loaded, updated, and applied stores', async () => {
     const initialStore = makeStore({ user: { nickname: '初始用户' } });
     const updatedStore = makeStore({ user: { nickname: '外部更新' } });
     const appliedStore = makeStore({ user: { nickname: '本地应用' } });
@@ -96,31 +87,20 @@ describe('useDesktopStoreState', () => {
       },
     });
 
-    const latest: { current?: ReturnType<typeof useDesktopStoreState> } = {};
+    const desktopStore = startDesktopStore();
 
-    function Harness() {
-      latest.current = useDesktopStoreState();
-      return null;
-    }
-
-    render(<Harness />);
-
-    await waitFor(() => expect(latest.current?.status).toBe('ready'));
-    expect(readyState(latest).store).toBe(initialStore);
-    expect(latest.current?.storeRef.current).toBe(initialStore);
-    expect(readyState(latest).settingsSyncSnapshot).toEqual({
+    await vi.waitFor(() => expect(desktopStore.getState().store).not.toBeNull());
+    expect(desktopStore.getState().store).toBe(initialStore);
+    expect(desktopStore.getState().settingsSyncSnapshot).toEqual({
       user: initialStore.user,
       settings: initialStore.settings,
     });
-    expect(readyState(latest).settingsSyncSnapshot).not.toHaveProperty('articles');
+    expect(desktopStore.getState().settingsSyncSnapshot).not.toHaveProperty('articles');
 
-    act(() => {
-      emitStoreUpdated(updatedStore);
-    });
+    emitStoreUpdated(updatedStore);
 
-    expect(readyState(latest).store).toBe(updatedStore);
-    expect(latest.current?.storeRef.current).toBe(updatedStore);
-    const settingsSyncSnapshot = readyState(latest).settingsSyncSnapshot;
+    expect(desktopStore.getState().store).toBe(updatedStore);
+    const settingsSyncSnapshot = desktopStore.getState().settingsSyncSnapshot;
     expect(settingsSyncSnapshot).toEqual({
       user: updatedStore.user,
       settings: updatedStore.settings,
@@ -136,55 +116,42 @@ describe('useDesktopStoreState', () => {
         distillationCount: 0,
       },
     });
-    act(() => {
-      emitArticlePatched({ type: 'article-upsert', article: patchedArticle });
-    });
+    emitArticlePatched({ type: 'article-upsert', article: patchedArticle });
 
-    expect(readyState(latest).store.articles).toEqual([patchedArticle]);
-    expect(latest.current?.storeRef.current?.articles).toEqual([patchedArticle]);
-    expect(readyState(latest).settingsSyncSnapshot).toBe(settingsSyncSnapshot);
+    expect(desktopStore.getState().store?.articles).toEqual([patchedArticle]);
+    expect(desktopStore.getState().settingsSyncSnapshot).toBe(settingsSyncSnapshot);
 
     const patchedUser = { ...updatedStore.user, nickname: '局部更新' };
-    act(() => {
-      latest.current?.applySettingsPatch({ user: patchedUser });
+    desktopStore.getState().applySettingsPatch({ user: patchedUser });
+
+    expect(desktopStore.getState().store?.user).toEqual(patchedUser);
+    expect(desktopStore.getState().store?.articles).toEqual([patchedArticle]);
+
+    emitCollectionPatched({
+      type: 'collection-upsert',
+      collection: {
+        id: 'collection_1',
+        name: '合集',
+        createdAt: '2026-06-21T00:00:00.000Z',
+        updatedAt: '2026-06-21T00:00:00.000Z',
+      },
     });
 
-    expect(readyState(latest).store.user).toEqual(patchedUser);
-    expect(readyState(latest).store.articles).toEqual([patchedArticle]);
-    expect(latest.current?.storeRef.current?.articles).toEqual([patchedArticle]);
-
-    act(() => {
-      emitCollectionPatched({
-        type: 'collection-upsert',
-        collection: {
-          id: 'collection_1',
-          name: '合集',
-          createdAt: '2026-06-21T00:00:00.000Z',
-          updatedAt: '2026-06-21T00:00:00.000Z',
-        },
-      });
-    });
-
-    expect(readyState(latest).store.collections.map((collection) => collection.id)).toEqual([
+    expect(desktopStore.getState().store?.collections.map((collection) => collection.id)).toEqual([
       'collection_1',
     ]);
-    expect(
-      latest.current?.storeRef.current?.collections.map((collection) => collection.id),
-    ).toEqual(['collection_1']);
 
-    act(() => {
-      emitLibraryPinPatched({
-        type: 'library-pin',
-        pinned: true,
-        pin: {
-          targetKind: 'collection',
-          targetId: 'collection_1',
-          pinnedAt: '2026-06-21T00:01:00.000Z',
-        },
-      });
+    emitLibraryPinPatched({
+      type: 'library-pin',
+      pinned: true,
+      pin: {
+        targetKind: 'collection',
+        targetId: 'collection_1',
+        pinnedAt: '2026-06-21T00:01:00.000Z',
+      },
     });
 
-    expect(readyState(latest).store.pins).toEqual([
+    expect(desktopStore.getState().store?.pins).toEqual([
       {
         targetKind: 'collection',
         targetId: 'collection_1',
@@ -192,29 +159,25 @@ describe('useDesktopStoreState', () => {
       },
     ]);
 
-    act(() => {
-      latest.current?.applyStore(appliedStore);
-    });
+    desktopStore.getState().applyStore(appliedStore);
 
-    expect(readyState(latest).store).toBe(appliedStore);
-    expect(latest.current?.storeRef.current).toBe(appliedStore);
+    expect(desktopStore.getState().store).toBe(appliedStore);
 
     const currentArticleSink = {
       isCurrent: vi.fn((articleId: string) => articleId === patchedArticle.id),
       apply: vi.fn(),
     };
-    const unregisterCurrentArticleSink =
-      latest.current?.articleStore.registerCurrentArticleSink(currentArticleSink);
+    const unregisterCurrentArticleSink = desktopStore
+      .getState()
+      .articleStore.registerCurrentArticleSink(currentArticleSink);
 
-    act(() => {
-      emitArticlePatched({ type: 'article-delete', articleId: patchedArticle.id });
-    });
+    emitArticlePatched({ type: 'article-delete', articleId: patchedArticle.id });
 
     expect(currentArticleSink.apply).toHaveBeenCalledWith({
       type: 'delete',
       articleId: patchedArticle.id,
     });
-    unregisterCurrentArticleSink?.();
+    unregisterCurrentArticleSink();
   });
 
   it('exposes store load errors without leaving an unhandled startup failure', async () => {
@@ -237,18 +200,13 @@ describe('useDesktopStoreState', () => {
       },
     });
 
-    const latest: { current?: ReturnType<typeof useDesktopStoreState> } = {};
+    const desktopStore = startDesktopStore();
 
-    function Harness() {
-      latest.current = useDesktopStoreState();
-      return null;
-    }
-
-    render(<Harness />);
-
-    await waitFor(() => expect(errorState(latest).error.code).toBe('DATABASE_TOO_NEW'));
-    expect(latest.current?.status).toBe('error');
-    expect(errorState(latest).error).toMatchObject({
+    await vi.waitFor(() =>
+      expect(desktopStore.getState().loadError?.code).toBe('DATABASE_TOO_NEW'),
+    );
+    expect(desktopStore.getState().loadError).not.toBeNull();
+    expect(desktopStore.getState().loadError).toMatchObject({
       message: '请安装最新版继续使用。',
       requiredReaderLevel: 2,
       supportedReaderLevel: 1,
@@ -281,23 +239,15 @@ describe('useDesktopStoreState', () => {
       },
     });
 
-    const latest: { current?: ReturnType<typeof useDesktopStoreState> } = {};
+    const desktopStore = startDesktopStore();
 
-    function Harness() {
-      latest.current = useDesktopStoreState();
-      return null;
-    }
-
-    render(<Harness />);
-
-    await waitFor(() => expect(latest.current?.status).toBe('ready'));
-    expect(latest.current?.status).toBe('ready');
-    expect(readyState(latest).store.settings).toMatchObject({
+    await vi.waitFor(() => expect(desktopStore.getState().store).not.toBeNull());
+    expect(desktopStore.getState().store?.settings).toMatchObject({
       appLockEnabled: true,
       appLockLocked: true,
       appLockShortcut: 'CommandOrControl+L',
     });
-    expect(readyState(latest).store.articles).toEqual([]);
+    expect(desktopStore.getState().store?.articles).toEqual([]);
   });
 
   it('scrubs locked store updates and ignores article patches while locked', async () => {
@@ -337,43 +287,29 @@ describe('useDesktopStoreState', () => {
       },
     });
 
-    const latest: { current?: ReturnType<typeof useDesktopStoreState> } = {};
+    const desktopStore = startDesktopStore();
 
-    function Harness() {
-      latest.current = useDesktopStoreState();
-      return null;
-    }
+    await vi.waitFor(() => expect(desktopStore.getState().store).not.toBeNull());
+    expect(desktopStore.getState().store?.articles).toEqual([initialArticle]);
 
-    render(<Harness />);
+    emitStoreUpdated(lockedStore);
 
-    await waitFor(() => expect(latest.current?.status).toBe('ready'));
-    expect(readyState(latest).store.articles).toEqual([initialArticle]);
-
-    act(() => {
-      emitStoreUpdated(lockedStore);
-    });
-
-    expect(readyState(latest).store.settings).toMatchObject({
+    expect(desktopStore.getState().store?.settings).toMatchObject({
       appLockEnabled: true,
       appLockLocked: true,
     });
-    expect(readyState(latest).store.articles).toEqual([]);
-    expect(latest.current?.storeRef.current?.articles).toEqual([]);
+    expect(desktopStore.getState().store?.articles).toEqual([]);
 
-    act(() => {
-      emitArticlePatched({
-        type: 'article-upsert',
-        article: articleSummary({ id: 'article_patch', title: '锁定期间 patch' }),
-      });
+    emitArticlePatched({
+      type: 'article-upsert',
+      article: articleSummary({ id: 'article_patch', title: '锁定期间 patch' }),
     });
 
-    expect(readyState(latest).store.articles).toEqual([]);
+    expect(desktopStore.getState().store?.articles).toEqual([]);
 
-    act(() => {
-      emitStoreUpdated(unlockedStore);
-    });
+    emitStoreUpdated(unlockedStore);
 
-    expect(readyState(latest).store.articles).toEqual([unlockedArticle]);
+    expect(desktopStore.getState().store?.articles).toEqual([unlockedArticle]);
   });
 
   it('keeps load errors when an article patch is ignored while locked', async () => {
@@ -410,31 +346,20 @@ describe('useDesktopStoreState', () => {
       },
     });
 
-    const latest: { current?: ReturnType<typeof useDesktopStoreState> } = {};
+    const desktopStore = startDesktopStore();
 
-    function Harness() {
-      latest.current = useDesktopStoreState();
-      return null;
-    }
+    await vi.waitFor(() => expect(desktopStore.getState().store).not.toBeNull());
+    await desktopStore.getState().refreshStore();
+    expect(desktopStore.getState().loadError).not.toBeNull();
+    expect(desktopStore.getState().loadError?.code).toBe('DATABASE_TOO_NEW');
 
-    render(<Harness />);
-
-    await waitFor(() => expect(latest.current?.status).toBe('ready'));
-    await act(async () => {
-      await latest.current?.refreshStore();
-    });
-    expect(latest.current?.status).toBe('error');
-    expect(errorState(latest).error.code).toBe('DATABASE_TOO_NEW');
-
-    act(() => {
-      emitArticlePatched({
-        type: 'article-upsert',
-        article: articleSummary({ id: 'article_secret' }),
-      });
+    emitArticlePatched({
+      type: 'article-upsert',
+      article: articleSummary({ id: 'article_secret' }),
     });
 
-    expect(latest.current?.status).toBe('error');
-    expect(errorState(latest).error.code).toBe('DATABASE_TOO_NEW');
+    expect(desktopStore.getState().loadError).not.toBeNull();
+    expect(desktopStore.getState().loadError?.code).toBe('DATABASE_TOO_NEW');
   });
 });
 
@@ -443,18 +368,11 @@ function noopArticlePatched(_patch: ArticleStorePatch) {}
 function noopCollectionPatched(_patch: CollectionStorePatch) {}
 function noopLibraryPinPatched(_patch: LibraryPinPatch) {}
 
-type DesktopStoreStateRef = {
-  current?: ReturnType<typeof useDesktopStoreState>;
-};
-
-function readyState(state: DesktopStoreStateRef) {
-  if (state.current?.status !== 'ready') throw new Error('Expected ready desktop store state');
-  return state.current;
-}
-
-function errorState(state: DesktopStoreStateRef) {
-  if (state.current?.status !== 'error') throw new Error('Expected failed desktop store state');
-  return state.current;
+function startDesktopStore() {
+  const desktopStore = createDesktopStore();
+  void desktopStore.getState().refreshStore();
+  bindDesktopStoreEvents(desktopStore);
+  return desktopStore;
 }
 
 function makeStore(

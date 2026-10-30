@@ -48,6 +48,10 @@ its startup module before React renders. Subscriptions update zustand actions or
 the query cache; components only read. In development, the startup module
 disposes its subscriptions through `import.meta.hot.dispose`.
 
+The main window store is created in `apps/desktop/src/renderer/src/main.tsx` from
+`apps/desktop/src/renderer/src/shell/app-desktop-store.tsx`. Its push
+subscriptions live in `apps/desktop/src/renderer/src/shell/app-desktop-event-bindings.ts`.
+
 Each window has its own stores and query client. Cross-window consistency comes
 only from main-process broadcasts such as `article:patched`; do not synchronize
 renderer stores between windows directly.

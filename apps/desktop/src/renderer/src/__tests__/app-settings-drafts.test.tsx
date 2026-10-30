@@ -8,7 +8,7 @@ import type { SettingsStorePatch, UserStorePatch } from '../../../ipc-contract';
 
 import { emptyStore } from '../settings/app-settings';
 import { useSettingsDrafts } from '../settings/app-settings-drafts';
-import type { SettingsSyncSnapshot } from '../shell/app-desktop-store-state';
+import type { SettingsSyncSnapshot } from '../shell/app-desktop-store';
 import { normalizeAppSettings } from '../../../settings/app-settings-normalization';
 
 const emptySettingsSyncSnapshot = syncSnapshot(emptyStore);

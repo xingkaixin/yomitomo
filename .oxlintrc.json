@@ -129,7 +129,6 @@
         "apps/desktop/src/renderer/src/shell/app-article-book.tsx",
         "apps/desktop/src/renderer/src/shell/app-assistant-diagnostics.tsx",
         "apps/desktop/src/renderer/src/shell/app-assistant-runs.ts",
-        "apps/desktop/src/renderer/src/shell/app-desktop-store-state.ts",
         "apps/desktop/src/renderer/src/shell/app-log-viewer.tsx",
         "apps/desktop/src/renderer/src/shell/app-onboarding.tsx",
         "apps/desktop/src/renderer/src/shell/app-secondary-module-preload.ts",

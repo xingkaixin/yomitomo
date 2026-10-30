@@ -7,7 +7,8 @@ import type { DesktopStore } from '@yomitomo/shared';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { emptyStore } from '../settings/app-settings';
 import { useLibraryCatalog } from '../reading-library/use-library-catalog';
-import { useDesktopStoreState } from '../shell/app-desktop-store-state';
+import { createDesktopStore, type DesktopStoreState } from '../shell/app-desktop-store';
+import { useStore } from 'zustand';
 import { appToast } from '../shell/app-toast';
 import {
   applyCollectionStorePatch,
@@ -147,17 +148,22 @@ describe('useAppCollectionStoreActions', () => {
           },
         },
       });
+      const desktopStore = createDesktopStore();
+      await desktopStore.getState().refreshStore();
       const { result } = renderHook(() => {
-        const state = useDesktopStoreState();
-        const actions = useAppCollectionStoreActions(state);
+        const { getStore, applyStore } = desktopStore.getState();
+        const actions = useAppCollectionStoreActions({ getStore, applyStore });
+        const catalogRevision = useStore(
+          desktopStore,
+          (state: DesktopStoreState) => state.libraryCatalogRevision,
+        );
         const catalog = useLibraryCatalog(
           { scope: { kind: 'library' }, page: 1, pageSize: 12 },
-          state.status === 'ready' ? state.libraryCatalogRevision : 0,
+          catalogRevision,
         );
-        return { state, actions, catalog };
+        return { actions, catalog };
       });
       await waitFor(() => {
-        expect(result.current.state.status).toBe('ready');
         expect(result.current.catalog).toMatchObject({
           status: 'ready',
           result: { entities: [{ collection: { name: 'Before' }, pinned: false }] },
@@ -303,7 +309,10 @@ function renderActions(desktop: Record<string, unknown>) {
   });
   render(
     createElement(function Harness() {
-      actions.current = useAppCollectionStoreActions({ storeRef, applyStore });
+      actions.current = useAppCollectionStoreActions({
+        getStore: () => storeRef.current,
+        applyStore,
+      });
       return null;
     }),
   );

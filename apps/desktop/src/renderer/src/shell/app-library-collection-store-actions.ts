@@ -10,33 +10,30 @@ import type { SetLibraryPinInput } from '../../../ipc-contract';
 import { appToast } from './app-toast';
 import { getDesktopApi } from './app-desktop-api';
 
-type DesktopStoreRef = { current: DesktopStore | null };
-type ApplyStore = (nextStore: DesktopStore) => DesktopStore;
-
 type UseAppCollectionStoreActionsInput = {
-  storeRef: DesktopStoreRef;
-  applyStore: ApplyStore;
+  getStore: () => DesktopStore | null;
+  applyStore: (nextStore: DesktopStore) => DesktopStore;
 };
 
 export function useAppCollectionStoreActions({
-  storeRef,
+  getStore,
   applyStore,
 }: UseAppCollectionStoreActionsInput) {
   const applyCollectionPatch = useCallback(
     (patch: CollectionStorePatch) => {
-      const store = requireDesktopStore(storeRef.current);
+      const store = requireDesktopStore(getStore());
       const nextStore = applyCollectionStorePatch(store, patch);
       applyStore(nextStore);
     },
-    [applyStore, storeRef],
+    [applyStore, getStore],
   );
   const applyPinPatch = useCallback(
     (patch: LibraryPinPatch) => {
-      const store = requireDesktopStore(storeRef.current);
+      const store = requireDesktopStore(getStore());
       const nextStore = applyLibraryPinPatch(store, patch);
       applyStore(nextStore);
     },
-    [applyStore, storeRef],
+    [applyStore, getStore],
   );
 
   const createCollection = useCallback(
