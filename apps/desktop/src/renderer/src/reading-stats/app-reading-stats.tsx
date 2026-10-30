@@ -1,6 +1,14 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { BarChartIcon, Refresh01Icon } from '@hugeicons/core-free-icons';
-import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  lazy,
+  Suspense,
+  useCallback,
+  useDeferredValue,
+  useMemo,
+  useReducer,
+  useRef,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Agent, ArticleRecord, ArticleSummaryRecord } from '@yomitomo/shared';
 import { Button } from '../components/ui/button';
@@ -51,15 +59,14 @@ export function ReadingStatsPanel({
   onRefresh: () => void;
 }) {
   const { t } = useTranslation();
-  const [showDeferredContent, setShowDeferredContent] = useState(false);
-  const [view, setView] = useState<'reading' | 'usage'>('reading');
-  const [source, setSource] = useState<'local' | 'weread'>('local');
-  const recordedNavigationStartRef = useRef<number | undefined>(undefined);
-  const recordedDeferredStartRef = useRef<number | undefined>(undefined);
-  const recordedContentReadyRef = useRef<number | undefined>(undefined);
-  const recordedChartReadyRef = useRef<number | undefined>(undefined);
-  const recordedReadyRef = useRef<number | undefined>(undefined);
+  const [{ source, view }, dispatch] = useReducer(readingStatsTabsReducer, {
+    source: 'local',
+    view: 'reading',
+  });
+  const recordedPhases = useRef(new Map<StatsLoadPhase, number | undefined>());
   const data = useMemo(() => getReadingStatsViewData(articles), [articles]);
+  // Paints the overview first and renders charts and insights in a later pass.
+  const showDeferredContent = useDeferredValue(articles, null) === articles;
   const sourceOptions = [
     { value: 'local' as const, label: t('readingStats.sources.local') },
     { value: 'weread' as const, label: t('readingStats.sources.weread') },
@@ -68,72 +75,64 @@ export function ReadingStatsPanel({
     { value: 'reading' as const, label: t('readingStats.views.reading') },
     { value: 'usage' as const, label: t('readingStats.views.usage') },
   ];
+  const articleCount = articles.length;
+  const recordedDays = data.recordedDays;
 
-  useEffect(() => {
-    setShowDeferredContent(false);
-    const timeoutId = window.setTimeout(() => setShowDeferredContent(true), 0);
-    return () => window.clearTimeout(timeoutId);
-  }, [articles]);
+  const recordFirstPaint = useCallback(
+    (panel: HTMLDivElement | null) => {
+      if (!panel) return;
+      recordStatsPhaseOnce(
+        recordedPhases.current,
+        statsLoadPhases.firstPaint,
+        navigationStartedAt,
+        { articleCount, recordedDays },
+      );
+    },
+    [articleCount, navigationStartedAt, recordedDays],
+  );
 
-  useEffect(() => {
-    if (recordedNavigationStartRef.current === navigationStartedAt) return;
-    recordedNavigationStartRef.current = navigationStartedAt;
-    recordStatsLoadTiming(statsLoadPhases.firstPaint, navigationStartedAt, {
-      articleCount: articles.length,
-      recordedDays: data.recordedDays,
-    });
-  }, [articles.length, data.recordedDays, navigationStartedAt]);
+  const recordDeferredContentStart = useCallback(
+    (grid: HTMLElement | null) => {
+      if (!grid) return;
+      recordStatsPhaseOnce(
+        recordedPhases.current,
+        statsLoadPhases.deferredContentStart,
+        navigationStartedAt,
+        { articleCount, recordedDays },
+      );
+    },
+    [articleCount, navigationStartedAt, recordedDays],
+  );
 
-  useEffect(() => {
-    if (!showDeferredContent || recordedDeferredStartRef.current === navigationStartedAt) return;
-    recordedDeferredStartRef.current = navigationStartedAt;
-    recordStatsLoadTiming(statsLoadPhases.deferredContentStart, navigationStartedAt, {
-      articleCount: articles.length,
-      recordedDays: data.recordedDays,
-    });
-  }, [articles.length, data.recordedDays, navigationStartedAt, showDeferredContent]);
+  const recordChartReady = useCallback(() => {
+    const recorded = recordedPhases.current;
+    const recordedNow = recordStatsPhaseOnce(
+      recorded,
+      statsLoadPhases.chartReady,
+      navigationStartedAt,
+      { activityDays: data.activityDays.length, articleCount, recordedDays: data.recordedDays },
+    );
+    if (recordedNow) recordStatsReadyOnce(recorded, navigationStartedAt, data, articleCount);
+  }, [articleCount, data, navigationStartedAt]);
 
-  function recordChartReady() {
-    if (recordedChartReadyRef.current === navigationStartedAt) return;
-    recordedChartReadyRef.current = navigationStartedAt;
-    recordStatsLoadTiming(statsLoadPhases.chartReady, navigationStartedAt, {
-      activityDays: data.activityDays.length,
-      articleCount: articles.length,
-      recordedDays: data.recordedDays,
-    });
-    recordStatsReady();
-  }
-
-  function recordContentReady() {
-    if (recordedContentReadyRef.current === navigationStartedAt) return;
-    recordedContentReadyRef.current = navigationStartedAt;
-    recordStatsLoadTiming(statsLoadPhases.contentReady, navigationStartedAt, {
-      activityDays: data.activityDays.length,
-      articleCount: articles.length,
-      insightCount: data.insights.length,
-      recordedDays: data.recordedDays,
-    });
-    recordStatsReady();
-  }
-
-  function recordStatsReady() {
-    if (
-      recordedChartReadyRef.current !== navigationStartedAt ||
-      recordedContentReadyRef.current !== navigationStartedAt
-    )
-      return;
-    if (recordedReadyRef.current === navigationStartedAt) return;
-    recordedReadyRef.current = navigationStartedAt;
-    recordStatsLoadTiming(statsLoadPhases.ready, navigationStartedAt, {
-      activityDays: data.activityDays.length,
-      articleCount: articles.length,
-      insightCount: data.insights.length,
-      recordedDays: data.recordedDays,
-    });
-  }
+  const recordContentReady = useCallback(() => {
+    const recorded = recordedPhases.current;
+    const recordedNow = recordStatsPhaseOnce(
+      recorded,
+      statsLoadPhases.contentReady,
+      navigationStartedAt,
+      {
+        activityDays: data.activityDays.length,
+        articleCount,
+        insightCount: data.insights.length,
+        recordedDays: data.recordedDays,
+      },
+    );
+    if (recordedNow) recordStatsReadyOnce(recorded, navigationStartedAt, data, articleCount);
+  }, [articleCount, data, navigationStartedAt]);
 
   return (
-    <div className="settings-panel">
+    <div ref={recordFirstPaint} className="settings-panel">
       <PanelHeader
         icon={<HugeiconsIcon icon={BarChartIcon} size={20} />}
         title={t('readingStats.title')}
@@ -159,7 +158,7 @@ export function ReadingStatsPanel({
         role="tablist"
         value={view}
         options={viewOptions}
-        onValueChange={setView}
+        onValueChange={(nextView) => dispatch({ type: 'viewSelected', view: nextView })}
       />
       {view === 'usage' ? <AiUsagePanel agents={agents} /> : null}
       {view === 'reading' ? (
@@ -170,7 +169,7 @@ export function ReadingStatsPanel({
             role="tablist"
             value={source}
             options={sourceOptions}
-            onValueChange={setSource}
+            onValueChange={(nextSource) => dispatch({ type: 'sourceSelected', source: nextSource })}
           />
           {source === 'weread' ? <WeReadReadingStatsPanel /> : null}
           {source === 'local' ? (
@@ -178,7 +177,7 @@ export function ReadingStatsPanel({
               <StatsFirstPaintOverview data={data} />
               {showDeferredContent ? (
                 <>
-                  <section className="stats-visual-grid">
+                  <section ref={recordDeferredContentStart} className="stats-visual-grid">
                     <Suspense fallback={<StatsChartSkeleton />}>
                       <ReadingStatsChart
                         activityDays={data.activityDays}
@@ -301,12 +300,15 @@ function StatsActivityCard({ data }: { data: ReadingStatsViewData }) {
 
 function StatsInsights({ data, onReady }: { data: ReadingStatsViewData; onReady: () => void }) {
   const { t } = useTranslation();
-  useEffect(() => {
-    onReady();
-  }, [onReady]);
+  const reportReady = useCallback(
+    (insights: HTMLElement | null) => {
+      if (insights) onReady();
+    },
+    [onReady],
+  );
 
   return (
-    <section className="stats-insights">
+    <section ref={reportReady} className="stats-insights">
       <div className="stats-section-heading">
         <h3>{t('readingStats.insights.title')}</h3>
         <p>{t('readingStats.insights.description')}</p>
@@ -350,8 +352,60 @@ function StatsChartSkeleton() {
   );
 }
 
+type StatsLoadPhase = (typeof statsLoadPhases)[keyof typeof statsLoadPhases];
+
+type ReadingStatsTabsState = { source: 'local' | 'weread'; view: 'reading' | 'usage' };
+
+type ReadingStatsTabsEvent =
+  | { type: 'sourceSelected'; source: ReadingStatsTabsState['source'] }
+  | { type: 'viewSelected'; view: ReadingStatsTabsState['view'] };
+
+function readingStatsTabsReducer(
+  state: ReadingStatsTabsState,
+  event: ReadingStatsTabsEvent,
+): ReadingStatsTabsState {
+  switch (event.type) {
+    case 'sourceSelected':
+      return { ...state, source: event.source };
+    case 'viewSelected':
+      return { ...state, view: event.view };
+  }
+}
+
+// Each phase is recorded once per navigation; nothing is recorded without a navigation start.
+function recordStatsPhaseOnce(
+  recorded: Map<StatsLoadPhase, number | undefined>,
+  phase: StatsLoadPhase,
+  navigationStartedAt: number | undefined,
+  data: Record<string, unknown>,
+) {
+  if (recorded.get(phase) === navigationStartedAt) return false;
+  recorded.set(phase, navigationStartedAt);
+  recordStatsLoadTiming(phase, navigationStartedAt, data);
+  return true;
+}
+
+function recordStatsReadyOnce(
+  recorded: Map<StatsLoadPhase, number | undefined>,
+  navigationStartedAt: number | undefined,
+  data: ReadingStatsViewData,
+  articleCount: number,
+) {
+  if (
+    recorded.get(statsLoadPhases.chartReady) !== navigationStartedAt ||
+    recorded.get(statsLoadPhases.contentReady) !== navigationStartedAt
+  )
+    return;
+  recordStatsPhaseOnce(recorded, statsLoadPhases.ready, navigationStartedAt, {
+    activityDays: data.activityDays.length,
+    articleCount,
+    insightCount: data.insights.length,
+    recordedDays: data.recordedDays,
+  });
+}
+
 function recordStatsLoadTiming(
-  phase: (typeof statsLoadPhases)[keyof typeof statsLoadPhases],
+  phase: StatsLoadPhase,
   navigationStartedAt: number | undefined,
   data: Record<string, unknown>,
 ) {

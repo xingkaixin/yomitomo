@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import i18next from 'i18next';
 import type { DistillationLibraryListResult } from '../../../ipc-contract';
+import { renderWithQueryClient } from '../__tests__/query-test-utils';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { DistillationLibrary } from './app-distillation-library';
 
@@ -33,7 +34,7 @@ describe('DistillationLibrary', () => {
   it('shows published thoughts and opens their original annotations', async () => {
     listDistillationLibrary.mockResolvedValue(libraryResult());
     const onOpenEvidenceSource = vi.fn();
-    render(<DistillationLibrary onOpenEvidenceSource={onOpenEvidenceSource} />);
+    renderWithQueryClient(<DistillationLibrary onOpenEvidenceSource={onOpenEvidenceSource} />);
 
     expect(await screen.findByText('Good modules hide complexity.')).toBeTruthy();
     expect(screen.getByText('The Deep Module')).toBeTruthy();
@@ -63,7 +64,7 @@ describe('DistillationLibrary', () => {
       totalCount: 0,
       unfilteredCount: 1,
     });
-    render(<DistillationLibrary onOpenEvidenceSource={vi.fn()} />);
+    renderWithQueryClient(<DistillationLibrary onOpenEvidenceSource={vi.fn()} />);
     await screen.findByText('Good modules hide complexity.');
 
     fireEvent.change(screen.getByRole('searchbox', { name: '搜索沉淀' }), {

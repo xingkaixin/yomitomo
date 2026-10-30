@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useReducer, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { HugeiconsIcon } from '@hugeicons/react';
@@ -33,35 +33,41 @@ export function AppearancePreview({
   scene?: 'library' | 'reader';
 }) {
   const { t, i18n } = useTranslation();
-  const containerRef = useRef<HTMLSpanElement>(null);
-  const [frameDocument, setFrameDocument] = useState<Document | null>(null);
-  const [scale, setScale] = useState(1);
+  const [{ frameDocument, scale }, dispatch] = useReducer(appearancePreviewReducer, {
+    frameDocument: null,
+    scale: 1,
+  });
   const viewport = previewViewports[scene];
+  const language = i18n.resolvedLanguage || 'zh-CN';
 
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(([entry]) =>
-      setScale(entry.contentRect.width / viewport.width),
-    );
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, [viewport.width]);
+  const observeWidth = useCallback(
+    (container: HTMLSpanElement) => {
+      if (typeof ResizeObserver === 'undefined') return;
+      const observer = new ResizeObserver(([entry]) =>
+        dispatch({ type: 'resized', scale: entry.contentRect.width / viewport.width }),
+      );
+      observer.observe(container);
+      return () => observer.disconnect();
+    },
+    [viewport.width],
+  );
 
-  useEffect(() => {
+  // Reattaches whenever the loaded document, theme or language changes.
+  const syncFrameTheme = useCallback(() => {
     if (!frameDocument) return;
     applyAppTheme(themeRegistry[themeId], frameDocument.documentElement);
-    frameDocument.documentElement.lang = i18n.resolvedLanguage || 'zh-CN';
-  }, [frameDocument, themeId, i18n.resolvedLanguage]);
+    frameDocument.documentElement.lang = language;
+  }, [frameDocument, language, themeId]);
 
   return (
     <span
       className="appearance-preview"
-      ref={containerRef}
+      ref={observeWidth}
       aria-hidden="true"
       style={{ aspectRatio: `${viewport.width} / ${viewport.height}` }}
     >
       <iframe
+        ref={syncFrameTheme}
         title={t(`theme.preview.${scene}`)}
         tabIndex={-1}
         sandbox="allow-same-origin"
@@ -81,7 +87,7 @@ export function AppearancePreview({
           readerStyle.textContent = readerDesktopEmbeddedBundleStyles;
           doc.head.append(readerStyle);
           applyAppTheme(themeRegistry[themeId], doc.documentElement);
-          setFrameDocument(doc);
+          dispatch({ type: 'frameLoaded', frameDocument: doc });
         }}
       />
       {frameDocument
@@ -96,6 +102,24 @@ export function AppearancePreview({
         : null}
     </span>
   );
+}
+
+type AppearancePreviewState = { frameDocument: Document | null; scale: number };
+
+type AppearancePreviewEvent =
+  | { type: 'frameLoaded'; frameDocument: Document }
+  | { type: 'resized'; scale: number };
+
+function appearancePreviewReducer(
+  state: AppearancePreviewState,
+  event: AppearancePreviewEvent,
+): AppearancePreviewState {
+  switch (event.type) {
+    case 'frameLoaded':
+      return { ...state, frameDocument: event.frameDocument };
+    case 'resized':
+      return { ...state, scale: event.scale };
+  }
 }
 
 function LibraryPreview() {

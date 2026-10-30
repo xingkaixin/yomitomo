@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DesktopStore, ReleaseNoteHighlight } from '@yomitomo/shared';
 import type { AppUpdateState } from '../../../app-update-types';
 import { UpdateReleaseDialog, UpdateReleaseDialogView } from '../shell/app-update-dialog';
+import { renderWithQueryClient } from './query-test-utils';
 import { initializeAppI18n } from '../i18n/app-i18n';
 
 beforeEach(() => {
@@ -225,7 +226,7 @@ describe('UpdateReleaseDialog before-update gating', () => {
   it('does not pop the dialog for an auto-check hit', async () => {
     stubDesktop();
     await act(async () => {
-      render(container(available('auto'), 0));
+      renderWithQueryClient(container(available('auto'), 0));
     });
     expect(screen.queryByText('发现新版本')).toBeNull();
   });
@@ -233,7 +234,7 @@ describe('UpdateReleaseDialog before-update gating', () => {
   it('pops the dialog for a manual-check hit', async () => {
     stubDesktop();
     await act(async () => {
-      render(container(available('manual'), 0));
+      renderWithQueryClient(container(available('manual'), 0));
     });
     expect(await screen.findByText('发现新版本')).toBeTruthy();
     expect(screen.getByText('v0.9.0')).toBeTruthy();
@@ -242,7 +243,7 @@ describe('UpdateReleaseDialog before-update gating', () => {
   it('shows the version prompt while the release note is still pending', async () => {
     stubDesktop(vi.fn(() => new Promise(() => {})));
     await act(async () => {
-      render(container(available('manual'), 0));
+      renderWithQueryClient(container(available('manual'), 0));
     });
 
     expect(await screen.findByText('发现新版本')).toBeTruthy();
@@ -252,7 +253,7 @@ describe('UpdateReleaseDialog before-update gating', () => {
   it('keeps the version prompt when the release note request rejects', async () => {
     stubDesktop(vi.fn().mockRejectedValue(new Error('offline')));
     await act(async () => {
-      render(container(available('manual'), 0));
+      renderWithQueryClient(container(available('manual'), 0));
     });
 
     expect(await screen.findByText('发现新版本')).toBeTruthy();
@@ -263,7 +264,7 @@ describe('UpdateReleaseDialog before-update gating', () => {
     let resolveNote: (note: unknown) => void = () => {};
     stubDesktop(vi.fn(() => new Promise((resolve) => (resolveNote = resolve))));
     await act(async () => {
-      render(container(available('manual'), 0));
+      renderWithQueryClient(container(available('manual'), 0));
     });
     expect(await screen.findByText('发现新版本')).toBeTruthy();
 
@@ -277,9 +278,9 @@ describe('UpdateReleaseDialog before-update gating', () => {
 
   it('pops the dialog for an auto-check hit when the user requests it from the header', async () => {
     stubDesktop();
-    let view!: ReturnType<typeof render>;
+    let view!: ReturnType<typeof renderWithQueryClient>;
     await act(async () => {
-      view = render(container(available('auto'), 0));
+      view = renderWithQueryClient(container(available('auto'), 0));
     });
     expect(screen.queryByText('发现新版本')).toBeNull();
     await act(async () => {
@@ -291,9 +292,9 @@ describe('UpdateReleaseDialog before-update gating', () => {
 
   it('reopens a dismissed download as a restart confirmation when it finishes', async () => {
     stubDesktop();
-    let view!: ReturnType<typeof render>;
+    let view!: ReturnType<typeof renderWithQueryClient>;
     await act(async () => {
-      view = render(container(available('manual'), 0));
+      view = renderWithQueryClient(container(available('manual'), 0));
     });
 
     await act(async () => {
@@ -336,9 +337,9 @@ describe('UpdateReleaseDialog before-update gating', () => {
       status: 'downloading',
       progress: { percent: 50, transferred: 50, total: 100, bytesPerSecond: 10 },
     };
-    let view!: ReturnType<typeof render>;
+    let view!: ReturnType<typeof renderWithQueryClient>;
     await act(async () => {
-      view = render(container(downloading, 0));
+      view = renderWithQueryClient(container(downloading, 0));
     });
 
     await act(async () => {
@@ -351,7 +352,7 @@ describe('UpdateReleaseDialog before-update gating', () => {
     const { install } = stubDesktop();
     const onSaveSettings = vi.fn().mockResolvedValue(store);
     await act(async () => {
-      render(
+      renderWithQueryClient(
         <UpdateReleaseDialog
           store={store}
           updateState={{

@@ -1,6 +1,6 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowLeft01Icon, LinkSquare01Icon, Refresh01Icon } from '@hugeicons/core-free-icons';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useReducer } from 'react';
 import i18next from 'i18next';
 import type {
   UserProfile,
@@ -59,8 +59,13 @@ export function WeReadBookcase({
 }) {
   const { t } = useTranslation();
   const chapters = useChaptersWithCounts(detail, t);
-  const [activeChapterUid, setActiveChapterUid] = useState<number | null>(
-    chapters.find((chapter) => chapter.count > 0)?.chapterUid ?? chapters[0]?.chapterUid ?? null,
+  const [activeChapterUid, dispatch] = useReducer(
+    activeChapterReducer,
+    chapters,
+    (initialChapters) =>
+      initialChapters.find((chapter) => chapter.count > 0)?.chapterUid ??
+      initialChapters[0]?.chapterUid ??
+      null,
   );
   const groups = useMemo(() => groupWeReadNotes(detail), [detail]);
   const bookUserVid = useMemo(
@@ -140,7 +145,7 @@ export function WeReadBookcase({
               className={chapter.chapterUid === activeChapterUid ? 'is-active' : undefined}
               style={{ '--toc-level': Math.max(0, chapter.level - 1) } as React.CSSProperties}
               key={chapter.chapterUid}
-              onClick={() => setActiveChapterUid(chapter.chapterUid)}
+              onClick={() => dispatch({ type: 'chapterSelected', chapterUid: chapter.chapterUid })}
             >
               <span>{chapter.title}</span>
               {chapter.count > 0 ? <em>{chapter.count}</em> : null}
@@ -261,6 +266,13 @@ export function weReadReadonlyNoteCardModel(
       };
     }),
   };
+}
+
+function activeChapterReducer(
+  _activeChapterUid: number | null,
+  event: { type: 'chapterSelected'; chapterUid: number },
+) {
+  return event.chapterUid;
 }
 
 function useChaptersWithCounts(detail: WeReadBookDetail, t: AppT) {

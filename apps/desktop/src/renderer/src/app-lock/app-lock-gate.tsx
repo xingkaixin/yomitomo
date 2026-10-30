@@ -1,9 +1,10 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { LockKeyIcon } from '@hugeicons/core-free-icons';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useReducer, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DesktopStore } from '@yomitomo/shared';
 import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
+import { useEventListener } from '@yomitomo/reader-ui/use-event-listener';
 import { rendererStoreForAppLockState } from '../../../app-store';
 import { desktopIpcErrorRetryAfterMs, isDesktopIpcErrorLike } from '../../../ipc-errors';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '../components/ui/input-otp';
@@ -72,86 +73,63 @@ export function useAppLockController({
   onStoreUpdated: (store: DesktopStore) => void;
 }) {
   const { t } = useTranslation();
-  const [step, setStep] = useState<AppLockStep>('slide');
-  const [pin, setPin] = useState('');
-  const [inputKey, setInputKey] = useState(0);
-  const [error, setError] = useState('');
-  const [verifying, setVerifying] = useState(false);
+  const [{ error, inputKey, pin, step, verifying }, dispatch] = useReducer(
+    appLockReducer,
+    initialAppLockState,
+  );
   const shortcutLabel = `${getShortcutModifier()}+L`;
 
-  useEffect(() => {
-    if (!locked) {
-      setStep('slide');
-      setPin('');
-      setError('');
-    }
-  }, [locked]);
-
-  useEffect(() => {
-    if (!enabled || locked) return;
-    function handleAppLockShortcut(event: KeyboardEvent) {
+  useEventListener(
+    enabled && !locked ? window : null,
+    'keydown',
+    (event) => {
       if (!isAppLockShortcutEvent(event)) return;
       event.preventDefault();
       event.stopPropagation();
       void lockApp();
-    }
-    window.addEventListener('keydown', handleAppLockShortcut, true);
-    return () => window.removeEventListener('keydown', handleAppLockShortcut, true);
-  }, [enabled, locked]);
+    },
+    { capture: true },
+  );
 
   async function lockApp() {
     if (!enabled) return;
-    setStep('slide');
-    setPin('');
-    setInputKey((key) => key + 1);
-    setError('');
+    dispatch({ type: 'lockRequested' });
     try {
       const nextStore = await getDesktopApi().appLock.setLocked({ locked: true });
       onStoreUpdated(rendererStoreForAppLockState(nextStore));
       playAppSoundEffect('app_lock.locked', nextStore.settings);
     } catch {
-      setError(t('appLock.verifyFailed'));
+      dispatch({ type: 'failed', error: t('appLock.verifyFailed') });
     }
   }
 
   function completeSlide() {
-    setStep('pin');
-    setPin('');
-    setInputKey((key) => key + 1);
-    setError('');
+    dispatch({ type: 'slideCompleted' });
   }
 
   function updatePin(value: string) {
-    setPin(digitsOnly(value));
-    setError('');
+    dispatch({ type: 'pinEdited', pin: digitsOnly(value) });
   }
 
   async function unlockApp(pinOverride?: string) {
     const pinToVerify = pinOverride ?? pin;
     if (!validAppLockPin(pinToVerify) || verifying) return;
-    setVerifying(true);
-    setError('');
+    dispatch({ type: 'unlockStarted' });
     try {
       const nextStore = await getDesktopApi().appLock.unlock({ pin: pinToVerify });
       onStoreUpdated(nextStore);
       playAppSoundEffect('app_lock.unlocked', nextStore.settings);
-      setStep('slide');
-      setPin('');
+      dispatch({ type: 'unlocked' });
     } catch (unlockError) {
       const retryAfterMs = desktopIpcErrorRetryAfterMs(unlockError);
-      if (retryAfterMs) {
-        setError(t('appLock.retryAfter', { seconds: Math.ceil(retryAfterMs / 1_000) }));
-      } else {
-        setError(
-          isDesktopIpcErrorLike(unlockError) && unlockError.code === 'APP_LOCK_PIN_INVALID'
+      dispatch({
+        type: 'unlockRejected',
+        error: retryAfterMs
+          ? t('appLock.retryAfter', { seconds: Math.ceil(retryAfterMs / 1_000) })
+          : isDesktopIpcErrorLike(unlockError) && unlockError.code === 'APP_LOCK_PIN_INVALID'
             ? t('appLock.invalidPin')
             : t('appLock.verifyFailed'),
-        );
-      }
-      setPin('');
-      setInputKey((key) => key + 1);
-    } finally {
-      setVerifying(false);
+      });
     }
   }
 
@@ -167,6 +145,56 @@ export function useAppLockController({
     updatePin,
     verifying,
   };
+}
+
+type AppLockState = {
+  error: string;
+  inputKey: number;
+  pin: string;
+  step: AppLockStep;
+  verifying: boolean;
+};
+
+type AppLockEvent =
+  | { type: 'failed'; error: string }
+  | { type: 'lockRequested' }
+  | { type: 'pinEdited'; pin: string }
+  | { type: 'slideCompleted' }
+  | { type: 'unlockRejected'; error: string }
+  | { type: 'unlockStarted' }
+  | { type: 'unlocked' };
+
+const initialAppLockState: AppLockState = {
+  error: '',
+  inputKey: 0,
+  pin: '',
+  step: 'slide',
+  verifying: false,
+};
+
+function appLockReducer(state: AppLockState, event: AppLockEvent): AppLockState {
+  switch (event.type) {
+    case 'failed':
+      return { ...state, error: event.error };
+    case 'lockRequested':
+      return { ...state, error: '', inputKey: state.inputKey + 1, pin: '', step: 'slide' };
+    case 'pinEdited':
+      return { ...state, error: '', pin: event.pin };
+    case 'slideCompleted':
+      return { ...state, error: '', inputKey: state.inputKey + 1, pin: '', step: 'pin' };
+    case 'unlockRejected':
+      return {
+        ...state,
+        error: event.error,
+        inputKey: state.inputKey + 1,
+        pin: '',
+        verifying: false,
+      };
+    case 'unlockStarted':
+      return { ...state, error: '', verifying: true };
+    case 'unlocked':
+      return { ...state, error: '', pin: '', step: 'slide', verifying: false };
+  }
 }
 
 type AppLockOverlayProps = {

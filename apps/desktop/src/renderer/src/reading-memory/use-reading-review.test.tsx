@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 
+import { QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import type { ReadingReviewEvent } from '@yomitomo/shared';
+import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   readingReviewAnswerLimit,
@@ -16,6 +18,7 @@ import {
   type ReadingReviewSubmitResult,
 } from '../../../ipc-contract';
 import type { YomitomoDesktopApi } from '../../../preload';
+import { createAppQueryClient } from '../shell/app-query-client';
 import { useReadingReview } from './use-reading-review';
 
 type ReadingMemoryApi = YomitomoDesktopApi['readingMemory'];
@@ -87,11 +90,11 @@ describe('useReadingReview', () => {
     const starting = deferred<ReadingReviewSession>();
     api.review.queue.mockReturnValueOnce(loadingQueue.promise);
     api.review.start.mockReturnValueOnce(starting.promise);
-    const { result } = renderHook(() => useReadingReview(0));
+    const { result } = renderReviewHook();
     expect(result.current.queue).toEqual({ status: 'loading' });
     expect(result.current.state).toEqual({ phase: 'queue' });
     await act(async () => loadingQueue.resolve(queue()));
-    expect(result.current.items).toEqual([item, nextItem]);
+    await waitFor(() => expect(result.current.items).toEqual([item, nextItem]));
 
     let start!: Promise<void>;
     act(() => {
@@ -130,7 +133,7 @@ describe('useReadingReview', () => {
   it('bounds the blind answer and freezes its trimmed value through reveal failure and retry', async () => {
     const revealing = deferred<ReadingReviewRevealResult>();
     api.review.reveal.mockReturnValueOnce(revealing.promise);
-    const { result } = renderHook(() => useReadingReview(0));
+    const { result } = renderReviewHook();
     await act(() => result.current.start(item));
     act(() => result.current.setAnswer('x'.repeat(readingReviewAnswerLimit + 1)));
     expect(result.current.state).toMatchObject({ answer: 'x'.repeat(readingReviewAnswerLimit) });
@@ -156,7 +159,7 @@ describe('useReadingReview', () => {
 
   it('requires a fresh blind session after a reveal conflict and preserves the frozen answer', async () => {
     api.review.reveal.mockRejectedValueOnce(new Error('READING_REVIEW_CONFLICT'));
-    const { result } = renderHook(() => useReadingReview(0));
+    const { result } = renderReviewHook();
     await act(() => result.current.start(item));
     const originalRequestId = api.review.start.mock.calls[0][0].requestId;
     act(() => result.current.setAnswer(answer));
@@ -239,9 +242,7 @@ describe('useReadingReview', () => {
   });
 
   it('reloads the catalog queue without discarding an active blind answer', async () => {
-    const { result, rerender } = renderHook(({ revision }) => useReadingReview(revision), {
-      initialProps: { revision: 0 },
-    });
+    const { result, rerender } = renderReviewHook();
     await act(() => result.current.start(item));
     act(() => result.current.setAnswer(answer));
     const blind = result.current.state;
@@ -257,7 +258,7 @@ describe('useReadingReview', () => {
   it('ignores a canceled start response instead of reopening the blind session', async () => {
     const starting = deferred<ReadingReviewSession>();
     api.review.start.mockReturnValueOnce(starting.promise);
-    const { result } = renderHook(() => useReadingReview(0));
+    const { result } = renderReviewHook();
     let start!: Promise<void>;
     act(() => {
       start = result.current.start(item);
@@ -276,7 +277,7 @@ describe('useReadingReview', () => {
   it('does not let an old reveal failure replace a new blind session', async () => {
     const revealing = deferred<ReadingReviewRevealResult>();
     api.review.reveal.mockReturnValueOnce(revealing.promise);
-    const { result } = renderHook(() => useReadingReview(0));
+    const { result } = renderReviewHook();
     await act(() => result.current.start(item));
     act(() => result.current.setAnswer(answer));
     let reveal!: Promise<void>;
@@ -550,8 +551,18 @@ describe('useReadingReview', () => {
   });
 });
 
+function renderReviewHook() {
+  const queryClient = createAppQueryClient();
+  return renderHook(({ revision }) => useReadingReview(revision), {
+    initialProps: { revision: 0 },
+    wrapper: ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    ),
+  });
+}
+
 async function startRevealed() {
-  const hook = renderHook(() => useReadingReview(0));
+  const hook = renderReviewHook();
   await act(() => hook.result.current.start(item));
   act(() => hook.result.current.setAnswer(answer));
   await act(() => hook.result.current.reveal());

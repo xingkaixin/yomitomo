@@ -15,7 +15,8 @@ import {
   Search01Icon,
   Tag01Icon,
 } from '@hugeicons/core-free-icons';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useReducer } from 'react';
+import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
 import thirdPartyNoticesRaw from '../../../../../../THIRD_PARTY_NOTICES.md?raw';
 import { Button } from '../components/ui/button';
 import {
@@ -38,10 +39,10 @@ import {
 } from '../settings/app-settings-kit';
 import { appToast } from './app-toast';
 import { normalizeUiLanguage, type AppSettingsPatch, type DesktopStore } from '@yomitomo/shared';
-import type { AppInfo } from '../../../preload';
 import type { AppUpdateState } from '../../../app-update-types';
 import { useTranslation } from 'react-i18next';
 import { getDesktopApi } from './app-desktop-api';
+import { appUpdateStateQuery, useAppUpdateState } from './use-app-update-state';
 
 type LicensePackage = {
   name: string;
@@ -55,6 +56,63 @@ const homepageUrl = 'https://yomitomo.app';
 const feedbackUrl = 'https://github.com/xingkaixin/yomitomo/issues';
 const thirdPartyPackages = parseThirdPartyNotices(thirdPartyNoticesRaw);
 type AppT = ReturnType<typeof useTranslation>['t'];
+
+const appInfoQuery = queryOptions({
+  queryKey: ['app', 'info'],
+  queryFn: () => getDesktopApi().app.getInfo(),
+});
+
+type AboutSettingsState = {
+  devResetDone: boolean;
+  developerModeSaving: boolean;
+  licensesOpen: boolean;
+};
+
+type AboutSettingsEvent =
+  | { type: 'afterUpdateSimulated' }
+  | { type: 'developerModeSaveFinished' }
+  | { type: 'developerModeSaveStarted' }
+  | { type: 'licensesClosed' }
+  | { type: 'licensesOpened' };
+
+function aboutSettingsReducer(
+  state: AboutSettingsState,
+  event: AboutSettingsEvent,
+): AboutSettingsState {
+  switch (event.type) {
+    case 'afterUpdateSimulated':
+      return { ...state, devResetDone: true };
+    case 'developerModeSaveFinished':
+      return { ...state, developerModeSaving: false };
+    case 'developerModeSaveStarted':
+      return { ...state, developerModeSaving: true };
+    case 'licensesClosed':
+      return { ...state, licensesOpen: false };
+    case 'licensesOpened':
+      return { ...state, licensesOpen: true };
+  }
+}
+
+type LicensesDialogState = { expandedPackage: string; query: string };
+
+type LicensesDialogEvent =
+  | { type: 'packageToggled'; packageKey: string }
+  | { type: 'queryChanged'; query: string };
+
+function licensesDialogReducer(
+  state: LicensesDialogState,
+  event: LicensesDialogEvent,
+): LicensesDialogState {
+  switch (event.type) {
+    case 'packageToggled':
+      return {
+        ...state,
+        expandedPackage: state.expandedPackage === event.packageKey ? '' : event.packageKey,
+      };
+    case 'queryChanged':
+      return { ...state, query: event.query };
+  }
+}
 
 // 开发用：注入「发现新版本」状态，无需重启。
 // manual 走更新前弹窗（A 场景）；auto 只点亮常驻入口、不弹窗（自动检查场景）。
@@ -76,36 +134,18 @@ export function AboutSettings({
   onStoreUpdated?: (store: DesktopStore) => void;
 }) {
   const { t } = useTranslation();
-  const [appInfo, setAppInfo] = useState<AppInfo>({ desktopVersion: '' });
-  const [updateState, setUpdateState] = useState<AppUpdateState | null>(null);
-  const [devResetDone, setDevResetDone] = useState(false);
-  const [licensesOpen, setLicensesOpen] = useState(false);
-  const [developerModeSaving, setDeveloperModeSaving] = useState(false);
-
-  useEffect(() => {
-    const desktop = getDesktopApi();
-
-    let mounted = true;
-    void desktop.app.getInfo().then((nextInfo) => {
-      if (mounted) setAppInfo(nextInfo);
-    });
-    void desktop.updates.getStatus().then((nextState) => {
-      if (mounted) setUpdateState(nextState);
-    });
-    const unsubscribe = desktop.updates.onStatus((nextState) => {
-      if (mounted) setUpdateState(nextState);
-    });
-
-    return () => {
-      mounted = false;
-      unsubscribe();
-    };
-  }, []);
+  const queryClient = useQueryClient();
+  const desktopVersion = useQuery(appInfoQuery).data?.desktopVersion ?? '';
+  const updateState = useAppUpdateState();
+  const [{ devResetDone, developerModeSaving, licensesOpen }, dispatch] = useReducer(
+    aboutSettingsReducer,
+    { devResetDone: false, developerModeSaving: false, licensesOpen: false },
+  );
 
   async function handleUpdateAction() {
     const action = updateAction(updateState, t);
     const nextState = await getDesktopApi().updates[action.method]();
-    setUpdateState(nextState);
+    queryClient.setQueryData(appUpdateStateQuery.queryKey, nextState);
     if (action.method === 'check' && nextState.status === 'not-available') {
       appToast.success(t('about.updateToast.notAvailableTitle'), {
         description: t('about.updateToast.notAvailableDescription'),
@@ -114,7 +154,7 @@ export function AboutSettings({
   }
 
   async function toggleDeveloperMode() {
-    setDeveloperModeSaving(true);
+    dispatch({ type: 'developerModeSaveStarted' });
     try {
       const nextStore = await getDesktopApi().store.saveSettings({
         ...settings,
@@ -122,7 +162,7 @@ export function AboutSettings({
       });
       onStoreUpdated(nextStore);
     } finally {
-      setDeveloperModeSaving(false);
+      dispatch({ type: 'developerModeSaveFinished' });
     }
   }
 
@@ -134,7 +174,7 @@ export function AboutSettings({
       lastSeenVersion: '0.0.0',
     });
     onStoreUpdated(nextStore);
-    setDevResetDone(true);
+    dispatch({ type: 'afterUpdateSimulated' });
   }
 
   const updateCopy = updateStateCopy(updateState, t);
@@ -196,7 +236,7 @@ export function AboutSettings({
       description: t('about.licenses.description', { count: thirdPartyPackages.length }),
       label: t('about.licenses.label'),
       actionIcon: <HugeiconsIcon icon={ArrowRight01Icon} size={16} />,
-      onAction: () => setLicensesOpen(true),
+      onAction: () => dispatch({ type: 'licensesOpened' }),
     },
   ];
 
@@ -211,9 +251,7 @@ export function AboutSettings({
           title={
             <>
               {t('about.desktop')}{' '}
-              <span className="settings-version-tag">
-                {formatVersion(appInfo.desktopVersion, t)}
-              </span>
+              <span className="settings-version-tag">{formatVersion(desktopVersion, t)}</span>
             </>
           }
           description={updateCopy}
@@ -300,15 +338,19 @@ export function AboutSettings({
         </SettingsRow>
       </SettingsGroup>
 
-      {licensesOpen ? <OpenSourceLicensesDialog onClose={() => setLicensesOpen(false)} /> : null}
+      {licensesOpen ? (
+        <OpenSourceLicensesDialog onClose={() => dispatch({ type: 'licensesClosed' })} />
+      ) : null}
     </SettingsPage>
   );
 }
 
 function OpenSourceLicensesDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
-  const [query, setQuery] = useState('');
-  const [expandedPackage, setExpandedPackage] = useState('');
+  const [{ expandedPackage, query }, dispatch] = useReducer(licensesDialogReducer, {
+    expandedPackage: '',
+    query: '',
+  });
   const visiblePackages = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return thirdPartyPackages;
@@ -345,7 +387,7 @@ function OpenSourceLicensesDialog({ onClose }: { onClose: () => void }) {
               <Input
                 placeholder={t('about.licenses.searchPlaceholder')}
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => dispatch({ type: 'queryChanged', query: event.target.value })}
               />
             </label>
 
@@ -367,7 +409,7 @@ function OpenSourceLicensesDialog({ onClose }: { onClose: () => void }) {
                       aria-expanded={expanded}
                       className="license-package-row"
                       type="button"
-                      onClick={() => setExpandedPackage(expanded ? '' : packageKey)}
+                      onClick={() => dispatch({ type: 'packageToggled', packageKey })}
                     >
                       {expanded ? (
                         <HugeiconsIcon icon={ArrowDown01Icon} size={16} />

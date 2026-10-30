@@ -7,13 +7,16 @@ import {
   SparklesIcon,
   Wrench01Icon,
 } from '@hugeicons/core-free-icons';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffectEvent, useReducer } from 'react';
+import { queryOptions, useQuery } from '@tanstack/react-query';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import './app-update-dialog.css';
 import type {
   AppSettingsPatch,
   DesktopStore,
   ReleaseNoteHighlight,
   ReleaseNoteHighlightType,
+  UiLanguage,
 } from '@yomitomo/shared';
 import { normalizeUiLanguage, selectHighlights, shouldShowAfterUpdate } from '@yomitomo/shared';
 import type { AppUpdateProgress, AppUpdateState } from '../../../app-update-types';
@@ -28,11 +31,81 @@ type ReleaseDialogScene = 'before-update' | 'after-update';
 
 type DownloadStatus = 'idle' | 'downloading' | 'error' | 'downloaded';
 
-type ActiveReleaseDialog = {
-  scene: ReleaseDialogScene;
-  version: string;
-  highlights: ReleaseNoteHighlight[];
+type ActiveReleaseDialog =
+  | { scene: 'after-update'; version: string; highlights: ReleaseNoteHighlight[] }
+  | { scene: 'before-update'; version: string };
+
+type ReleaseDialogState = {
+  dialog: ActiveReleaseDialog | null;
+  handledDownloadedKey: string | null;
+  handledManualKey: string | null;
+  observedOpenRequest: number;
+  observedUpdateState: AppUpdateState | null;
 };
+
+type ReleaseDialogEvent =
+  | { type: 'afterUpdateOpened'; version: string; highlights: ReleaseNoteHighlight[] }
+  | { type: 'closed' }
+  | { type: 'openRequested'; openRequest: number; updateState: AppUpdateState | null }
+  | { type: 'updateStateChanged'; updateState: AppUpdateState | null };
+
+const initialReleaseDialogState: ReleaseDialogState = {
+  dialog: null,
+  handledDownloadedKey: null,
+  handledManualKey: null,
+  observedOpenRequest: 0,
+  observedUpdateState: null,
+};
+
+function releaseDialogReducer(
+  state: ReleaseDialogState,
+  event: ReleaseDialogEvent,
+): ReleaseDialogState {
+  switch (event.type) {
+    case 'afterUpdateOpened':
+      return {
+        ...state,
+        dialog: { scene: 'after-update', version: event.version, highlights: event.highlights },
+      };
+    case 'closed':
+      return { ...state, dialog: null };
+    case 'openRequested': {
+      const next = { ...state, observedOpenRequest: event.openRequest };
+      const update = event.updateState;
+      if (event.openRequest === 0 || !update?.availableVersion) return next;
+      if (!canOpenUpdateDialog(update.status)) return next;
+      return { ...next, dialog: { scene: 'before-update', version: update.availableVersion } };
+    }
+    case 'updateStateChanged': {
+      const next = { ...state, observedUpdateState: event.updateState };
+      const update = event.updateState;
+      if (!update?.availableVersion) return next;
+      // checkedAt 去重：同一次命中只弹一次，再次检查会重新弹。
+      const handledKey = update.checkedAt ?? update.availableVersion;
+      const beforeUpdate = { scene: 'before-update', version: update.availableVersion } as const;
+      if (update.status === 'available' && update.trigger === 'manual') {
+        if (state.handledManualKey === handledKey) return next;
+        return { ...next, dialog: beforeUpdate, handledManualKey: handledKey };
+      }
+      if (update.status !== 'downloaded' || state.handledDownloadedKey === handledKey) return next;
+      const showingVersion =
+        state.dialog?.scene === 'before-update' && state.dialog.version === update.availableVersion;
+      return {
+        ...next,
+        dialog: showingVersion ? state.dialog : beforeUpdate,
+        handledDownloadedKey: handledKey,
+      };
+    }
+  }
+}
+
+// 版本号和下载决策是必需 UI，远程文案是可选补充：先开弹窗，文案到了再补。
+function remoteReleaseNoteQuery(version: string, language: UiLanguage) {
+  return queryOptions({
+    queryKey: ['updates', 'releaseNote', 'remote', version, language],
+    queryFn: () => getDesktopApi().updates.getReleaseNote({ version, source: 'remote', language }),
+  });
+}
 
 const TYPE_ICON: Record<ReleaseNoteHighlightType, IconSvgElement> = {
   new: SparklesIcon,
@@ -57,56 +130,30 @@ export function UpdateReleaseDialog({
   onSaveSettings: (settings: AppSettingsPatch) => Promise<DesktopStore>;
 }) {
   const { i18n } = useTranslation();
-  const [version, setVersion] = useState('');
-  const [dialog, setDialog] = useState<ActiveReleaseDialog | null>(null);
-  const afterUpdateHandledRef = useRef(false);
-  const handledManualRef = useRef<string | null>(null);
-  const handledDownloadedRef = useRef<string | null>(null);
-  const settingsRef = useRef(store.settings);
-  settingsRef.current = store.settings;
-  const updateStateRef = useRef(updateState);
-  updateStateRef.current = updateState;
-  const languageRef = useRef(i18n.language);
-  languageRef.current = i18n.language;
-
-  useEffect(() => {
-    void getDesktopApi()
-      .app.getInfo()
-      .then((info) => setVersion(info.desktopVersion));
-  }, []);
-
-  // 版本号和下载决策是必需 UI，远程文案是可选补充：先开弹窗，文案到了再补，
-  // 且只在同一 scene 与版本仍打开时补，late response 不重开已关闭的弹窗。
-  const openBeforeUpdate = useCallback((targetVersion: string) => {
-    setDialog({ scene: 'before-update', version: targetVersion, highlights: [] });
-    void getDesktopApi()
-      .updates.getReleaseNote({
-        version: targetVersion,
-        source: 'remote',
-        language: normalizeUiLanguage(languageRef.current),
-      })
-      .then((note) => {
-        const highlights = note ? selectHighlights(note, 'before-update') : [];
-        if (highlights.length === 0) return;
-        setDialog((current) =>
-          current?.scene === 'before-update' && current.version === targetVersion
-            ? { ...current, highlights }
-            : current,
-        );
-      })
-      .catch(() => undefined);
-  }, []);
+  const [state, dispatch] = useReducer(releaseDialogReducer, initialReleaseDialogState);
+  // The parent owns updateState and openRequest; noting their changes during render keeps the
+  // open decision in the reducer instead of an effect.
+  if (state.observedUpdateState !== updateState) {
+    dispatch({ type: 'updateStateChanged', updateState });
+  }
+  if (state.observedOpenRequest !== openRequest) {
+    dispatch({ type: 'openRequested', openRequest, updateState });
+  }
+  const { dialog } = state;
+  const beforeUpdateVersion = dialog?.scene === 'before-update' ? dialog.version : '';
+  const { data: remoteNote } = useQuery({
+    ...remoteReleaseNoteQuery(beforeUpdateVersion, normalizeUiLanguage(i18n.language)),
+    enabled: Boolean(beforeUpdateVersion),
+  });
 
   // B：每次启动只判定一次。无论是否弹窗，都把 lastSeenVersion 推进到当前版本，避免下次误判。
-  useEffect(() => {
-    if (afterUpdateHandledRef.current || !version) return;
-    afterUpdateHandledRef.current = true;
-    const lastSeenVersion = settingsRef.current.lastSeenVersion;
-    const show = shouldShowAfterUpdate(lastSeenVersion, version);
+  const handleCurrentVersion = useEffectEvent((version: string) => {
+    if (!version) return;
+    const lastSeenVersion = store.settings.lastSeenVersion;
     if (lastSeenVersion !== version) {
-      void onSaveSettings({ ...settingsRef.current, lastSeenVersion: version });
+      void onSaveSettings({ ...store.settings, lastSeenVersion: version });
     }
-    if (!show) return;
+    if (!shouldShowAfterUpdate(lastSeenVersion, version)) return;
     void getDesktopApi()
       .updates.getReleaseNote({
         version,
@@ -114,42 +161,19 @@ export function UpdateReleaseDialog({
         language: normalizeUiLanguage(i18n.language),
       })
       .then((note) => {
-        setDialog({
-          scene: 'after-update',
+        dispatch({
+          type: 'afterUpdateOpened',
           version,
           highlights: note ? selectHighlights(note, 'after-update') : [],
         });
       });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [i18n.language, version]);
+  });
 
-  // A：手动检查命中即弹。以 checkedAt 去重，保证同一次命中只弹一次、再次手动检查会重新弹。
-  useEffect(() => {
-    if (updateState?.status !== 'available' || !updateState.availableVersion) return;
-    if (updateState.trigger !== 'manual') return;
-    const dedupeKey = updateState.checkedAt ?? updateState.availableVersion;
-    if (handledManualRef.current === dedupeKey) return;
-    handledManualRef.current = dedupeKey;
-    openBeforeUpdate(updateState.availableVersion);
-  }, [updateState, openBeforeUpdate]);
-
-  // 用户从 header「有新版本」主动请求时打开当前更新，无论正在等待、下载还是已就绪。
-  useEffect(() => {
-    if (openRequest === 0) return;
-    const state = updateStateRef.current;
-    if (!state?.availableVersion || !canOpenUpdateDialog(state.status)) return;
-    openBeforeUpdate(state.availableVersion);
-  }, [openRequest, openBeforeUpdate]);
-
-  useEffect(() => {
-    if (updateState?.status !== 'downloaded' || !updateState.availableVersion) return;
-    const dedupeKey = updateState.checkedAt ?? updateState.availableVersion;
-    if (handledDownloadedRef.current === dedupeKey) return;
-    handledDownloadedRef.current = dedupeKey;
-    if (dialog?.scene === 'before-update' && dialog.version === updateState.availableVersion)
-      return;
-    openBeforeUpdate(updateState.availableVersion);
-  }, [dialog, openBeforeUpdate, updateState]);
+  useMountEffect(() => {
+    void getDesktopApi()
+      .app.getInfo()
+      .then((info) => handleCurrentVersion(info.desktopVersion));
+  });
 
   if (!dialog) return null;
 
@@ -162,16 +186,23 @@ export function UpdateReleaseDialog({
           ? 'downloaded'
           : 'idle';
 
+  const highlights =
+    dialog.scene === 'after-update'
+      ? dialog.highlights
+      : remoteNote
+        ? selectHighlights(remoteNote, 'before-update')
+        : [];
+
   const handlePrimary = () => {
     if (dialog.scene === 'after-update') {
-      setDialog(null);
+      dispatch({ type: 'closed' });
       return;
     }
     // 下载完成停留在「重启安装」态；点击触发安装。其余情况触发下载，下载进度在弹窗内推进，不关闭弹窗。
     if (downloadStatus === 'downloaded') {
       void (async () => {
         if (updateState?.simulation === 'development') {
-          await onSaveSettings({ ...settingsRef.current, lastSeenVersion: '0.0.0' });
+          await onSaveSettings({ ...store.settings, lastSeenVersion: '0.0.0' });
         }
         await getDesktopApi().updates.install();
       })();
@@ -187,12 +218,12 @@ export function UpdateReleaseDialog({
     <UpdateReleaseDialogView
       scene={dialog.scene}
       version={dialog.version}
-      highlights={dialog.highlights}
+      highlights={highlights}
       coverImage={coverImage}
       downloadStatus={downloadStatus}
       downloadProgress={updateState?.progress}
       onPrimary={handlePrimary}
-      onSecondary={() => setDialog(null)}
+      onSecondary={() => dispatch({ type: 'closed' })}
     />
   );
 }
@@ -220,10 +251,6 @@ export function UpdateReleaseDialogView({
   const isAfter = scene === 'after-update';
   const hasHighlights = highlights.length > 0;
 
-  useEffect(() => {
-    if (isAfter) fireReleaseConfetti();
-  }, [isAfter]);
-
   const isDownloaded = !isAfter && downloadStatus === 'downloaded';
   const badge = isAfter
     ? t('updateDialog.afterBadge')
@@ -243,131 +270,143 @@ export function UpdateReleaseDialogView({
   const progressDetails = downloadProgressDetails(progress, i18n.language, t);
 
   return (
-    <Dialog open onOpenChange={(nextOpen) => !nextOpen && onSecondary()}>
-      <DialogPortal>
-        <DialogOverlay className="update-dialog-overlay">
-          <DialogContent className="update-dialog" aria-label={`${badge} ${version}`}>
-            <div
-              className="update-dialog-cover"
-              style={coverImage ? { backgroundImage: `url(${coverImage})` } : undefined}
-            >
-              <span className="update-dialog-badge">{badge}</span>
-              <span className="update-dialog-version">v{version}</span>
-              <span className="update-dialog-tagline">{t('updateDialog.tagline')}</span>
-            </div>
-            <div className="update-dialog-body">
-              <p className="update-dialog-lead">{lead}</p>
-              {hasHighlights ? (
-                <ul className="update-dialog-list">
-                  {highlights.map((highlight, index) => {
-                    const icon = TYPE_ICON[highlight.type];
-                    return (
-                      <li className="update-dialog-item" key={`${highlight.type}-${index}`}>
-                        <span className={`update-dialog-tag is-${highlight.type}`}>
-                          <HugeiconsIcon icon={icon} size={13} aria-hidden />
-                          {t(`updateDialog.type.${highlight.type}`)}
-                        </span>
-                        <span className="update-dialog-text">
-                          <span className="update-dialog-title">{highlight.title}</span>
-                          {highlight.description ? (
-                            <span className="update-dialog-desc">{highlight.description}</span>
-                          ) : null}
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : null}
-            </div>
-            <div className="update-dialog-footer">
-              {isAfter ? (
-                <button
-                  className="update-dialog-button is-primary"
-                  type="button"
-                  onClick={onPrimary}
-                >
-                  <HugeiconsIcon icon={Edit01Icon} size={16} aria-hidden />
-                  {t('updateDialog.start')}
-                </button>
-              ) : (
-                <>
+    <>
+      {isAfter ? <ReleaseConfetti /> : null}
+      <Dialog open onOpenChange={(nextOpen) => !nextOpen && onSecondary()}>
+        <DialogPortal>
+          <DialogOverlay className="update-dialog-overlay">
+            <DialogContent className="update-dialog" aria-label={`${badge} ${version}`}>
+              <div
+                className="update-dialog-cover"
+                style={coverImage ? { backgroundImage: `url(${coverImage})` } : undefined}
+              >
+                <span className="update-dialog-badge">{badge}</span>
+                <span className="update-dialog-version">v{version}</span>
+                <span className="update-dialog-tagline">{t('updateDialog.tagline')}</span>
+              </div>
+              <div className="update-dialog-body">
+                <p className="update-dialog-lead">{lead}</p>
+                {hasHighlights ? (
+                  <ul className="update-dialog-list">
+                    {highlights.map((highlight, index) => {
+                      const icon = TYPE_ICON[highlight.type];
+                      return (
+                        <li className="update-dialog-item" key={`${highlight.type}-${index}`}>
+                          <span className={`update-dialog-tag is-${highlight.type}`}>
+                            <HugeiconsIcon icon={icon} size={13} aria-hidden />
+                            {t(`updateDialog.type.${highlight.type}`)}
+                          </span>
+                          <span className="update-dialog-text">
+                            <span className="update-dialog-title">{highlight.title}</span>
+                            {highlight.description ? (
+                              <span className="update-dialog-desc">{highlight.description}</span>
+                            ) : null}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : null}
+              </div>
+              <div className="update-dialog-footer">
+                {isAfter ? (
                   <button
-                    className="update-dialog-button is-ghost"
+                    className="update-dialog-button is-primary"
                     type="button"
-                    onClick={onSecondary}
+                    onClick={onPrimary}
                   >
-                    {downloadStatus === 'downloading'
-                      ? t('updateDialog.backgroundDownload')
-                      : downloadStatus === 'downloaded'
-                        ? t('updateDialog.restartLater')
-                        : t('updateDialog.later')}
+                    <HugeiconsIcon icon={Edit01Icon} size={16} aria-hidden />
+                    {t('updateDialog.start')}
                   </button>
-                  {downloadStatus === 'downloaded' ? (
+                ) : (
+                  <>
                     <button
-                      className="update-dialog-button is-primary"
+                      className="update-dialog-button is-ghost"
                       type="button"
-                      onClick={onPrimary}
+                      onClick={onSecondary}
                     >
-                      <HugeiconsIcon icon={Refresh01Icon} size={16} aria-hidden />
-                      {t('updateDialog.install')}
+                      {downloadStatus === 'downloading'
+                        ? t('updateDialog.backgroundDownload')
+                        : downloadStatus === 'downloaded'
+                          ? t('updateDialog.restartLater')
+                          : t('updateDialog.later')}
                     </button>
-                  ) : downloadStatus === 'downloading' ? (
-                    <div
-                      aria-label={t('updateDialog.progressAria', {
-                        percent: progress.percent,
-                        details: progressDetails,
-                      })}
-                      aria-valuemax={100}
-                      aria-valuemin={0}
-                      aria-valuenow={progress.percent}
-                      className="update-dialog-button is-primary is-progress"
-                      role="progressbar"
-                    >
-                      <span
-                        aria-hidden
-                        className="update-dialog-progress-fill"
-                        style={{ width: `${progress.percent}%` }}
-                      />
-                      <span className="update-dialog-progress-copy is-base">
-                        <span>{t('updateDialog.downloading', { percent: progress.percent })}</span>
-                        <span className="update-dialog-progress-details">{progressDetails}</span>
-                      </span>
-                      <span
-                        aria-hidden
-                        className="update-dialog-progress-copy is-filled"
-                        style={{ clipPath: `inset(0 ${100 - progress.percent}% 0 0)` }}
+                    {downloadStatus === 'downloaded' ? (
+                      <button
+                        className="update-dialog-button is-primary"
+                        type="button"
+                        onClick={onPrimary}
                       >
-                        <span>{t('updateDialog.downloading', { percent: progress.percent })}</span>
-                        <span className="update-dialog-progress-details">{progressDetails}</span>
-                      </span>
-                    </div>
-                  ) : downloadStatus === 'error' ? (
-                    <button
-                      className="update-dialog-button is-primary"
-                      type="button"
-                      onClick={onPrimary}
-                    >
-                      <HugeiconsIcon icon={Refresh01Icon} size={16} aria-hidden />
-                      {t('updateDialog.retryDownload')}
-                    </button>
-                  ) : (
-                    <button
-                      className="update-dialog-button is-primary"
-                      type="button"
-                      onClick={onPrimary}
-                    >
-                      <HugeiconsIcon icon={CircleArrowUp01Icon} size={16} aria-hidden />
-                      {t('updateDialog.updateNow')}
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
-          </DialogContent>
-        </DialogOverlay>
-      </DialogPortal>
-    </Dialog>
+                        <HugeiconsIcon icon={Refresh01Icon} size={16} aria-hidden />
+                        {t('updateDialog.install')}
+                      </button>
+                    ) : downloadStatus === 'downloading' ? (
+                      <div
+                        aria-label={t('updateDialog.progressAria', {
+                          percent: progress.percent,
+                          details: progressDetails,
+                        })}
+                        aria-valuemax={100}
+                        aria-valuemin={0}
+                        aria-valuenow={progress.percent}
+                        className="update-dialog-button is-primary is-progress"
+                        role="progressbar"
+                      >
+                        <span
+                          aria-hidden
+                          className="update-dialog-progress-fill"
+                          style={{ width: `${progress.percent}%` }}
+                        />
+                        <span className="update-dialog-progress-copy is-base">
+                          <span>
+                            {t('updateDialog.downloading', { percent: progress.percent })}
+                          </span>
+                          <span className="update-dialog-progress-details">{progressDetails}</span>
+                        </span>
+                        <span
+                          aria-hidden
+                          className="update-dialog-progress-copy is-filled"
+                          style={{ clipPath: `inset(0 ${100 - progress.percent}% 0 0)` }}
+                        >
+                          <span>
+                            {t('updateDialog.downloading', { percent: progress.percent })}
+                          </span>
+                          <span className="update-dialog-progress-details">{progressDetails}</span>
+                        </span>
+                      </div>
+                    ) : downloadStatus === 'error' ? (
+                      <button
+                        className="update-dialog-button is-primary"
+                        type="button"
+                        onClick={onPrimary}
+                      >
+                        <HugeiconsIcon icon={Refresh01Icon} size={16} aria-hidden />
+                        {t('updateDialog.retryDownload')}
+                      </button>
+                    ) : (
+                      <button
+                        className="update-dialog-button is-primary"
+                        type="button"
+                        onClick={onPrimary}
+                      >
+                        <HugeiconsIcon icon={CircleArrowUp01Icon} size={16} aria-hidden />
+                        {t('updateDialog.updateNow')}
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            </DialogContent>
+          </DialogOverlay>
+        </DialogPortal>
+      </Dialog>
+    </>
   );
+}
+
+function ReleaseConfetti() {
+  useMountEffect(fireReleaseConfetti);
+  return null;
 }
 
 function canOpenUpdateDialog(status: AppUpdateState['status']) {

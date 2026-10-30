@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
 import { makeId, type ReaderQuestionContext } from '@yomitomo/shared';
 import type {
   ReadingRelationsJudgeResult,
@@ -25,64 +25,75 @@ export type ReadingRelationsState =
     };
 
 export function useReadingRelations(articleId: string) {
-  const [state, setState] = useState<ReadingRelationsState | null>(null);
-  const activeRequest = useRef<ReadingRelationsSearchInput | null>(null);
-  const currentArticleId = useRef(articleId);
-  currentArticleId.current = articleId;
+  // A new controller per article starts empty; React unsubscribing the old one cancels its request.
+  const controller = useMemo(() => createReadingRelationsController(articleId), [articleId]);
+  const state = useSyncExternalStore(controller.subscribe, controller.getState);
+  return {
+    state,
+    search: controller.search,
+    close: controller.close,
+    judge: controller.judge,
+    dismissPrivacy: controller.dismissPrivacy,
+  };
+}
 
-  useEffect(() => {
-    setState(null);
-    return () => {
-      const request = activeRequest.current;
-      if (request?.articleId !== articleId) return;
-      activeRequest.current = null;
-      cancelRequest(request);
-    };
-  }, [articleId]);
+function createReadingRelationsController(articleId: string) {
+  let state: ReadingRelationsState | null = null;
+  let activeRequest: ReadingRelationsSearchInput | null = null;
+  const listeners = new Set<() => void>();
+
+  function update(next: ReadingRelationsState | null) {
+    state = next;
+    for (const listener of listeners) listener();
+  }
 
   function isCurrent(request: ReadingRelationsSearchInput) {
-    return activeRequest.current === request && currentArticleId.current === request.articleId;
+    return activeRequest === request;
+  }
+
+  function endRequest() {
+    const request = activeRequest;
+    activeRequest = null;
+    if (request) cancelRequest(request);
   }
 
   async function search(context: ReaderQuestionContext, question?: string) {
-    const previous = activeRequest.current;
-    if (!previous) recordReadingMemoryUsage('feature_opened');
-    if (previous) cancelRequest(previous);
+    if (!activeRequest) recordReadingMemoryUsage('feature_opened');
+    endRequest();
     const request: ReadingRelationsSearchInput = {
       requestId: makeId('reading_relations'),
       articleId,
       context,
       ...(question?.trim() ? { question: question.trim() } : {}),
     };
-    activeRequest.current = request;
-    setState({ phase: 'searching', request });
+    activeRequest = request;
+    update({ phase: 'searching', request });
     try {
       const result = await getDesktopApi().readingMemory.relations.search(request);
       if (!isCurrent(request)) return;
       recordReadingMemoryQuery(result);
-      setState({ phase: 'ready', request, result, remote: 'idle' });
+      update({ phase: 'ready', request, result, remote: 'idle' });
     } catch {
-      if (isCurrent(request)) setState({ phase: 'search-failed', request });
+      if (isCurrent(request)) update({ phase: 'search-failed', request });
     }
   }
 
   function close() {
-    const request = activeRequest.current;
-    activeRequest.current = null;
-    setState(null);
-    if (request) cancelRequest(request);
+    endRequest();
+    update(null);
   }
 
   async function judge(confirmPrivacy = false) {
-    if (state?.phase !== 'ready' || state.remote === 'judging') return;
-    const { request, result } = state;
+    const ready = state;
+    if (ready?.phase !== 'ready' || ready.remote === 'judging') return;
+    const { request, result } = ready;
     if (!isCurrent(request) || !result.provider || result.evidence.length === 0) return;
     if (result.remoteConsentRequired && !confirmPrivacy) {
-      setState({ ...state, remote: 'privacy' });
+      update({ ...ready, remote: 'privacy' });
       return;
     }
 
-    setState({ ...state, remote: 'judging' });
+    update({ ...ready, remote: 'judging' });
     let localResult = result;
     try {
       if (confirmPrivacy) {
@@ -95,23 +106,27 @@ export function useReadingRelations(articleId: string) {
       });
       if (isCurrent(request)) {
         recordReadingMemoryJudgment(judged.judgment);
-        setState({ phase: 'ready', request, result: judged, remote: 'idle' });
+        update({ phase: 'ready', request, result: judged, remote: 'idle' });
       }
     } catch {
-      if (isCurrent(request)) {
-        setState({ ...state, result: localResult, remote: 'failed' });
-      }
+      if (isCurrent(request)) update({ ...ready, result: localResult, remote: 'failed' });
     }
   }
 
   function dismissPrivacy() {
-    if (state?.phase === 'ready' && state.remote === 'privacy') {
-      setState({ ...state, remote: 'idle' });
-    }
+    if (state?.phase === 'ready' && state.remote === 'privacy')
+      update({ ...state, remote: 'idle' });
   }
 
   return {
-    state: state?.request.articleId === articleId ? state : null,
+    getState: () => state,
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+        if (!listeners.size) endRequest();
+      };
+    },
     search,
     close,
     judge,

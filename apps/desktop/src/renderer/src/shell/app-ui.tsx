@@ -1,6 +1,6 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ClipboardIcon, LinkSquare01Icon, Tick01Icon } from '@hugeicons/core-free-icons';
-import React, { useState } from 'react';
+import React, { useReducer } from 'react';
 import type { ArticleRecord } from '@yomitomo/shared';
 import { articleExternalUrl } from './app-article-presentation';
 import { isImageAvatar, isSvgAvatar } from './app-avatar';
@@ -10,12 +10,12 @@ import { getOptionalDesktopApi } from './app-desktop-api';
 
 export function CopyIconButton({ label, value }: { label: string; value: string }) {
   const { t } = useTranslation();
-  const [copied, setCopied] = useState(false);
+  const [copied, dispatch] = useReducer(copyReducer, false);
 
   async function copy() {
     await navigator.clipboard.writeText(value);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 2000);
+    dispatch({ type: 'copied' });
+    window.setTimeout(() => dispatch({ type: 'copiedNoticeExpired' }), 2000);
   }
 
   return (
@@ -32,6 +32,12 @@ export function CopyIconButton({ label, value }: { label: string; value: string 
       )}
     </IconButton>
   );
+}
+
+type CopyEvent = { type: 'copied' } | { type: 'copiedNoticeExpired' };
+
+function copyReducer(_copied: boolean, event: CopyEvent) {
+  return event.type === 'copied';
 }
 
 export function OpenArticleButton({

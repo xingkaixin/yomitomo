@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useReducer, useRef } from 'react';
+import { queryOptions, useQuery } from '@tanstack/react-query';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import {
   makeId,
   type ReadingReviewAssetRef,
@@ -10,6 +12,7 @@ import {
   type ReadingReviewEvidenceResult,
   type ReadingReviewEvidenceSearchInput,
   type ReadingReviewEvidenceSession,
+  type ReadingReviewHistoryPage,
   type ReadingReviewQueue,
   type ReadingReviewQueueItem,
   type ReadingReviewRevealResult,
@@ -49,34 +52,33 @@ type QueueState =
   | { status: 'loading' | 'failed' }
   | { status: 'ready'; result: ReadingReviewQueue };
 
+function readingReviewQueueQuery(catalogRevision: unknown) {
+  return queryOptions({
+    queryKey: ['readingMemory', 'review', 'queue', catalogRevision],
+    queryFn: () => getDesktopApi().readingMemory.review.queue(),
+  });
+}
+
 export function useReadingReview(catalogRevision: unknown) {
-  const [queue, setQueue] = useState<QueueState>({ status: 'loading' });
-  const [state, setState] = useState<ReadingReviewState>({ phase: 'queue' });
-  const [completed, setCompleted] = useState<ReadonlySet<string>>(new Set());
-  const [historyStatus, setHistoryStatus] = useState<'idle' | 'loading' | 'failed'>('idle');
-  const [comparison, setComparison] = useState<ReadingReviewComparisonState | null>(null);
-  const mounted = useRef(false);
-  const queueRequest = useRef<object | null>(null);
+  const queueQuery = useQuery(readingReviewQueueQuery(catalogRevision));
+  const [{ comparison, completed, historyStatus, state }, dispatch] = useReducer(
+    readingReviewReducer,
+    initialReadingReviewState,
+  );
   const activeRequest = useRef<ReadingReviewStartInput | null>(null);
   const activeComparison = useRef<ReadingReviewEvidenceSearchInput | null>(null);
   const activeSubmission = useRef<ReadingReviewSubmitInput | null>(null);
   const activeHistory = useRef<object | null>(null);
+  const queue: QueueState = queueQuery.isFetching
+    ? { status: 'loading' }
+    : queueQuery.isError || !queueQuery.data
+      ? { status: 'failed' }
+      : { status: 'ready', result: queueQuery.data };
 
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-      queueRequest.current = null;
-      endRequest();
-    };
-  }, []);
-
-  useEffect(() => {
-    void loadQueue();
-  }, [catalogRevision]);
+  useMountEffect(() => () => endRequest());
 
   function isCurrent(request: ReadingReviewStartInput) {
-    return mounted.current && activeRequest.current === request;
+    return activeRequest.current === request;
   }
 
   function endRequest() {
@@ -89,39 +91,24 @@ export function useReadingReview(catalogRevision: unknown) {
   }
 
   async function loadQueue() {
-    const request = {};
-    queueRequest.current = request;
-    setQueue({ status: 'loading' });
-    try {
-      const result = await getDesktopApi().readingMemory.review.queue();
-      if (mounted.current && queueRequest.current === request)
-        setQueue({ status: 'ready', result });
-    } catch {
-      if (mounted.current && queueRequest.current === request) setQueue({ status: 'failed' });
-    }
+    await queueQuery.refetch();
   }
 
   async function start(item: ReadingReviewQueueItem) {
     endRequest();
     const request = { requestId: makeId('reading_review'), asset: item.asset };
     activeRequest.current = request;
-    setHistoryStatus('idle');
-    setComparison(null);
-    setState({ phase: 'blind', status: 'starting', item });
+    dispatch({ type: 'reviewStarted', item });
     try {
       const session = await getDesktopApi().readingMemory.review.start(request);
-      if (isCurrent(request)) setState({ phase: 'blind', status: 'ready', session, answer: '' });
+      if (isCurrent(request)) dispatch({ type: 'sessionStarted', session });
     } catch {
-      if (isCurrent(request)) setState({ phase: 'blind', status: 'start-failed', item });
+      if (isCurrent(request)) dispatch({ type: 'startFailed', item });
     }
   }
 
   function setAnswer(answer: string) {
-    setState((current) =>
-      current.phase === 'blind' && current.status === 'ready'
-        ? { ...current, answer: answer.slice(0, readingReviewAnswerLimit) }
-        : current,
-    );
+    dispatch({ type: 'answerEdited', answer });
   }
 
   async function reveal(needEvidence = false) {
@@ -131,17 +118,17 @@ export function useReadingReview(catalogRevision: unknown) {
     if (!request || !isCurrent(request)) return;
     const answer = state.answer.trim();
     if (!answer && !needEvidence && state.status !== 'reveal-failed') return;
-    setState({ ...state, answer, status: 'revealing' });
+    dispatch({ type: 'revealStarted', answer });
     try {
       const result = await getDesktopApi().readingMemory.review.reveal({
         requestId: request.requestId,
         answer,
       });
-      if (isCurrent(request)) setState({ phase: 'revealed', result });
+      if (isCurrent(request)) dispatch({ type: 'revealed', result });
     } catch (error) {
       if (isCurrent(request))
-        setState({
-          ...state,
+        dispatch({
+          type: 'revealFailed',
           answer,
           status: isReviewConflict(error) ? 'conflict' : 'reveal-failed',
         });
@@ -153,9 +140,7 @@ export function useReadingReview(catalogRevision: unknown) {
     activeComparison.current = null;
     if (request)
       cancelRequest({ requestId: request.requestId, comparisonId: request.comparisonId });
-    setComparison((current) =>
-      current && 'result' in current ? { phase: 'canceled', result: current.result } : null,
-    );
+    dispatch({ type: 'comparisonCanceled' });
   }
 
   async function submit(decision: ReadingReviewDecision) {
@@ -178,16 +163,15 @@ export function useReadingReview(catalogRevision: unknown) {
   ) {
     if (activeSubmission.current) return;
     activeSubmission.current = input;
-    setState({ phase: 'submitting', status: 'pending', result, input });
+    dispatch({ type: 'submissionStarted', result, input });
     try {
       const saved = await getDesktopApi().readingMemory.review.submit(input);
       if (!isCurrent(request) || activeSubmission.current !== input) return;
-      setCompleted((current) => new Set(current).add(assetKey(request.asset)));
-      setState({ phase: 'done', result, event: saved.event });
+      dispatch({ type: 'submissionSaved', asset: request.asset, result, event: saved.event });
     } catch (error) {
       if (isCurrent(request) && activeSubmission.current === input) {
         const status = isReviewConflict(error) ? 'conflict' : 'failed';
-        setState({ phase: 'submitting', status, result, input });
+        dispatch({ type: 'submissionFailed', status, result, input });
       }
     } finally {
       if (activeSubmission.current === input) activeSubmission.current = null;
@@ -202,9 +186,7 @@ export function useReadingReview(catalogRevision: unknown) {
 
   function cancel() {
     endRequest();
-    setComparison(null);
-    setHistoryStatus('idle');
-    setState({ phase: 'queue' });
+    dispatch({ type: 'reviewCanceled' });
   }
 
   async function loadHistory() {
@@ -214,33 +196,17 @@ export function useReadingReview(catalogRevision: unknown) {
     if (!request || !isCurrent(request)) return;
     const operation = {};
     activeHistory.current = operation;
-    setHistoryStatus('loading');
+    dispatch({ type: 'historyRequested' });
     try {
       const page = await getDesktopApi().readingMemory.review.history({
         requestId: request.requestId,
         cursor: state.result.history.nextCursor,
       });
       if (!isCurrent(request) || activeHistory.current !== operation) return;
-      setState((current) => {
-        if (!('result' in current)) return current;
-        const seen = new Set(current.result.history.events.map((event) => event.id));
-        return {
-          ...current,
-          result: {
-            ...current.result,
-            history: {
-              events: [
-                ...current.result.history.events,
-                ...page.events.filter((event) => !seen.has(event.id)),
-              ],
-              nextCursor: page.nextCursor,
-            },
-          },
-        };
-      });
-      setHistoryStatus('idle');
+      dispatch({ type: 'historyLoaded', page });
     } catch {
-      if (isCurrent(request) && activeHistory.current === operation) setHistoryStatus('failed');
+      if (isCurrent(request) && activeHistory.current === operation)
+        dispatch({ type: 'historyFailed' });
     } finally {
       if (activeHistory.current === operation) activeHistory.current = null;
     }
@@ -265,15 +231,15 @@ export function useReadingReview(catalogRevision: unknown) {
       expectedRouteRevision: previous.routeRevision,
     };
     activeComparison.current = search;
-    setComparison({ phase: 'searching' });
+    dispatch({ type: 'comparisonSearchStarted' });
     try {
       const result = await getDesktopApi().readingMemory.review.searchEvidence(search);
       if (!isCurrentComparison(request, search)) return;
       recordReadingMemoryQuery(result);
-      setComparison({ phase: 'idle', result });
+      dispatch({ type: 'comparisonReceived', result });
       await compareRemote(request, search, result, false);
     } catch {
-      if (isCurrentComparison(request, search)) setComparison({ phase: 'search-failed' });
+      if (isCurrentComparison(request, search)) dispatch({ type: 'comparisonSearchFailed' });
     }
   }
 
@@ -291,10 +257,10 @@ export function useReadingReview(catalogRevision: unknown) {
     )
       return;
     if (result.remoteConsentRequired && !confirmPrivacy) {
-      setComparison({ phase: 'privacy', result });
+      dispatch({ type: 'comparisonPrivacyRequired', result });
       return;
     }
-    setComparison({ phase: 'comparing', result });
+    dispatch({ type: 'comparisonRequested', result });
     let local = result;
     try {
       if (confirmPrivacy) {
@@ -308,11 +274,11 @@ export function useReadingReview(catalogRevision: unknown) {
       });
       if (isCurrentComparison(request, search)) {
         recordReadingMemoryJudgment(compared.judgment);
-        setComparison({ phase: 'idle', result: compared });
+        dispatch({ type: 'comparisonReceived', result: compared });
       }
     } catch {
       if (isCurrentComparison(request, search)) {
-        setComparison({ phase: 'failed', result: local });
+        dispatch({ type: 'comparisonFailed', result: local });
       }
     }
   }
@@ -325,9 +291,7 @@ export function useReadingReview(catalogRevision: unknown) {
   }
 
   function dismissComparisonPrivacy() {
-    setComparison((current) =>
-      current?.phase === 'privacy' ? { phase: 'idle', result: current.result } : current,
-    );
+    dispatch({ type: 'comparisonPrivacyDismissed' });
   }
 
   const items =
@@ -354,6 +318,172 @@ export function useReadingReview(catalogRevision: unknown) {
     dismissComparisonPrivacy,
     cancelComparison,
   };
+}
+
+type ReadingReviewSessionState = {
+  comparison: ReadingReviewComparisonState | null;
+  completed: ReadonlySet<string>;
+  historyStatus: 'idle' | 'loading' | 'failed';
+  state: ReadingReviewState;
+};
+
+type ComparisonResult = ReadingReviewEvidenceSession | ReadingReviewEvidenceResult;
+
+type ReadingReviewSessionEvent =
+  | { type: 'answerEdited'; answer: string }
+  | { type: 'comparisonCanceled' }
+  | { type: 'comparisonFailed'; result: ComparisonResult }
+  | { type: 'comparisonPrivacyDismissed' }
+  | { type: 'comparisonPrivacyRequired'; result: ComparisonResult }
+  | { type: 'comparisonReceived'; result: ComparisonResult }
+  | { type: 'comparisonRequested'; result: ComparisonResult }
+  | { type: 'comparisonSearchFailed' }
+  | { type: 'comparisonSearchStarted' }
+  | { type: 'historyFailed' }
+  | { type: 'historyLoaded'; page: ReadingReviewHistoryPage }
+  | { type: 'historyRequested' }
+  | { type: 'revealFailed'; answer: string; status: 'conflict' | 'reveal-failed' }
+  | { type: 'revealStarted'; answer: string }
+  | { type: 'revealed'; result: ReadingReviewRevealResult }
+  | { type: 'reviewCanceled' }
+  | { type: 'reviewStarted'; item: ReadingReviewQueueItem }
+  | { type: 'sessionStarted'; session: ReadingReviewSession }
+  | { type: 'startFailed'; item: ReadingReviewQueueItem }
+  | {
+      type: 'submissionFailed';
+      status: 'failed' | 'conflict';
+      result: ReadingReviewRevealResult;
+      input: ReadingReviewSubmitInput;
+    }
+  | {
+      type: 'submissionSaved';
+      asset: ReadingReviewAssetRef;
+      result: ReadingReviewRevealResult;
+      event: ReadingReviewEvent;
+    }
+  | {
+      type: 'submissionStarted';
+      result: ReadingReviewRevealResult;
+      input: ReadingReviewSubmitInput;
+    };
+
+const initialReadingReviewState: ReadingReviewSessionState = {
+  comparison: null,
+  completed: new Set(),
+  historyStatus: 'idle',
+  state: { phase: 'queue' },
+};
+
+function readingReviewReducer(
+  current: ReadingReviewSessionState,
+  event: ReadingReviewSessionEvent,
+): ReadingReviewSessionState {
+  const { comparison, state } = current;
+  switch (event.type) {
+    case 'answerEdited':
+      return state.phase === 'blind' && state.status === 'ready'
+        ? {
+            ...current,
+            state: { ...state, answer: event.answer.slice(0, readingReviewAnswerLimit) },
+          }
+        : current;
+    case 'comparisonCanceled':
+      return {
+        ...current,
+        comparison:
+          comparison && 'result' in comparison
+            ? { phase: 'canceled', result: comparison.result }
+            : null,
+      };
+    case 'comparisonFailed':
+      return { ...current, comparison: { phase: 'failed', result: event.result } };
+    case 'comparisonPrivacyDismissed':
+      return comparison?.phase === 'privacy'
+        ? { ...current, comparison: { phase: 'idle', result: comparison.result } }
+        : current;
+    case 'comparisonPrivacyRequired':
+      return { ...current, comparison: { phase: 'privacy', result: event.result } };
+    case 'comparisonReceived':
+      return { ...current, comparison: { phase: 'idle', result: event.result } };
+    case 'comparisonRequested':
+      return { ...current, comparison: { phase: 'comparing', result: event.result } };
+    case 'comparisonSearchFailed':
+      return { ...current, comparison: { phase: 'search-failed' } };
+    case 'comparisonSearchStarted':
+      return { ...current, comparison: { phase: 'searching' } };
+    case 'historyFailed':
+      return { ...current, historyStatus: 'failed' };
+    case 'historyLoaded': {
+      if (!('result' in state)) return { ...current, historyStatus: 'idle' };
+      const seen = new Set(state.result.history.events.map((item) => item.id));
+      return {
+        ...current,
+        historyStatus: 'idle',
+        state: {
+          ...state,
+          result: {
+            ...state.result,
+            history: {
+              events: [
+                ...state.result.history.events,
+                ...event.page.events.filter((item) => !seen.has(item.id)),
+              ],
+              nextCursor: event.page.nextCursor,
+            },
+          },
+        },
+      };
+    }
+    case 'historyRequested':
+      return { ...current, historyStatus: 'loading' };
+    case 'revealFailed':
+      return state.phase === 'blind' && 'session' in state
+        ? { ...current, state: { ...state, answer: event.answer, status: event.status } }
+        : current;
+    case 'revealStarted':
+      return state.phase === 'blind' && 'session' in state
+        ? { ...current, state: { ...state, answer: event.answer, status: 'revealing' } }
+        : current;
+    case 'revealed':
+      return { ...current, state: { phase: 'revealed', result: event.result } };
+    case 'reviewCanceled':
+      return { ...current, comparison: null, historyStatus: 'idle', state: { phase: 'queue' } };
+    case 'reviewStarted':
+      return {
+        ...current,
+        comparison: null,
+        historyStatus: 'idle',
+        state: { phase: 'blind', status: 'starting', item: event.item },
+      };
+    case 'sessionStarted':
+      return {
+        ...current,
+        state: { phase: 'blind', status: 'ready', session: event.session, answer: '' },
+      };
+    case 'startFailed':
+      return { ...current, state: { phase: 'blind', status: 'start-failed', item: event.item } };
+    case 'submissionFailed':
+      return {
+        ...current,
+        state: {
+          phase: 'submitting',
+          status: event.status,
+          result: event.result,
+          input: event.input,
+        },
+      };
+    case 'submissionSaved':
+      return {
+        ...current,
+        completed: new Set(current.completed).add(assetKey(event.asset)),
+        state: { phase: 'done', result: event.result, event: event.event },
+      };
+    case 'submissionStarted':
+      return {
+        ...current,
+        state: { phase: 'submitting', status: 'pending', result: event.result, input: event.input },
+      };
+  }
 }
 
 function assetKey(asset: ReadingReviewAssetRef) {

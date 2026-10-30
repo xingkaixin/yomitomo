@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ReadingReviewDecision } from '@yomitomo/shared';
 import { readingReviewAnswerLimit, type ReadingReviewQueueItem } from '../../../ipc-contract';
@@ -31,15 +31,23 @@ export function ReadingReview({
   const evidenceResult =
     review.comparison && 'result' in review.comparison ? review.comparison.result : null;
 
-  useEffect(() => {
-    if (state.phase === 'queue') return;
-    if (state.phase === 'blind' && blindStatus === 'ready') answerInput.current?.focus();
-    else stageTitle.current?.focus();
-    return () => queueRegion.current?.focus();
-  }, [state.phase, blindStatus]);
+  const phase = state.phase;
+  const leftStage = useRef(false);
+
+  // Attached to the root so it runs after the stage's elements commit.
+  const moveFocusWithStage = useCallback(() => {
+    if (phase !== 'queue') {
+      if (phase === 'blind' && blindStatus === 'ready') answerInput.current?.focus();
+      else stageTitle.current?.focus();
+    } else if (leftStage.current) queueRegion.current?.focus();
+    leftStage.current = false;
+    return () => {
+      leftStage.current = phase !== 'queue';
+    };
+  }, [phase, blindStatus]);
 
   return (
-    <div className="reading-review">
+    <div ref={moveFocusWithStage} className="reading-review">
       <div className="reading-review-inner">
         <header className="reading-review-heading">
           <h1>{t('readingMemory.review.title')}</h1>

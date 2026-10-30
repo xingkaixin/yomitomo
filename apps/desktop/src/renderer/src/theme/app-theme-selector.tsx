@@ -1,6 +1,6 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ColorPickerIcon } from '@hugeicons/core-free-icons';
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useReducer } from 'react';
 import type { ReaderBackgroundTone } from '@yomitomo/reader-ui/reader-settings';
 import type { AppThemeTone, AppThemeId } from './app-theme';
 import {
@@ -31,7 +31,7 @@ export type ThemeSelectorProps = {
 
 export function ThemeSelector(props: ThemeSelectorProps) {
   const { t } = useTranslation();
-  const [sourceRect, setSourceRect] = useState<DialogSourceRect | null>(null);
+  const [sourceRect, dispatch] = useReducer(themeTriggerReducer, null);
   const dialogStyle = useSourceAwareDialogTransition(sourceRect);
   return (
     <>
@@ -40,7 +40,10 @@ export function ThemeSelector(props: ThemeSelectorProps) {
         className="app-nav-theme-button"
         data-tooltip={t('theme.title')}
         onClick={(event) => {
-          setSourceRect(elementDialogSourceRect(event.currentTarget));
+          dispatch({
+            type: 'triggerClicked',
+            sourceRect: elementDialogSourceRect(event.currentTarget),
+          });
           props.onOpenChange(true);
         }}
       >
@@ -53,4 +56,11 @@ export function ThemeSelector(props: ThemeSelectorProps) {
       ) : null}
     </>
   );
+}
+
+function themeTriggerReducer(
+  _sourceRect: DialogSourceRect | null,
+  event: { type: 'triggerClicked'; sourceRect: DialogSourceRect },
+) {
+  return event.sourceRect;
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useReducer } from 'react';
 import type { AppSettingsPatch, DesktopStore } from '@yomitomo/shared';
 import { errorMessageOrFallback } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
@@ -6,6 +6,19 @@ import type { AppMenuCommand } from '../../../app-menu-types';
 import { Button } from '../components/ui/button';
 import { Dialog, DialogContent, DialogPortal } from '../components/ui/dialog';
 import onboardingBackground from '../assets/onboarding/onboarding-background.webp';
+
+type OnboardingState = { busy: boolean; status: string };
+
+type OnboardingEvent = { type: 'completionFailed'; status: string } | { type: 'completionStarted' };
+
+function onboardingReducer(_state: OnboardingState, event: OnboardingEvent): OnboardingState {
+  switch (event.type) {
+    case 'completionFailed':
+      return { busy: false, status: event.status };
+    case 'completionStarted':
+      return { busy: true, status: '' };
+  }
+}
 
 export function OnboardingFlow({
   onSaveSettings,
@@ -15,18 +28,18 @@ export function OnboardingFlow({
   onStartReading: (command?: AppMenuCommand) => void;
 }) {
   const { t } = useTranslation();
-  const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState('');
+  const [{ busy, status }, dispatch] = useReducer(onboardingReducer, { busy: false, status: '' });
 
   async function completeOnboarding(command?: AppMenuCommand) {
-    setBusy(true);
-    setStatus('');
+    dispatch({ type: 'completionStarted' });
     try {
       await onSaveSettings({ onboardingCompletedAt: new Date().toISOString() });
       onStartReading(command);
     } catch (error) {
-      setStatus(errorMessageOrFallback(error, t('onboarding.enterFailed')));
-      setBusy(false);
+      dispatch({
+        type: 'completionFailed',
+        status: errorMessageOrFallback(error, t('onboarding.enterFailed')),
+      });
     }
   }
 

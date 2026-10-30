@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useReducer, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import type { ReadingEvidence, ReadingJudgmentClaim } from '@yomitomo/shared';
 import { Button } from '../components/ui/button';
 import {
@@ -22,8 +23,10 @@ export function ReadingLibraryThoughtDraft({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [phase, setPhase] = useState<'idle' | 'opening' | 'failed'>('idle');
+  const [{ phase, selectedId }, dispatch] = useReducer(thoughtDraftReducer, {
+    phase: 'idle',
+    selectedId: null,
+  });
   const titleRef = useRef<HTMLHeadingElement>(null);
   const mounted = useRef(true);
   const citations = claim.evidenceIds.flatMap((id) => {
@@ -37,16 +40,16 @@ export function ReadingLibraryThoughtDraft({
     new Set(claim.evidenceIds).size === claim.evidenceIds.length;
   const selected = valid ? citations.find((item) => item.id === selectedId) : undefined;
 
-  useEffect(() => {
+  useMountEffect(() => {
     mounted.current = true;
     return () => {
       mounted.current = false;
     };
-  }, []);
+  });
 
   async function openDraft() {
     if (!selected || phase === 'opening') return;
-    setPhase('opening');
+    dispatch({ type: 'openStarted' });
     try {
       await getDesktopApi().annotations.discussion.open({
         articleId: selected.source.ref.id,
@@ -55,7 +58,7 @@ export function ReadingLibraryThoughtDraft({
       });
       if (mounted.current) onClose();
     } catch {
-      if (mounted.current) setPhase('failed');
+      if (mounted.current) dispatch({ type: 'openFailed' });
     }
   }
 
@@ -86,7 +89,7 @@ export function ReadingLibraryThoughtDraft({
                       name="reading-library-thought-citation"
                       value={item.id}
                       checked={selectedId === item.id}
-                      onChange={() => setSelectedId(item.id)}
+                      onChange={() => dispatch({ type: 'citationSelected', id: item.id })}
                     />
                     <span>
                       <strong>{item.source.title}</strong>
@@ -117,4 +120,25 @@ export function ReadingLibraryThoughtDraft({
       </DialogPortal>
     </Dialog>
   );
+}
+
+type ThoughtDraftState = { phase: 'idle' | 'opening' | 'failed'; selectedId: string | null };
+
+type ThoughtDraftEvent =
+  | { type: 'citationSelected'; id: string }
+  | { type: 'openFailed' }
+  | { type: 'openStarted' };
+
+function thoughtDraftReducer(
+  state: ThoughtDraftState,
+  event: ThoughtDraftEvent,
+): ThoughtDraftState {
+  switch (event.type) {
+    case 'citationSelected':
+      return { ...state, selectedId: event.id };
+    case 'openFailed':
+      return { ...state, phase: 'failed' };
+    case 'openStarted':
+      return { ...state, phase: 'opening' };
+  }
 }

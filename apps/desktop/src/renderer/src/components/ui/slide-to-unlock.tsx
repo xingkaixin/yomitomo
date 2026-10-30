@@ -39,16 +39,16 @@ export function SlideToUnlock({
   const trackRef = React.useRef<HTMLDivElement>(null);
   const handleRef = React.useRef<HTMLDivElement>(null);
   const unlockedRef = React.useRef(false);
-  const [isDragging, setIsDragging] = React.useState(false);
+  const [isDragging, dispatch] = React.useReducer(dragReducer, false);
   const x = useMotionValue(0);
   const textOpacity = useTransform(x, [0, handleWidth], [1, 0]);
 
   const handleDragStart = React.useCallback(() => {
-    setIsDragging(true);
+    dispatch({ type: 'dragStarted' });
   }, []);
 
   const handleDragEnd = React.useCallback(() => {
-    setIsDragging(false);
+    dispatch({ type: 'dragEnded' });
 
     const track = trackRef.current;
     const handle = handleRef.current;
@@ -166,6 +166,10 @@ export function SlideToUnlockHandle({
       )}
     </motion.div>
   );
+}
+
+function dragReducer(_isDragging: boolean, event: { type: 'dragStarted' | 'dragEnded' }) {
+  return event.type === 'dragStarted';
 }
 
 function handleIsAtTrackEnd(track: HTMLDivElement | null, handle: HTMLDivElement | null) {

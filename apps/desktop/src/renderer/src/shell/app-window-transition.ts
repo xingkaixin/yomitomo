@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useMemo, useReducer, type CSSProperties } from 'react';
 import type { WindowAnimationSourceRect } from '../../../ipc-contract';
 import { getOptionalDesktopApi } from './app-desktop-api';
+import { useDesktopEvent } from './use-desktop-event';
 
 type SourceAwareWindowStyle = CSSProperties & {
   '--annotation-window-origin-x': string;
@@ -11,11 +12,9 @@ type SourceAwareWindowStyle = CSSProperties & {
 
 export function useSourceAwareWindowTransition(params: URLSearchParams) {
   const source = useMemo(() => readWindowAnimationSource(params), [params]);
-  const [closing, setClosing] = useState(false);
+  const [closing, windowClosing] = useReducer(() => true, false);
 
-  useEffect(() => {
-    return getOptionalDesktopApi()?.annotations?.onWindowClosing?.(() => setClosing(true));
-  }, []);
+  useDesktopEvent(getOptionalDesktopApi()?.annotations?.onWindowClosing, windowClosing);
 
   return {
     className: closing ? 'is-source-closing' : '',

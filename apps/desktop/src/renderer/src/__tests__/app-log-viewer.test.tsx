@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AppUpdateState } from '../../../app-update-types';
 import { AboutSettings } from '../shell/app-log-viewer';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { appToast } from '../shell/app-toast';
+import { appUpdateStateQuery } from '../shell/use-app-update-state';
+import { renderWithQueryClient } from './query-test-utils';
 
 vi.mock('../shell/app-toast', () => ({
   appToast: {
@@ -24,7 +26,6 @@ afterEach(() => {
 });
 
 function installDesktopAboutApi() {
-  const updateListeners: Array<(state: AppUpdateState) => void> = [];
   const desktop = {
     getAppInfo: vi.fn().mockResolvedValue({ desktopVersion: '0.1.0' }),
     getUpdateStatus: vi.fn().mockResolvedValue({
@@ -46,10 +47,6 @@ function installDesktopAboutApi() {
       currentVersion: '0.1.0',
       availableVersion: '0.2.0',
     } satisfies AppUpdateState),
-    onUpdateStatus: vi.fn((callback: (state: AppUpdateState) => void) => {
-      updateListeners.push(callback);
-      return () => undefined;
-    }),
     openUrl: vi.fn().mockResolvedValue(undefined),
     saveSettings: vi.fn().mockImplementation((settings) =>
       Promise.resolve({
@@ -84,9 +81,6 @@ function installDesktopAboutApi() {
       },
     ]),
     clearAgentRuntimeTraces: vi.fn().mockResolvedValue(undefined),
-    emitUpdate: (state: AppUpdateState) => {
-      updateListeners.forEach((listener) => listener(state));
-    },
   };
 
   Object.defineProperty(window, 'yomitomoDesktop', {
@@ -111,7 +105,6 @@ function installDesktopAboutApi() {
         download: desktop.downloadUpdate,
         getStatus: desktop.getUpdateStatus,
         install: desktop.installUpdate,
-        onStatus: desktop.onUpdateStatus,
       },
     },
   });
@@ -123,7 +116,7 @@ describe('AboutSettings', () => {
   it('shows the desktop version', async () => {
     installDesktopAboutApi();
 
-    render(<AboutSettings />);
+    renderWithQueryClient(<AboutSettings />);
 
     expect(await screen.findByText('v0.1.0')).toBeTruthy();
     expect(screen.getByText('开源许可证')).toBeTruthy();
@@ -133,7 +126,7 @@ describe('AboutSettings', () => {
   it('checks for updates from the version row', async () => {
     const desktop = installDesktopAboutApi();
 
-    render(<AboutSettings />);
+    renderWithQueryClient(<AboutSettings />);
 
     expect(await screen.findByLabelText('可手动检查新版本。')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /检查更新/ }));
@@ -148,15 +141,16 @@ describe('AboutSettings', () => {
   it('downloads and installs an available update', async () => {
     const desktop = installDesktopAboutApi();
 
-    render(<AboutSettings />);
+    const { queryClient } = renderWithQueryClient(<AboutSettings />);
     await screen.findByLabelText('可手动检查新版本。');
 
+    const updateState: AppUpdateState = {
+      status: 'available',
+      currentVersion: '0.1.0',
+      availableVersion: '0.2.0',
+    };
     act(() => {
-      desktop.emitUpdate({
-        status: 'available',
-        currentVersion: '0.1.0',
-        availableVersion: '0.2.0',
-      });
+      queryClient.setQueryData(appUpdateStateQuery.queryKey, updateState);
     });
 
     fireEvent.click(await screen.findByRole('button', { name: /下载更新/ }));
@@ -171,15 +165,16 @@ describe('AboutSettings', () => {
   it('retries a failed update download without checking again', async () => {
     const desktop = installDesktopAboutApi();
 
-    render(<AboutSettings />);
+    const { queryClient } = renderWithQueryClient(<AboutSettings />);
     await screen.findByLabelText('可手动检查新版本。');
+    const updateState: AppUpdateState = {
+      status: 'download-error',
+      currentVersion: '0.1.0',
+      availableVersion: '0.2.0',
+      message: 'connection reset',
+    };
     act(() => {
-      desktop.emitUpdate({
-        status: 'download-error',
-        currentVersion: '0.1.0',
-        availableVersion: '0.2.0',
-        message: 'connection reset',
-      });
+      queryClient.setQueryData(appUpdateStateQuery.queryKey, updateState);
     });
 
     expect(await screen.findByLabelText('下载更新失败，可以重试。')).toBeTruthy();
@@ -190,17 +185,18 @@ describe('AboutSettings', () => {
   });
 
   it('shows a single percent sign for download progress', async () => {
-    const desktop = installDesktopAboutApi();
+    installDesktopAboutApi();
 
-    render(<AboutSettings />);
+    const { queryClient } = renderWithQueryClient(<AboutSettings />);
     await screen.findByLabelText('可手动检查新版本。');
+    const updateState: AppUpdateState = {
+      status: 'downloading',
+      currentVersion: '0.1.0',
+      availableVersion: '0.2.0',
+      progress: { percent: 53, transferred: 53, total: 100, bytesPerSecond: 10 },
+    };
     act(() => {
-      desktop.emitUpdate({
-        status: 'downloading',
-        currentVersion: '0.1.0',
-        availableVersion: '0.2.0',
-        progress: { percent: 53, transferred: 53, total: 100, bytesPerSecond: 10 },
-      });
+      queryClient.setQueryData(appUpdateStateQuery.queryKey, updateState);
     });
 
     expect(await screen.findByLabelText('正在下载更新，已完成 53%。')).toBeTruthy();
@@ -209,7 +205,7 @@ describe('AboutSettings', () => {
   it('opens localized website links through the desktop bridge', async () => {
     const desktop = installDesktopAboutApi();
 
-    render(<AboutSettings settings={{ uiLanguage: 'zh-CN' }} />);
+    renderWithQueryClient(<AboutSettings settings={{ uiLanguage: 'zh-CN' }} />);
 
     fireEvent.click(screen.getByRole('button', { name: /查看更新记录/ }));
 
@@ -232,7 +228,7 @@ describe('AboutSettings', () => {
     const desktop = installDesktopAboutApi();
 
     initializeAppI18n('en');
-    render(<AboutSettings settings={{ uiLanguage: 'en' }} />);
+    renderWithQueryClient(<AboutSettings settings={{ uiLanguage: 'en' }} />);
 
     fireEvent.click(screen.getByRole('button', { name: /View release notes/ }));
 
@@ -248,7 +244,7 @@ describe('AboutSettings', () => {
   it('renders an action icon for the license dialog row', async () => {
     installDesktopAboutApi();
 
-    render(<AboutSettings />);
+    renderWithQueryClient(<AboutSettings />);
 
     const licenseButton = screen.getByRole('button', { name: /查看许可证/ });
 
@@ -258,7 +254,7 @@ describe('AboutSettings', () => {
   it('filters open source packages in the license dialog', async () => {
     installDesktopAboutApi();
 
-    render(<AboutSettings />);
+    renderWithQueryClient(<AboutSettings />);
 
     fireEvent.click(screen.getByRole('button', { name: /查看许可证/ }));
     expect(screen.getByRole('dialog', { name: '开源许可证' })).toBeTruthy();
@@ -275,7 +271,7 @@ describe('AboutSettings', () => {
   it('closes the license dialog from the close button', async () => {
     installDesktopAboutApi();
 
-    render(<AboutSettings />);
+    renderWithQueryClient(<AboutSettings />);
 
     fireEvent.click(screen.getByRole('button', { name: /查看许可证/ }));
     expect(screen.getByRole('dialog', { name: '开源许可证' })).toBeTruthy();
@@ -288,7 +284,7 @@ describe('AboutSettings', () => {
   it('closes the license dialog on Escape', async () => {
     installDesktopAboutApi();
 
-    render(<AboutSettings />);
+    renderWithQueryClient(<AboutSettings />);
 
     fireEvent.click(screen.getByRole('button', { name: /查看许可证/ }));
     fireEvent.keyDown(screen.getByRole('dialog', { name: '开源许可证' }), { key: 'Escape' });
@@ -299,7 +295,7 @@ describe('AboutSettings', () => {
   it('includes vendored foliate-js in the license dialog', async () => {
     installDesktopAboutApi();
 
-    render(<AboutSettings />);
+    renderWithQueryClient(<AboutSettings />);
 
     fireEvent.click(screen.getByRole('button', { name: /查看许可证/ }));
     fireEvent.change(screen.getByPlaceholderText('搜索软件包或许可证...'), {
@@ -314,7 +310,7 @@ describe('AboutSettings', () => {
   it('includes bundled font notices in the license dialog', async () => {
     installDesktopAboutApi();
 
-    render(<AboutSettings />);
+    renderWithQueryClient(<AboutSettings />);
 
     fireEvent.click(screen.getByRole('button', { name: /查看许可证/ }));
     fireEvent.change(screen.getByPlaceholderText('搜索软件包或许可证...'), {
@@ -330,7 +326,7 @@ describe('AboutSettings', () => {
     const desktop = installDesktopAboutApi();
     const onStoreUpdated = vi.fn();
 
-    render(<AboutSettings settings={{}} onStoreUpdated={onStoreUpdated} />);
+    renderWithQueryClient(<AboutSettings settings={{}} onStoreUpdated={onStoreUpdated} />);
 
     fireEvent.click(screen.getByRole('checkbox', { name: /开发者模式/ }));
 
@@ -343,7 +339,7 @@ describe('AboutSettings', () => {
   it('does not show the legacy agent trace block in developer mode', () => {
     installDesktopAboutApi();
 
-    render(<AboutSettings settings={{ developerModeEnabled: true }} />);
+    renderWithQueryClient(<AboutSettings settings={{ developerModeEnabled: true }} />);
 
     expect(screen.queryByText('Agent Trace')).toBeNull();
     expect(screen.getByRole('checkbox', { name: /开发者模式/ })).toBeTruthy();
