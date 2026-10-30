@@ -32,6 +32,11 @@ query result into zustand.
   transition or action that changes that value, not in an effect.
 - Read the latest props inside callbacks with `useEffectEvent`. Do not write
   `ref.current` during render.
+- Pass `use` a promise created once outside render, for example in a module.
+  Promises returned through the preload bridge are new objects on every call.
+  Updates from ref callbacks render synchronously, and a synchronous render
+  that suspends on a pending promise replaces the view with the Suspense
+  fallback.
 - Attach element listeners, observers, focus, and measurement with ref callbacks
   that return a cleanup function. When DOM work must follow a data change, attach
   the ref to an element whose `key` changes with that data.
