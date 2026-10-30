@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffectEvent, useMemo, useReducer, useRef, type RefObject } from 'react';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import { useTranslation } from 'react-i18next';
 import type { Annotation, ArticleRecord, ArticleTranslation } from '@yomitomo/shared';
 import {
@@ -22,12 +23,54 @@ const translationSelectionToastThrottleMs = 2000;
 const translationSuccessFeedbackDurationMs = 2000;
 const emptyTranslationSuccessBlockIds = new Set<string>();
 
-type WebArticleHtmlRenderState = {
-  articleId: string;
+type WebArticleHtmlState = {
   frozen: boolean;
-  html: string;
-  pendingHtml: string | null;
+  // The latest html, shown once a selection gesture no longer freezes the article.
+  latestHtml: string;
+  shownHtml: string;
+  successBlockIds: ReadonlySet<string>;
 };
+
+type WebArticleHtmlEvent =
+  | { type: 'htmlArrived'; html: string; selectionActive: boolean }
+  | { type: 'selectionFinished' }
+  | { type: 'selectionStarted' }
+  | { type: 'successFeedbackCleared'; blockIds: Iterable<string> | 'all' }
+  | { type: 'translationSegmentSucceeded'; blockId: string };
+
+function webArticleHtmlReducer(
+  state: WebArticleHtmlState,
+  event: WebArticleHtmlEvent,
+): WebArticleHtmlState {
+  switch (event.type) {
+    case 'htmlArrived': {
+      const frozen = state.frozen || event.selectionActive;
+      return {
+        ...state,
+        frozen,
+        latestHtml: event.html,
+        shownHtml: frozen ? state.shownHtml : event.html,
+      };
+    }
+    case 'selectionFinished':
+      return state.frozen ? { ...state, frozen: false, shownHtml: state.latestHtml } : state;
+    case 'selectionStarted':
+      return state.frozen ? state : { ...state, frozen: true };
+    case 'successFeedbackCleared': {
+      if (state.successBlockIds.size === 0) return state;
+      if (event.blockIds === 'all') return { ...state, successBlockIds: new Set() };
+      const successBlockIds = new Set(state.successBlockIds);
+      for (const blockId of event.blockIds) successBlockIds.delete(blockId);
+      return successBlockIds.size === state.successBlockIds.size
+        ? state
+        : { ...state, successBlockIds };
+    }
+    case 'translationSegmentSucceeded':
+      return state.successBlockIds.has(event.blockId)
+        ? state
+        : { ...state, successBlockIds: new Set(state.successBlockIds).add(event.blockId) };
+  }
+}
 
 type UseWebBilingualTranslationInput = {
   annotations: Annotation[];
@@ -51,25 +94,16 @@ export function useWebBilingualTranslation({
   targetLanguage,
 }: UseWebBilingualTranslationInput) {
   const { t } = useTranslation();
-  const annotationsRef = useRef(annotations);
-  annotationsRef.current = annotations;
-  const htmlRenderRef = useRef<WebArticleHtmlRenderState>({
-    articleId: '',
+  const [view, dispatch] = useReducer(webArticleHtmlReducer, contentHtml, (html) => ({
     frozen: false,
-    html: '',
-    pendingHtml: null,
-  });
+    latestHtml: html,
+    shownHtml: html,
+    successBlockIds: emptyTranslationSuccessBlockIds,
+  }));
   const htmlRenderFlushTimerRef = useRef<number | null>(null);
-  const translationSegmentStatusRef = useRef(
-    new Map<string, ArticleTranslation['segments'][number]['status']>(),
-  );
   const translationSuccessTimerRef = useRef(new Map<string, number>());
   const selectionToastAtRef = useRef(0);
-  const debugContextRef = useRef<Record<string, unknown>>({});
-  const [htmlRenderVersion, forceHtmlRender] = useState(0);
-  const [translationSuccessBlockIds, setTranslationSuccessBlockIds] = useState<Set<string>>(
-    () => new Set(),
-  );
+  const readAnnotations = useEffectEvent(() => annotations);
 
   const scrollTranslationBlockIntoView = useCallback(
     (blockId: string) => {
@@ -94,26 +128,20 @@ export function useWebBilingualTranslation({
     [articleRef, scrollRef],
   );
 
+  const { successBlockIds } = view;
   const translationSurface = useMemo<TranslationSurfaceAdapter<string>>(
     () => ({
-      applyTranslation: (translation, visible) => {
-        const successBlockIds =
-          translation?.status === 'translating'
-            ? emptyTranslationSuccessBlockIds
-            : translationSuccessBlockIds;
-        const nextHtml =
-          visible && translation
-            ? articleHtmlWithBilingualTranslation(document, contentHtml, translation, {
-                retryLabel: t('readerTranslation.common.retryTranslationSegment'),
-                style,
-                successBlockIds,
-              })
-            : contentHtml;
-        if (shouldFreezeWebArticleHtml(articleRef.current)) {
-          htmlRenderRef.current.frozen = true;
-        }
-        return webArticleHtmlForRender(htmlRenderRef.current, article.id, nextHtml);
-      },
+      applyTranslation: (translation, visible) =>
+        visible && translation
+          ? articleHtmlWithBilingualTranslation(document, contentHtml, translation, {
+              retryLabel: t('readerTranslation.common.retryTranslationSegment'),
+              style,
+              successBlockIds:
+                translation.status === 'translating'
+                  ? emptyTranslationSuccessBlockIds
+                  : successBlockIds,
+            })
+          : contentHtml,
       extractBlocks: () =>
         extractWebArticleTranslationBlocks(document, contentHtml).map(({ id, text }) => ({
           id,
@@ -121,16 +149,7 @@ export function useWebBilingualTranslation({
         })),
       scrollToBlock: scrollTranslationBlockIntoView,
     }),
-    [
-      article.id,
-      articleRef,
-      contentHtml,
-      htmlRenderVersion,
-      scrollTranslationBlockIntoView,
-      style,
-      t,
-      translationSuccessBlockIds,
-    ],
+    [contentHtml, scrollTranslationBlockIntoView, style, successBlockIds, t],
   );
 
   const countTranslationAnnotations = useCallback(
@@ -140,7 +159,7 @@ export function useWebBilingualTranslation({
   );
   const prepareTranslationAnnotationRemoval = useCallback(
     (blockIds: ReadonlySet<string>) => {
-      const affected = translationAnnotationsForBlocks(annotationsRef.current, blockIds);
+      const affected = translationAnnotationsForBlocks(readAnnotations(), blockIds);
       return async () => {
         for (const annotation of affected) await deleteAnnotation(annotation.id);
       };
@@ -154,75 +173,90 @@ export function useWebBilingualTranslation({
     }),
     [countTranslationAnnotations, prepareTranslationAnnotationRemoval],
   );
+
+  const clearTranslationSuccessFeedback = useCallback((blockIds: Iterable<string> | 'all') => {
+    const timers = translationSuccessTimerRef.current;
+    for (const blockId of blockIds === 'all' ? [...timers.keys()] : blockIds) {
+      window.clearTimeout(timers.get(blockId));
+      timers.delete(blockId);
+    }
+    dispatch({ type: 'successFeedbackCleared', blockIds });
+  }, []);
+
+  const showTranslationSuccessFeedback = useCallback((blockId: string) => {
+    const timers = translationSuccessTimerRef.current;
+    window.clearTimeout(timers.get(blockId));
+    dispatch({ type: 'translationSegmentSucceeded', blockId });
+    timers.set(
+      blockId,
+      window.setTimeout(() => {
+        timers.delete(blockId);
+        dispatch({ type: 'successFeedbackCleared', blockIds: [blockId] });
+      }, translationSuccessFeedbackDurationMs),
+    );
+  }, []);
+
+  const receiveTranslation = useCallback(
+    (translation: ArticleTranslation, previous: ArticleTranslation | null) => {
+      if (!previous) clearTranslationSuccessFeedback('all');
+      const previousStatuses = new Map(
+        previous?.segments.map((segment) => [segment.sourceBlockId, segment.status] as const),
+      );
+      const clearedBlockIds = new Set<string>(previousStatuses.keys());
+      for (const segment of translation.segments) {
+        const previousStatus = previousStatuses.get(segment.sourceBlockId);
+        if (previousStatus === 'translating' && segment.status === 'ready') {
+          showTranslationSuccessFeedback(segment.sourceBlockId);
+        }
+        if (segment.status === 'ready') clearedBlockIds.delete(segment.sourceBlockId);
+        else clearedBlockIds.add(segment.sourceBlockId);
+      }
+      if (clearedBlockIds.size > 0) clearTranslationSuccessFeedback(clearedBlockIds);
+    },
+    [clearTranslationSuccessFeedback, showTranslationSuccessFeedback],
+  );
+
   const session = useSourceBilingualTranslation({
     articleId: article.id,
     contentKind: 'article',
+    onTranslationReceived: receiveTranslation,
     surface: translationSurface,
     targetLanguage,
     translationAnnotations,
   });
-  const renderedHtml = session.surfaceOutput ?? contentHtml;
+  const nextHtml = session.surfaceOutput ?? contentHtml;
+  if (nextHtml !== view.latestHtml) {
+    // A replaced article body would drop the reader's selection, so new html waits for it.
+    dispatch({
+      type: 'htmlArrived',
+      html: nextHtml,
+      selectionActive: !view.frozen && shouldFreezeWebArticleHtml(articleRef.current),
+    });
+  }
+  const renderedHtml = view.shownHtml;
   const isSelectionDisabled = session.visible && session.translationInProgress;
 
-  debugContextRef.current = {
+  const debugContext = useEffectEvent(() => ({
     translationVisible: session.visible,
     hasTranslation: Boolean(session.translation),
     translationStatus: session.translation?.status ?? null,
     translationSegmentCount: session.translation?.segments.length ?? 0,
-    articleHtmlFrozen: htmlRenderRef.current.frozen,
-    pendingArticleHtml: Boolean(htmlRenderRef.current.pendingHtml),
+    articleHtmlFrozen: view.frozen,
+    pendingArticleHtml: view.frozen && view.latestHtml !== view.shownHtml,
     translationSelectionDisabled: isSelectionDisabled,
-  };
-
-  const clearTranslationSuccessFeedback = useCallback((blockId?: string) => {
-    if (blockId) {
-      const timer = translationSuccessTimerRef.current.get(blockId);
-      if (timer) window.clearTimeout(timer);
-      translationSuccessTimerRef.current.delete(blockId);
-      setTranslationSuccessBlockIds((current) => {
-        if (!current.has(blockId)) return current;
-        const next = new Set(current);
-        next.delete(blockId);
-        return next;
-      });
-      return;
-    }
-
-    for (const timer of translationSuccessTimerRef.current.values()) window.clearTimeout(timer);
-    translationSuccessTimerRef.current.clear();
-    setTranslationSuccessBlockIds((current) => (current.size === 0 ? current : new Set()));
-  }, []);
-
-  const showTranslationSuccessFeedback = useCallback((blockId: string) => {
-    const previousTimer = translationSuccessTimerRef.current.get(blockId);
-    if (previousTimer) window.clearTimeout(previousTimer);
-    setTranslationSuccessBlockIds((current) => new Set(current).add(blockId));
-    const nextTimer = window.setTimeout(() => {
-      translationSuccessTimerRef.current.delete(blockId);
-      setTranslationSuccessBlockIds((current) => {
-        if (!current.has(blockId)) return current;
-        const next = new Set(current);
-        next.delete(blockId);
-        return next;
-      });
-    }, translationSuccessFeedbackDurationMs);
-    translationSuccessTimerRef.current.set(blockId, nextTimer);
-  }, []);
+  }));
+  const readView = useEffectEvent(() => view);
+  const readTranslation = useEffectEvent(() => session.translation);
 
   const flushHtmlRendering = useCallback((reason: string) => {
-    const renderState = htmlRenderRef.current;
-    const pendingHtml = renderState.pendingHtml;
-    renderState.frozen = false;
-    renderState.pendingHtml = null;
-    if (!pendingHtml || pendingHtml === renderState.html) return;
-
-    renderState.html = pendingHtml;
+    const { latestHtml, shownHtml } = readView();
+    dispatch({ type: 'selectionFinished' });
+    if (latestHtml === shownHtml) return;
     logReaderSelectionDebug('article-html:flush', () => ({
-      ...debugContextRef.current,
+      ...debugContext(),
       reason,
-      htmlChars: pendingHtml.length,
+      htmlChars: latestHtml.length,
     }));
-    forceHtmlRender((version) => version + 1);
   }, []);
 
   const finishSelection = useCallback(
@@ -239,66 +273,45 @@ export function useWebBilingualTranslation({
   );
 
   const startSelection = useCallback((reason: string) => {
-    const renderState = htmlRenderRef.current;
-    if (renderState.frozen) return;
-    renderState.frozen = true;
+    const { frozen, shownHtml } = readView();
+    if (frozen) return;
+    dispatch({ type: 'selectionStarted' });
     if (htmlRenderFlushTimerRef.current) {
       window.clearTimeout(htmlRenderFlushTimerRef.current);
       htmlRenderFlushTimerRef.current = null;
     }
     logReaderSelectionDebug('article-html:freeze', () => ({
-      ...debugContextRef.current,
+      ...debugContext(),
       reason,
-      htmlChars: renderState.html.length,
+      htmlChars: shownHtml.length,
     }));
   }, []);
 
-  useEffect(() => {
-    clearTranslationSuccessFeedback();
-    translationSegmentStatusRef.current.clear();
-  }, [article.id, clearTranslationSuccessFeedback]);
-
-  useEffect(() => {
-    const previousStatuses = translationSegmentStatusRef.current;
-    const nextStatuses = new Map<string, ArticleTranslation['segments'][number]['status']>();
-
-    for (const segment of session.translation?.segments || []) {
-      nextStatuses.set(segment.sourceBlockId, segment.status);
-      const previousStatus = previousStatuses.get(segment.sourceBlockId);
-      if (previousStatus === 'translating' && segment.status === 'ready') {
-        showTranslationSuccessFeedback(segment.sourceBlockId);
-      }
-      if (segment.status !== 'ready') clearTranslationSuccessFeedback(segment.sourceBlockId);
-    }
-
-    for (const blockId of previousStatuses.keys()) {
-      if (!nextStatuses.has(blockId)) clearTranslationSuccessFeedback(blockId);
-    }
-    translationSegmentStatusRef.current = nextStatuses;
-  }, [clearTranslationSuccessFeedback, session.translation, showTranslationSuccessFeedback]);
-
-  useEffect(() => {
-    const articleElement = articleRef.current;
-    if (!articleElement) return;
-    logReaderSelectionDebug('article-dom:rendered', () => ({
-      ...debugContextRef.current,
-      contentHtmlChars: renderedHtml.length,
-      renderedTranslationStatus: session.translation?.status ?? null,
-      renderedTranslationSegmentCount: session.translation?.segments.length ?? 0,
-      dom: describeArticleTranslationDom(articleElement),
-    }));
-  }, [articleRef, renderedHtml, session.translation]);
-
-  useEffect(
-    () => () => {
-      if (htmlRenderFlushTimerRef.current) {
-        window.clearTimeout(htmlRenderFlushTimerRef.current);
-        htmlRenderFlushTimerRef.current = null;
-      }
-      clearTranslationSuccessFeedback();
+  const logArticleRendered = useCallback(
+    (marker: HTMLElement | null) => {
+      const articleElement = articleRef.current;
+      if (!marker || !articleElement) return;
+      const { shownHtml } = readView();
+      const translation = readTranslation();
+      logReaderSelectionDebug('article-dom:rendered', () => ({
+        ...debugContext(),
+        contentHtmlChars: shownHtml.length,
+        renderedTranslationStatus: translation?.status ?? null,
+        renderedTranslationSegmentCount: translation?.segments.length ?? 0,
+        dom: describeArticleTranslationDom(articleElement),
+      }));
     },
-    [clearTranslationSuccessFeedback],
+    [articleRef],
   );
+
+  useMountEffect(() => () => {
+    if (htmlRenderFlushTimerRef.current) {
+      window.clearTimeout(htmlRenderFlushTimerRef.current);
+      htmlRenderFlushTimerRef.current = null;
+    }
+    for (const timer of translationSuccessTimerRef.current.values()) window.clearTimeout(timer);
+    translationSuccessTimerRef.current.clear();
+  });
 
   const showSelectionDisabledToast = useCallback(() => {
     const now = Date.now();
@@ -309,13 +322,13 @@ export function useWebBilingualTranslation({
     });
   }, [t]);
 
-  const debugContext = useCallback(() => debugContextRef.current, []);
-
   return {
     diagnostics: {
       context: debugContext,
     },
     dialog: session.dialog,
+    // Rendered after the reader surface, so it logs the article body that was just committed.
+    renderedMarker: <span hidden key={renderedHtml} ref={logArticleRendered} />,
     renderedHtml,
     retryBlock: session.retryBlock,
     selection: {
@@ -347,27 +360,4 @@ function translationBlockElement(root: HTMLElement, selector: string, blockId: s
       element.getAttribute('data-reader-translation-block-id') === blockId ||
       element.getAttribute('data-reader-source-block-id') === blockId,
   );
-}
-
-function webArticleHtmlForRender(
-  state: WebArticleHtmlRenderState,
-  articleId: string,
-  nextHtml: string,
-) {
-  if (state.articleId !== articleId) {
-    state.articleId = articleId;
-    state.frozen = false;
-    state.html = nextHtml;
-    state.pendingHtml = null;
-    return state.html;
-  }
-
-  if (state.frozen) {
-    if (state.html !== nextHtml) state.pendingHtml = nextHtml;
-    return state.html;
-  }
-
-  state.html = nextHtml;
-  state.pendingHtml = null;
-  return state.html;
 }

@@ -95,7 +95,7 @@ function AnnotationRailDiagnosticsProbe() {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const railRef = useRef<HTMLElement | null>(null);
-  useWebAnnotationRailDiagnostics({
+  const { marker } = useWebAnnotationRailDiagnostics({
     articleId: 'article-1',
     boxes,
     canvasRef,
@@ -105,42 +105,45 @@ function AnnotationRailDiagnosticsProbe() {
   });
 
   return (
-    <div
-      data-testid="scroll"
-      ref={(element) => {
-        scrollRef.current = element;
-        if (!element) return;
-        defineNumberProperty(element, 'clientHeight', 400);
-        defineNumberProperty(element, 'scrollHeight', 1200);
-        defineNumberProperty(element, 'scrollTop', 260, true);
-        mockRect(element, { height: 400, top: 20, width: 900 });
-      }}
-    >
+    <>
       <div
+        data-testid="scroll"
         ref={(element) => {
-          canvasRef.current = element;
+          scrollRef.current = element;
           if (!element) return;
-          defineNumberProperty(element, 'offsetTop', 100);
-          mockRect(element, { height: 1000, top: 50, width: 800 });
+          defineNumberProperty(element, 'clientHeight', 400);
+          defineNumberProperty(element, 'scrollHeight', 1200);
+          defineNumberProperty(element, 'scrollTop', 260, true);
+          mockRect(element, { height: 400, top: 20, width: 900 });
         }}
       >
-        <aside
+        <div
           ref={(element) => {
-            railRef.current = element;
-            if (element) mockRect(element, { height: 900, left: 700, top: 50, width: 100 });
+            canvasRef.current = element;
+            if (!element) return;
+            defineNumberProperty(element, 'offsetTop', 100);
+            mockRect(element, { height: 1000, top: 50, width: 800 });
           }}
         >
-          <div
-            className="reader-note"
-            data-annotation-id="annotation-1"
+          <aside
             ref={(element) => {
-              if (element) mockRect(element, { height: 40, left: 710, top: 230, width: 80 });
+              railRef.current = element;
+              if (element) mockRect(element, { height: 900, left: 700, top: 50, width: 100 });
             }}
-            style={{ top: 180 }}
-          />
-        </aside>
+          >
+            <div
+              className="reader-note"
+              data-annotation-id="annotation-1"
+              ref={(element) => {
+                if (element) mockRect(element, { height: 40, left: 710, top: 230, width: 80 });
+              }}
+              style={{ top: 180 }}
+            />
+          </aside>
+        </div>
       </div>
-    </div>
+      {marker}
+    </>
   );
 }
 

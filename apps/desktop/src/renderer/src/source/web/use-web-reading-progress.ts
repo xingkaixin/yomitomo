@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { createElement, useCallback, useEffectEvent, useMemo, useRef, type RefObject } from 'react';
 import type { ArticleReadingProgress } from '@yomitomo/shared';
 import {
   useSourceReadingProgressSaver,
@@ -20,10 +20,13 @@ export function useWebReadingProgress({
   onSaveArticleReadingProgress: SourceReadingProgressSave;
   scrollRef: RefObject<HTMLElement | null>;
 }) {
-  const restoredArticleRef = useRef<string | null>(null);
-  const [progress] = useState(() =>
-    createReadingProgressSource(normalizeSavedProgress(initialProgress) ?? 0),
+  // The reader remounts per article, so the progress source lives as long as this view.
+  const progress = useMemo(
+    () => createReadingProgressSource(normalizeSavedProgress(initialProgress) ?? 0),
+    [],
   );
+  const restoredRef = useRef(false);
+  const readInitialProgress = useEffectEvent(() => initialProgress);
   const shouldSave = useCallback(
     (next: ArticleReadingProgress, saved: ArticleReadingProgress | null) =>
       next.kind === 'scroll' &&
@@ -38,69 +41,65 @@ export function useWebReadingProgress({
     shouldSave,
   });
 
-  useEffect(() => {
-    progress.set(normalizeSavedProgress(initialProgress) ?? 0);
-    restoredArticleRef.current = null;
-  }, [articleId]);
+  const attachScrollElement = useCallback(
+    (marker: HTMLElement | null) => {
+      const scrollElement = scrollRef.current;
+      if (!marker || !scrollElement) return;
 
-  useEffect(() => {
-    const scrollElement = scrollRef.current;
-    if (!scrollElement || restoredArticleRef.current === articleId) return;
-    const savedProgress = normalizeSavedProgress(initialProgress);
-    if (savedProgress === null || savedProgress <= 0) {
-      restoredArticleRef.current = articleId;
-      return;
-    }
+      let cancelled = false;
+      let restoreFrame: number | null = null;
+      const savedProgress = normalizeSavedProgress(readInitialProgress());
+      if (savedProgress === null || savedProgress <= 0) restoredRef.current = true;
+      else if (!restoredRef.current) {
+        const restore = () => {
+          if (cancelled) return;
+          const maxScrollTop = webReaderMaxScrollTop(scrollElement);
+          if (maxScrollTop > 0) scrollElement.scrollTo({ top: maxScrollTop * savedProgress });
+          progress.set(savedProgress);
+          restoredRef.current = true;
+        };
+        restoreFrame = window.requestAnimationFrame(() => {
+          restoreFrame = window.requestAnimationFrame(restore);
+        });
+      }
 
-    let cancelled = false;
-    const restore = () => {
-      if (cancelled) return;
-      const maxScrollTop = webReaderMaxScrollTop(scrollElement);
-      if (maxScrollTop > 0) scrollElement.scrollTo({ top: maxScrollTop * savedProgress });
-      progress.set(savedProgress);
-      restoredArticleRef.current = articleId;
-    };
-    const frame = window.requestAnimationFrame(() => window.requestAnimationFrame(restore));
-    return () => {
-      cancelled = true;
-      window.cancelAnimationFrame(frame);
-    };
-  }, [articleId, initialProgress, progress, scrollRef]);
-
-  useEffect(() => {
-    const scrollElement = scrollRef.current;
-    if (!scrollElement) return;
-
-    const progressFrame = createWebReadingProgressFrame(progress.set);
-    const updateProgress = () => {
-      const nextProgress = webReaderProgress(scrollElement);
-      progressFrame.schedule(nextProgress);
-      return nextProgress;
-    };
-    const saveProgress = () => {
-      scheduleSave(webReadingProgressSnapshot(updateProgress()));
-    };
-
-    let initialFrame: number | null = null;
-    initialFrame = window.requestAnimationFrame(() => {
-      initialFrame = window.requestAnimationFrame(() => {
-        initialFrame = null;
+      const progressFrame = createWebReadingProgressFrame(progress.set);
+      const updateProgress = () => {
         const nextProgress = webReaderProgress(scrollElement);
-        progress.set(nextProgress);
-        if (webReaderMaxScrollTop(scrollElement) <= 0) {
-          void saveNow(webReadingProgressSnapshot(nextProgress));
-        }
-      });
-    });
-    scrollElement.addEventListener('scroll', saveProgress, { passive: true });
-    return () => {
-      scrollElement.removeEventListener('scroll', saveProgress);
-      if (initialFrame !== null) window.cancelAnimationFrame(initialFrame);
-      progressFrame.cancel();
-    };
-  }, [articleId, progress, saveNow, scheduleSave, scrollRef]);
+        progressFrame.schedule(nextProgress);
+        return nextProgress;
+      };
+      const saveProgress = () => {
+        scheduleSave(webReadingProgressSnapshot(updateProgress()));
+      };
 
-  return progress;
+      let initialFrame: number | null = null;
+      initialFrame = window.requestAnimationFrame(() => {
+        initialFrame = window.requestAnimationFrame(() => {
+          initialFrame = null;
+          const nextProgress = webReaderProgress(scrollElement);
+          progress.set(nextProgress);
+          if (webReaderMaxScrollTop(scrollElement) <= 0) {
+            void saveNow(webReadingProgressSnapshot(nextProgress));
+          }
+        });
+      });
+      scrollElement.addEventListener('scroll', saveProgress, { passive: true });
+      return () => {
+        cancelled = true;
+        if (restoreFrame !== null) window.cancelAnimationFrame(restoreFrame);
+        scrollElement.removeEventListener('scroll', saveProgress);
+        if (initialFrame !== null) window.cancelAnimationFrame(initialFrame);
+        progressFrame.cancel();
+      };
+    },
+    [progress, saveNow, scheduleSave, scrollRef],
+  );
+
+  return {
+    marker: createElement('span', { hidden: true, ref: attachScrollElement }),
+    progress,
+  };
 }
 
 function createReadingProgressSource(initialValue: number) {

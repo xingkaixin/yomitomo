@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useReducer, useRef } from 'react';
 import type { ReaderSearchOptions } from '@yomitomo/core';
 import type { ReaderAppViewProps } from '@yomitomo/reader-ui/reader-app-view';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 
-import { useReaderSearchMatches } from './use-reader-search-matches';
+import { READER_SEARCH_DEBOUNCE_MS, useReaderSearchMatches } from './use-reader-search-matches';
 
 type ReaderSearchToolbarState = NonNullable<ReaderAppViewProps['toolbar']>['search'];
 type ReaderSearchToolbarMatch = NonNullable<ReaderSearchToolbarState>['matches'][number];
@@ -11,7 +12,63 @@ export type ReaderSearchNavigationOptions = ReaderSearchOptions & {
   debounceMs?: number;
   externalPreparing?: boolean;
   onClose?: () => void;
+  scopeKey?: string;
 };
+
+type ReaderSearchState = {
+  activeMatchIndex: number;
+  matchedQuery: string;
+  open: boolean;
+  query: string;
+  scopeKey: string | undefined;
+};
+
+type ReaderSearchEvent =
+  | { type: 'matchNavigated'; direction: 'previous' | 'next'; total: number }
+  | { type: 'queryChanged'; query: string }
+  | { type: 'queryMatched'; query: string; scopeKey: string | undefined }
+  | { type: 'scopeChanged'; scopeKey: string | undefined }
+  | { type: 'searchClosed' }
+  | { type: 'searchOpened' }
+  | { type: 'searchReset' };
+
+function initialReaderSearchState(scopeKey: string | undefined): ReaderSearchState {
+  return { activeMatchIndex: 0, matchedQuery: '', open: false, query: '', scopeKey };
+}
+
+function withMatchedQuery(state: ReaderSearchState, matchedQuery: string): ReaderSearchState {
+  return matchedQuery === state.matchedQuery
+    ? state
+    : { ...state, activeMatchIndex: 0, matchedQuery };
+}
+
+function readerSearchReducer(state: ReaderSearchState, event: ReaderSearchEvent) {
+  switch (event.type) {
+    case 'matchNavigated': {
+      const { activeMatchIndex: index } = state;
+      const { total } = event;
+      return {
+        ...state,
+        activeMatchIndex:
+          event.direction === 'next' ? (index + 1) % total : (index - 1 + total) % total,
+      };
+    }
+    case 'queryChanged': {
+      const next = { ...state, query: event.query };
+      return event.query.trim() ? next : withMatchedQuery(next, event.query);
+    }
+    case 'queryMatched':
+      return event.scopeKey === state.scopeKey ? withMatchedQuery(state, event.query) : state;
+    case 'scopeChanged':
+      return initialReaderSearchState(event.scopeKey);
+    case 'searchClosed':
+      return { ...state, open: false };
+    case 'searchOpened':
+      return { ...state, open: true };
+    case 'searchReset':
+      return initialReaderSearchState(state.scopeKey);
+  }
+}
 
 export function useReaderSearchNavigation(
   text: string,
@@ -32,36 +89,48 @@ export function useReaderSearchNavigation(
   search: NonNullable<ReaderSearchToolbarState>;
   setQuery: (query: string) => void;
 } {
-  const { externalPreparing = false, onClose, ...searchOptions } = options;
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const [activeMatchIndex, setActiveMatchIndex] = useState(0);
   const {
-    matchedQuery,
-    preparing: matchesPreparing,
-    result,
-  } = useReaderSearchMatches(text, query, searchOptions);
-  const { limited, matches } = result;
+    debounceMs = READER_SEARCH_DEBOUNCE_MS,
+    externalPreparing = false,
+    onClose,
+    scopeKey,
+    ...searchOptions
+  } = options;
+  const [state, dispatch] = useReducer(readerSearchReducer, scopeKey, initialReaderSearchState);
+  // Ebook and PDF readers keep this hook across articles, so the search resets while rendering.
+  if (state.scopeKey !== scopeKey) dispatch({ type: 'scopeChanged', scopeKey });
+  const { activeMatchIndex, matchedQuery, open, query } = state;
+  const debounceTimerRef = useRef<number | undefined>(undefined);
+  const { limited, matches } = useReaderSearchMatches(text, matchedQuery, searchOptions);
   const activeMatch = matches[Math.min(activeMatchIndex, matches.length - 1)] || null;
-  const preparing = Boolean(query.trim()) && (externalPreparing || matchesPreparing);
+  const preparing = Boolean(query.trim()) && (externalPreparing || matchedQuery !== query);
 
-  useEffect(() => {
-    setActiveMatchIndex(0);
-  }, [matchedQuery]);
+  useMountEffect(() => () => window.clearTimeout(debounceTimerRef.current));
+
+  const setQuery = useCallback(
+    (nextQuery: string) => {
+      window.clearTimeout(debounceTimerRef.current);
+      dispatch({ type: 'queryChanged', query: nextQuery });
+      if (!nextQuery.trim()) return;
+      debounceTimerRef.current = window.setTimeout(() => {
+        dispatch({ type: 'queryMatched', query: nextQuery, scopeKey });
+      }, debounceMs);
+    },
+    [debounceMs, scopeKey],
+  );
 
   const openSearch = useCallback(() => {
-    setOpen(true);
+    dispatch({ type: 'searchOpened' });
   }, []);
 
   const closeSearch = useCallback(() => {
-    setOpen(false);
+    dispatch({ type: 'searchClosed' });
     onClose?.();
   }, [onClose]);
 
   const resetSearch = useCallback(() => {
-    setOpen(false);
-    setQuery('');
-    setActiveMatchIndex(0);
+    window.clearTimeout(debounceTimerRef.current);
+    dispatch({ type: 'searchReset' });
     onClose?.();
   }, [onClose]);
 
@@ -69,9 +138,7 @@ export function useReaderSearchNavigation(
     (direction: 'previous' | 'next') => {
       const total = matches.length;
       if (total === 0) return;
-      setActiveMatchIndex((index) =>
-        direction === 'next' ? (index + 1) % total : (index - 1 + total) % total,
-      );
+      dispatch({ type: 'matchNavigated', direction, total });
     },
     [matches.length],
   );
@@ -100,6 +167,7 @@ export function useReaderSearchNavigation(
       openSearch,
       preparing,
       query,
+      setQuery,
     ],
   );
 

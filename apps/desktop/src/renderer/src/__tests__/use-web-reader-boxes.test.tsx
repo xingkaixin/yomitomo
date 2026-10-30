@@ -234,7 +234,7 @@ function WebReaderBoxesProbe({
 }) {
   const articleRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
-  useWebReaderBoxes({
+  const { markers } = useWebReaderBoxes({
     annotationAgents,
     annotations,
     article: articleInput,
@@ -245,21 +245,24 @@ function WebReaderBoxesProbe({
   });
 
   return (
-    <div
-      ref={(element) => {
-        canvasRef.current = element;
-        if (element && rects) mockRect(element, () => rects.canvas);
-      }}
-      data-testid="canvas"
-    >
-      <article
+    <>
+      <div
         ref={(element) => {
-          articleRef.current = element;
-          if (element && rects) mockRect(element, () => rects.article);
+          canvasRef.current = element;
+          if (element && rects) mockRect(element, () => rects.canvas);
         }}
-        dangerouslySetInnerHTML={{ __html: contentHtml }}
-      />
-    </div>
+        data-testid="canvas"
+      >
+        <article
+          ref={(element) => {
+            articleRef.current = element;
+            if (element && rects) mockRect(element, () => rects.article);
+          }}
+          dangerouslySetInnerHTML={{ __html: contentHtml }}
+        />
+      </div>
+      {markers}
+    </>
   );
 }
 

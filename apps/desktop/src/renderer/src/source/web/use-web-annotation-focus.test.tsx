@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, renderHook } from '@testing-library/react';
+import { act, cleanup, render } from '@testing-library/react';
 import type { Annotation } from '@yomitomo/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useWebAnnotationFocus } from './use-web-annotation-focus';
@@ -28,7 +28,7 @@ describe('useWebAnnotationFocus', () => {
   it('waits for actual navigation to succeed after layout becomes available', async () => {
     const scrollToAnnotation = vi.fn(() => true).mockReturnValueOnce(false);
     const options = focusOptions({ scrollToAnnotation, boxCount: 0 });
-    renderHook(useWebAnnotationFocus, { initialProps: options });
+    renderFocus(options);
 
     await act(() => vi.advanceTimersToNextFrame());
     expect(options.onFocusedAnnotation).not.toHaveBeenCalled();
@@ -43,7 +43,7 @@ describe('useWebAnnotationFocus', () => {
   it('reports unavailable after bounded retries even when annotation boxes exist', async () => {
     const scrollToAnnotation = vi.fn(() => false);
     const options = focusOptions({ scrollToAnnotation, boxCount: 1 });
-    renderHook(useWebAnnotationFocus, { initialProps: options });
+    renderFocus(options);
 
     for (let frame = 0; frame < 30; frame += 1) {
       await act(() => vi.advanceTimersToNextFrame());
@@ -58,7 +58,7 @@ describe('useWebAnnotationFocus', () => {
 
   it('reports a deleted annotation unavailable without trying to scroll', async () => {
     const options = focusOptions({ annotationsRef: { current: [] } });
-    renderHook(useWebAnnotationFocus, { initialProps: options });
+    renderFocus(options);
 
     await act(() => vi.advanceTimersToNextFrame());
 
@@ -70,7 +70,7 @@ describe('useWebAnnotationFocus', () => {
     'does not complete an unmounted focus request %s',
     async (stage) => {
       const options = focusOptions();
-      const { unmount } = renderHook(useWebAnnotationFocus, { initialProps: options });
+      const { unmount } = renderFocus(options);
       if (stage === 'after-navigation') await act(() => vi.advanceTimersToNextFrame());
 
       unmount();
@@ -82,7 +82,7 @@ describe('useWebAnnotationFocus', () => {
 
   it('does not send an old completion to the next article callback', async () => {
     const previous = focusOptions();
-    const { rerender } = renderHook(useWebAnnotationFocus, { initialProps: previous });
+    const { rerender } = renderFocus(previous);
     await act(() => vi.advanceTimersToNextFrame());
     const current = focusOptions({
       articleId: 'article-2',
@@ -102,7 +102,7 @@ describe('useWebAnnotationFocus', () => {
     'rechecks the same annotation after its focus target is %s',
     async (change) => {
       const previous = focusOptions();
-      const { rerender } = renderHook(useWebAnnotationFocus, { initialProps: previous });
+      const { rerender } = renderFocus(previous);
       await act(() => vi.advanceTimersToNextFrame());
       previous.annotationsRef.current =
         change === 'deleted'
@@ -124,6 +124,18 @@ describe('useWebAnnotationFocus', () => {
     },
   );
 });
+
+function FocusProbe(options: FocusOptions) {
+  return useWebAnnotationFocus(options);
+}
+
+function renderFocus(options: FocusOptions) {
+  const view = render(<FocusProbe {...options} />);
+  return {
+    rerender: (next: FocusOptions) => view.rerender(<FocusProbe {...next} />),
+    unmount: view.unmount,
+  };
+}
 
 function focusOptions(overrides: Partial<FocusOptions> = {}): FocusOptions {
   return {

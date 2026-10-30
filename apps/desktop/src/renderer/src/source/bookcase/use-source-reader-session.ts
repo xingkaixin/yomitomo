@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useMemo, useReducer } from 'react';
 import type {
   Agent,
   Annotation,
@@ -101,9 +101,12 @@ export function useSourceReaderSession({
     userProfile,
   });
 
-  useEffect(() => {
+  // Ebook and PDF readers stay mounted across articles, so the switch is handled while rendering.
+  const [pendingArticleId, articleOpened] = useReducer(openedArticleReducer, article.id);
+  if (pendingArticleId !== article.id) {
+    articleOpened(article.id);
     if (clearPendingOnArticleChange) clearAllPendingAnnotationAgents();
-  }, [article.id, clearAllPendingAnnotationAgents, clearPendingOnArticleChange]);
+  }
 
   return {
     annotationAgents,
@@ -111,4 +114,8 @@ export function useSourceReaderSession({
     ...pendingAgents,
     ...sourceAnnotations,
   };
+}
+
+function openedArticleReducer(_previousArticleId: string, articleId: string) {
+  return articleId;
 }

@@ -1,13 +1,15 @@
 import type React from 'react';
 import {
   useCallback,
-  useEffect,
+  useEffectEvent,
   useRef,
   type Dispatch,
   type RefObject,
   type SetStateAction,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useEventListener } from '@yomitomo/reader-ui/use-event-listener';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import type { Annotation, ArticleRecord, UserProfile } from '@yomitomo/shared';
 import { createTextAnchor } from '@yomitomo/shared';
 import {
@@ -117,15 +119,23 @@ export function useWebReaderSelection({
   userProfile,
 }: UseWebReaderSelectionInput) {
   const { t } = useTranslation();
-  const inputRef = useRef({ article, getArticleText, selection, t, translation, userProfile });
+  const readInput = useEffectEvent(() => ({
+    article,
+    getArticleText,
+    selection,
+    t,
+    translation,
+    userProfile,
+  }));
   const selectionGestureRef = useRef<WebSelectionGesturePoint | null>(null);
   const selectionGestureDragPointRef = useRef<SelectionGestureClientPoint | null>(null);
   const selectionAdjustmentRef = useRef<WebSelectionAdjustment | null>(null);
   const suppressMouseUpRef = useRef(false);
-  inputRef.current = { article, getArticleText, selection, t, translation, userProfile };
+  const debugFrameRef = useRef(0);
+  const previewFrameRef = useRef(0);
 
   const debugContext = useCallback(() => {
-    const current = inputRef.current;
+    const current = readInput();
     return {
       articleId: current.article.id,
       sourceType: current.article.sourceType,
@@ -174,7 +184,7 @@ export function useWebReaderSelection({
   );
 
   const removeSelectionGesturePreviewBoxes = useCallback(() => {
-    inputRef.current.selection.setTemporaryBoxes((currentBoxes) => {
+    readInput().selection.setTemporaryBoxes((currentBoxes) => {
       if (!currentBoxes.some((box) => box.annotationId === selectionDragAnnotationId)) {
         return currentBoxes;
       }
@@ -205,7 +215,7 @@ export function useWebReaderSelection({
       return;
     }
 
-    const current = inputRef.current;
+    const current = readInput();
     const canvasRect = canvasElement.getBoundingClientRect();
     const previewBoxes = rangeHighlightBoxes(
       gestureRange.range,
@@ -221,168 +231,136 @@ export function useWebReaderSelection({
     current.selection.setTemporaryBoxes(previewBoxes);
   }, [articleRef, canvasRef, removeSelectionGesturePreviewBoxes]);
 
-  useEffect(() => {
-    const ownerDocument = articleRef.current?.ownerDocument || document;
-    let debugFrame = 0;
-    let previewFrame = 0;
-    selectionGestureRef.current = null;
-    selectionGestureDragPointRef.current = null;
-    selectionAdjustmentRef.current = null;
-    suppressMouseUpRef.current = false;
-
-    const debugArticle = { articleId: article.id, sourceType: article.sourceType };
-    const currentOpenState = () => {
-      const current = inputRef.current.selection;
-      return {
-        composerOpen: Boolean(current.composer),
-        selectionActionOpen: Boolean(current.selectionAction),
-      };
+  const currentOpenState = () => {
+    const current = readInput().selection;
+    return {
+      composerOpen: Boolean(current.composer),
+      selectionActionOpen: Boolean(current.selectionAction),
     };
+  };
 
-    const logSelectionState = (
-      event: string,
-      readDetails: ReaderSelectionDebugDetails = emptyDebugDetails,
-    ) => {
-      if (!readerSelectionDebugEnabled()) return;
+  const handleSelectionChange = () => {
+    if (!readerSelectionDebugEnabled() || debugFrameRef.current) return;
+    debugFrameRef.current = window.requestAnimationFrame(() => {
+      debugFrameRef.current = 0;
       const articleElement = articleRef.current;
       if (!articleElement) return;
-      logReaderSelectionDebug(event, () => ({
-        ...debugContext(),
-        selection: describeReaderSelection(getArticleSelection(articleElement), articleElement),
-        ...readDetails(),
-      }));
-    };
-
-    const handleSelectionChange = () => {
-      if (!readerSelectionDebugEnabled() || debugFrame) return;
-      debugFrame = window.requestAnimationFrame(() => {
-        debugFrame = 0;
-        const articleElement = articleRef.current;
-        if (!articleElement) return;
-        const nativeSelection = getArticleSelection(articleElement);
-        if (!shouldLogSelectionDebug(nativeSelection, articleElement, currentOpenState())) return;
-        logReaderSelectionDebug('selectionchange', () => ({
-          ...debugContext(),
-          selection: describeReaderSelection(nativeSelection, articleElement),
-        }));
-      });
-    };
-
-    const handlePointerEvent = (event: PointerEvent) => {
-      const articleElement = articleRef.current;
-      const surfaceElement = scrollRef.current;
-      if (!articleElement) return;
-      const targetNode = event.target instanceof Node ? event.target : null;
       const nativeSelection = getArticleSelection(articleElement);
-      const isInsideReader = Boolean(
-        targetNode && (articleElement.contains(targetNode) || surfaceElement?.contains(targetNode)),
-      );
-      const shouldFinishTranslationSelection =
-        event.type === 'pointerup' || event.type === 'pointercancel';
-      const currentTranslation = inputRef.current.translation.selection;
+      if (!shouldLogSelectionDebug(nativeSelection, articleElement, currentOpenState())) return;
+      logReaderSelectionDebug('selectionchange', () => ({
+        ...debugContext(),
+        selection: describeReaderSelection(nativeSelection, articleElement),
+      }));
+    });
+  };
 
-      if (targetNode && articleElement.contains(targetNode)) {
-        if (event.type === 'pointerdown') {
-          currentTranslation.start('pointerdown');
-          selectionGestureRef.current = webSelectionGesturePointFromClientPoint(
-            articleElement,
-            event.clientX,
-            event.clientY,
-          );
-          selectionGestureDragPointRef.current = {
-            clientX: event.clientX,
-            clientY: event.clientY,
-          };
-          setSelectionGestureVisible(
-            shouldUseWebSelectionGesturePreview(selectionGestureRef.current),
-          );
+  const handlePointerEvent = (event: PointerEvent) => {
+    const articleElement = articleRef.current;
+    const surfaceElement = scrollRef.current;
+    if (!articleElement) return;
+    const targetNode = event.target instanceof Node ? event.target : null;
+    const nativeSelection = getArticleSelection(articleElement);
+    const isInsideReader = Boolean(
+      targetNode && (articleElement.contains(targetNode) || surfaceElement?.contains(targetNode)),
+    );
+    const shouldFinishTranslationSelection =
+      event.type === 'pointerup' || event.type === 'pointercancel';
+    const currentTranslation = readInput().translation.selection;
+
+    if (targetNode && articleElement.contains(targetNode)) {
+      if (event.type === 'pointerdown') {
+        currentTranslation.start('pointerdown');
+        selectionGestureRef.current = webSelectionGesturePointFromClientPoint(
+          articleElement,
+          event.clientX,
+          event.clientY,
+        );
+        selectionGestureDragPointRef.current = {
+          clientX: event.clientX,
+          clientY: event.clientY,
+        };
+        setSelectionGestureVisible(
+          shouldUseWebSelectionGesturePreview(selectionGestureRef.current),
+        );
+      }
+      if (
+        event.type === 'pointermove' &&
+        selectionGestureRef.current &&
+        shouldUseWebSelectionGesturePreview(selectionGestureRef.current) &&
+        event.buttons === 1
+      ) {
+        selectionGestureDragPointRef.current = {
+          clientX: event.clientX,
+          clientY: event.clientY,
+        };
+        if (!previewFrameRef.current) {
+          previewFrameRef.current = window.requestAnimationFrame(() => {
+            previewFrameRef.current = 0;
+            previewSelectionGesture();
+          });
         }
-        if (
-          event.type === 'pointermove' &&
-          selectionGestureRef.current &&
-          shouldUseWebSelectionGesturePreview(selectionGestureRef.current) &&
-          event.buttons === 1
-        ) {
-          selectionGestureDragPointRef.current = {
-            clientX: event.clientX,
-            clientY: event.clientY,
-          };
-          if (!previewFrame) {
-            previewFrame = window.requestAnimationFrame(() => {
-              previewFrame = 0;
-              previewSelectionGesture();
-            });
-          }
-        }
-        if (event.type === 'pointerup') {
-          selectionGestureDragPointRef.current = {
-            clientX: event.clientX,
-            clientY: event.clientY,
-          };
-        }
-        if (event.type === 'pointercancel') {
-          selectionGestureRef.current = null;
-          selectionGestureDragPointRef.current = null;
-          clearSelectionGesturePreview();
-        }
-        if (shouldFinishTranslationSelection) currentTranslation.finish(event.type);
-      } else if (shouldFinishTranslationSelection) {
-        currentTranslation.finish(`${event.type}-outside-article`);
-        clearSelectionGesturePreview();
-      } else if (event.type === 'pointerdown') {
+      }
+      if (event.type === 'pointerup') {
+        selectionGestureDragPointRef.current = {
+          clientX: event.clientX,
+          clientY: event.clientY,
+        };
+      }
+      if (event.type === 'pointercancel') {
         selectionGestureRef.current = null;
         selectionGestureDragPointRef.current = null;
         clearSelectionGesturePreview();
       }
+      if (shouldFinishTranslationSelection) currentTranslation.finish(event.type);
+    } else if (shouldFinishTranslationSelection) {
+      currentTranslation.finish(`${event.type}-outside-article`);
+      clearSelectionGesturePreview();
+    } else if (event.type === 'pointerdown') {
+      selectionGestureRef.current = null;
+      selectionGestureDragPointRef.current = null;
+      clearSelectionGesturePreview();
+    }
 
-      if (event.type === 'pointermove' || !readerSelectionDebugEnabled()) return;
-      if (
-        !isInsideReader &&
-        !shouldLogSelectionDebug(nativeSelection, articleElement, currentOpenState())
-      ) {
-        return;
-      }
-      logReaderSelectionDebug(event.type, () => ({
+    if (event.type === 'pointermove' || !readerSelectionDebugEnabled()) return;
+    if (
+      !isInsideReader &&
+      !shouldLogSelectionDebug(nativeSelection, articleElement, currentOpenState())
+    ) {
+      return;
+    }
+    logReaderSelectionDebug(event.type, () => ({
+      ...debugContext(),
+      button: event.button,
+      buttons: event.buttons,
+      pointer: describePointerForDebug(event, articleElement, surfaceElement),
+      target: describeSelectionNode(targetNode, articleElement),
+      selection: describeReaderSelection(nativeSelection, articleElement),
+    }));
+  };
+
+  useEventListener(document, 'selectionchange', handleSelectionChange);
+  useEventListener(window, 'pointerdown', handlePointerEvent, { capture: true });
+  useEventListener(window, 'pointermove', handlePointerEvent, { capture: true });
+  useEventListener(window, 'pointerup', handlePointerEvent, { capture: true });
+  useEventListener(window, 'pointercancel', handlePointerEvent, { capture: true });
+  useEventListener(window, 'blur', () => readInput().translation.selection.finish('window-blur'));
+
+  useMountEffect(() => {
+    const debugArticle = { articleId: article.id, sourceType: article.sourceType };
+    const articleElement = articleRef.current;
+    if (readerSelectionDebugEnabled() && articleElement) {
+      logReaderSelectionDebug('reader-mounted', () => ({
         ...debugContext(),
-        button: event.button,
-        buttons: event.buttons,
-        pointer: describePointerForDebug(event, articleElement, surfaceElement),
-        target: describeSelectionNode(targetNode, articleElement),
-        selection: describeReaderSelection(nativeSelection, articleElement),
+        selection: describeReaderSelection(getArticleSelection(articleElement), articleElement),
       }));
-    };
-
-    const handleWindowBlur = () => inputRef.current.translation.selection.finish('window-blur');
-
-    logSelectionState('reader-mounted');
-    ownerDocument.addEventListener('selectionchange', handleSelectionChange);
-    window.addEventListener('pointerdown', handlePointerEvent, true);
-    window.addEventListener('pointermove', handlePointerEvent, true);
-    window.addEventListener('pointerup', handlePointerEvent, true);
-    window.addEventListener('pointercancel', handlePointerEvent, true);
-    window.addEventListener('blur', handleWindowBlur);
+    }
     return () => {
-      ownerDocument.removeEventListener('selectionchange', handleSelectionChange);
-      window.removeEventListener('pointerdown', handlePointerEvent, true);
-      window.removeEventListener('pointermove', handlePointerEvent, true);
-      window.removeEventListener('pointerup', handlePointerEvent, true);
-      window.removeEventListener('pointercancel', handlePointerEvent, true);
-      window.removeEventListener('blur', handleWindowBlur);
-      if (debugFrame) window.cancelAnimationFrame(debugFrame);
-      if (previewFrame) window.cancelAnimationFrame(previewFrame);
+      if (debugFrameRef.current) window.cancelAnimationFrame(debugFrameRef.current);
+      if (previewFrameRef.current) window.cancelAnimationFrame(previewFrameRef.current);
       setSelectionGestureVisible(false);
       logReaderSelectionDebug('reader-unmounted', () => debugArticle);
     };
-  }, [
-    article.id,
-    article.sourceType,
-    articleRef,
-    clearSelectionGesturePreview,
-    debugContext,
-    previewSelectionGesture,
-    scrollRef,
-    setSelectionGestureVisible,
-  ]);
+  });
 
   const onMouseUp = useCallback(
     (event?: React.MouseEvent<HTMLElement>) => {
@@ -397,7 +375,7 @@ export function useWebReaderSelection({
         return;
       }
 
-      const current = inputRef.current;
+      const current = readInput();
       const articleSelection = getArticleSelection(articleElement);
       logReaderSelectionDebug('mouseup:start', () => ({
         ...debugContext(),
@@ -572,7 +550,7 @@ export function useWebReaderSelection({
       const articleElement = articleRef.current;
       if (!articleElement) return;
       getArticleSelection(articleElement)?.removeAllRanges();
-      inputRef.current.selection.clearSelection();
+      readInput().selection.clearSelection();
       logCurrentDebug('mousedown:continuous-click-selection-suppressed', () => ({
         clickDetail: event.detail,
       }));
@@ -583,7 +561,7 @@ export function useWebReaderSelection({
   const onMouseDown = useCallback(
     (event: React.MouseEvent<HTMLElement>) => {
       suppressContinuousTextSelection(event);
-      const currentTranslation = inputRef.current.translation.selection;
+      const currentTranslation = readInput().translation.selection;
       if (!currentTranslation.isDisabled || event.button !== 0) return;
       const target = event.target instanceof Element ? event.target : null;
       if (target?.closest(translationSelectionToastIgnoredSelector)) return;
@@ -604,7 +582,7 @@ export function useWebReaderSelection({
       const lastRect = rects[rects.length - 1];
       if (!lastRect) return;
 
-      const current = inputRef.current;
+      const current = readInput();
       const canvasRect = canvasElement.getBoundingClientRect();
       const position = selectionActionPosition(lastRect, canvasRect);
       const highlightBoxes = selectionHighlightBoxes(
@@ -679,7 +657,7 @@ export function useWebReaderSelection({
         translationSelector,
       );
       if (!range || range.collapsed) return;
-      const current = inputRef.current;
+      const current = readInput();
       const anchor = sourceAnchorFromOffsets(
         current.article,
         current.getArticleText(),
@@ -698,7 +676,7 @@ export function useWebReaderSelection({
 
   const onSelectionHandleDragStart = useCallback(
     (point: SelectionAdjustmentPointer) => {
-      const anchor = inputRef.current.selection.selectionAction?.anchor;
+      const anchor = readInput().selection.selectionAction?.anchor;
       const kind = anchor ? webSelectionAdjustmentKind(anchor) : null;
       if (!anchor || !kind || !canAdjustWebSelectionAnchor(anchor)) {
         selectionAdjustmentRef.current = null;
@@ -742,7 +720,7 @@ export function useWebReaderSelection({
         pointer: describeSelectionAdjustmentPoint(point),
         adjusted: Boolean(adjustment),
       }));
-      inputRef.current.selection.setSelectionAction((action) =>
+      readInput().selection.setSelectionAction((action) =>
         action?.draggingHandle ? { ...action, draggingHandle: undefined } : action,
       );
     },

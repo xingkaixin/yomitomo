@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffectEvent, useRef } from 'react';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import type { ArticleReadingProgress } from '@yomitomo/shared';
 
 export type SourceReadingProgressSavePredicate = (
@@ -193,46 +194,49 @@ export function useSourceReadingProgressSaver({
   onSaveArticleReadingProgress: SourceReadingProgressSave;
   shouldSave?: SourceReadingProgressSavePredicate;
 }) {
-  const runtimeRef = useRef<SourceReadingProgressSaveRuntime>({
+  const readInput = useEffectEvent(() => ({
+    articleId,
+    initialProgress,
     onSave: onSaveArticleReadingProgress,
     shouldSave,
+  }));
+  const stateRef = useRef<SourceReadingProgressSaveState | null>(null);
+
+  useMountEffect(() => () => {
+    if (stateRef.current) void flushSourceReadingProgress(stateRef.current);
   });
-  runtimeRef.current.onSave = onSaveArticleReadingProgress;
-  runtimeRef.current.shouldSave = shouldSave;
-  const initialProgressRef = useRef(initialProgress);
-  initialProgressRef.current = initialProgress;
-  const stateRef = useRef(
-    createSourceReadingProgressSaveState(articleId, initialProgress, runtimeRef.current),
-  );
 
-  useEffect(() => {
-    let state = stateRef.current;
-    if (state.articleId !== articleId) {
-      state = createSourceReadingProgressSaveState(
-        articleId,
-        initialProgressRef.current,
-        runtimeRef.current,
-      );
-      stateRef.current = state;
-    }
-    return () => {
-      void flushSourceReadingProgress(state);
-    };
-  }, [articleId]);
-
-  const saveNow = useCallback((progress: ArticleReadingProgress) => {
-    const state = stateRef.current;
-    clearSourceReadingProgressSaveTimer(state);
-    if (!queueSourceReadingProgress(state, normalizeSourceReadingProgress(progress))) {
-      return state.drainPromise || Promise.resolve();
-    }
-    return requestSourceReadingProgressDrain(state);
+  // Ebook and PDF readers keep this hook across articles, so the next save opens the new
+  // article's state and flushes the previous one.
+  const currentState = useCallback(() => {
+    const input = readInput();
+    const previous = stateRef.current;
+    if (previous?.articleId === input.articleId) return previous;
+    if (previous) void flushSourceReadingProgress(previous);
+    const state = createSourceReadingProgressSaveState(input.articleId, input.initialProgress, {
+      onSave: (id, progress) => readInput().onSave(id, progress),
+      shouldSave: (next, last) => readInput().shouldSave(next, last),
+    });
+    stateRef.current = state;
+    return state;
   }, []);
+
+  const saveNow = useCallback(
+    (progress: ArticleReadingProgress) => {
+      const state = currentState();
+      clearSourceReadingProgressSaveTimer(state);
+      if (!queueSourceReadingProgress(state, normalizeSourceReadingProgress(progress))) {
+        return state.drainPromise || Promise.resolve();
+      }
+      return requestSourceReadingProgressDrain(state);
+    },
+    [currentState],
+  );
 
   const scheduleSave = useCallback(
     (progress: ArticleReadingProgress) => {
       const normalizedProgress = normalizeSourceReadingProgress(progress);
-      const state = stateRef.current;
+      const state = currentState();
       clearSourceReadingProgressSaveTimer(state);
       if (!queueSourceReadingProgress(state, normalizedProgress)) return;
       if (debounceMs <= 0) {
@@ -244,7 +248,7 @@ export function useSourceReadingProgressSaver({
         void requestSourceReadingProgressDrain(state);
       }, debounceMs);
     },
-    [debounceMs],
+    [currentState, debounceMs],
   );
 
   return { saveNow, scheduleSave };

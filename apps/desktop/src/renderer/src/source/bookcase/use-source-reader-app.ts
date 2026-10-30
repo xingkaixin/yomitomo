@@ -1,4 +1,4 @@
-import { createElement, useEffect, useRef, useState } from 'react';
+import { createElement, useCallback, useReducer, useRef } from 'react';
 import type {
   Annotation,
   ResolvedAppSettings,
@@ -105,6 +105,47 @@ export type SourceReaderAppSurface = {
   toolbar?: ReaderAppViewProps['toolbar'];
 };
 
+type SourceReaderPanelsState = {
+  articleId: string;
+  settingsOpen: boolean;
+  statusMessage: string;
+  tocOpen: boolean;
+};
+
+type SourceReaderPanelsEvent =
+  | { type: 'articleOpened'; articleId: string }
+  | { type: 'settingsClosed' }
+  | { type: 'settingsToggled' }
+  | { type: 'statusChanged'; message: string }
+  | { type: 'tocClosed' }
+  | { type: 'tocToggled' };
+
+function sourceReaderPanelsReducer(
+  state: SourceReaderPanelsState,
+  event: SourceReaderPanelsEvent,
+): SourceReaderPanelsState {
+  switch (event.type) {
+    case 'articleOpened':
+      return initialSourceReaderPanels(event.articleId);
+    case 'settingsClosed':
+      return state.settingsOpen ? { ...state, settingsOpen: false } : state;
+    case 'settingsToggled':
+      return { ...state, settingsOpen: !state.settingsOpen };
+    case 'statusChanged':
+      return state.statusMessage === event.message
+        ? state
+        : { ...state, statusMessage: event.message };
+    case 'tocClosed':
+      return state.tocOpen ? { ...state, tocOpen: false } : state;
+    case 'tocToggled':
+      return { ...state, tocOpen: !state.tocOpen };
+  }
+}
+
+function initialSourceReaderPanels(articleId: string): SourceReaderPanelsState {
+  return { articleId, settingsOpen: false, statusMessage: '', tocOpen: false };
+}
+
 export type UseSourceReaderAppInput = {
   articleActions: ReaderArticleActions;
   onOpenEvidenceSource?: (target: ReadingEvidenceSourceTarget) => void;
@@ -126,9 +167,20 @@ export function useSourceReaderApp({
 }: UseSourceReaderAppInput) {
   const surface = useSourceReaderSurface();
   const relations = useReadingRelations(sessionInput.article.id);
-  const [statusMessage, setStatusMessage] = useState('');
-  const [tocOpen, setTocOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [panels, dispatchPanels] = useReducer(
+    sourceReaderPanelsReducer,
+    sessionInput.article.id,
+    initialSourceReaderPanels,
+  );
+  // Ebook and PDF readers stay mounted across articles, so panels reset while rendering.
+  if (panels.articleId !== sessionInput.article.id) {
+    dispatchPanels({ type: 'articleOpened', articleId: sessionInput.article.id });
+  }
+  const { settingsOpen, statusMessage, tocOpen } = panels;
+  const setStatusMessage = useCallback(
+    (message: string) => dispatchPanels({ type: 'statusChanged', message }),
+    [],
+  );
   const session = useSourceReaderSession({
     ...sessionInput,
     onDeleteArticleAnnotation: articleActions.deleteArticleAnnotation,
@@ -153,12 +205,6 @@ export function useSourceReaderApp({
     settings,
   );
   const submittedComposerRef = useRef<typeof workspace.selection.composer>(null);
-
-  useEffect(() => {
-    setSettingsOpen(false);
-    setStatusMessage('');
-    setTocOpen(false);
-  }, [sessionInput.article.id]);
 
   function isCurrentArticle(articleId: string) {
     return session.isCurrentArticle(articleId);
@@ -210,19 +256,19 @@ export function useSourceReaderApp({
   }
 
   function closeSettings() {
-    setSettingsOpen(false);
+    dispatchPanels({ type: 'settingsClosed' });
   }
 
   function closeToc() {
-    setTocOpen(false);
+    dispatchPanels({ type: 'tocClosed' });
   }
 
   function toggleSettings() {
-    setSettingsOpen((open) => !open);
+    dispatchPanels({ type: 'settingsToggled' });
   }
 
   function toggleToc() {
-    setTocOpen((open) => !open);
+    dispatchPanels({ type: 'tocToggled' });
   }
 
   function viewProps(
