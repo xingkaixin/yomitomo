@@ -1,6 +1,3 @@
-// @vitest-environment jsdom
-
-import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { articleCounts } from '@yomitomo/core';
 import type {
@@ -9,18 +6,27 @@ import type {
   ArticleStorePatch,
   ArticleSummaryRecord,
 } from '@yomitomo/shared';
-import { useAnnotationWindowArticlePatches } from '../annotation-discussion/use-annotation-window-article-patches';
+import { bindAnnotationWindowArticle } from '../annotation-discussion/annotation-window-startup';
+
+const route = {
+  annotationId: 'annotation_1',
+  articleId: 'article_1',
+  params: new URLSearchParams(),
+};
 
 afterEach(() => {
-  cleanup();
-  Reflect.deleteProperty(window, 'yomitomoDesktop');
+  Reflect.deleteProperty(globalThis, 'yomitomoDesktop');
 });
 
-describe('annotation window article patch sync', () => {
-  it('reloads matching articles and ignores unrelated patches', async () => {
+describe('annotation window article binding', () => {
+  it('reloads matching articles, ignores unrelated patches and unsubscribes on dispose', async () => {
+    const initialAnnotation = annotation();
     const updatedAnnotation = annotation({ updatedAt: '2026-07-18T00:02:00.000Z' });
     const updatedArticle = article(updatedAnnotation);
-    const getArticle = vi.fn().mockResolvedValue(updatedArticle);
+    const getArticle = vi
+      .fn()
+      .mockResolvedValueOnce(article(initialAnnotation))
+      .mockResolvedValue(updatedArticle);
     const unsubscribe = vi.fn();
     let emitPatch = noopArticlePatch;
     installDesktopApi({
@@ -30,52 +36,51 @@ describe('annotation window article patch sync', () => {
         return unsubscribe;
       }),
     });
-    const onUpdate = vi.fn();
-    const { unmount } = renderHook(() =>
-      useAnnotationWindowArticlePatches('article_1', 'annotation_1', onUpdate),
+    const events = windowEvents();
+    const unbind = bindAnnotationWindowArticle(route, events);
+    await vi.waitFor(() => expect(events.loaded).toHaveBeenCalledOnce());
+
+    emitPatch({ type: 'article-delete', articleId: 'other_article' });
+    emitPatch({
+      type: 'article-reading-progress',
+      articleId: 'article_1',
+      readingProgress: { kind: 'scroll', progress: 0.4, updatedAt: '2026-07-18T00:03:00.000Z' },
+      updatedAt: '2026-07-18T00:03:00.000Z',
+    });
+
+    expect(getArticle).toHaveBeenCalledOnce();
+
+    emitPatch({ type: 'article-upsert', article: articleSummary(updatedArticle) });
+
+    await vi.waitFor(() =>
+      expect(events.patched).toHaveBeenCalledWith(updatedArticle, updatedAnnotation),
     );
-
-    act(() => emitPatch({ type: 'article-delete', articleId: 'other_article' }));
-    act(() =>
-      emitPatch({
-        type: 'article-reading-progress',
-        articleId: 'article_1',
-        readingProgress: { kind: 'scroll', progress: 0.4, updatedAt: '2026-07-18T00:03:00.000Z' },
-        updatedAt: '2026-07-18T00:03:00.000Z',
-      }),
-    );
-
-    expect(getArticle).not.toHaveBeenCalled();
-
-    act(() =>
-      emitPatch({
-        type: 'article-upsert',
-        article: articleSummary(updatedArticle),
-      }),
-    );
-
-    await waitFor(() => expect(onUpdate).toHaveBeenCalledWith(updatedArticle));
-    unmount();
+    unbind();
     expect(unsubscribe).toHaveBeenCalledOnce();
   });
 
   it('marks the annotation window missing after its article disappears', async () => {
     let emitPatch = noopArticlePatch;
     installDesktopApi({
-      getArticle: vi.fn().mockResolvedValue(null),
+      getArticle: vi.fn().mockResolvedValueOnce(article(annotation())).mockResolvedValue(null),
       onArticlePatched: vi.fn((callback: (patch: ArticleStorePatch) => void) => {
         emitPatch = callback;
         return vi.fn();
       }),
     });
-    const onUpdate = vi.fn();
-    renderHook(() => useAnnotationWindowArticlePatches('article_1', 'annotation_1', onUpdate));
+    const events = windowEvents();
+    bindAnnotationWindowArticle(route, events);
+    await vi.waitFor(() => expect(events.loaded).toHaveBeenCalledOnce());
 
-    act(() => emitPatch({ type: 'article-delete', articleId: 'article_1' }));
+    emitPatch({ type: 'article-delete', articleId: 'article_1' });
 
-    await waitFor(() => expect(onUpdate).toHaveBeenCalledWith(null));
+    await vi.waitFor(() => expect(events.missing).toHaveBeenCalledOnce());
   });
 });
+
+function windowEvents() {
+  return { failed: vi.fn(), loaded: vi.fn(), missing: vi.fn(), patched: vi.fn() };
+}
 
 function articleSummary(record: ArticleRecord): ArticleSummaryRecord {
   const {
@@ -92,12 +97,15 @@ function installDesktopApi(desktop: {
   getArticle: ReturnType<typeof vi.fn>;
   onArticlePatched: ReturnType<typeof vi.fn>;
 }) {
-  Object.defineProperty(window, 'yomitomoDesktop', {
+  Object.defineProperty(globalThis, 'yomitomoDesktop', {
     configurable: true,
     value: {
       article: {
         get: desktop.getArticle,
         onPatched: desktop.onArticlePatched,
+      },
+      store: {
+        getState: vi.fn().mockResolvedValue({}),
       },
     },
   });

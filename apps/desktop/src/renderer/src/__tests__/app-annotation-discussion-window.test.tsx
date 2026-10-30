@@ -15,7 +15,7 @@ import type {
 } from '@yomitomo/shared';
 import { DesktopIpcError, desktopIpcErrorCodes } from '../../../ipc-errors';
 import {
-  AnnotationDiscussionWindowApp,
+  createAnnotationDiscussionWindow,
   insertMentionAtSelection,
 } from '../annotation-discussion/app-annotation-discussion-window';
 import {
@@ -79,13 +79,13 @@ describe('discussion time formatting', () => {
   });
 });
 
-describe('AnnotationDiscussionWindowApp', () => {
+describe('AnnotationDiscussionWindow', () => {
   it('receives an early thought draft after subscribing and saves only through the composer', async () => {
     const desktop = installDesktopApi(article(annotation()));
     desktop.consumeThoughtDraft.mockResolvedValueOnce('从书库回答带来的想法');
     openDiscussionRoute();
 
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
 
     const thoughtInput = (await screen.findByRole('textbox', {
       name: '想法内容',
@@ -115,7 +115,7 @@ describe('AnnotationDiscussionWindowApp', () => {
   it('receives a new thought draft when an existing window is notified', async () => {
     const desktop = installDesktopApi(article(annotation()));
     openDiscussionRoute();
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
     await screen.findByText('正在讨论的划线');
     await waitFor(() => expect(desktop.consumeThoughtDraft).toHaveBeenCalledOnce());
     expect(screen.queryByRole('dialog', { name: '添加想法' })).toBeNull();
@@ -140,7 +140,7 @@ describe('AnnotationDiscussionWindowApp', () => {
       .mockReturnValueOnce(firstDraft.promise)
       .mockReturnValueOnce(secondDraft.promise);
     openDiscussionRoute();
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
     await screen.findByText('正在讨论的划线');
     await waitFor(() => expect(desktop.consumeThoughtDraft).toHaveBeenCalledOnce());
     act(() => desktop.notifyThoughtDraftAvailable());
@@ -172,7 +172,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     const desktop = installDesktopApi(article(annotation()));
     desktop.consumeThoughtDraft.mockReturnValueOnce(pendingDraft.promise);
     openDiscussionRoute();
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
     await screen.findByText('正在讨论的划线');
     fireEvent.click(screen.getByRole('button', { name: '添加想法' }));
     const thoughtInput = screen.getByRole('textbox', { name: '想法内容' }) as HTMLTextAreaElement;
@@ -198,7 +198,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     const desktop = installDesktopApi(article(annotation()));
     desktop.saveArticleComment.mockReturnValueOnce(pendingSave.promise);
     openDiscussionRoute();
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
     await screen.findByText('正在讨论的划线');
     fireEvent.click(screen.getByRole('button', { name: '添加想法' }));
     const thoughtInput = screen.getByRole('textbox', { name: '想法内容' }) as HTMLTextAreaElement;
@@ -221,7 +221,7 @@ describe('AnnotationDiscussionWindowApp', () => {
       deliver: vi.fn(() => pendingDelivery.promise),
     });
     openDiscussionRoute();
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
     const replyInput = await screen.findByPlaceholderText(/回复这条想法/);
     fireEvent.change(replyInput, { target: { value: '@zhou 继续展开' } });
     fireEvent.click(screen.getByRole('button', { name: '回复' }));
@@ -240,7 +240,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     const desktop = installDesktopApi(article(annotation()));
     desktop.consumeThoughtDraft.mockReturnValueOnce(pendingDraft.promise);
     openDiscussionRoute();
-    const view = render(<AnnotationDiscussionWindowApp />);
+    const view = renderDiscussionWindow();
     await screen.findByText('正在讨论的划线');
 
     view.unmount();
@@ -259,7 +259,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     const desktop = installDesktopApi(article(annotation()));
     desktop.consumeThoughtDraft.mockRejectedValueOnce(error);
     openDiscussionRoute();
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
 
     await waitFor(() =>
       expect(appToast.error).toHaveBeenCalledWith(
@@ -283,7 +283,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     installDesktopApi(article(annotation({ anchor: anchor('这是一段正在讨论的划线原文') })));
     openDiscussionRoute();
 
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
 
     expect(await screen.findByText('正在讨论的划线')).toBeTruthy();
     expect(screen.getByText('这是一段正在讨论的划线原文')).toBeTruthy();
@@ -293,7 +293,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     installDesktopApi(article(annotation({ comments: discussionComments() })));
     openDiscussionRoute();
 
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
 
     expect(await screen.findByText('讨论展开')).toBeTruthy();
     expect(screen.queryByText('展开想法')).toBeNull();
@@ -304,7 +304,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     const desktop = installDesktopApi(article(annotation({ comments: [rootThought()] })));
     openDiscussionRoute();
 
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
 
     await screen.findByText('正在讨论的划线');
     desktop.getArticle.mockResolvedValueOnce(null);
@@ -323,7 +323,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     desktop.deleteArticleComment.mockRejectedValueOnce(deleteError);
     openDiscussionRoute();
 
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
 
     await screen.findByText('正在讨论的划线');
     fireEvent.click(screen.getByRole('button', { name: '更多想法操作' }));
@@ -348,7 +348,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     installDesktopApi(article(annotation({ comments: discussionComments() })));
     openDiscussionRoute();
 
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
 
     await screen.findByText('讨论展开');
     const layout = discussionLayoutElement();
@@ -369,7 +369,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     const desktop = installDesktopApi(article(annotation({ comments: discussionComments() })));
     openDiscussionRoute();
 
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
 
     await screen.findByText('讨论展开');
     fireEvent.click(screen.getByRole('button', { name: '收起想法列表' }));
@@ -397,7 +397,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     installDesktopApi(article(annotation({ comments: discussionComments() })));
     openDiscussionRoute();
 
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
 
     await screen.findByText('讨论展开');
     expect(MockResizeObserver.instances).toHaveLength(1);
@@ -437,7 +437,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     installDesktopApi(article(annotation({ comments: discussionComments() })));
     openDiscussionRoute();
 
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
 
     await screen.findByText('讨论展开');
     fireEvent.click(screen.getByRole('button', { name: '收起想法列表' }));
@@ -476,7 +476,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     });
     openDiscussionRoute();
 
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
 
     const scrollElement = await discussionScrollElement();
     Object.defineProperties(scrollElement, {
@@ -518,7 +518,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     });
     openDiscussionRoute();
 
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
 
     const scrollElement = await discussionScrollElement();
     Object.defineProperties(scrollElement, {
@@ -546,7 +546,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     desktop.saveArticleComment.mockRejectedValueOnce(saveError);
     openDiscussionRoute();
 
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
 
     const replyInput = await screen.findByPlaceholderText(/回复这条想法/);
     fireEvent.change(replyInput, { target: { value: '未保存的回复' } });
@@ -574,7 +574,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     desktop.saveArticleComment.mockRejectedValueOnce(saveError);
     openDiscussionRoute();
 
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
 
     await screen.findByText('正在讨论的划线');
     fireEvent.click(screen.getByRole('button', { name: '添加想法' }));
@@ -606,7 +606,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     );
     openDiscussionRoute();
 
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
 
     const replyInput = await screen.findByPlaceholderText(
       '回复这条助手想法；不 @ 时默认由 周现 回应，也可 @ 其他助手',
@@ -644,7 +644,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     );
     openDiscussionRoute();
 
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
 
     const replyInput = await screen.findByPlaceholderText(
       '回复这条想法，输入 @助手 可邀请助手参与讨论',
@@ -680,7 +680,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     );
     openDiscussionRoute();
 
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
 
     fireEvent.change(await screen.findByPlaceholderText(/默认由 周现 回应/), {
       target: { value: '@lin 你怎么看' },
@@ -703,7 +703,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     });
     openDiscussionRoute();
 
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
 
     fireEvent.change(await screen.findByPlaceholderText(/回复这条想法/), {
       target: { value: '@zhou @lin 你们分别回应一下' },
@@ -734,7 +734,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     });
     openDiscussionRoute();
 
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
 
     fireEvent.change(await screen.findByPlaceholderText(/回复这条想法/), {
       target: { value: '@zhou 请继续' },
@@ -773,7 +773,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     });
     openDiscussionRoute();
 
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
 
     fireEvent.change(await screen.findByPlaceholderText(/回复这条想法/), {
       target: { value: '@zhou 你怎么看' },
@@ -794,7 +794,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     installDesktopApi(article(annotation({ comments: [rootThought()] })));
     openDiscussionRoute();
 
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
 
     const scrollElement = await discussionScrollElement();
     await waitFor(() => expect(screen.getByText('当前没有讨论')).toBeTruthy());
@@ -812,7 +812,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     installDesktopApi(article(annotation({ comments: discussionComments() })));
     openDiscussionRoute();
 
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
 
     await discussionScrollElement();
     await waitFor(() =>
@@ -829,7 +829,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     const desktop = installDesktopApi(article(annotation({ comments: discussionComments() })));
     openDiscussionRoute();
 
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
 
     await waitFor(() =>
       expect(scrollTo).toHaveBeenCalledWith(expect.objectContaining({ behavior: 'auto' })),
@@ -853,7 +853,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     installDesktopApi(article(annotation({ comments: discussionComments() })));
     openDiscussionRoute();
 
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
 
     await discussionScrollElement();
     expect(
@@ -868,7 +868,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     });
     openDiscussionRoute();
 
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
 
     await openAssistantThoughtDialog('@zhou @lin 分别补一条想法');
 
@@ -896,7 +896,7 @@ describe('AnnotationDiscussionWindowApp', () => {
     });
     openDiscussionRoute();
 
-    render(<AnnotationDiscussionWindowApp />);
+    renderDiscussionWindow();
 
     await openAssistantThoughtDialog('@zhou @lin 分别补一条想法');
 
@@ -1168,6 +1168,11 @@ async function flushAnimationFrames() {
 
 function openDiscussionRoute() {
   window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
+}
+
+function renderDiscussionWindow() {
+  const AnnotationDiscussionWindow = createAnnotationDiscussionWindow();
+  return render(<AnnotationDiscussionWindow />);
 }
 
 async function discussionScrollElement() {

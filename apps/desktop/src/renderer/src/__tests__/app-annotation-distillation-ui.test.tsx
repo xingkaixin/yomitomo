@@ -4,7 +4,7 @@ import React from 'react';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hashText, type Agent, type Annotation, type ArticleRecord } from '@yomitomo/shared';
-import { AnnotationSedimentationWindowApp } from '../annotation-discussion/app-annotation-sedimentation-window';
+import { createAnnotationSedimentationWindow } from '../annotation-discussion/app-annotation-sedimentation-window';
 import {
   applyDistillationProposalToDraft,
   composeDistillationProposalDraftChangeSetEntries,
@@ -35,7 +35,7 @@ describe('annotation distillation UI', () => {
     installDesktopApi(article(annotation()));
     window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
 
-    render(<AnnotationSedimentationWindowApp />);
+    renderSedimentationWindow();
 
     expect(await screen.findByText('沉淀稿')).toBeTruthy();
     expect(screen.getByText('草稿')).toBeTruthy();
@@ -56,7 +56,7 @@ describe('annotation distillation UI', () => {
     );
     window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
 
-    render(<AnnotationSedimentationWindowApp />);
+    renderSedimentationWindow();
 
     expect(await screen.findByText('已发布')).toBeTruthy();
     expect(screen.queryByText('草稿')).toBeNull();
@@ -76,7 +76,7 @@ describe('annotation distillation UI', () => {
     window.localStorage.setItem('annotation-distillation-draft:article_1:annotation_1', '');
     window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
 
-    render(<AnnotationSedimentationWindowApp />);
+    renderSedimentationWindow();
 
     const textarea = (await screen.findByPlaceholderText(/写下你想沉淀/)) as HTMLTextAreaElement;
     expect(textarea.value).toBe('');
@@ -122,7 +122,7 @@ describe('annotation distillation UI', () => {
     );
     window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
 
-    render(<AnnotationSedimentationWindowApp />);
+    renderSedimentationWindow();
 
     expect(await screen.findByText('新增判断')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '预览变更' }));
@@ -202,7 +202,7 @@ describe('annotation distillation UI', () => {
     );
     window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
 
-    render(<AnnotationSedimentationWindowApp />);
+    renderSedimentationWindow();
 
     const proposal = (await screen.findByText('修改判断')).closest(
       '.annotation-sedimentation-proposal',
@@ -255,7 +255,7 @@ describe('annotation distillation UI', () => {
     );
     window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
 
-    render(<AnnotationSedimentationWindowApp />);
+    renderSedimentationWindow();
 
     const proposal = (await screen.findByText('修改判断')).closest(
       '.annotation-sedimentation-proposal',
@@ -307,7 +307,7 @@ describe('annotation distillation UI', () => {
     );
     window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
 
-    render(<AnnotationSedimentationWindowApp />);
+    renderSedimentationWindow();
 
     const proposal = (await screen.findByText('修改不存在的判断')).closest(
       '.annotation-sedimentation-proposal',
@@ -366,7 +366,7 @@ describe('annotation distillation UI', () => {
     );
     window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
 
-    render(<AnnotationSedimentationWindowApp />);
+    renderSedimentationWindow();
 
     expect(await screen.findByText('新增判断')).toBeTruthy();
     fireEvent.click(screen.getAllByRole('button', { name: '预览变更' })[0]);
@@ -456,7 +456,7 @@ describe('annotation distillation UI', () => {
     );
     window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
 
-    render(<AnnotationSedimentationWindowApp />);
+    renderSedimentationWindow();
 
     expect(await screen.findByText('修改判断')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '预览变更' }));
@@ -508,7 +508,7 @@ describe('annotation distillation UI', () => {
     }));
     window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
 
-    render(<AnnotationSedimentationWindowApp />);
+    renderSedimentationWindow();
 
     const textarea = (await screen.findByPlaceholderText(
       '让当前审阅助手讨论这份沉淀...',
@@ -538,7 +538,7 @@ describe('annotation distillation UI', () => {
     );
     window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
 
-    render(<AnnotationSedimentationWindowApp />);
+    renderSedimentationWindow();
 
     await screen.findByText('沉淀稿');
     fireEvent.change(draftTextarea(), { target: { value: '正在审阅的沉淀稿' } });
@@ -564,7 +564,7 @@ describe('annotation distillation UI', () => {
     }));
     window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
 
-    render(<AnnotationSedimentationWindowApp />);
+    renderSedimentationWindow();
 
     await screen.findByPlaceholderText('让当前审阅助手讨论这份沉淀...');
     fireEvent.click(await screen.findByRole('button', { name: '@梁证言' }));
@@ -590,7 +590,7 @@ describe('annotation distillation UI', () => {
     }));
     window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
 
-    render(<AnnotationSedimentationWindowApp />);
+    renderSedimentationWindow();
 
     await screen.findByPlaceholderText('让当前审阅助手讨论这份沉淀...');
     fireEvent.click(await screen.findByRole('button', { name: '@周现' }));
@@ -642,7 +642,7 @@ describe('annotation distillation UI', () => {
     });
     window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
 
-    render(<AnnotationSedimentationWindowApp />);
+    renderSedimentationWindow();
 
     await screen.findByPlaceholderText('让当前审阅助手讨论这份沉淀...');
     fireEvent.click(await screen.findByRole('button', { name: '发送' }));
@@ -718,7 +718,7 @@ describe('annotation distillation UI', () => {
     });
     window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
 
-    render(<AnnotationSedimentationWindowApp />);
+    renderSedimentationWindow();
 
     fireEvent.click(await screen.findByRole('button', { name: '整理讨论' }));
     expect(await screen.findByText('整理当前讨论？')).toBeTruthy();
@@ -770,7 +770,7 @@ describe('annotation distillation UI', () => {
     });
     window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
 
-    render(<AnnotationSedimentationWindowApp />);
+    renderSedimentationWindow();
 
     await startOrganizeDiscussion();
     expect(await screen.findByLabelText('草稿变更预览')).toBeTruthy();
@@ -791,7 +791,7 @@ describe('annotation distillation UI', () => {
     desktop.requestAgentDistillationReviewStream.mockRejectedValue(new Error('provider failed'));
     window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
 
-    render(<AnnotationSedimentationWindowApp />);
+    renderSedimentationWindow();
 
     await startOrganizeDiscussion();
 
@@ -806,12 +806,12 @@ describe('annotation distillation UI', () => {
     desktop.requestAgentDistillationReviewStream.mockRejectedValue(new Error('provider failed'));
     window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
 
-    render(<AnnotationSedimentationWindowApp />);
+    renderSedimentationWindow();
 
     await screen.findByPlaceholderText('让当前审阅助手讨论这份沉淀...');
     fireEvent.click(await screen.findByRole('button', { name: '发送' }));
 
-    expect(await screen.findAllByText('provider failed')).toHaveLength(2);
+    await waitFor(() => expect(screen.getAllByText('provider failed')).toHaveLength(2));
     expect(screen.queryByText('正在审阅...')).toBeNull();
     expect(desktop.requestAgentDistillationReviewStream).toHaveBeenCalledOnce();
     await waitFor(() => {
@@ -1533,6 +1533,11 @@ describe('annotation distillation proposals', () => {
     });
   });
 });
+
+function renderSedimentationWindow() {
+  const AnnotationSedimentationWindow = createAnnotationSedimentationWindow();
+  return render(<AnnotationSedimentationWindow />);
+}
 
 function installDesktopApi(sourceArticle: ArticleRecord) {
   let currentArticle = sourceArticle;

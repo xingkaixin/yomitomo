@@ -6,7 +6,7 @@ import {
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
 } from '@hugeicons/core-free-icons';
-import { useEffect, useEffectEvent, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffectEvent, useMemo, useReducer, useRef, type CSSProperties } from 'react';
 import type {
   Agent,
   Annotation,
@@ -19,10 +19,10 @@ import type {
   UiLanguage,
   UserProfile,
 } from '@yomitomo/shared';
-import { makeId, normalizeUiLanguage } from '@yomitomo/shared';
+import { makeId } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
 import { createUserComment, findMentionedAgents, sortAnnotations } from '@yomitomo/core';
-import { applyAppTheme, readCachedThemeId, themeRegistry } from '../theme/app-theme';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import {
   agentInstructionFromNote,
   mentionDirectivesForAgent,
@@ -39,11 +39,7 @@ import {
   type AnnotationMessageLayoutMode,
 } from './app-annotation-layout-control';
 import { assistantRuntimeErrorMessage } from '../shell/app-assistant-runtime-progress';
-import {
-  assistantRunScope,
-  deliverAssistantMessage,
-  useAssistantRuns,
-} from '../shell/app-assistant-runs';
+import { deliverAssistantMessage } from '../shell/app-assistant-runs';
 import {
   elementWindowSourceRect,
   useSourceAwareWindowTransition,
@@ -55,15 +51,21 @@ import {
   discussionArticleText,
   replyTargetAgents,
   discussionThreads,
-  discussionWindowTitle,
   waitForMilliseconds,
 } from './app-annotation-discussion-utils';
 import type { AddThoughtAgentRun } from './app-annotation-discussion-add-run';
 import { AddThoughtDialog } from './app-annotation-discussion-add-dialog';
 import { ThoughtListItem } from './app-annotation-discussion-thread-list';
 import { DiscussionThreadView } from './app-annotation-discussion-thread-view';
-import { useElementWidthBelow } from './app-annotation-discussion-hooks';
-import { useAnnotationWindowArticlePatches } from './use-annotation-window-article-patches';
+import { useElementWidthBelowRef } from './app-annotation-discussion-hooks';
+import {
+  bindDiscussionWindow,
+  createDiscussionWindowStore,
+  DiscussionWindowStoreProvider,
+  useDiscussionWindow,
+  useDiscussionWindowStoreApi,
+} from './app-annotation-discussion-window-store';
+import { readAnnotationWindowRoute, type AnnotationWindowRoute } from './annotation-window-startup';
 import { annotationWindowActions } from './app-annotation-window-actions';
 import { getDesktopApi } from '../shell/app-desktop-api';
 import { AppToaster, appToast } from '../shell/app-toast';
@@ -71,110 +73,34 @@ import { AppToaster, appToast } from '../shell/app-toast';
 export { insertMentionAtSelection } from './app-annotation-discussion-utils';
 
 type DiscussionLayoutMode = AnnotationMessageLayoutMode;
+type NewThoughtMode = 'self' | 'assistant';
 const DISCUSSION_IDEAS_AUTO_COLLAPSE_WIDTH = 760;
 
-type DiscussionWindowStatus =
-  | { type: 'loading' }
-  | {
-      type: 'ready';
-      agents: Agent[];
-      article: ArticleRecord;
-      settings: ResolvedAppSettings;
-      uiLanguage: UiLanguage;
-      user: UserProfile;
-    }
-  | { type: 'missing' }
-  | { type: 'removed' }
-  | { type: 'error'; message: string };
+/** Starts the discussion window from its URL and returns its root component. */
+export function createAnnotationDiscussionWindow() {
+  const route = readAnnotationWindowRoute();
+  const store = createDiscussionWindowStore(route);
+  const unbind = bindDiscussionWindow(store, route);
+  import.meta.hot?.dispose(unbind);
+  return function AnnotationDiscussionWindow() {
+    return (
+      <DiscussionWindowStoreProvider store={store}>
+        <AnnotationDiscussionWindowApp route={route} />
+      </DiscussionWindowStoreProvider>
+    );
+  };
+}
 
-export function AnnotationDiscussionWindowApp() {
+function AnnotationDiscussionWindowApp({ route }: { route: AnnotationWindowRoute }) {
   const { t } = useTranslation();
-  const params = useMemo(() => new URLSearchParams(window.location.search), []);
-  const articleId = params.get('articleId') || '';
-  const annotationId = params.get('annotationId') || '';
-  const [status, setStatus] = useState<DiscussionWindowStatus>({ type: 'loading' });
-  const [themeTone, setThemeTone] = useState(() => themeRegistry[readCachedThemeId()].meta.tone);
-  const pendingArticleUpdateRef = useRef<ArticleRecord | null | undefined>(undefined);
+  const status = useDiscussionWindow((state) => state.status);
+  const themeTone = useDiscussionWindow((state) => state.themeTone);
   const className = annotationDiscussionWindowClassName();
-  const windowTransition = useSourceAwareWindowTransition(params);
+  const windowTransition = useSourceAwareWindowTransition(route.params);
   const windowClassName = [className, windowTransition.className].filter(Boolean).join(' ');
 
-  useAnnotationWindowArticlePatches(articleId, annotationId, (article) => {
-    pendingArticleUpdateRef.current = article;
-    setStatus((current) => {
-      if (!article) return { type: 'missing' };
-      if (current.type !== 'ready') return current;
-      return { ...current, article };
-    });
-  });
-
-  useEffect(() => {
-    const syncTheme = () => {
-      const theme = themeRegistry[readCachedThemeId()];
-      applyAppTheme(theme);
-      setThemeTone(theme.meta.tone);
-    };
-    window.addEventListener('storage', syncTheme);
-    window.addEventListener('focus', syncTheme);
-    return () => {
-      window.removeEventListener('storage', syncTheme);
-      window.removeEventListener('focus', syncTheme);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (status.type === 'ready') {
-      const annotation = status.article.annotations.find((item) => item.id === annotationId);
-      if (annotation) {
-        document.title = discussionWindowTitle({ annotation, article: status.article });
-        return;
-      }
-    }
-    document.title = t('discussion.title');
-  }, [annotationId, status, t]);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!articleId || !annotationId) {
-      setStatus({ type: 'missing' });
-      return;
-    }
-
-    void annotationWindowActions
-      .loadWindow(articleId)
-      .then(({ article, store }) => {
-        if (cancelled) return;
-        const pendingArticle = pendingArticleUpdateRef.current;
-        const currentArticle = pendingArticle === undefined ? article : pendingArticle;
-        const annotation = currentArticle?.annotations.find((item) => item.id === annotationId);
-        setStatus(
-          pendingArticle !== null && currentArticle && annotation
-            ? {
-                type: 'ready',
-                agents: store.agents,
-                article: currentArticle,
-                settings: store.settings,
-                uiLanguage: normalizeUiLanguage(store.settings.uiLanguage),
-                user: store.user,
-              }
-            : { type: 'missing' },
-        );
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return;
-        setStatus({
-          type: 'error',
-          message: error instanceof Error ? error.message : t('discussion.loadFailed'),
-        });
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [annotationId, articleId]);
-
   if (status.type === 'ready') {
-    const annotation = status.article.annotations.find((item) => item.id === annotationId);
+    const annotation = status.article.annotations.find((item) => item.id === route.annotationId);
     if (!annotation) {
       return (
         <DiscussionStatusScreen
@@ -195,10 +121,6 @@ export function AnnotationDiscussionWindowApp() {
           style={windowTransition.style}
           uiLanguage={status.uiLanguage}
           user={status.user}
-          onArticleChange={(article) =>
-            setStatus((current) => (current.type === 'ready' ? { ...current, article } : current))
-          }
-          onRemoved={() => setStatus({ type: 'removed' })}
         />
         <AppToaster tone={themeTone} topOffset={24} />
       </>
@@ -245,49 +167,250 @@ function DiscussionStatusScreen({
   );
 }
 
-function useDiscussionArticleProjection({
-  annotationId,
-  article,
-  onArticleChange,
-  onRemoved,
-}: {
-  annotationId: string;
-  article: ArticleRecord;
-  onArticleChange: (article: ArticleRecord) => void;
-  onRemoved: () => void;
-}) {
-  const articleRef = useRef(article);
-  articleRef.current = article;
-  const annotationsRef = useMemo(
-    () => ({
-      get current() {
-        return articleRef.current.annotations;
-      },
-    }),
-    [],
-  );
+function useDiscussionArticleProjection(annotationId: string, article: ArticleRecord) {
+  const store = useDiscussionWindowStoreApi();
+  const { annotationRemoved, articleChanged } = store.getState().actions;
 
-  function replaceArticle(nextArticle: ArticleRecord) {
-    articleRef.current = nextArticle;
-    onArticleChange(nextArticle);
+  // Async work reads the store so it sees articles saved after it started.
+  function latestArticle() {
+    const { status } = store.getState();
+    return status.type === 'ready' ? status.article : article;
   }
 
   function applyAnnotations(annotations: Annotation[], updatedAt = new Date().toISOString()) {
     const sortedAnnotations = sortAnnotations(annotations);
     if (!sortedAnnotations.some((item) => item.id === annotationId)) {
-      onRemoved();
+      annotationRemoved();
       return null;
     }
     const nextArticle = {
-      ...articleRef.current,
+      ...latestArticle(),
       annotations: sortedAnnotations,
       updatedAt,
     };
-    replaceArticle(nextArticle);
+    articleChanged(nextArticle);
     return nextArticle;
   }
 
-  return { annotationsRef, applyAnnotations, articleRef, replaceArticle };
+  return { annotationRemoved, applyAnnotations, latestArticle, replaceArticle: articleChanged };
+}
+
+type DiscussionShellState = {
+  addThoughtAgentRuns: AddThoughtAgentRun[];
+  addThoughtCelebrating: boolean;
+  deletingCommentId: string | null;
+  ideasAutoCollapsed: boolean;
+  ideasCollapsed: boolean;
+  ideasOverlayOpen: boolean;
+  layoutMode: DiscussionLayoutMode;
+  newThoughtCaretIndex: number;
+  newThoughtDraft: string;
+  newThoughtMode: NewThoughtMode;
+  newThoughtOpen: boolean;
+  pinnedThoughtIds: Set<string>;
+  replyCaretIndex: number;
+  replyDraft: string;
+  selectedThoughtId: string | null;
+  sendError: string;
+  sendingReply: boolean;
+  submittingThought: boolean;
+};
+
+type DiscussionShellEvent =
+  | { type: 'assistantThoughtFailed'; agentId: string; errorMessage: string }
+  | { type: 'assistantThoughtFinished'; agentId: string; commentId?: string }
+  | { type: 'assistantThoughtRetryStarted'; agentIds: string[] }
+  | { type: 'assistantThoughtRunsStarted'; runs: AddThoughtAgentRun[] }
+  | { type: 'assistantThoughtsCelebrated' }
+  | { type: 'commentDeleteFailed'; error: string }
+  | { type: 'commentDeleteStarted'; commentId: string }
+  | { type: 'commentDeleted'; commentId: string; selectedThoughtId: string | null }
+  | { type: 'errorShown'; error: string }
+  | { type: 'ideasSidebarToggled' }
+  | { type: 'layoutModeChanged'; layoutMode: DiscussionLayoutMode }
+  | { type: 'layoutWidthMeasured'; narrow: boolean }
+  | { type: 'newThoughtCaretMoved'; caretIndex: number }
+  | { type: 'newThoughtClosed' }
+  | { type: 'newThoughtDraftChanged'; draft: string }
+  | { type: 'newThoughtModeChanged'; mode: NewThoughtMode }
+  | { type: 'newThoughtOpened' }
+  | { type: 'replyCaretMoved'; caretIndex: number }
+  | { type: 'replyDraftChanged'; draft: string }
+  | { type: 'replyFailed'; error: string; restoredDraft: string | null }
+  | { type: 'replySettled' }
+  | { type: 'replySubmitted' }
+  | { type: 'selfThoughtSaved'; commentId: string }
+  | { type: 'thoughtDraftReceived'; draft: string }
+  | { type: 'thoughtPinToggled'; commentId: string }
+  | { type: 'thoughtSelected'; commentId: string }
+  | { type: 'thoughtSubmitSettled' }
+  | { type: 'thoughtSubmitStarted' };
+
+function initialDiscussionShellState(annotation: Annotation): DiscussionShellState {
+  return {
+    addThoughtAgentRuns: [],
+    addThoughtCelebrating: false,
+    deletingCommentId: null,
+    ideasAutoCollapsed: false,
+    ideasCollapsed: false,
+    ideasOverlayOpen: false,
+    layoutMode: 'split',
+    newThoughtCaretIndex: 0,
+    newThoughtDraft: '',
+    newThoughtMode: 'self',
+    newThoughtOpen: false,
+    pinnedThoughtIds: new Set(),
+    replyCaretIndex: 0,
+    replyDraft: '',
+    selectedThoughtId: discussionThreads(annotation, new Set())[0]?.root.id ?? null,
+    sendError: '',
+    sendingReply: false,
+    submittingThought: false,
+  };
+}
+
+function updateAgentRun(
+  runs: AddThoughtAgentRun[],
+  agentId: string,
+  update: Partial<AddThoughtAgentRun>,
+) {
+  return runs.map((run) => (run.agent.id === agentId ? { ...run, ...update } : run));
+}
+
+function discussionShellReducer(
+  state: DiscussionShellState,
+  event: DiscussionShellEvent,
+): DiscussionShellState {
+  switch (event.type) {
+    case 'assistantThoughtFailed':
+      return {
+        ...state,
+        addThoughtAgentRuns: updateAgentRun(state.addThoughtAgentRuns, event.agentId, {
+          errorMessage: event.errorMessage,
+          status: 'failed',
+        }),
+      };
+    case 'assistantThoughtFinished':
+      return {
+        ...state,
+        addThoughtAgentRuns: updateAgentRun(state.addThoughtAgentRuns, event.agentId, {
+          errorMessage: undefined,
+          status: 'done',
+        }),
+        selectedThoughtId: event.commentId ?? state.selectedThoughtId,
+      };
+    case 'assistantThoughtRetryStarted':
+      return {
+        ...state,
+        addThoughtAgentRuns: state.addThoughtAgentRuns.map((run) =>
+          event.agentIds.includes(run.agent.id)
+            ? { ...run, errorMessage: undefined, progress: undefined, status: 'active' }
+            : run,
+        ),
+        addThoughtCelebrating: false,
+        sendError: '',
+        submittingThought: true,
+      };
+    case 'assistantThoughtRunsStarted':
+      return { ...state, addThoughtAgentRuns: event.runs, addThoughtCelebrating: false };
+    case 'assistantThoughtsCelebrated':
+      return { ...state, addThoughtCelebrating: true };
+    case 'commentDeleteFailed':
+      return { ...state, deletingCommentId: null, sendError: event.error };
+    case 'commentDeleteStarted':
+      return { ...state, deletingCommentId: event.commentId, sendError: '' };
+    case 'commentDeleted': {
+      const pinnedThoughtIds = new Set(state.pinnedThoughtIds);
+      pinnedThoughtIds.delete(event.commentId);
+      return {
+        ...state,
+        deletingCommentId: null,
+        pinnedThoughtIds: state.pinnedThoughtIds.has(event.commentId)
+          ? pinnedThoughtIds
+          : state.pinnedThoughtIds,
+        selectedThoughtId: event.selectedThoughtId,
+      };
+    }
+    case 'errorShown':
+      return { ...state, sendError: event.error };
+    case 'ideasSidebarToggled':
+      return state.ideasAutoCollapsed
+        ? { ...state, ideasOverlayOpen: !state.ideasOverlayOpen }
+        : { ...state, ideasCollapsed: !state.ideasCollapsed, ideasOverlayOpen: false };
+    case 'layoutModeChanged':
+      return { ...state, layoutMode: event.layoutMode };
+    case 'layoutWidthMeasured':
+      if (state.ideasAutoCollapsed === event.narrow) return state;
+      return {
+        ...state,
+        ideasAutoCollapsed: event.narrow,
+        ideasOverlayOpen: event.narrow && state.ideasOverlayOpen,
+      };
+    case 'newThoughtCaretMoved':
+      return { ...state, newThoughtCaretIndex: event.caretIndex };
+    case 'newThoughtClosed':
+      return {
+        ...state,
+        addThoughtAgentRuns: [],
+        addThoughtCelebrating: false,
+        newThoughtCaretIndex: 0,
+        newThoughtDraft: '',
+        newThoughtOpen: false,
+      };
+    case 'newThoughtDraftChanged':
+      return { ...state, newThoughtDraft: event.draft };
+    case 'newThoughtModeChanged':
+      return { ...state, newThoughtMode: event.mode };
+    case 'newThoughtOpened':
+      return {
+        ...state,
+        newThoughtCaretIndex: 0,
+        newThoughtDraft: '',
+        newThoughtMode: 'self',
+        newThoughtOpen: true,
+        sendError: '',
+      };
+    case 'replyCaretMoved':
+      return { ...state, replyCaretIndex: event.caretIndex };
+    case 'replyDraftChanged':
+      return { ...state, replyDraft: event.draft };
+    case 'replyFailed':
+      return event.restoredDraft === null
+        ? { ...state, sendError: event.error }
+        : {
+            ...state,
+            replyCaretIndex: event.restoredDraft.length,
+            replyDraft: event.restoredDraft,
+            sendError: event.error,
+          };
+    case 'replySettled':
+      return { ...state, sendingReply: false };
+    case 'replySubmitted':
+      return { ...state, replyCaretIndex: 0, replyDraft: '', sendError: '', sendingReply: true };
+    case 'selfThoughtSaved':
+      return { ...state, selectedThoughtId: event.commentId };
+    case 'thoughtDraftReceived':
+      return {
+        ...state,
+        newThoughtCaretIndex: event.draft.length,
+        newThoughtDraft: event.draft,
+        newThoughtMode: 'self',
+        newThoughtOpen: true,
+        sendError: '',
+      };
+    case 'thoughtPinToggled': {
+      const pinnedThoughtIds = new Set(state.pinnedThoughtIds);
+      if (pinnedThoughtIds.has(event.commentId)) pinnedThoughtIds.delete(event.commentId);
+      else pinnedThoughtIds.add(event.commentId);
+      return { ...state, pinnedThoughtIds };
+    }
+    case 'thoughtSelected':
+      return { ...state, ideasOverlayOpen: false, selectedThoughtId: event.commentId };
+    case 'thoughtSubmitSettled':
+      return { ...state, submittingThought: false };
+    case 'thoughtSubmitStarted':
+      return { ...state, sendError: '', submittingThought: true };
+  }
 }
 
 function AnnotationDiscussionShell({
@@ -295,8 +418,6 @@ function AnnotationDiscussionShell({
   annotation,
   article,
   className,
-  onArticleChange,
-  onRemoved,
   settings,
   style,
   uiLanguage,
@@ -306,44 +427,43 @@ function AnnotationDiscussionShell({
   annotation: Annotation;
   article: ArticleRecord;
   className: string;
-  onArticleChange: (article: ArticleRecord) => void;
-  onRemoved: () => void;
   settings: ResolvedAppSettings;
   style: CSSProperties;
   uiLanguage: UiLanguage;
   user: UserProfile;
 }) {
   const { t } = useTranslation();
-  const { annotationsRef, applyAnnotations, articleRef, replaceArticle } =
-    useDiscussionArticleProjection({
-      annotationId: annotation.id,
-      article,
-      onArticleChange,
-      onRemoved,
-    });
-  const [pinnedThoughtIds, setPinnedThoughtIds] = useState<Set<string>>(() => new Set());
-  const [selectedThoughtId, setSelectedThoughtId] = useState<string | null>(null);
-  const [ideasCollapsed, setIdeasCollapsed] = useState(false);
-  const [ideasOverlayOpen, setIdeasOverlayOpen] = useState(false);
-  const [layoutMode, setLayoutMode] = useState<DiscussionLayoutMode>('split');
-  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
-  const [replyDraft, setReplyDraft] = useState('');
-  const [replyCaretIndex, setReplyCaretIndex] = useState(0);
-  const [newThoughtDraft, setNewThoughtDraft] = useState('');
-  const [newThoughtOpen, setNewThoughtOpen] = useState(false);
-  const [newThoughtMode, setNewThoughtMode] = useState<'self' | 'assistant'>('self');
-  const [newThoughtCaretIndex, setNewThoughtCaretIndex] = useState(0);
-  const [submittingThought, setSubmittingThought] = useState(false);
-  const [addThoughtAgentRuns, setAddThoughtAgentRuns] = useState<AddThoughtAgentRun[]>([]);
-  const [addThoughtCelebrating, setAddThoughtCelebrating] = useState(false);
-  const [sendingReply, setSendingReply] = useState(false);
-  const [sendError, setSendError] = useState('');
+  const { annotationRemoved, applyAnnotations, latestArticle, replaceArticle } =
+    useDiscussionArticleProjection(annotation.id, article);
+  const [state, dispatch] = useReducer(
+    discussionShellReducer,
+    annotation,
+    initialDiscussionShellState,
+  );
+  const {
+    addThoughtAgentRuns,
+    addThoughtCelebrating,
+    deletingCommentId,
+    ideasAutoCollapsed,
+    ideasCollapsed,
+    ideasOverlayOpen,
+    layoutMode,
+    newThoughtCaretIndex,
+    newThoughtDraft,
+    newThoughtMode,
+    newThoughtOpen,
+    pinnedThoughtIds,
+    replyCaretIndex,
+    replyDraft,
+    selectedThoughtId,
+    sendError,
+    sendingReply,
+    submittingThought,
+  } = state;
   const thoughtDraftHandoffRef = useRef(false);
-  const awaitedThoughtIdRef = useRef<string | null>(null);
-  const discussionLayoutRef = useRef<HTMLElement>(null);
-  const ideasAutoCollapsed = useElementWidthBelow(
-    discussionLayoutRef,
+  const discussionLayoutRef = useElementWidthBelowRef(
     DISCUSSION_IDEAS_AUTO_COLLAPSE_WIDTH,
+    (narrow) => dispatch({ type: 'layoutWidthMeasured', narrow }),
   );
 
   const annotationAgents = useMemo(
@@ -359,10 +479,7 @@ function AnnotationDiscussionShell({
     [agents, uiLanguage],
   );
   const userProfile = annotationUserProfile(annotation, article, user);
-  const { runs: assistantRuns, settle: settleAssistantRun } = useAssistantRuns(
-    article.id,
-    assistantRunScope({ kind: 'annotation', annotationId: annotation.id }),
-  );
+  const assistantRuns = useDiscussionWindow((windowState) => windowState.assistantRuns);
   const threads = useMemo(
     () =>
       discussionThreads(
@@ -371,6 +488,7 @@ function AnnotationDiscussionShell({
       ),
     [annotation, assistantRuns, pinnedThoughtIds, replyRuleAgents],
   );
+  // An awaited assistant thought stays selected until the reloaded article brings it in.
   const selectedThread =
     threads.find((thread) => thread.root.id === selectedThoughtId) || threads[0] || null;
   const ideasRailCollapsed = ideasCollapsed || ideasAutoCollapsed;
@@ -386,10 +504,6 @@ function AnnotationDiscussionShell({
     .filter(Boolean)
     .join(' ');
 
-  useEffect(() => {
-    if (!ideasAutoCollapsed) setIdeasOverlayOpen(false);
-  }, [ideasAutoCollapsed]);
-
   const assistantThoughtWriting = addThoughtAgentRuns.some((run) => run.status === 'active');
   const receiveThoughtDraft = useEffectEvent((draft: string) => {
     if (
@@ -404,11 +518,7 @@ function AnnotationDiscussionShell({
     }
     // Multiple IPC replies can settle before React commits the first draft.
     thoughtDraftHandoffRef.current = true;
-    setNewThoughtDraft(draft);
-    setNewThoughtMode('self');
-    setNewThoughtOpen(true);
-    setNewThoughtCaretIndex(draft.length);
-    setSendError('');
+    dispatch({ type: 'thoughtDraftReceived', draft });
   });
   const reportThoughtDraftFailure = useEffectEvent((error: unknown) => {
     console.warn('[annotation-discussion] thought draft loading failed', {
@@ -419,66 +529,37 @@ function AnnotationDiscussionShell({
     appToast.error(t('readingMemory.library.thought.draftLoadFailed'));
   });
 
-  useEffect(() => {
-    thoughtDraftHandoffRef.current = false;
-  }, [newThoughtDraft]);
-
-  useEffect(() => {
-    let cancelled = false;
+  useMountEffect(() => {
+    let active = true;
     const discussion = getDesktopApi().annotations.discussion;
     const consumeThoughtDraft = () => {
       void discussion
         .consumeThoughtDraft()
         .then((draft) => {
-          if (!cancelled && draft !== null) receiveThoughtDraft(draft);
+          if (active && draft !== null) receiveThoughtDraft(draft);
         })
         .catch((error: unknown) => {
-          if (!cancelled) reportThoughtDraftFailure(error);
+          if (active) reportThoughtDraftFailure(error);
         });
     };
     const unsubscribe = discussion.onThoughtDraftAvailable(consumeThoughtDraft);
     consumeThoughtDraft();
     return () => {
-      cancelled = true;
+      active = false;
       unsubscribe();
     };
-  }, [annotation.id, article.id]);
+  });
 
-  useEffect(() => {
-    if (!assistantThoughtWriting) return;
-    playAppSoundEffect('discussion.assistant_thought_writing', settings);
-    return () => stopAppSoundEffect('discussion.assistant_thought_writing');
-  }, [assistantThoughtWriting, settings]);
-
-  useEffect(() => {
-    if (!threads.length) {
-      setSelectedThoughtId(null);
-      return;
-    }
-    const awaitedThoughtId = awaitedThoughtIdRef.current;
-    if (threads.some((thread) => thread.root.id === awaitedThoughtId)) {
-      awaitedThoughtIdRef.current = null;
-    }
-    // A finished assistant thought is selected before the reloaded article brings it in.
-    setSelectedThoughtId((current) =>
-      current &&
-      (current === awaitedThoughtId || threads.some((thread) => thread.root.id === current))
-        ? current
-        : threads[0].root.id,
-    );
-  }, [threads]);
-
-  useEffect(() => {
-    const commentIds = new Set(annotation.comments.map((comment) => comment.id));
-    for (const run of assistantRuns) {
-      if (run.commentId && commentIds.has(run.commentId)) settleAssistantRun(run.runKey);
-    }
-  }, [annotation, assistantRuns, settleAssistantRun]);
+  useMountEffect(() => () => stopAppSoundEffect('discussion.assistant_thought_writing'));
 
   async function deleteComment(commentId: string) {
     if (deletingCommentId) return;
-    setDeletingCommentId(commentId);
-    setSendError('');
+    dispatch({ type: 'commentDeleteStarted', commentId });
+    const visibleThreadId = selectedThread?.root.id ?? null;
+    const nextSelectedThoughtId =
+      visibleThreadId === commentId
+        ? (threads.find((thread) => thread.root.id !== commentId)?.root.id ?? null)
+        : visibleThreadId;
     try {
       const nextArticle = await annotationWindowActions.deleteCommentAndReload(
         article.id,
@@ -487,16 +568,11 @@ function AnnotationDiscussionShell({
       );
       const nextAnnotation = nextArticle?.annotations.find((item) => item.id === annotation.id);
       if (!nextArticle || !nextAnnotation) {
-        onRemoved();
+        annotationRemoved();
         return;
       }
       replaceArticle(nextArticle);
-      setPinnedThoughtIds((current) => {
-        if (!current.has(commentId)) return current;
-        const next = new Set(current);
-        next.delete(commentId);
-        return next;
-      });
+      dispatch({ type: 'commentDeleted', commentId, selectedThoughtId: nextSelectedThoughtId });
     } catch (error) {
       console.warn('[annotation-discussion] comment deletion failed', {
         articleId: article.id,
@@ -504,9 +580,10 @@ function AnnotationDiscussionShell({
         commentId,
         error,
       });
-      setSendError(assistantRuntimeErrorMessage(error, 'discussion.deleteFailed'));
-    } finally {
-      setDeletingCommentId(null);
+      dispatch({
+        type: 'commentDeleteFailed',
+        error: assistantRuntimeErrorMessage(error, 'discussion.deleteFailed'),
+      });
     }
   }
 
@@ -515,11 +592,11 @@ function AnnotationDiscussionShell({
     comment: Comment,
     updatedAt = new Date().toISOString(),
   ) {
-    const articleId = articleRef.current.id;
+    const articleId = latestArticle().id;
     const articleUpdatedAt = new Date().toISOString();
     await annotationWindowActions.saveComment(articleId, annotationId, comment, articleUpdatedAt);
     const nextAnnotations = annotationsWithSavedComment(
-      annotationsRef.current,
+      latestArticle().annotations,
       annotationId,
       comment,
       updatedAt,
@@ -533,10 +610,7 @@ function AnnotationDiscussionShell({
     const draft = replyDraft;
     const trimmed = draft.trim();
     if (!selectedRoot || !trimmed || sendingReply) return;
-    setSendingReply(true);
-    setSendError('');
-    setReplyDraft('');
-    setReplyCaretIndex(0);
+    dispatch({ type: 'replySubmitted' });
     let userCommentSaved = false;
     try {
       const userComment = createUserComment(userProfile, trimmed, { replyTo: selectedRoot.id });
@@ -567,13 +641,13 @@ function AnnotationDiscussionShell({
         annotationId: annotation.id,
         error,
       });
-      if (!userCommentSaved) {
-        setReplyDraft(draft);
-        setReplyCaretIndex(draft.length);
-      }
-      setSendError(assistantRuntimeErrorMessage(error, 'discussion.replyFailed'));
+      dispatch({
+        type: 'replyFailed',
+        error: assistantRuntimeErrorMessage(error, 'discussion.replyFailed'),
+        restoredDraft: userCommentSaved ? null : draft,
+      });
     } finally {
-      setSendingReply(false);
+      dispatch({ type: 'replySettled' });
     }
   }
 
@@ -582,13 +656,12 @@ function AnnotationDiscussionShell({
     if (!trimmed || submittingThought) return;
     const mentionedThoughtAgents = findMentionedAgents(trimmed, annotationAgents);
     if (newThoughtMode === 'assistant' && mentionedThoughtAgents.length === 0) return;
-    setSubmittingThought(true);
-    setSendError('');
+    dispatch({ type: 'thoughtSubmitStarted' });
     try {
       if (newThoughtMode === 'self') {
         const userComment = createUserComment(userProfile, trimmed);
         await saveComment(annotation.id, userComment, userComment.createdAt);
-        setSelectedThoughtId(userComment.id);
+        dispatch({ type: 'selfThoughtSaved', commentId: userComment.id });
 
         const mentionedAgents = findMentionedAgents(trimmed, annotationAgents);
         const instruction = agentInstructionFromNote(trimmed, mentionedAgents) || undefined;
@@ -603,13 +676,11 @@ function AnnotationDiscussionShell({
           ),
         );
       } else {
-        setAddThoughtCelebrating(false);
-        setAddThoughtAgentRuns(
-          mentionedThoughtAgents.map((agent) => ({
-            agent,
-            status: 'active',
-          })),
-        );
+        dispatch({
+          type: 'assistantThoughtRunsStarted',
+          runs: mentionedThoughtAgents.map((agent) => ({ agent, status: 'active' })),
+        });
+        playAppSoundEffect('discussion.assistant_thought_writing', settings);
         const route = await planAssistantThoughtRoute(trimmed, mentionedThoughtAgents);
         const tasks = mentionedThoughtAgents.map((agent) => {
           const directive = mentionDirectivesForAgent(route, agent, 'create_thought')[0];
@@ -625,14 +696,15 @@ function AnnotationDiscussionShell({
             readingIntent: directive?.readingIntent,
           };
         });
-        setAddThoughtAgentRuns(
-          tasks.map((task) => ({
+        dispatch({
+          type: 'assistantThoughtRunsStarted',
+          runs: tasks.map((task) => ({
             agent: task.agent,
             instruction: task.instruction,
             readingIntent: task.readingIntent,
             status: 'active',
           })),
-        );
+        });
         const failedCount = await runAssistantThoughtTasks(tasks);
         if (failedCount > 0) return;
         await finishSuccessfulAssistantThoughts();
@@ -644,9 +716,12 @@ function AnnotationDiscussionShell({
         annotationId: annotation.id,
         error,
       });
-      setSendError(assistantRuntimeErrorMessage(error, 'discussion.addThought.failed'));
+      dispatch({
+        type: 'errorShown',
+        error: assistantRuntimeErrorMessage(error, 'discussion.addThought.failed'),
+      });
     } finally {
-      setSubmittingThought(false);
+      dispatch({ type: 'thoughtSubmitSettled' });
     }
   }
 
@@ -663,16 +738,8 @@ function AnnotationDiscussionShell({
       }));
     if (tasks.length === 0) return;
 
-    setSubmittingThought(true);
-    setSendError('');
-    setAddThoughtCelebrating(false);
-    setAddThoughtAgentRuns((runs) =>
-      runs.map((run) =>
-        agentIds.includes(run.agent.id)
-          ? { ...run, errorMessage: undefined, progress: undefined, status: 'active' }
-          : run,
-      ),
-    );
+    dispatch({ type: 'assistantThoughtRetryStarted', agentIds });
+    playAppSoundEffect('discussion.assistant_thought_writing', settings);
     try {
       const failedCount = await runAssistantThoughtTasks(tasks);
       if (failedCount > 0) return;
@@ -683,7 +750,7 @@ function AnnotationDiscussionShell({
         closeNewThoughtDialog();
       }
     } finally {
-      setSubmittingThought(false);
+      dispatch({ type: 'thoughtSubmitSettled' });
     }
   }
 
@@ -698,42 +765,45 @@ function AnnotationDiscussionShell({
       tasks.map(async (task) => {
         try {
           const event = await requestAgentThought(task.agent, task.instruction, task.readingIntent);
-          updateAddThoughtAgentRun(task.agent.id, { errorMessage: undefined, status: 'done' });
+          dispatch({
+            type: 'assistantThoughtFinished',
+            agentId: task.agent.id,
+            commentId: event.commentId,
+          });
           playAppSoundEffect('discussion.assistant_thought_done', settings);
-          if (event.commentId) {
-            awaitedThoughtIdRef.current = event.commentId;
-            setSelectedThoughtId(event.commentId);
-          }
           return true;
         } catch (error) {
-          updateAddThoughtAgentRun(task.agent.id, {
+          dispatch({
+            type: 'assistantThoughtFailed',
+            agentId: task.agent.id,
             errorMessage: assistantRuntimeErrorMessage(
               error,
               'discussion.addThought.assistantFailed',
             ),
-            status: 'failed',
           });
           return false;
         }
       }),
     );
+    stopAppSoundEffect('discussion.assistant_thought_writing');
     return results.filter((result) => !result).length;
   }
 
   async function finishSuccessfulAssistantThoughts() {
-    setAddThoughtCelebrating(true);
+    dispatch({ type: 'assistantThoughtsCelebrated' });
     await waitForMilliseconds(1000);
   }
 
   async function planAssistantThoughtRoute(note: string, selectedAgents: PublicAgent[]) {
     const routeNote = assistantThoughtRouteNote(note, selectedAgents);
     try {
+      const currentArticle = latestArticle();
       return await annotationWindowActions.planAgentMentionRoute({
         note: routeNote,
         targetAnchor: annotation.anchor,
         agents: selectedAgents,
         allowedActions: ['create_thought'],
-        article: promptArticle(articleRef.current, discussionArticleText(articleRef.current)),
+        article: promptArticle(currentArticle, discussionArticleText(currentArticle)),
       });
     } catch {
       return {
@@ -772,7 +842,7 @@ function AnnotationDiscussionShell({
     void delivery?.settled.then((event) => {
       if (event.status !== 'failed') return;
       console.warn('[annotation-discussion] assistant reply failed', event);
-      setSendError(t('discussion.replyFailed'));
+      dispatch({ type: 'errorShown', error: t('discussion.replyFailed') });
     });
   }
 
@@ -793,32 +863,19 @@ function AnnotationDiscussionShell({
     throw new Error(t('discussion.addThought.assistantFailed'));
   }
 
-  function updateAddThoughtAgentRun(
-    agentId: string,
-    update:
-      | Partial<Pick<AddThoughtAgentRun, 'errorMessage' | 'progress' | 'status'>>
-      | ((
-          current: AddThoughtAgentRun,
-        ) => Partial<Pick<AddThoughtAgentRun, 'errorMessage' | 'progress' | 'status'>>),
-  ) {
-    setAddThoughtAgentRuns((runs) =>
-      runs.map((run) =>
-        run.agent.id === agentId
-          ? {
-              ...run,
-              ...(typeof update === 'function' ? update(run) : update),
-            }
-          : run,
-      ),
-    );
+  function openNewThoughtDialog() {
+    thoughtDraftHandoffRef.current = false;
+    dispatch({ type: 'newThoughtOpened' });
   }
 
-  function openNewThoughtDialog() {
-    setNewThoughtOpen(true);
-    setNewThoughtMode('self');
-    setNewThoughtDraft('');
-    setNewThoughtCaretIndex(0);
-    setSendError('');
+  function changeNewThoughtDraft(draft: string) {
+    thoughtDraftHandoffRef.current = false;
+    dispatch({ type: 'newThoughtDraftChanged', draft });
+  }
+
+  function closeNewThoughtDialog() {
+    thoughtDraftHandoffRef.current = false;
+    dispatch({ type: 'newThoughtClosed' });
   }
 
   function openSedimentationWindow(sourceElement: Element) {
@@ -826,37 +883,6 @@ function AnnotationDiscussionShell({
       articleId: article.id,
       annotationId: annotation.id,
       sourceRect: elementWindowSourceRect(sourceElement),
-    });
-  }
-
-  function toggleIdeasSidebar() {
-    if (ideasAutoCollapsed) {
-      setIdeasOverlayOpen((current) => !current);
-      return;
-    }
-    setIdeasOverlayOpen(false);
-    setIdeasCollapsed((current) => !current);
-  }
-
-  function selectThought(commentId: string) {
-    setSelectedThoughtId(commentId);
-    if (ideasOverlayOpen) setIdeasOverlayOpen(false);
-  }
-
-  function closeNewThoughtDialog() {
-    setNewThoughtOpen(false);
-    setNewThoughtDraft('');
-    setNewThoughtCaretIndex(0);
-    setAddThoughtAgentRuns([]);
-    setAddThoughtCelebrating(false);
-  }
-
-  function togglePinnedThought(commentId: string) {
-    setPinnedThoughtIds((current) => {
-      const next = new Set(current);
-      if (next.has(commentId)) next.delete(commentId);
-      else next.add(commentId);
-      return next;
     });
   }
 
@@ -886,7 +912,7 @@ function AnnotationDiscussionShell({
                   : t('discussion.collapseThoughts')
               }
               aria-expanded={!ideasContentCollapsed}
-              onClick={toggleIdeasSidebar}
+              onClick={() => dispatch({ type: 'ideasSidebarToggled' })}
             >
               {ideasContentCollapsed ? (
                 <HugeiconsIcon icon={PanelLeftOpenIcon} size={15} />
@@ -916,8 +942,8 @@ function AnnotationDiscussionShell({
                   agents={personaAgents}
                   userProfile={userProfile}
                   onDelete={() => void deleteComment(thread.root.id)}
-                  onPin={() => togglePinnedThought(thread.root.id)}
-                  onSelect={() => selectThought(thread.root.id)}
+                  onPin={() => dispatch({ type: 'thoughtPinToggled', commentId: thread.root.id })}
+                  onSelect={() => dispatch({ type: 'thoughtSelected', commentId: thread.root.id })}
                 />
               ))}
             </div>
@@ -948,7 +974,10 @@ function AnnotationDiscussionShell({
           <header>
             <strong>{t('discussion.thread')}</strong>
             <div className="annotation-discussion-thread-actions">
-              <AnnotationLayoutControl value={layoutMode} onChange={setLayoutMode} />
+              <AnnotationLayoutControl
+                value={layoutMode}
+                onChange={(mode) => dispatch({ type: 'layoutModeChanged', layoutMode: mode })}
+              />
             </div>
           </header>
           {selectedThread ? (
@@ -959,8 +988,8 @@ function AnnotationDiscussionShell({
               thread={selectedThread}
               userProfile={userProfile}
               onDelete={(commentId) => void deleteComment(commentId)}
-              onReplyCaretChange={setReplyCaretIndex}
-              onReplyDraftChange={setReplyDraft}
+              onReplyCaretChange={(caretIndex) => dispatch({ type: 'replyCaretMoved', caretIndex })}
+              onReplyDraftChange={(draft) => dispatch({ type: 'replyDraftChanged', draft })}
               onSubmitReply={() => void submitReply()}
               replyDraft={replyDraft}
               replyCaretIndex={replyCaretIndex}
@@ -988,9 +1017,9 @@ function AnnotationDiscussionShell({
           celebrating={addThoughtCelebrating}
           submitting={submittingThought}
           onCancel={closeNewThoughtDialog}
-          onCaretChange={setNewThoughtCaretIndex}
-          onDraftChange={setNewThoughtDraft}
-          onModeChange={setNewThoughtMode}
+          onCaretChange={(caretIndex) => dispatch({ type: 'newThoughtCaretMoved', caretIndex })}
+          onDraftChange={changeNewThoughtDraft}
+          onModeChange={(mode) => dispatch({ type: 'newThoughtModeChanged', mode })}
           onRetry={(agentId) => void retryAddThoughtRuns([agentId])}
           onRetryAll={() =>
             void retryAddThoughtRuns(

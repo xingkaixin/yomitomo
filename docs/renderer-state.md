@@ -58,7 +58,14 @@ session on lock, syncing theme and UI language from settings, or resetting
 settings drafts when a sync snapshot arrives, live in
 `apps/desktop/src/renderer/src/shell/app-desktop-event-bindings.ts`.
 
-Each window has its own stores and query client. Cross-window consistency comes
+Annotation windows create their store and bind its subscriptions in
+`apps/desktop/src/renderer/src/annotation-discussion/app-annotation-discussion-window-store.tsx`
+and
+`apps/desktop/src/renderer/src/annotation-discussion/app-annotation-sedimentation-window-store.tsx`;
+`main.tsx` calls the window factory when the route selects that window.
+
+Each window has its own stores and, if it reads through Query, its own query
+client. Cross-window consistency comes
 only from main-process broadcasts such as `article:patched`; do not synchronize
 renderer stores between windows directly.
 

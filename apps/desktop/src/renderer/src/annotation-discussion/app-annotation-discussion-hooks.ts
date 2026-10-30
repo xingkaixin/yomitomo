@@ -1,32 +1,28 @@
-import { useLayoutEffect, useState, type RefObject } from 'react';
+import { useCallback, useEffectEvent } from 'react';
 
-export function useElementWidthBelow(ref: RefObject<HTMLElement | null>, threshold: number) {
-  const [isBelow, setIsBelow] = useState(false);
+/** Returns a ref callback that reports whether the element is at most `threshold` wide. */
+export function useElementWidthBelowRef(threshold: number, onChange: (isBelow: boolean) => void) {
+  const reportWidth = useEffectEvent((width: number) => {
+    if (width > 0) onChange(width <= threshold);
+  });
 
-  useLayoutEffect(() => {
-    const element = ref.current;
+  return useCallback((element: HTMLElement | null) => {
     if (!element) return;
-
-    const updateWidth = (width: number) => {
-      if (width > 0) setIsBelow(width <= threshold);
-    };
 
     if (typeof ResizeObserver !== 'undefined') {
       const observer = new ResizeObserver((entries) => {
         const entry = entries[0];
         if (!entry) return;
-        updateWidth(entry.contentRect.width);
+        reportWidth(entry.contentRect.width);
       });
       observer.observe(element);
-      updateWidth(element.getBoundingClientRect().width);
+      reportWidth(element.getBoundingClientRect().width);
       return () => observer.disconnect();
     }
 
-    const handleResize = () => updateWidth(element.getBoundingClientRect().width);
+    const handleResize = () => reportWidth(element.getBoundingClientRect().width);
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [ref, threshold]);
-
-  return isBelow;
+  }, []);
 }
