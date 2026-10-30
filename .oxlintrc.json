@@ -66,9 +66,11 @@
     {
       "files": [
         "apps/desktop/src/renderer/src/shell/use-desktop-event.ts",
+        "apps/web/src/components/landing/use-stable-callback.ts",
         "packages/reader-ui/src/hooks/use-event-listener.ts",
         "packages/reader-ui/src/hooks/use-interval.ts",
-        "packages/reader-ui/src/hooks/use-mount-effect.ts"
+        "packages/reader-ui/src/hooks/use-mount-effect.ts",
+        "packages/reader-ui/src/hooks/use-stable-callback.ts"
       ],
       "rules": {
         "no-restricted-imports": "off"

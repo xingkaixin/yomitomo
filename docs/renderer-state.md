@@ -98,6 +98,10 @@ with its first caller and listed in the `.oxlintrc.json` allowlist override.
   showing the main window after the first commit or scheduling idle preloads. It
   takes no dependencies; work that follows a data change belongs in the action
   that changes the data.
+- `useStableCallback(callback)` in reader-ui: a stable function that calls the
+  latest callback. It updates in an insertion effect, which runs before React
+  attaches refs, so ref callbacks in the same commit already call the new
+  callback. `apps/web` keeps a copy because it does not depend on reader-ui.
 
 `useWindowSize` reads window size through `useSyncExternalStore` and needs no
 effect.
