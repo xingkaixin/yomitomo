@@ -6,7 +6,7 @@ import {
   PinIcon,
   PinOffIcon,
 } from '@hugeicons/core-free-icons';
-import { useState, type CSSProperties } from 'react';
+import { useReducer, type CSSProperties } from 'react';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { readingProgressRatio } from '@yomitomo/core';
@@ -14,6 +14,7 @@ import type { ArticleSummaryRecord } from '@yomitomo/shared';
 import { urlHost } from '../shell/app-article-presentation';
 import { ArticleBook, formatPdfAuthors } from '../shell/app-article-book';
 import { ArticleDeleteMenuItem, useArticleDeleteConfirm } from './app-reading-library-delete';
+import { libraryMenuReducer } from './library-menu-state';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,7 +44,7 @@ export function ArticleLibraryCard({
   pinned?: boolean;
 }) {
   const { t } = useTranslation();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuOpen, dispatchMenu] = useReducer(libraryMenuReducer, false);
   const annotations = articleAnnotationCount(article);
   const distillations = articleDistillationCount(article);
   const statsLabel = t('library.stats.label', { annotations, distillations });
@@ -79,7 +80,10 @@ export function ArticleLibraryCard({
         onClick={onOpen}
       />
       <div className={menuOpen ? 'library-item-actions is-active' : 'library-item-actions'}>
-        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+        <DropdownMenu
+          open={menuOpen}
+          onOpenChange={(open) => dispatchMenu({ type: 'openChanged', open })}
+        >
           <div className="library-card-menu">
             <DropdownMenuTrigger asChild>
               <button
@@ -100,7 +104,7 @@ export function ArticleLibraryCard({
                   <button
                     type="button"
                     onClick={() => {
-                      setMenuOpen(false);
+                      dispatchMenu({ type: 'itemChosen' });
                       void onSetPinned(!pinned);
                     }}
                   >
@@ -118,7 +122,7 @@ export function ArticleLibraryCard({
                   <button
                     type="button"
                     onClick={() => {
-                      setMenuOpen(false);
+                      dispatchMenu({ type: 'itemChosen' });
                       void onRemoveFromCollection();
                     }}
                   >
@@ -130,7 +134,7 @@ export function ArticleLibraryCard({
               <ArticleDeleteMenuItem
                 title={title}
                 onSelect={() => {
-                  setMenuOpen(false);
+                  dispatchMenu({ type: 'itemChosen' });
                   requestDelete();
                 }}
               />

@@ -103,8 +103,7 @@ describe('app session store', () => {
 
     emitMenuCommand('import-ebook');
     expect(sessionStore.getState()).toMatchObject({
-      navigation: { surface: 'library' },
-      menuRequest: { command: 'import-ebook', id: 1 },
+      navigation: { importDialog: 'ebook', surface: 'library' },
     });
 
     emitMenuCommand('backup-database');
@@ -159,20 +158,20 @@ describe('useAppSession', () => {
     const { sessionStore } = startMainWindow();
     const { result } = renderSession(sessionStore);
     act(() => {
-      result.current.libraryQuery.dispatch({ type: 'query-changed', query: 'design' });
+      result.current.actions.dispatchLibraryQuery({ type: 'query-changed', query: 'design' });
       result.current.actions.openSettings();
     });
 
     act(() => result.current.actions.openLibrary());
 
-    expect(result.current.libraryQuery.state.searchQuery).toBe('design');
+    expect(sessionStore.getState().libraryQuery.searchQuery).toBe('design');
   });
 });
 
 describe('appNavigationReducer', () => {
   it('makes reader state representable only on the library surface', () => {
     const reading = appNavigationReducer(
-      { pendingOpenArticle: null, readerOpen: false, surface: 'library' },
+      { importDialog: null, pendingOpenArticle: null, readerOpen: false, surface: 'library' },
       { type: 'set-reader-open', open: true },
     );
     const settings = appNavigationReducer(reading, {
@@ -181,6 +180,7 @@ describe('appNavigationReducer', () => {
     });
 
     expect(reading).toEqual({
+      importDialog: null,
       pendingOpenArticle: null,
       readerOpen: true,
       surface: 'library',
@@ -197,11 +197,13 @@ describe('appNavigationReducer', () => {
     );
 
     expect(opening).toEqual({
+      importDialog: null,
       pendingOpenArticle: { articleId: 'article_1', annotationId: 'annotation_1' },
       readerOpen: false,
       surface: 'library',
     });
     expect(appNavigationReducer(opening, { type: 'article-opened' })).toEqual({
+      importDialog: null,
       pendingOpenArticle: null,
       readerOpen: false,
       surface: 'library',

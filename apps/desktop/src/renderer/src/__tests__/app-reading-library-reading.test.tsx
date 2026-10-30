@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
 
-import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { Annotation, ArticleRecord, ArticleSummaryRecord, WeReadBook } from '@yomitomo/shared';
+import type { Annotation, ArticleRecord, WeReadBook } from '@yomitomo/shared';
 import type { WeReadState } from '../../../ipc-contract';
 import { defaultTheme } from '../theme/app-theme';
 import { articleActionStubs } from './article-actions-test-utils';
@@ -23,16 +22,26 @@ import {
   TestReadingLibrary as ReadingLibrary,
   userProfile,
 } from './app-reading-library-test-support';
+import {
+  createReadingLibraryTestStores,
+  ReadingLibraryTestProviders,
+} from './reading-library-test-providers';
 
 describe('ReadingLibrary reading', () => {
   it('renders ebooks as list rows with cover progress', async () => {
     const coverUrl = 'data:image/jpeg;base64,ZmFrZS1jb3Zlcg==';
-    const getArticleCover = vi.fn().mockResolvedValue(coverUrl);
+    let resolveCover!: (url: string) => void;
+    const getArticleCover = vi.fn(
+      () =>
+        new Promise<string>((resolve) => {
+          resolveCover = resolve;
+        }),
+    );
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
       value: { article: { getCover: getArticleCover } },
     });
-    const { container } = renderLibrary([
+    const { container } = await renderLibrary([
       article({
         id: 'ebook_cover_progress',
         url: 'ebook://ebook_cover_progress',
@@ -75,13 +84,14 @@ describe('ReadingLibrary reading', () => {
     ).toEqual(['1', '1']);
     expect(container.querySelector('.library-ebook-progress')).toBeTruthy();
     await waitFor(() => expect(getArticleCover).toHaveBeenCalledWith('ebook_cover_progress'));
+    await act(async () => resolveCover(coverUrl));
     expect(container.querySelector('.article-book-cover-image')?.getAttribute('src')).toBe(
       coverUrl,
     );
   });
 
-  it('recleans stale ebook display titles from older cleanup versions', () => {
-    renderLibrary([
+  it('recleans stale ebook display titles from older cleanup versions', async () => {
+    await renderLibrary([
       article({
         id: 'stale_ebook',
         url: 'ebook://stale_ebook',
@@ -107,7 +117,7 @@ describe('ReadingLibrary reading', () => {
   });
 
   it('renders PDFs as document rows with metadata', async () => {
-    renderLibrary([
+    await renderLibrary([
       article({
         id: 'pdf_1',
         url: 'pdf:pdf_1',
@@ -162,7 +172,7 @@ describe('ReadingLibrary reading', () => {
       },
     });
 
-    renderLibrary([], { wereadBooks: state.books });
+    await renderLibrary([], { wereadBooks: state.books });
 
     expect(
       (await screen.findAllByRole('button', { name: '打开微信读书笔记：微信读书标题' })).length,
@@ -219,7 +229,7 @@ describe('ReadingLibrary reading', () => {
       },
     });
 
-    renderLibrary([], { wereadBooks: state.books });
+    await renderLibrary([], { wereadBooks: state.books });
 
     await screen.findByRole('button', { name: '打开微信读书笔记：上次阅读较新' });
     expect(screen.getAllByRole('heading', { level: 3 }).map((item) => item.textContent)).toEqual([
@@ -241,7 +251,7 @@ describe('ReadingLibrary reading', () => {
       },
     });
 
-    renderLibrary([], {
+    await renderLibrary([], {
       settings: {
         libraryContentSources: [
           { id: 'ebook', enabled: true },
@@ -293,7 +303,7 @@ describe('ReadingLibrary reading', () => {
       },
     });
 
-    renderLibrary([]);
+    await renderLibrary([]);
 
     await waitFor(() => expect(emitWeReadState).toBeTypeOf('function'));
     expect(screen.queryByText('自动同步书籍')).toBeNull();
@@ -323,7 +333,7 @@ describe('ReadingLibrary reading', () => {
       }),
     );
     const onReadArticle = vi.fn().mockResolvedValue(null);
-    renderLibrary([pdfSummary], { onReadArticle });
+    await renderLibrary([pdfSummary], { onReadArticle });
 
     fireEvent.click(screen.getAllByRole('button', { name: '打开PDF：PDF 标题' })[0]);
 
@@ -332,8 +342,8 @@ describe('ReadingLibrary reading', () => {
     });
   });
 
-  it('exposes the full title on hover', () => {
-    renderLibrary([
+  it('exposes the full title on hover', async () => {
+    await renderLibrary([
       article({
         siteIconUrl: '',
         title: '这是一段会在卡片上被截断的很长标题',
@@ -352,7 +362,7 @@ describe('ReadingLibrary reading', () => {
         disconnect() {}
       },
     );
-    renderLibrary([article({ title: '网页文章' })]);
+    await renderLibrary([article({ title: '网页文章' })]);
 
     fireEvent.click(screen.getAllByRole('button', { name: '打开文章：网页文章' })[0]);
 
@@ -383,18 +393,18 @@ describe('ReadingLibrary reading', () => {
     );
     const initialReadingModeChange = vi.fn();
     const nextReadingModeChange = vi.fn();
-    const view = renderLibrary([article({ title: '网页文章' })], {
+    const view = await renderLibrary([article({ title: '网页文章' })], {
       onReadingModeChange: initialReadingModeChange,
     });
 
     fireEvent.click(screen.getAllByRole('button', { name: '打开文章：网页文章' })[0]);
     await screen.findByRole('button', { name: '返回阅读库' });
 
-    expect(initialReadingModeChange.mock.calls).toEqual([[false], [true]]);
+    expect(initialReadingModeChange.mock.calls).toEqual([[true]]);
 
     view.updateReadingModeChange(nextReadingModeChange);
 
-    expect(initialReadingModeChange.mock.calls).toEqual([[false], [true]]);
+    expect(initialReadingModeChange.mock.calls).toEqual([[true]]);
     expect(nextReadingModeChange).not.toHaveBeenCalled();
   });
 
@@ -437,35 +447,28 @@ describe('ReadingLibrary reading', () => {
       .fn<(articleId: string) => Promise<ArticleRecord | null>>()
       .mockResolvedValueOnce(initialArticle)
       .mockResolvedValue(updatedArticle);
-    let setArticles!: (articles: ArticleSummaryRecord[]) => void;
+    const stores = createReadingLibraryTestStores([articleSummary(initialArticle)]);
 
-    function Harness() {
-      const [articles, updateArticles] = React.useState([articleSummary(initialArticle)]);
-      setArticles = updateArticles;
-      return (
+    installDefaultCatalog([articleSummary(initialArticle)]);
+    render(
+      <ReadingLibraryTestProviders stores={stores}>
         <ReadingLibrary
           agents={[]}
           articleActions={articleActionStubs({
             readArticle: (articleId) => onReadArticle(articleId),
           })}
           articleStore={articleStore}
-          articles={articles}
           {...collectionActionStubs()}
           readerTheme={defaultTheme.reader}
           userProfile={userProfile}
         />
-      );
-    }
+      </ReadingLibraryTestProviders>,
+    );
 
-    installDefaultCatalog([articleSummary(initialArticle)]);
-    render(<Harness />);
-
-    fireEvent.click(screen.getAllByRole('button', { name: '打开文章：同步文章' })[0]);
+    fireEvent.click((await screen.findAllByRole('button', { name: '打开文章：同步文章' }))[0]);
     await waitFor(() => expect(onReadArticle).toHaveBeenCalledTimes(1));
 
-    act(() => {
-      setArticles([updatedSummary]);
-    });
+    act(() => stores.setArticles([updatedSummary]));
 
     await waitFor(() => expect(onReadArticle).toHaveBeenCalledTimes(2));
     expect(onReadArticle).toHaveBeenLastCalledWith('article_1');
@@ -506,35 +509,28 @@ describe('ReadingLibrary reading', () => {
       .fn<(articleId: string) => Promise<ArticleRecord | null>>()
       .mockResolvedValueOnce(initialArticle)
       .mockResolvedValue(updatedArticle);
-    let setArticles!: (articles: ArticleSummaryRecord[]) => void;
+    const stores = createReadingLibraryTestStores([articleSummary(initialArticle)]);
 
-    function Harness() {
-      const [articles, updateArticles] = React.useState([articleSummary(initialArticle)]);
-      setArticles = updateArticles;
-      return (
+    installDefaultCatalog([articleSummary(initialArticle)]);
+    render(
+      <ReadingLibraryTestProviders stores={stores}>
         <ReadingLibrary
           agents={[]}
           articleActions={articleActionStubs({
             readArticle: (articleId) => onReadArticle(articleId),
           })}
           articleStore={articleStore}
-          articles={articles}
           {...collectionActionStubs()}
           readerTheme={defaultTheme.reader}
           userProfile={userProfile}
         />
-      );
-    }
+      </ReadingLibraryTestProviders>,
+    );
 
-    installDefaultCatalog([articleSummary(initialArticle)]);
-    render(<Harness />);
-
-    fireEvent.click(screen.getAllByRole('button', { name: '打开文章：删除同步文章' })[0]);
+    fireEvent.click((await screen.findAllByRole('button', { name: '打开文章：删除同步文章' }))[0]);
     await waitFor(() => expect(onReadArticle).toHaveBeenCalledTimes(1));
 
-    act(() => {
-      setArticles([updatedSummary]);
-    });
+    act(() => stores.setArticles([updatedSummary]));
 
     await waitFor(() => expect(onReadArticle).toHaveBeenCalledTimes(2));
     expect(onReadArticle).toHaveBeenLastCalledWith('article_1');
@@ -581,7 +577,7 @@ describe('ReadingLibrary reading', () => {
       soundEffectsEnabled: true,
       soundEffectsVolume: 0.55,
     };
-    renderLibrary([articleSummary(fullArticle)], {
+    await renderLibrary([articleSummary(fullArticle)], {
       onReadArticle: vi.fn().mockResolvedValue(fullArticle),
       settings,
     });
@@ -668,7 +664,7 @@ describe('ReadingLibrary reading', () => {
     });
     const summary = articleSummary(fullArticle);
     const onReadArticle = vi.fn().mockResolvedValue(fullArticle);
-    renderLibrary([summary], { onReadArticle });
+    await renderLibrary([summary], { onReadArticle });
 
     fireEvent.click(screen.getAllByRole('button', { name: '打开文章：评审沉淀文章' })[0]);
     expect(await screen.findByRole('button', { name: '返回阅读库' })).toBeTruthy();
@@ -745,37 +741,31 @@ describe('ReadingLibrary reading', () => {
       .fn<(articleId: string) => Promise<ArticleRecord | null>>()
       .mockResolvedValueOnce(initialArticle)
       .mockResolvedValue(publishedArticle);
-    let setArticles!: (articles: ArticleSummaryRecord[]) => void;
+    const stores = createReadingLibraryTestStores([articleSummary(initialArticle)]);
 
-    function Harness() {
-      const [articles, updateArticles] = React.useState([articleSummary(initialArticle)]);
-      setArticles = updateArticles;
-      return (
+    installDefaultCatalog([articleSummary(initialArticle)]);
+    render(
+      <ReadingLibraryTestProviders stores={stores}>
         <ReadingLibrary
           agents={[]}
           articleActions={articleActionStubs({
             readArticle: (articleId) => onReadArticle(articleId),
           })}
           articleStore={articleStore}
-          articles={articles}
           {...collectionActionStubs()}
           readerTheme={defaultTheme.reader}
           userProfile={userProfile}
         />
-      );
-    }
+      </ReadingLibraryTestProviders>,
+    );
 
-    installDefaultCatalog([articleSummary(initialArticle)]);
-    render(<Harness />);
-
+    await flushMicrotasks();
     fireEvent.click(screen.getAllByRole('button', { name: '打开文章：同步沉淀文章' })[0]);
     await flushMicrotasks();
     expect(onReadArticle).toHaveBeenCalledTimes(1);
     expect(onCommitted).toBeTruthy();
 
-    act(() => {
-      setArticles([publishedSummary]);
-    });
+    act(() => stores.setArticles([publishedSummary]));
     await flushMicrotasks();
     expect(onReadArticle).toHaveBeenCalledTimes(2);
 
@@ -821,7 +811,7 @@ describe('ReadingLibrary reading', () => {
       .mockImplementation((handle: number) => window.clearTimeout(handle));
     vi.stubGlobal('requestAnimationFrame', requestAnimationFrame);
     vi.stubGlobal('cancelAnimationFrame', cancelAnimationFrame);
-    renderLibrary(
+    await renderLibrary(
       [
         article({
           id: 'web_progress',
@@ -863,7 +853,7 @@ describe('ReadingLibrary reading', () => {
         disconnect() {}
       },
     );
-    renderLibrary([
+    await renderLibrary([
       article({ id: 'web_1', title: '网页文章' }),
       article({
         id: 'ebook_1',
@@ -904,9 +894,11 @@ describe('ReadingLibrary reading', () => {
     });
     const getState = vi.fn().mockResolvedValueOnce(state).mockReturnValue(pendingSettings);
     vi.stubGlobal('yomitomoDesktop', { weRead: { getState } });
-    const view = renderLibrary([article({ title: '网页文章' })]);
+    const view = await renderLibrary([article({ title: '网页文章' })]);
     await selectLibraryType('微信读书');
-    expect(screen.queryByRole('button', { name: '打开文章：网页文章' })).toBeNull();
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: '打开文章：网页文章' })).toBeNull(),
+    );
 
     view.remountLibrary();
     await waitFor(() => expect(getState).toHaveBeenCalledTimes(2));

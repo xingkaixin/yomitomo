@@ -43,7 +43,7 @@ describe('ReadingLibrary catalog', () => {
         },
       },
     });
-    renderLibrary([]);
+    await renderLibrary([]);
     await waitFor(() => expect(listLibraryCatalog).toHaveBeenCalledOnce());
     await act(async () => {
       finishInitialRead(state);
@@ -94,7 +94,7 @@ describe('ReadingLibrary catalog', () => {
       },
     });
 
-    renderLibrary([]);
+    await renderLibrary([]);
 
     await screen.findByRole('heading', { name: '远程目录第 1 页' });
     expect(listLibraryCatalog).toHaveBeenLastCalledWith(
@@ -113,8 +113,8 @@ describe('ReadingLibrary catalog', () => {
     );
   });
 
-  it('renders a single mixed grid sorted by added time', () => {
-    renderLibrary([
+  it('renders a single mixed grid sorted by added time', async () => {
+    await renderLibrary([
       article({
         id: 'older_web',
         title: '较早网页',
@@ -150,8 +150,8 @@ describe('ReadingLibrary catalog', () => {
     expect(screen.getByText('共 2 项')).toBeTruthy();
   });
 
-  it('orders pinned items in the same grid without a pinned group heading', () => {
-    renderLibrary(
+  it('orders pinned items in the same grid without a pinned group heading', async () => {
+    await renderLibrary(
       [
         article({
           id: 'unpinned_newest',
@@ -196,7 +196,7 @@ describe('ReadingLibrary catalog', () => {
     ]);
   });
 
-  it('orders collections by created time instead of updated time', () => {
+  it('orders collections by created time instead of updated time', async () => {
     const olderCollection: Collection = {
       id: 'collection_older',
       name: '较早合集',
@@ -210,7 +210,7 @@ describe('ReadingLibrary catalog', () => {
       updatedAt: '2026-05-01T12:00:00.000Z',
     };
 
-    renderLibrary([], { collections: [olderCollection, newerCollection] });
+    await renderLibrary([], { collections: [olderCollection, newerCollection] });
 
     expect(screen.getAllByRole('article').map((item) => item.getAttribute('aria-label'))).toEqual([
       '较新合集',
@@ -241,7 +241,7 @@ describe('ReadingLibrary catalog', () => {
       },
     });
 
-    renderLibrary(
+    await renderLibrary(
       [
         article({ id: 'web_1', title: '网页文章' }),
         article({
@@ -286,7 +286,7 @@ describe('ReadingLibrary catalog', () => {
   });
 
   it('filters the mixed grid by type scope', async () => {
-    renderLibrary([
+    await renderLibrary([
       article({ id: 'web_1', title: '网页文章' }),
       article({
         id: 'ebook_1',
@@ -307,7 +307,7 @@ describe('ReadingLibrary catalog', () => {
 
     await selectLibraryType(/电子书/);
 
-    expect(screen.getByText('共 1 本')).toBeTruthy();
+    expect(await screen.findByText('共 1 本')).toBeTruthy();
     expect(screen.getAllByText('电子书标题').length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: '打开文章：网页文章' })).toBeNull();
     expect(screen.getByRole('button', { name: '移除电子书' })).toBeTruthy();
@@ -319,7 +319,7 @@ describe('ReadingLibrary catalog', () => {
 
   it('keeps search query and type filter across remounts within the session', async () => {
     const articles = [article({ id: 'web_1', title: '网页文章' })];
-    const view = renderLibrary(articles);
+    const view = await renderLibrary(articles);
 
     fireEvent.change(screen.getByLabelText('搜索文章、合集、作者或来源'), {
       target: { value: '关键字' },
@@ -336,7 +336,7 @@ describe('ReadingLibrary catalog', () => {
   });
 
   it('reverts to all when every type is selected', async () => {
-    renderLibrary([article({ id: 'web_1', title: '网页文章' })]);
+    await renderLibrary([article({ id: 'web_1', title: '网页文章' })]);
 
     fireEvent.click(screen.getByRole('button', { name: '筛选内容类型' }));
     fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: '合集' }));
@@ -352,7 +352,7 @@ describe('ReadingLibrary catalog', () => {
     expect(screen.getByRole('button', { name: '筛选内容类型' }).textContent).toContain('全部');
   });
 
-  it('returns to the active collection view after a remount', () => {
+  it('returns to the active collection view after a remount', async () => {
     const collectedArticle = article({ id: 'article_collected', title: '合集内文章' });
     const collection: Collection = {
       id: 'collection_1',
@@ -370,7 +370,7 @@ describe('ReadingLibrary catalog', () => {
         },
       ],
     };
-    const view = renderLibrary([collectedArticle], options);
+    const view = await renderLibrary([collectedArticle], options);
 
     fireEvent.click(screen.getByRole('button', { name: '打开合集：研究合集' }));
     expect(screen.getByRole('button', { name: '返回全部' })).toBeTruthy();
@@ -378,10 +378,10 @@ describe('ReadingLibrary catalog', () => {
     view.remountLibrary();
 
     expect(screen.getByRole('button', { name: '返回全部' })).toBeTruthy();
-    expect(screen.getByText('研究合集')).toBeTruthy();
+    expect(await screen.findByText('研究合集')).toBeTruthy();
   });
 
-  it('marks collection drill direction when entering and returning', () => {
+  it('marks collection drill direction when entering and returning', async () => {
     const collectedArticle = article({ id: 'article_collected', title: '合集内文章' });
     const collection: Collection = {
       id: 'collection_1',
@@ -389,7 +389,7 @@ describe('ReadingLibrary catalog', () => {
       createdAt: now,
       updatedAt: now,
     };
-    renderLibrary([collectedArticle], {
+    await renderLibrary([collectedArticle], {
       collections: [collection],
       collectionMembers: [
         {

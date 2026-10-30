@@ -15,7 +15,7 @@ import {
   TextIcon,
   Tick01Icon,
 } from '@hugeicons/core-free-icons';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useReducer, useRef } from 'react';
 import {
   type ResolvedAppSettings,
   type ArticleRecord,
@@ -55,7 +55,6 @@ import {
   type SetLibraryPinInput,
   type TextImportCommitInput,
 } from '../../../ipc-contract';
-import type { AppMenuCommandRequest } from '../../../app-menu-types';
 import { libraryContentSourceBaseOptions } from './app-library-content-sources';
 import { CollectionPickerDialog } from './app-reading-library-collection-picker';
 import { LibraryEntityGrid } from './app-reading-library-entity-grid';
@@ -133,7 +132,6 @@ type LibraryHomeProps = {
   content: LibraryHomeContent;
   imports: LibraryHomeImports;
   itemActions: LibraryHomeItemActions;
-  menuRequest?: AppMenuCommandRequest | null;
   querySession: LibraryQuerySession;
   settingsControl: LibraryHomeSettingsControl;
   weRead: LibraryHomeWeReadControl;
@@ -145,7 +143,6 @@ export function LibraryHome({
   content,
   imports,
   itemActions,
-  menuRequest,
   querySession,
   settingsControl,
   weRead,
@@ -181,11 +178,11 @@ export function LibraryHome({
     settings: wereadSettings,
     syncing: wereadSyncing,
   } = weRead;
-  const [typeMenuOpen, setTypeMenuOpen] = useState(false);
+  const [{ collectionNameDialog, pickerCollectionId, typeMenuOpen }, dispatchOverlay] = useReducer(
+    libraryHomeOverlayReducer,
+    initialLibraryHomeOverlays,
+  );
   const searchInputRef = useRef<HTMLInputElement | null>(null);
-  const [collectionNameDialog, setCollectionNameDialog] =
-    useState<CollectionNameDialogState | null>(null);
-  const [pickerCollectionId, setPickerCollectionId] = useState<string | null>(null);
   const {
     actions: libraryQueryActions,
     availableTypes,
@@ -290,27 +287,6 @@ export function LibraryHome({
     onOpenArticle,
   });
 
-  useEffect(() => {
-    if (!menuRequest) return;
-    if (menuRequest.command === 'import-web') {
-      importDialogs.openArticleImport();
-      return;
-    }
-    if (menuRequest.command === 'import-ebook') {
-      importDialogs.openEbookImport();
-      return;
-    }
-    if (menuRequest.command === 'import-pdf') {
-      importDialogs.openPdfImport();
-    }
-  }, [
-    importDialogs.openArticleImport,
-    importDialogs.openEbookImport,
-    importDialogs.openPdfImport,
-    menuRequest?.command,
-    menuRequest?.id,
-  ]);
-
   const createCollection = async (name: string) => {
     const collection = await onCreateCollection(name);
     libraryQueryActions.openCollection(collection.id);
@@ -355,7 +331,10 @@ export function LibraryHome({
           ) : null}
           <div className="library-search-typed">
             <HugeiconsIcon icon={Search01Icon} size={16} />
-            <Popover open={typeMenuOpen} onOpenChange={setTypeMenuOpen}>
+            <Popover
+              open={typeMenuOpen}
+              onOpenChange={(open) => dispatchOverlay({ type: 'typeMenuOpenChanged', open })}
+            >
               <PopoverTrigger asChild>
                 <button
                   className="library-type-filter-button"
@@ -478,10 +457,18 @@ export function LibraryHome({
               onAddPdf={importDialogs.openPdfImport}
               onAddText={importDialogs.openTextImport}
               onCreateCollection={
-                activeCollection ? undefined : () => setCollectionNameDialog({ type: 'create' })
+                activeCollection
+                  ? undefined
+                  : () => dispatchOverlay({ type: 'collectionCreateRequested' })
               }
               onOpenCollectionPicker={
-                activeCollection ? () => setPickerCollectionId(activeCollection.id) : undefined
+                activeCollection
+                  ? () =>
+                      dispatchOverlay({
+                        type: 'collectionPickerOpened',
+                        collectionId: activeCollection.id,
+                      })
+                  : undefined
               }
               onSyncWeRead={onSyncWeRead}
             />
@@ -520,7 +507,11 @@ export function LibraryHome({
                   deleteCollection: (collection) => void deleteCollection(collection.id),
                   openArticle: onOpenArticle,
                   openCollection: (collection) => libraryQueryActions.openCollection(collection.id),
-                  openCollectionPicker: (collection) => setPickerCollectionId(collection.id),
+                  openCollectionPicker: (collection) =>
+                    dispatchOverlay({
+                      type: 'collectionPickerOpened',
+                      collectionId: collection.id,
+                    }),
                   openWeReadBook: onOpenWeReadBook,
                   openWeReadExternal: onOpenWeReadExternal,
                   removeCollectionMember: activeCollection
@@ -531,7 +522,7 @@ export function LibraryHome({
                         )
                     : undefined,
                   renameCollection: (collection) =>
-                    setCollectionNameDialog({ type: 'rename', collection }),
+                    dispatchOverlay({ type: 'collectionRenameRequested', collection }),
                   setPinned: (entity, pinned) =>
                     void onSetLibraryPin({ target: libraryEntityPinTarget(entity), pinned }),
                 }}
@@ -553,7 +544,13 @@ export function LibraryHome({
                 weReadConfigured={wereadSettings.configured}
                 weReadSyncing={wereadSyncing}
                 onAddExisting={
-                  activeCollection ? () => setPickerCollectionId(activeCollection.id) : undefined
+                  activeCollection
+                    ? () =>
+                        dispatchOverlay({
+                          type: 'collectionPickerOpened',
+                          collectionId: activeCollection.id,
+                        })
+                    : undefined
                 }
                 onAddWebArticle={importDialogs.openArticleImport}
                 onAddEbook={importDialogs.openEbookImport}
@@ -643,7 +640,7 @@ export function LibraryHome({
       {collectionNameDialog ? (
         <CollectionNameDialog
           dialog={collectionNameDialog}
-          onClose={() => setCollectionNameDialog(null)}
+          onClose={() => dispatchOverlay({ type: 'collectionNameDialogClosed' })}
           onCreate={createCollection}
           onRename={renameCollection}
         />
@@ -654,7 +651,7 @@ export function LibraryHome({
           collection={pickerCollection}
           typeOptions={pickerTypeOptions}
           onAddMembers={(members) => addCollectionMembers(pickerCollection.id, members)}
-          onClose={() => setPickerCollectionId(null)}
+          onClose={() => dispatchOverlay({ type: 'collectionPickerClosed' })}
         />
       ) : null}
       {importDialogs.dialogs}
@@ -663,6 +660,76 @@ export function LibraryHome({
 }
 
 type CollectionNameDialogState = { type: 'create' } | { type: 'rename'; collection: Collection };
+
+type LibraryHomeOverlays = {
+  collectionNameDialog: CollectionNameDialogState | null;
+  pickerCollectionId: string | null;
+  typeMenuOpen: boolean;
+};
+
+type LibraryHomeOverlayEvent =
+  | { type: 'typeMenuOpenChanged'; open: boolean }
+  | { type: 'collectionCreateRequested' }
+  | { type: 'collectionRenameRequested'; collection: Collection }
+  | { type: 'collectionNameDialogClosed' }
+  | { type: 'collectionPickerOpened'; collectionId: string }
+  | { type: 'collectionPickerClosed' };
+
+const initialLibraryHomeOverlays: LibraryHomeOverlays = {
+  collectionNameDialog: null,
+  pickerCollectionId: null,
+  typeMenuOpen: false,
+};
+
+function libraryHomeOverlayReducer(
+  overlays: LibraryHomeOverlays,
+  event: LibraryHomeOverlayEvent,
+): LibraryHomeOverlays {
+  switch (event.type) {
+    case 'typeMenuOpenChanged':
+      return { ...overlays, typeMenuOpen: event.open };
+    case 'collectionCreateRequested':
+      return { ...overlays, collectionNameDialog: { type: 'create' } };
+    case 'collectionRenameRequested':
+      return {
+        ...overlays,
+        collectionNameDialog: { type: 'rename', collection: event.collection },
+      };
+    case 'collectionNameDialogClosed':
+      return { ...overlays, collectionNameDialog: null };
+    case 'collectionPickerOpened':
+      return { ...overlays, pickerCollectionId: event.collectionId };
+    case 'collectionPickerClosed':
+      return { ...overlays, pickerCollectionId: null };
+  }
+}
+
+type CollectionNameForm = { name: string; error: string; submitting: boolean };
+
+type CollectionNameFormEvent =
+  | { type: 'nameEdited'; name: string }
+  | { type: 'nameMissing'; message: string }
+  | { type: 'submitStarted' }
+  | { type: 'submitFailed'; message: string }
+  | { type: 'submitSucceeded' };
+
+function collectionNameFormReducer(
+  form: CollectionNameForm,
+  event: CollectionNameFormEvent,
+): CollectionNameForm {
+  switch (event.type) {
+    case 'nameEdited':
+      return { ...form, name: event.name };
+    case 'nameMissing':
+      return { ...form, error: event.message };
+    case 'submitStarted':
+      return { ...form, error: '', submitting: true };
+    case 'submitFailed':
+      return { ...form, error: event.message, submitting: false };
+    case 'submitSucceeded':
+      return { ...form, submitting: false };
+  }
+}
 
 function CollectionNameDialog({
   dialog,
@@ -676,28 +743,31 @@ function CollectionNameDialog({
   onRename: (collectionId: string, name: string) => Promise<void>;
 }) {
   const { t } = useTranslation();
-  const [name, setName] = useState(dialog.type === 'rename' ? dialog.collection.name : '');
-  const [error, setError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [{ name, error, submitting }, dispatch] = useReducer(collectionNameFormReducer, {
+    name: dialog.type === 'rename' ? dialog.collection.name : '',
+    error: '',
+    submitting: false,
+  });
   const isRename = dialog.type === 'rename';
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const nextName = name.trim();
     if (!nextName) {
-      setError(t('library.collection.nameRequired'));
+      dispatch({ type: 'nameMissing', message: t('library.collection.nameRequired') });
       return;
     }
-    setSubmitting(true);
-    setError('');
+    dispatch({ type: 'submitStarted' });
     try {
       if (isRename) await onRename(dialog.collection.id, nextName);
       else await onCreate(nextName);
       onClose();
+      dispatch({ type: 'submitSucceeded' });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('library.collection.saveFailed'));
-    } finally {
-      setSubmitting(false);
+      dispatch({
+        type: 'submitFailed',
+        message: cause instanceof Error ? cause.message : t('library.collection.saveFailed'),
+      });
     }
   }
 
@@ -725,7 +795,7 @@ function CollectionNameDialog({
                   autoFocus
                   value={name}
                   placeholder={t('library.collection.namePlaceholder')}
-                  onChange={(event) => setName(event.target.value)}
+                  onChange={(event) => dispatch({ type: 'nameEdited', name: event.target.value })}
                 />
               </label>
               {error ? <p className="library-collection-dialog-error">{error}</p> : null}

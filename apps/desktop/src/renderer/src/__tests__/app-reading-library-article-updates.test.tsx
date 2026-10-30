@@ -17,11 +17,14 @@ import type { CurrentArticleSink } from '../shell/app-article-store';
 import type { ArticleActions } from '../shell/app-article-store-actions';
 import type { ReadingEvidenceSourceTarget } from '../shell/app-reading-types';
 import { ReadingLibrary } from '../reading-library/app-reading-library';
-import { useLibraryQueryState } from '../reading-library/use-library-query-state';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { defaultTheme } from '../theme/app-theme';
 import { articleActionStubs, articleStoreSinkStub } from './article-actions-test-utils';
 import { useWebAnnotationFocus } from '../source/web/use-web-annotation-focus';
+import {
+  createReadingLibraryTestStores,
+  ReadingLibraryTestProviders,
+} from './reading-library-test-providers';
 
 const sourceBookcase = vi.hoisted(() => ({
   props: null as SourceBookcaseProps | null,
@@ -376,7 +379,7 @@ describe('ReadingLibrary article updates', () => {
     await waitFor(() => expect(sourceBookcase.props?.content.article?.id).toBe(selectedArticle.id));
 
     readResult = externalArticle;
-    view.rerender(readingLibrary({ ...options, articles: [externalArticle] }));
+    act(() => view.setArticles([externalArticle]));
 
     await waitFor(() =>
       expect(sourceBookcase.props?.content.article?.title).toBe('Changed externally'),
@@ -405,7 +408,7 @@ describe('ReadingLibrary article updates', () => {
     await waitFor(() => expect(sourceBookcase.props?.content.article?.id).toBe(selectedArticle.id));
 
     act(() => sourceBookcase.props?.annotationActions.onArticleChange(localArticle));
-    view.rerender(readingLibrary({ ...options, articles: [staleExternalArticle] }));
+    act(() => view.setArticles([staleExternalArticle]));
 
     await act(async () => undefined);
     expect(sourceBookcase.props?.content.article?.title).toBe('Changed locally');
@@ -450,7 +453,7 @@ describe('ReadingLibrary article updates', () => {
         }),
       });
     });
-    view.rerender(readingLibrary({ ...options, articles: [reconciledArticle] }));
+    act(() => view.setArticles([reconciledArticle]));
     await act(async () => undefined);
 
     expect(sourceBookcase.props?.content.article).toMatchObject({
@@ -638,35 +641,27 @@ function WebFocusDriver(props: SourceBookcaseProps) {
 }
 
 function renderReadingLibrary(options: ReadingLibraryTestOptions) {
-  return render(readingLibrary(options));
-}
-
-function readingLibrary({
-  articleActions,
-  articleStore,
-  articles,
-  openArticleTarget,
-}: ReadingLibraryTestOptions) {
-  return (
-    <ReadingLibraryHarness
-      options={{ articleActions, articleStore, articles, openArticleTarget }}
-    />
-  );
+  const stores = createReadingLibraryTestStores(options.articles.map(articleSummary));
+  const view = render(<ReadingLibraryHarness options={options} />, {
+    wrapper: ({ children }) => (
+      <ReadingLibraryTestProviders stores={stores}>{children}</ReadingLibraryTestProviders>
+    ),
+  });
+  return Object.assign(view, {
+    setArticles: (articles: ArticleRecord[]) => stores.setArticles(articles.map(articleSummary)),
+  });
 }
 
 function ReadingLibraryHarness({ options }: { options: ReadingLibraryTestOptions }) {
-  const { articleActions, articleStore, articles, openArticleTarget } = options;
-  const libraryQuery = useLibraryQueryState();
+  const { articleActions, articleStore, openArticleTarget } = options;
   return (
     <ReadingLibrary
       agents={[]}
       articleActions={articleActions}
       articleStore={articleStore || defaultArticleStore}
-      articles={articles.map(articleSummary)}
       catalogRevision={0}
       {...collectionActionStubs()}
       openArticleTarget={openArticleTarget}
-      libraryQuery={libraryQuery}
       readerTheme={defaultTheme.reader}
       userProfile={userProfile}
     />

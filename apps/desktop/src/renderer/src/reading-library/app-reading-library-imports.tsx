@@ -15,7 +15,9 @@ import {
   TextIcon,
   Upload01Icon,
 } from '@hugeicons/core-free-icons';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useReducer, useRef } from 'react';
+import { useInterval } from '@yomitomo/reader-ui/use-interval';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import type { ResolvedAppSettings, ArticleRecord } from '@yomitomo/shared';
 import { clampNumber } from '@yomitomo/reader-ui/reader-settings';
 import { useTranslation } from 'react-i18next';
@@ -31,8 +33,10 @@ import type {
   EbookImportProgressCallback,
   PdfImportProgressCallback,
 } from '../shell/app-reading-types';
+import { useLibrarySession } from '../shell/app-session';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
 import { TextImportDialog } from './app-reading-library-text-import';
+import { libraryMenuReducer } from './library-menu-state';
 import rabbitWalkSprite from '../assets/reading-library/rabbit-walk.webp';
 import {
   MAX_EBOOK_IMPORT_BYTES,
@@ -65,6 +69,31 @@ type ArticleImportState =
       submittedUrl: string;
     }
   | { type: 'error'; message: string; submittedUrl: string };
+
+type ArticleImportDialogState = {
+  importUrl: string;
+  importState: ArticleImportState;
+  inputFocused: boolean;
+};
+
+type ArticleImportDialogEvent =
+  | { type: 'urlEdited'; url: string }
+  | { type: 'inputFocused' }
+  | { type: 'inputBlurred' }
+  | { type: 'invalidUrlSubmitted'; message: string; url: string }
+  | { type: 'submitted'; message: string; url: string }
+  | { type: 'cancelBecameAvailable' }
+  | { type: 'progressTicked' }
+  | { type: 'canceled'; message: string }
+  | {
+      type: 'resolved';
+      status: 'imported' | 'duplicate';
+      message: string;
+      article: ArticleRecord;
+      url: string;
+    }
+  | { type: 'failed'; message: string; url: string };
+
 export type { ArticleImportResult } from '../../../ipc-contract';
 
 type FileImportProgressCallback = (progress: number) => void;
@@ -87,6 +116,19 @@ type FileImportState =
       progress: number;
     };
 
+type FileImportDialogState = { importState: FileImportState; dragging: boolean };
+
+type FileImportDialogEvent =
+  | { type: 'batchRejected'; message: string; items: FileImportItem[] }
+  | { type: 'batchStarted'; message: string; items: FileImportItem[] }
+  | { type: 'itemStarted'; message: string; items: FileImportItem[] }
+  | { type: 'itemChanged'; items: FileImportItem[] }
+  | { type: 'progressChanged'; progress: number }
+  | { type: 'batchFinished'; state: Exclude<FileImportState, { type: 'idle' }> }
+  | { type: 'reset' }
+  | { type: 'dragEntered' }
+  | { type: 'dragEnded' };
+
 type ImportedBookCelebrationItem = {
   id: string;
   title: string;
@@ -95,8 +137,6 @@ type ImportedBookCelebrationItem = {
   lift: number;
   order: number;
 };
-
-type LibraryImportDialogKind = 'article' | 'ebook' | 'pdf' | 'text';
 
 type FileImportDialogConfig = {
   kind: 'ebook' | 'pdf';
@@ -131,6 +171,115 @@ type FileImportDialogConfig = {
 function advanceImportProgress(current: number) {
   if (current >= 94) return current;
   return Math.min(94, current + Math.max(0.8, (94 - current) * 0.08));
+}
+
+function articleImportDialogReducer(
+  state: ArticleImportDialogState,
+  event: ArticleImportDialogEvent,
+): ArticleImportDialogState {
+  const { importState } = state;
+  switch (event.type) {
+    case 'urlEdited':
+      return {
+        ...state,
+        importUrl: event.url,
+        importState:
+          importState.type === 'submitting' ? importState : { type: 'idle', message: '' },
+      };
+    case 'inputFocused':
+      return { ...state, inputFocused: true };
+    case 'inputBlurred':
+      return { ...state, inputFocused: false };
+    case 'invalidUrlSubmitted':
+      return {
+        ...state,
+        importState: { type: 'error', message: event.message, submittedUrl: event.url },
+      };
+    case 'submitted':
+      return {
+        ...state,
+        importState: {
+          type: 'submitting',
+          message: event.message,
+          progress: 8,
+          cancelAvailable: false,
+          submittedUrl: event.url,
+        },
+      };
+    case 'cancelBecameAvailable':
+      return importState.type === 'submitting'
+        ? { ...state, importState: { ...importState, cancelAvailable: true } }
+        : state;
+    case 'progressTicked':
+      return importState.type === 'submitting'
+        ? {
+            ...state,
+            importState: { ...importState, progress: advanceImportProgress(importState.progress) },
+          }
+        : state;
+    case 'canceled':
+      return { ...state, importState: { type: 'idle', message: event.message } };
+    case 'resolved':
+      return {
+        ...state,
+        importState: {
+          type: event.status,
+          message: event.message,
+          article: event.article,
+          submittedUrl: event.url,
+        },
+        inputFocused: event.status === 'imported' ? false : state.inputFocused,
+      };
+    case 'failed':
+      return {
+        ...state,
+        importState: { type: 'error', message: event.message, submittedUrl: event.url },
+      };
+  }
+}
+
+function fileImportDialogReducer(
+  state: FileImportDialogState,
+  event: FileImportDialogEvent,
+): FileImportDialogState {
+  const { importState } = state;
+  switch (event.type) {
+    case 'batchRejected':
+      return {
+        ...state,
+        importState: { type: 'error', message: event.message, items: event.items, progress: 0 },
+      };
+    case 'batchStarted':
+      return {
+        ...state,
+        importState: {
+          type: 'submitting',
+          message: event.message,
+          items: event.items,
+          progress: 0,
+        },
+      };
+    case 'itemStarted':
+      return importState.type === 'submitting'
+        ? { ...state, importState: { ...importState, message: event.message, items: event.items } }
+        : state;
+    case 'itemChanged':
+      return importState.type === 'submitting'
+        ? { ...state, importState: { ...importState, items: event.items } }
+        : state;
+    case 'progressChanged':
+      return importState.type === 'submitting'
+        ? { ...state, importState: { ...importState, progress: event.progress } }
+        : state;
+    case 'batchFinished':
+      return { ...state, importState: event.state };
+    case 'reset':
+      return { importState: { type: 'idle' }, dragging: false };
+    case 'dragEntered':
+      return state.dragging ? state : { ...state, dragging: true };
+    case 'dragEnded':
+      return state.dragging ? { ...state, dragging: false } : state;
+  }
 }
 
 function LibraryImportProgressBar({ percent, ariaLabel }: { percent: number; ariaLabel: string }) {
@@ -332,27 +481,12 @@ export function useLibraryImportDialogs({
   onCommitTextImport: (input: { items: TextImportCommitItem[] }) => Promise<unknown>;
   onOpenArticle: (article: ArticleRecord) => void;
 }): LibraryImportDialogs {
-  const [activeDialog, setActiveDialog] = useState<LibraryImportDialogKind | null>(null);
-  const importBusyRef = useRef(false);
-
-  const setImportBusy = useCallback((busy: boolean) => {
-    importBusyRef.current = busy;
-  }, []);
-
-  const openDialog = useCallback((kind: LibraryImportDialogKind) => {
-    if (importBusyRef.current) return;
-    setActiveDialog(kind);
-  }, []);
-
-  const closeDialog = useCallback(() => {
-    if (importBusyRef.current) return;
-    setActiveDialog(null);
-  }, []);
-
-  const openArticleImport = useCallback(() => openDialog('article'), [openDialog]);
-  const openEbookImport = useCallback(() => openDialog('ebook'), [openDialog]);
-  const openPdfImport = useCallback(() => openDialog('pdf'), [openDialog]);
-  const openTextImport = useCallback(() => openDialog('text'), [openDialog]);
+  const { actions, importDialog: activeDialog } = useLibrarySession();
+  const {
+    closeLibraryImport: closeDialog,
+    openLibraryImport: openDialog,
+    setLibraryImportBusy: setImportBusy,
+  } = actions;
 
   const dialogs = (
     <>
@@ -394,7 +528,13 @@ export function useLibraryImportDialogs({
     </>
   );
 
-  return { openArticleImport, openEbookImport, openPdfImport, openTextImport, dialogs };
+  return {
+    openArticleImport: () => openDialog('article'),
+    openEbookImport: () => openDialog('ebook'),
+    openPdfImport: () => openDialog('pdf'),
+    openTextImport: () => openDialog('text'),
+    dialogs,
+  };
 }
 
 export function LibraryImportControls({
@@ -423,45 +563,48 @@ export function LibraryImportControls({
   weReadSyncing?: boolean;
 }) {
   const { t } = useTranslation();
-  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [addMenuOpen, dispatchAddMenu] = useReducer(libraryMenuReducer, false);
 
   function openArticleImportDialog() {
-    setAddMenuOpen(false);
+    dispatchAddMenu({ type: 'itemChosen' });
     onAddWebArticle();
   }
 
   function openEbookImportDialog() {
-    setAddMenuOpen(false);
+    dispatchAddMenu({ type: 'itemChosen' });
     onAddEbook();
   }
 
   function openPdfImportDialog() {
-    setAddMenuOpen(false);
+    dispatchAddMenu({ type: 'itemChosen' });
     onAddPdf();
   }
 
   function openTextImportDialog() {
-    setAddMenuOpen(false);
+    dispatchAddMenu({ type: 'itemChosen' });
     onAddText();
   }
 
   function syncWeRead() {
-    setAddMenuOpen(false);
+    dispatchAddMenu({ type: 'itemChosen' });
     onSyncWeRead?.();
   }
 
   function createCollection() {
-    setAddMenuOpen(false);
+    dispatchAddMenu({ type: 'itemChosen' });
     onCreateCollection?.();
   }
 
   function openCollectionPicker() {
-    setAddMenuOpen(false);
+    dispatchAddMenu({ type: 'itemChosen' });
     onOpenCollectionPicker?.();
   }
 
   return (
-    <DropdownMenu open={addMenuOpen} onOpenChange={setAddMenuOpen}>
+    <DropdownMenu
+      open={addMenuOpen}
+      onOpenChange={(open) => dispatchAddMenu({ type: 'openChanged', open })}
+    >
       <div className="library-add-control">
         {defaultImportType ? (
           <Button
@@ -581,42 +724,24 @@ function ArticleImportDialog({
   onOpenArticle: (article: ArticleRecord) => void;
 }) {
   const { t } = useTranslation();
-  const [importUrl, setImportUrl] = useState('');
-  const [importState, setImportState] = useState<ArticleImportState>({
-    type: 'idle',
-    message: '',
-  });
-  const [inputFocused, setInputFocused] = useState(false);
+  const [{ importUrl, importState, inputFocused }, dispatch] = useReducer(
+    articleImportDialogReducer,
+    { importUrl: '', importState: { type: 'idle', message: '' }, inputFocused: false },
+  );
   const cancelDelayTimerRef = useRef<number | null>(null);
   const importCloseTimerRef = useRef<number | null>(null);
   const importRequestIdRef = useRef(0);
 
-  useEffect(
-    () => () => {
-      clearImportCloseTimer();
-      clearCancelDelayTimer();
-    },
-    [],
+  useMountEffect(() => () => {
+    clearImportCloseTimer();
+    clearCancelDelayTimer();
+    onBusyChange(false);
+  });
+
+  useInterval(
+    () => dispatch({ type: 'progressTicked' }),
+    importState.type === 'submitting' ? 180 : null,
   );
-
-  useEffect(() => {
-    onBusyChange(importState.type === 'submitting');
-    return () => onBusyChange(false);
-  }, [importState.type, onBusyChange]);
-
-  useEffect(() => {
-    if (importState.type !== 'submitting') return;
-
-    const timer = window.setInterval(() => {
-      setImportState((current) =>
-        current.type === 'submitting'
-          ? { ...current, progress: advanceImportProgress(current.progress) }
-          : current,
-      );
-    }, 180);
-
-    return () => window.clearInterval(timer);
-  }, [importState.type]);
 
   async function submitImport(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -624,10 +749,10 @@ function ArticleImportDialog({
     clearCancelDelayTimer();
     const url = importUrl.trim();
     if (!isValidArticleImportUrl(url)) {
-      setImportState({
-        type: 'error',
+      dispatch({
+        type: 'invalidUrlSubmitted',
         message: t('library.import.article.invalidUrl'),
-        submittedUrl: url,
+        url,
       });
       return;
     }
@@ -635,45 +760,40 @@ function ArticleImportDialog({
     const requestId = importRequestIdRef.current + 1;
     importRequestIdRef.current = requestId;
     try {
-      setImportState({
-        type: 'submitting',
-        message: t('library.import.article.parsing'),
-        progress: 8,
-        cancelAvailable: false,
-        submittedUrl: url,
-      });
+      dispatch({ type: 'submitted', message: t('library.import.article.parsing'), url });
+      onBusyChange(true);
       cancelDelayTimerRef.current = window.setTimeout(() => {
         cancelDelayTimerRef.current = null;
         if (importRequestIdRef.current !== requestId) return;
-        setImportState((current) =>
-          current.type === 'submitting' ? { ...current, cancelAvailable: true } : current,
-        );
+        dispatch({ type: 'cancelBecameAvailable' });
       }, ARTICLE_IMPORT_CANCEL_DELAY_MS);
       const result = await onImportArticleUrl(url, articleImportRequestId(requestId));
       if (importRequestIdRef.current !== requestId) return;
       clearCancelDelayTimer();
+      onBusyChange(false);
       if (result.status === 'canceled') {
-        setImportState({ type: 'idle', message: t('library.import.article.canceled') });
+        dispatch({ type: 'canceled', message: t('library.import.article.canceled') });
         return;
       }
       if (result.status === 'duplicate') {
-        setImportState({
-          type: 'duplicate',
+        dispatch({
+          type: 'resolved',
+          status: 'duplicate',
           message: t('library.import.article.duplicate'),
           article: result.article,
-          submittedUrl: url,
+          url,
         });
         return;
       }
 
-      setImportState({
-        type: 'imported',
+      dispatch({
+        type: 'resolved',
+        status: 'imported',
         message: t('library.import.article.imported'),
         article: result.article,
-        submittedUrl: url,
+        url,
       });
       playImportSuccessSound(1, settings);
-      setInputFocused(false);
       importCloseTimerRef.current = window.setTimeout(() => {
         importCloseTimerRef.current = null;
         onClose();
@@ -681,11 +801,8 @@ function ArticleImportDialog({
     } catch (error) {
       if (importRequestIdRef.current !== requestId) return;
       clearCancelDelayTimer();
-      setImportState({
-        type: 'error',
-        message: articleImportErrorMessage(error, t),
-        submittedUrl: url,
-      });
+      onBusyChange(false);
+      dispatch({ type: 'failed', message: articleImportErrorMessage(error, t), url });
     }
   }
 
@@ -708,7 +825,8 @@ function ArticleImportDialog({
     void onCancelArticleImport?.(articleImportRequestId(requestId));
     clearCancelDelayTimer();
     clearImportCloseTimer();
-    setImportState({ type: 'idle', message: t('library.import.article.canceled') });
+    onBusyChange(false);
+    dispatch({ type: 'canceled', message: t('library.import.article.canceled') });
   }
 
   function closeImportDialog() {
@@ -814,16 +932,15 @@ function ArticleImportDialog({
                     title={articleInputTitle}
                     type="text"
                     value={articleInputValue}
-                    onBlur={() => setInputFocused(false)}
+                    onBlur={() => dispatch({ type: 'inputBlurred' })}
                     onChange={(event) => {
-                      setImportUrl(event.target.value);
                       if (importState.type !== 'submitting') {
                         clearImportCloseTimer();
                         clearCancelDelayTimer();
-                        setImportState({ type: 'idle', message: '' });
                       }
+                      dispatch({ type: 'urlEdited', url: event.target.value });
                     }}
-                    onFocus={() => setInputFocused(true)}
+                    onFocus={() => dispatch({ type: 'inputFocused' })}
                   />
                 </span>
               </label>
@@ -1018,17 +1135,17 @@ function FileImportDialog({
   onOpenArticle: (article: ArticleRecord) => void;
 }) {
   const { t } = useTranslation();
-  const [importState, setImportState] = useState<FileImportState>({ type: 'idle' });
-  const [dragging, setDragging] = useState(false);
+  const [{ importState, dragging }, dispatch] = useReducer(fileImportDialogReducer, {
+    importState: { type: 'idle' },
+    dragging: false,
+  });
   const inputRef = useRef<HTMLInputElement | null>(null);
   const importCloseTimerRef = useRef<number | null>(null);
 
-  useEffect(() => () => clearImportCloseTimer(), []);
-
-  useEffect(() => {
-    onBusyChange(importState.type === 'submitting');
-    return () => onBusyChange(false);
-  }, [importState.type, onBusyChange]);
+  useMountEffect(() => () => {
+    clearImportCloseTimer();
+    onBusyChange(false);
+  });
 
   async function importFiles(fileList: FileList | File[] | undefined) {
     const files = Array.from(fileList || []);
@@ -1036,12 +1153,7 @@ function FileImportDialog({
     clearImportCloseTimer();
 
     if (files.length > config.maxFileCount) {
-      setImportState({
-        type: 'error',
-        message: config.tooManyFilesMessage,
-        items: [],
-        progress: 0,
-      });
+      dispatch({ type: 'batchRejected', message: config.tooManyFilesMessage, items: [] });
       resetInput();
       return;
     }
@@ -1078,62 +1190,55 @@ function FileImportDialog({
       .filter((entry) => entry.item.status === 'pending');
 
     if (validEntries.length === 0) {
-      setImportState({
-        type: 'error',
+      dispatch({
+        type: 'batchRejected',
         message: t('library.import.noFiles'),
         items: initialItems,
-        progress: 0,
       });
       resetInput();
       return;
     }
 
-    setImportState({
-      type: 'submitting',
+    dispatch({
+      type: 'batchStarted',
       message: t('library.import.importing', { current: 1, total: validEntries.length }),
       items: initialItems,
-      progress: 0,
     });
+    onBusyChange(true);
 
     let currentItems = initialItems;
-    function patchImportItem(itemId: string, patch: Partial<FileImportItem>) {
+    function updateImportItem(itemId: string, patch: Partial<FileImportItem>) {
       currentItems = currentItems.map((item) =>
         item.id === itemId ? { ...item, ...patch } : item,
       );
-      setImportState((current) =>
-        current.type === 'submitting' ? { ...current, items: currentItems } : current,
-      );
+    }
+    function patchImportItem(itemId: string, patch: Partial<FileImportItem>) {
+      updateImportItem(itemId, patch);
+      dispatch({ type: 'itemChanged', items: currentItems });
     }
 
     let completedCount = 0;
     for (const entry of validEntries) {
       const itemId = entry.item.id;
       const currentIndex = completedCount;
-      setImportState((current) =>
-        current.type === 'submitting'
-          ? {
-              ...current,
-              message: t('library.import.importing', {
-                current: currentIndex + 1,
-                total: validEntries.length,
-              }),
-            }
-          : current,
-      );
-      patchImportItem(itemId, { status: 'importing', progress: 4, message: undefined });
+      updateImportItem(itemId, { status: 'importing', progress: 4, message: undefined });
+      dispatch({
+        type: 'itemStarted',
+        message: t('library.import.importing', {
+          current: currentIndex + 1,
+          total: validEntries.length,
+        }),
+        items: currentItems,
+      });
 
       try {
         const result = await config.onImportFile(entry.file, (nextProgress) => {
           const itemProgress = clampNumber(nextProgress, 0, 100, 4);
           patchImportItem(itemId, { progress: itemProgress });
-          setImportState((current) =>
-            current.type === 'submitting'
-              ? {
-                  ...current,
-                  progress: ((currentIndex + itemProgress / 100) / validEntries.length) * 100,
-                }
-              : current,
-          );
+          dispatch({
+            type: 'progressChanged',
+            progress: ((currentIndex + itemProgress / 100) / validEntries.length) * 100,
+          });
         });
 
         if (result.status === 'canceled') {
@@ -1164,14 +1269,11 @@ function FileImportDialog({
       }
 
       completedCount += 1;
-      setImportState((current) =>
-        current.type === 'submitting'
-          ? { ...current, progress: (completedCount / validEntries.length) * 100 }
-          : current,
-      );
+      dispatch({ type: 'progressChanged', progress: (completedCount / validEntries.length) * 100 });
     }
 
     resetInput();
+    onBusyChange(false);
     finishImportBatch(currentItems);
   }
 
@@ -1184,7 +1286,7 @@ function FileImportDialog({
   function closeImportDialog() {
     if (importState.type === 'submitting') return;
     clearImportCloseTimer();
-    setDragging(false);
+    dispatch({ type: 'dragEnded' });
     onClose();
   }
 
@@ -1194,8 +1296,7 @@ function FileImportDialog({
 
   function resetImport() {
     clearImportCloseTimer();
-    setImportState({ type: 'idle' });
-    setDragging(false);
+    dispatch({ type: 'reset' });
     resetInput();
   }
 
@@ -1206,44 +1307,48 @@ function FileImportDialog({
     const failedCount = items.filter((item) => item.status === 'error').length;
 
     if (successCount === 0) {
-      setImportState({
-        type: 'error',
-        message: t('library.import.failed'),
-        items,
-        progress: 100,
+      dispatch({
+        type: 'batchFinished',
+        state: { type: 'error', message: t('library.import.failed'), items, progress: 100 },
       });
       return;
     }
 
     if (importedCount === 0) {
-      setImportState({
-        type: failedCount > 0 ? 'error' : 'duplicate',
-        message:
-          failedCount > 0
-            ? t('library.import.duplicateAndFailed', {
-                duplicates: duplicateCount,
-                failed: failedCount,
-              })
-            : duplicateCount === 1
-              ? config.duplicateMessage
-              : t('library.import.duplicateFiles', { count: duplicateCount }),
-        items,
-        progress: 100,
+      dispatch({
+        type: 'batchFinished',
+        state: {
+          type: failedCount > 0 ? 'error' : 'duplicate',
+          message:
+            failedCount > 0
+              ? t('library.import.duplicateAndFailed', {
+                  duplicates: duplicateCount,
+                  failed: failedCount,
+                })
+              : duplicateCount === 1
+                ? config.duplicateMessage
+                : t('library.import.duplicateFiles', { count: duplicateCount }),
+          items,
+          progress: 100,
+        },
       });
       return;
     }
 
-    setImportState({
-      type: failedCount > 0 ? 'error' : 'imported',
-      message:
-        failedCount > 0
-          ? t('library.import.importedAndFailed', {
-              failed: failedCount,
-              imported: successCount,
-            })
-          : t('library.import.importedFiles', { count: successCount }),
-      items,
-      progress: 100,
+    dispatch({
+      type: 'batchFinished',
+      state: {
+        type: failedCount > 0 ? 'error' : 'imported',
+        message:
+          failedCount > 0
+            ? t('library.import.importedAndFailed', {
+                failed: failedCount,
+                imported: successCount,
+              })
+            : t('library.import.importedFiles', { count: successCount }),
+        items,
+        progress: 100,
+      },
     });
     playImportSuccessSound(importedCount, settings);
     if (failedCount === 0) {
@@ -1251,7 +1356,7 @@ function FileImportDialog({
         () => {
           importCloseTimerRef.current = null;
           onClose();
-          setDragging(false);
+          dispatch({ type: 'dragEnded' });
         },
         config.kind === 'ebook'
           ? EBOOK_IMPORT_CELEBRATION_CLOSE_DELAY_MS
@@ -1327,15 +1432,15 @@ function FileImportDialog({
               htmlFor={config.inputId}
               onDragLeave={(event) => {
                 event.preventDefault();
-                setDragging(false);
+                dispatch({ type: 'dragEnded' });
               }}
               onDragOver={(event) => {
                 event.preventDefault();
-                if (importState.type !== 'submitting') setDragging(true);
+                if (importState.type !== 'submitting') dispatch({ type: 'dragEntered' });
               }}
               onDrop={(event) => {
                 event.preventDefault();
-                setDragging(false);
+                dispatch({ type: 'dragEnded' });
                 if (importState.type === 'submitting') return;
                 void importFiles(event.dataTransfer.files);
               }}

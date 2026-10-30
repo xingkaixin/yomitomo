@@ -26,7 +26,7 @@ describe('ReadingLibrary imports', () => {
       status: 'duplicate',
       article: duplicate,
     });
-    renderLibrary([duplicate], { onImportArticleUrl });
+    await renderLibrary([duplicate], { onImportArticleUrl });
 
     await selectLibraryType(/网页文章/);
     await openAddMenuItem('添加网页文章');
@@ -58,7 +58,7 @@ describe('ReadingLibrary imports', () => {
   it('auto closes the webpage import dialog after a successful import', async () => {
     const imported = article({ id: 'article_imported', title: '新导入文章' });
     const onImportArticleUrl = vi.fn().mockResolvedValue(successfulArticleImport(imported));
-    renderLibrary([], {
+    await renderLibrary([], {
       onImportArticleUrl,
       settings: {
         soundEffectsEnabled: true,
@@ -98,7 +98,7 @@ describe('ReadingLibrary imports', () => {
     const deferred = deferredImportResult();
     const onImportArticleUrl = vi.fn().mockReturnValue(deferred.promise);
     const onCancelArticleImport = vi.fn();
-    renderLibrary([], { onImportArticleUrl, onCancelArticleImport });
+    await renderLibrary([], { onImportArticleUrl, onCancelArticleImport });
 
     await selectLibraryType(/网页文章/);
     await openAddMenuItem('添加网页文章');
@@ -130,7 +130,7 @@ describe('ReadingLibrary imports', () => {
     const onImportArticleUrl = vi
       .fn()
       .mockRejectedValue(new DesktopIpcError('ARTICLE_IMPORT_REQUEST_FAILED'));
-    renderLibrary([], { onImportArticleUrl });
+    await renderLibrary([], { onImportArticleUrl });
 
     await selectLibraryType(/网页文章/);
     await openAddMenuItem('添加网页文章');
@@ -146,7 +146,7 @@ describe('ReadingLibrary imports', () => {
   });
 
   it('opens ebook import dialog from the ebook type action', async () => {
-    renderLibrary([]);
+    await renderLibrary([]);
 
     await selectLibraryType(/电子书/);
     await openAddMenuItem('电子书文件');
@@ -162,7 +162,7 @@ describe('ReadingLibrary imports', () => {
   });
 
   it('opens PDF import dialog from an app menu request', async () => {
-    renderLibrary([], { menuRequest: { command: 'import-pdf', id: 1 } });
+    (await renderLibrary([])).runMenuCommand('import-pdf');
 
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText('添加 PDF 文档')).toBeTruthy();
@@ -172,21 +172,21 @@ describe('ReadingLibrary imports', () => {
   it('keeps an active ebook import mounted when another import is requested', async () => {
     const deferred = deferredImportResult();
     const onImportEbookFile = vi.fn().mockReturnValue(deferred.promise);
-    const view = renderLibrary([], { onImportEbookFile });
+    const view = await renderLibrary([], { onImportEbookFile });
 
     await selectLibraryType(/电子书/);
     await openAddMenuItem('电子书文件');
     selectImportFile(view.container, 'library-ebook-file', fileWithSize('slow.epub', 1024));
     await waitFor(() => expect(onImportEbookFile).toHaveBeenCalledOnce());
 
-    view.updateMenuRequest({ command: 'import-web', id: 1 });
+    view.runMenuCommand('import-web');
 
     expect(await screen.findByText('添加电子书')).toBeTruthy();
     expect(screen.queryByText('添加网页文章')).toBeNull();
   });
 
-  it('renders the first-use empty state with import entries', () => {
-    renderLibrary([]);
+  it('renders the first-use empty state with import entries', async () => {
+    await renderLibrary([]);
 
     expect(screen.getByText('阅读库还空着')).toBeTruthy();
     expect(screen.getByText('粘贴网页链接')).toBeTruthy();
@@ -196,7 +196,7 @@ describe('ReadingLibrary imports', () => {
   });
 
   it('opens the web article import dialog from the empty-state entry', async () => {
-    renderLibrary([]);
+    await renderLibrary([]);
 
     fireEvent.click(screen.getByText('粘贴网页链接'));
 
@@ -205,9 +205,9 @@ describe('ReadingLibrary imports', () => {
     expect(within(dialog).queryByText('文件仅保存在本机，不会上传到任何服务器。')).toBeNull();
   });
 
-  it('routes the unconfigured WeRead entry to data source settings', () => {
+  it('routes the unconfigured WeRead entry to data source settings', async () => {
     const onOpenDataSources = vi.fn();
-    renderLibrary([], { onOpenDataSources });
+    await renderLibrary([], { onOpenDataSources });
 
     const wereadEntry = screen.getByText('连接微信读书').closest('button');
     expect((wereadEntry as HTMLButtonElement).disabled).toBe(false);
@@ -236,7 +236,7 @@ describe('ReadingLibrary imports', () => {
       onProgress?.(42);
       return successfulArticleImport(imported);
     });
-    const { container } = renderLibrary([], {
+    const { container } = await renderLibrary([], {
       onImportEbookFile,
       settings: {
         soundEffectsEnabled: true,
@@ -279,7 +279,7 @@ describe('ReadingLibrary imports', () => {
       },
     });
     const onImportEbookFile = vi.fn().mockResolvedValue(successfulArticleImport(imported));
-    const { container } = renderLibrary([], { onImportEbookFile });
+    const { container } = await renderLibrary([], { onImportEbookFile });
 
     await selectLibraryType(/电子书/);
     await openAddMenuItem('电子书文件');
@@ -333,7 +333,7 @@ describe('ReadingLibrary imports', () => {
       onProgress?.(100);
       return successfulArticleImport(file.name === 'one.epub' ? importedOne : importedTwo);
     });
-    const { container } = renderLibrary([], {
+    const { container } = await renderLibrary([], {
       onImportEbookFile,
       settings: {
         soundEffectsEnabled: true,
@@ -388,7 +388,7 @@ describe('ReadingLibrary imports', () => {
       article: duplicate,
     });
     const onReadArticle = vi.fn().mockResolvedValue(duplicate);
-    const { container } = renderLibrary([articleSummary(duplicate)], {
+    const { container } = await renderLibrary([articleSummary(duplicate)], {
       onImportEbookFile,
       onReadArticle,
     });
@@ -405,7 +405,7 @@ describe('ReadingLibrary imports', () => {
 
   it('validates ebook file extension and size before importing', async () => {
     const onImportEbookFile = vi.fn();
-    const { container } = renderLibrary([], { onImportEbookFile });
+    const { container } = await renderLibrary([], { onImportEbookFile });
 
     await selectLibraryType(/电子书/);
     await openAddMenuItem('电子书文件');
@@ -445,7 +445,7 @@ describe('ReadingLibrary imports', () => {
       onProgress?.(64);
       return successfulArticleImport(imported);
     });
-    const { container } = renderLibrary([], { onImportPdfFile });
+    const { container } = await renderLibrary([], { onImportPdfFile });
 
     await selectLibraryType(/PDF/);
     await openAddMenuItem('PDF 文档');
@@ -479,7 +479,7 @@ describe('ReadingLibrary imports', () => {
       },
     });
     const onImportPdfFile = vi.fn().mockResolvedValue(successfulArticleImport(imported));
-    const { container } = renderLibrary([], { onImportPdfFile });
+    const { container } = await renderLibrary([], { onImportPdfFile });
 
     await selectLibraryType(/PDF/);
     await openAddMenuItem('PDF 文档');
@@ -518,7 +518,7 @@ describe('ReadingLibrary imports', () => {
       article: duplicate,
     });
     const onReadArticle = vi.fn().mockResolvedValue(duplicate);
-    const { container } = renderLibrary([articleSummary(duplicate)], {
+    const { container } = await renderLibrary([articleSummary(duplicate)], {
       onImportPdfFile,
       onReadArticle,
     });
@@ -535,7 +535,7 @@ describe('ReadingLibrary imports', () => {
 
   it('validates PDF file extension and size before importing', async () => {
     const onImportPdfFile = vi.fn();
-    const { container } = renderLibrary([], { onImportPdfFile });
+    const { container } = await renderLibrary([], { onImportPdfFile });
 
     await selectLibraryType(/PDF/);
     await openAddMenuItem('PDF 文档');

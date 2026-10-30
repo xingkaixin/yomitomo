@@ -1,9 +1,9 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowDown01Icon, BubbleChatIcon } from '@hugeicons/core-free-icons';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffectEvent, useMemo, useReducer, useRef } from 'react';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
-import { ARTICLE_SOURCE_TYPES } from '@yomitomo/shared';
 import type {
   Agent,
   Annotation,
@@ -22,7 +22,7 @@ import type {
   WeReadBook,
 } from '@yomitomo/shared';
 import { errorMessageOrFallback, normalizeUiLanguage } from '@yomitomo/shared';
-import { annotationAuthorName, sortAnnotations, sortArticles } from '@yomitomo/core';
+import { annotationAuthorName, sortAnnotations } from '@yomitomo/core';
 import type { ReaderTheme } from '@yomitomo/reader-ui/reader-theme';
 import { SourceBookcase } from '../source/bookcase/app-source-bookcase';
 import { publicPersonaAgents } from '../source/bookcase/source-public-agents';
@@ -34,21 +34,23 @@ import { groupLibraryArticles, type LibrarySort } from './app-reading-library-ut
 import { playAppSoundEffect } from '../sound/app-sound-effects';
 import type {
   AnnotationDiscussionWindowState,
-  LibraryCatalogItemType,
   SetLibraryPinInput,
+  WeReadState,
   WindowAnimationSourceRect,
 } from '../../../ipc-contract';
-import type { AppMenuCommandRequest } from '../../../app-menu-types';
 import type { ArticleStore } from '../shell/app-article-store';
 import type { ArticleActions } from '../shell/app-article-store-actions';
 import { useReadingLibraryDistillationSync } from './use-reading-library-distillation-sync';
 import {
   articleUpdateCanReplace,
   useReadingLibraryNavigation,
+  type ReadingLibraryNavigationModel,
 } from './use-reading-library-navigation';
 import { getOptionalDesktopApi } from '../shell/app-desktop-api';
+import { useDesktopStoreApi } from '../shell/app-desktop-store';
+import { useLibrarySession } from '../shell/app-session';
+import { useDesktopEvent } from '../shell/use-desktop-event';
 import { emptyDesktopStore } from '../../../app-store';
-import type { LibraryQueryState } from './use-library-query-state';
 import { useLibraryQuerySession } from './use-library-query-session';
 import { useMinimizedDiscussionWindows } from './use-minimized-discussion-windows';
 import { useWeReadLibrarySession } from './use-weread-library-session';
@@ -61,14 +63,11 @@ export function ReadingLibrary({
   agents,
   articleActions,
   articleStore,
-  articles,
   catalogRevision,
   collectionMembers = [],
   collections = [],
   messageSendShortcut,
-  menuRequest,
   readerTheme,
-  libraryQuery,
   settings,
   selectionActionShortcuts,
   openArticleTarget,
@@ -87,14 +86,11 @@ export function ReadingLibrary({
   agents: Agent[];
   articleActions: ArticleActions;
   articleStore: Pick<ArticleStore, 'registerCurrentArticleSink'>;
-  articles: ArticleSummaryRecord[];
   catalogRevision: number;
   collectionMembers?: CollectionMember[];
   collections?: Collection[];
   messageSendShortcut?: MessageSendShortcut;
-  menuRequest?: AppMenuCommandRequest | null;
   readerTheme: ReaderTheme;
-  libraryQuery: LibraryQueryState;
   settings?: ResolvedAppSettings;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
   openArticleTarget?: ReadingEvidenceSourceTarget | null;
@@ -122,6 +118,8 @@ export function ReadingLibrary({
     readArticle,
   } = articleActions;
   const { t } = useTranslation();
+  const desktopStore = useDesktopStoreApi();
+  const librarySession = useLibrarySession();
   const navigation = useReadingLibraryNavigation({
     onCloseArticleDiscussions: closeArticleDiscussions,
     onReadArticle: readArticle,
@@ -142,10 +140,7 @@ export function ReadingLibrary({
     },
     [navigation.actions, reportArticleLoadError],
   );
-  useEffect(
-    () => articleStore.registerCurrentArticleSink(navigation.currentArticleSink),
-    [articleStore, navigation.currentArticleSink],
-  );
+  useMountEffect(() => articleStore.registerCurrentArticleSink(navigation.currentArticleSink));
   const distillationSync = useReadingLibraryDistillationSync({
     navigation,
     onReadArticle: readArticle,
@@ -159,14 +154,8 @@ export function ReadingLibrary({
     selectedAnnotationId,
     wereadBook: selectedWeReadBook,
   } = navigation.model;
-  const readingModeOpen = Boolean(
-    (selectedArticle || selectedWeReadBook) && activeShelf === 'source',
-  );
+  const readingModeOpen = isReadingModeOpen(navigation.model);
   const selectedArticleId = selectedArticle?.id || null;
-  const openArticleTargetId = openArticleTarget?.articleId;
-  const openArticleTargetAnnotationId = openArticleTarget?.annotationId;
-  const openArticleTargetView = openArticleTarget?.view;
-  const openArticleTargetMemoryJump = openArticleTarget?.readingMemoryJump;
   const sourceJump = sourceJumpRef.current;
   const openEvidenceSource = useCallback(
     async (target: ReadingEvidenceSourceTarget) => {
@@ -212,28 +201,11 @@ export function ReadingLibrary({
     onOpenBook: navigation.actions.openWeReadBook,
   });
   const distillationAnimation = distillationSync.animation;
-  const sortedArticles = useMemo<ArticleSummaryRecord[]>(() => sortArticles(articles), [articles]);
   const resolvedSettings = settings || emptyDesktopStore.settings;
-  const availableCatalogTypes = useMemo<LibraryCatalogItemType[] | null>(() => {
-    if (weRead.available === null) return null;
-    return weRead.available ? [...ARTICLE_SOURCE_TYPES, 'weread'] : [...ARTICLE_SOURCE_TYPES];
-  }, [weRead.available]);
-  const collectionIds = useMemo(
-    () => collections.map((collection) => collection.id),
-    [collections],
-  );
-  const catalogRevisionToken = useMemo(
-    () => ({ catalogRevision, wereadRevision: weRead.catalogRevision }),
-    [catalogRevision, weRead.catalogRevision],
-  );
   const libraryQuerySession = useLibraryQuerySession({
     catalogEnabled: !readingModeOpen,
-    availableTypes: availableCatalogTypes,
-    catalogRevision: catalogRevisionToken,
-    collectionIds,
+    catalogRevision,
     onSaveSettings: onSaveSettings || (() => undefined),
-    query: libraryQuery,
-    settings: resolvedSettings,
   });
   const annotations = useMemo<Annotation[]>(
     () => sortAnnotations(selectedArticle?.annotations ?? []),
@@ -276,86 +248,71 @@ export function ReadingLibrary({
   );
   const currentMinimizedDiscussionWindows = useMinimizedDiscussionWindows(selectedArticleId);
 
-  useEffect(() => {
-    const subscribe = getOptionalDesktopApi()?.annotations?.onDistillationCommitted;
-    if (!subscribe) return;
-    return subscribe((event) => {
-      void distillationSync.onCommitted(event);
-    });
-  }, [distillationSync.onCommitted]);
+  useDesktopEvent(
+    getOptionalDesktopApi()?.annotations?.onDistillationCommitted,
+    (event) => void distillationSync.onCommitted(event),
+  );
 
-  useEffect(() => {
-    if (!openArticleTargetId) return;
-    void openEvidenceSource({
-      articleId: openArticleTargetId,
-      annotationId: openArticleTargetAnnotationId,
-      view: openArticleTargetView,
-      readingMemoryJump: openArticleTargetMemoryJump,
-    }).then((openedArticle) => {
-      if (openedArticle) onArticleOpened?.(openedArticle.id);
-    });
-  }, [
-    onArticleOpened,
-    openArticleTargetAnnotationId,
-    openArticleTargetId,
-    openArticleTargetView,
-    openArticleTargetMemoryJump,
-    openEvidenceSource,
-  ]);
-
-  useEffect(() => {
-    if (!selectedArticleId || !selectedArticle) return;
-    const summary = sortedArticles.find((article) => article.id === selectedArticleId);
-    if (!summary) return;
-    if (!articleUpdateCanReplace(selectedArticle, summary)) return;
-    let cancelled = false;
+  const rehydrateRequestRef = useRef(0);
+  const rehydrateCurrentArticle = useEffectEvent(() => {
+    rehydrateRequestRef.current += 1;
+    const request = rehydrateRequestRef.current;
+    const currentArticle = navigation.actions.getCurrentArticle();
+    if (!currentArticle) return;
+    const summary = desktopStore
+      .getState()
+      .store?.articles.find((article) => article.id === currentArticle.id);
+    if (!summary || !articleUpdateCanReplace(currentArticle, summary)) return;
     void readArticle(summary.id)
       .then((fullArticle) => {
-        if (cancelled || !fullArticle || !navigation.actions.isCurrentArticle(summary.id)) return;
+        if (request !== rehydrateRequestRef.current) return;
+        if (!fullArticle || !navigation.actions.isCurrentArticle(summary.id)) return;
         distillationSync.acceptExternalArticle(fullArticle);
       })
       .catch(() => {
-        if (!cancelled) reportArticleLoadError();
+        if (request === rehydrateRequestRef.current) reportArticleLoadError();
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    distillationSync.acceptExternalArticle,
-    navigation.actions,
-    readArticle,
-    reportArticleLoadError,
-    selectedArticle,
-    selectedArticleId,
-    sortedArticles,
-  ]);
-
-  const notifyReadingModeChange = React.useEffectEvent((open: boolean) => {
+  });
+  const notifyReadingModeChange = useEffectEvent((open: boolean) => {
     onReadingModeChange?.(open);
   });
-
-  useEffect(() => {
-    notifyReadingModeChange(readingModeOpen);
-  }, [readingModeOpen]);
-
-  useEffect(
-    () => () => {
-      sourceJumpRef.current = null;
-      notifyReadingModeChange(false);
-    },
-    [],
-  );
-
-  useEffect(() => {
-    if (!menuRequest) return;
-    if (menuRequest.command === 'sync-weread') {
-      void weRead.syncLibrary({ manual: true });
-      return;
-    }
-    if (!isImportMenuCommand(menuRequest.command)) return;
+  const showLibraryHome = useEffectEvent(() => {
     sourceJumpRef.current = null;
     navigation.actions.resetLibrary();
-  }, [menuRequest?.command, menuRequest?.id, navigation.actions, weRead.syncLibrary]);
+  });
+  const receiveWeReadState = useEffectEvent((state: WeReadState) => {
+    void weRead.receiveState(state);
+  });
+
+  useMountEffect(() => {
+    const unsubscribeRoute = navigation.actions.subscribeRoute((model, previous) => {
+      const open = isReadingModeOpen(model);
+      if (open !== isReadingModeOpen(previous)) notifyReadingModeChange(open);
+      if (model.article !== previous.article) rehydrateCurrentArticle();
+    });
+    const unsubscribeStore = desktopStore.subscribe((state, previous) => {
+      if (state.store?.articles !== previous.store?.articles) rehydrateCurrentArticle();
+    });
+    const unregisterView = librarySession.actions.registerLibraryView({
+      showHome: () => showLibraryHome(),
+      receiveWeReadState: (state) => receiveWeReadState(state),
+    });
+    return () => {
+      unsubscribeRoute();
+      unsubscribeStore();
+      unregisterView();
+      rehydrateRequestRef.current += 1;
+      sourceJumpRef.current = null;
+      notifyReadingModeChange(false);
+    };
+  });
+
+  useMountEffect(() => {
+    if (!openArticleTarget) return;
+    void openEvidenceSource(openArticleTarget).then((openedArticle) => {
+      if (openedArticle) onArticleOpened?.(openedArticle.id);
+    });
+  });
 
   async function deleteLibraryArticle(articleId: string) {
     try {
@@ -382,7 +339,7 @@ export function ReadingLibrary({
   }
 
   const libraryHomeProps = {
-    catalogRevision: catalogRevisionToken,
+    catalogRevision,
     collectionActions: {
       onAddCollectionMembers,
       onCreateCollection,
@@ -412,17 +369,16 @@ export function ReadingLibrary({
       onOpenWeReadExternal: (book: WeReadBook) => void weRead.openExternal(book),
       onSetLibraryPin: setLibraryPin,
     },
-    menuRequest,
     querySession: libraryQuerySession,
     settingsControl: {
       settings: resolvedSettings,
     },
     weRead: {
       onOpenDataSources,
-      onSync: () => void weRead.syncLibrary({ manual: true }),
+      onSync: () => void librarySession.actions.syncWeReadLibrary(),
       openMessage: weRead.openMessage,
       settings: weRead.settings,
-      syncing: weRead.librarySyncing,
+      syncing: librarySession.weReadSyncing,
     },
   } satisfies React.ComponentProps<typeof LibraryHome>;
 
@@ -578,7 +534,7 @@ export function AnnotationDiscussionCapsules({
   ) => Promise<void> | void;
 }) {
   const { t } = useTranslation();
-  const [expandedByUser, setExpandedByUser] = useState(false);
+  const [expandedByUser, dispatchExpanded] = useReducer(capsulesExpandedReducer, false);
   const items = useMemo(
     () => annotationDiscussionCapsuleItems(article, windows, agents),
     [agents, article, windows],
@@ -599,7 +555,7 @@ export function AnnotationDiscussionCapsules({
           className="annotation-discussion-capsules-toggle"
           type="button"
           aria-expanded="false"
-          onClick={() => setExpandedByUser(true)}
+          onClick={() => dispatchExpanded({ type: 'expanded' })}
         >
           <HugeiconsIcon icon={BubbleChatIcon} aria-hidden="true" size={16} strokeWidth={1.8} />
           <span>{t('discussion.capsules.collapsed')}</span>
@@ -623,7 +579,7 @@ export function AnnotationDiscussionCapsules({
             type="button"
             aria-label={t('discussion.capsules.collapse')}
             aria-expanded="true"
-            onClick={() => setExpandedByUser(false)}
+            onClick={() => dispatchExpanded({ type: 'collapsed' })}
           >
             <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden="true" size={16} strokeWidth={1.8} />
           </button>
@@ -682,6 +638,13 @@ export function AnnotationDiscussionCapsules({
   );
 }
 
-function isImportMenuCommand(command: AppMenuCommandRequest['command']) {
-  return command === 'import-web' || command === 'import-ebook' || command === 'import-pdf';
+function capsulesExpandedReducer(
+  _expanded: boolean,
+  event: { type: 'expanded' } | { type: 'collapsed' },
+) {
+  return event.type === 'expanded';
+}
+
+function isReadingModeOpen(model: ReadingLibraryNavigationModel) {
+  return Boolean((model.article || model.wereadBook) && model.activeShelf === 'source');
 }

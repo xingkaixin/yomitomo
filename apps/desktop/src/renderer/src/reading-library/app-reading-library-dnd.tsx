@@ -1,6 +1,6 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { DragDropVerticalIcon } from '@hugeicons/core-free-icons';
-import { useState, type ReactNode } from 'react';
+import { useReducer, type ReactNode } from 'react';
 import { Accessibility, PointerActivationConstraints, PointerSensor } from '@dnd-kit/dom';
 import {
   DragDropProvider,
@@ -31,7 +31,7 @@ type LibraryDropData = {
 
 export function LibraryDndProvider({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
-  const [activeDrag, setActiveDrag] = useState<LibraryDragData | null>(null);
+  const [activeDrag, dispatchDrag] = useReducer(activeDragReducer, null);
 
   return (
     <DragDropProvider
@@ -75,9 +75,11 @@ export function LibraryDndProvider({ children }: { children: ReactNode }) {
           },
         }),
       ]}
-      onDragStart={({ operation }) => setActiveDrag(libraryDragData(operation.source?.data))}
+      onDragStart={({ operation }) =>
+        dispatchDrag({ type: 'dragStarted', data: libraryDragData(operation.source?.data) })
+      }
       onDragEnd={(event) => {
-        setActiveDrag(null);
+        dispatchDrag({ type: 'dragEnded' });
         if (event.canceled) return;
         dispatchLibraryDrop(event.operation.source?.data, event.operation.target?.data);
       }}
@@ -131,6 +133,14 @@ export function dispatchLibraryDrop(source: unknown, target: unknown) {
   if (!sourceData || !targetData) return false;
   targetData.onDrop(sourceData.ref);
   return true;
+}
+
+type ActiveDragEvent =
+  | { type: 'dragStarted'; data: LibraryDragData | null }
+  | { type: 'dragEnded' };
+
+function activeDragReducer(_activeDrag: LibraryDragData | null, event: ActiveDragEvent) {
+  return event.type === 'dragStarted' ? event.data : null;
 }
 
 function libraryDragData(value: unknown): LibraryDragData | null {

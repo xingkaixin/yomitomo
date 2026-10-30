@@ -6,7 +6,8 @@ import {
   Loading03Icon,
   Upload01Icon,
 } from '@hugeicons/core-free-icons';
-import { useEffect, useState } from 'react';
+import { useReducer } from 'react';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import { useTranslation } from 'react-i18next';
 import type { TextImportCommitItem, TextImportPreparedItem } from '../../../ipc-contract';
 import {
@@ -32,7 +33,90 @@ type ConfirmRow = {
   frontMatter?: Record<string, string>;
 };
 
+type TextImportDialogState = {
+  mode: TextImportMode;
+  pasteContent: string;
+  pasteAsMarkdown: boolean;
+  files: File[];
+  dragging: boolean;
+  rows: ConfirmRow[] | null;
+  errors: string[];
+  busy: boolean;
+};
+
+type TextImportDialogEvent =
+  | { type: 'modeSelected'; mode: TextImportMode }
+  | { type: 'pasteEdited'; content: string }
+  | { type: 'markdownToggled'; checked: boolean }
+  | { type: 'filesSelected'; files: File[]; errors: string[] }
+  | { type: 'dragEntered' }
+  | { type: 'dragEnded' }
+  | { type: 'prepareStarted' }
+  | { type: 'prepared'; rows: ConfirmRow[] | null; errors: string[] }
+  | { type: 'prepareFailed'; message: string }
+  | { type: 'commitRejected'; message: string }
+  | { type: 'commitStarted' }
+  | { type: 'commitFailed'; message: string }
+  | { type: 'committed' }
+  | { type: 'rowEdited'; index: number; patch: Partial<ConfirmRow> }
+  | { type: 'confirmLeft' };
+
 const TEXT_IMPORT_ACCEPT = '.txt,.md,.markdown,text/plain,text/markdown';
+
+const initialTextImportDialogState: TextImportDialogState = {
+  mode: 'paste',
+  pasteContent: '',
+  pasteAsMarkdown: false,
+  files: [],
+  dragging: false,
+  rows: null,
+  errors: [],
+  busy: false,
+};
+
+function textImportDialogReducer(
+  state: TextImportDialogState,
+  event: TextImportDialogEvent,
+): TextImportDialogState {
+  switch (event.type) {
+    case 'modeSelected':
+      return { ...state, mode: event.mode };
+    case 'pasteEdited':
+      return { ...state, pasteContent: event.content };
+    case 'markdownToggled':
+      return { ...state, pasteAsMarkdown: event.checked };
+    case 'filesSelected':
+      return { ...state, files: event.files, errors: event.errors };
+    case 'dragEntered':
+      return state.dragging ? state : { ...state, dragging: true };
+    case 'dragEnded':
+      return state.dragging ? { ...state, dragging: false } : state;
+    case 'prepareStarted':
+      return { ...state, busy: true, errors: [] };
+    case 'prepared':
+      return { ...state, busy: false, rows: event.rows, errors: event.errors };
+    case 'prepareFailed':
+    case 'commitFailed':
+      return { ...state, busy: false, errors: [event.message] };
+    case 'commitRejected':
+      return { ...state, errors: [event.message] };
+    case 'commitStarted':
+      return { ...state, busy: true };
+    case 'committed':
+      return { ...state, busy: false };
+    case 'rowEdited':
+      return state.rows
+        ? {
+            ...state,
+            rows: state.rows.map((row, position) =>
+              position === event.index ? { ...row, ...event.patch } : row,
+            ),
+          }
+        : state;
+    case 'confirmLeft':
+      return { ...state, rows: null };
+  }
+}
 
 export function TextImportDialog({
   onBusyChange,
@@ -44,25 +128,18 @@ export function TextImportDialog({
   onCommit: (input: { items: TextImportCommitItem[] }) => Promise<unknown>;
 }) {
   const { t } = useTranslation();
-  const [mode, setMode] = useState<TextImportMode>('paste');
-  const [pasteContent, setPasteContent] = useState('');
-  const [pasteAsMarkdown, setPasteAsMarkdown] = useState(false);
-  const [files, setFiles] = useState<File[]>([]);
-  const [dragging, setDragging] = useState(false);
-  const [rows, setRows] = useState<ConfirmRow[] | null>(null);
-  const [errors, setErrors] = useState<string[]>([]);
-  const [busy, setBusy] = useState(false);
+  const [state, dispatch] = useReducer(textImportDialogReducer, initialTextImportDialogState);
+  const { mode, pasteContent, pasteAsMarkdown, files, dragging, rows, errors, busy } = state;
 
-  useEffect(() => {
-    onBusyChange(busy);
-    return () => onBusyChange(false);
-  }, [busy, onBusyChange]);
+  useMountEffect(() => () => onBusyChange(false));
 
   function reasonLabel(item: Extract<TextImportPreparedItem, { ok: false }>) {
     return t(`library.import.text.reason.${item.reason}`, { fileName: item.fileName || '' });
   }
 
-  function applyPrepared(items: TextImportPreparedItem[]) {
+  function preparedEvent(
+    items: TextImportPreparedItem[],
+  ): Extract<TextImportDialogEvent, { type: 'prepared' }> {
     const prepared: ConfirmRow[] = [];
     const failures: string[] = [];
     for (const item of items) {
@@ -79,13 +156,12 @@ export function TextImportDialog({
         failures.push(reasonLabel(item));
       }
     }
-    setErrors(failures);
-    setRows(prepared.length > 0 ? prepared : null);
+    return { type: 'prepared', rows: prepared.length > 0 ? prepared : null, errors: failures };
   }
 
   async function handlePrepare() {
-    setBusy(true);
-    setErrors([]);
+    dispatch({ type: 'prepareStarted' });
+    onBusyChange(true);
     try {
       if (mode === 'paste') {
         const result = await getDesktopApi().article.text.prepareImport({
@@ -93,19 +169,18 @@ export function TextImportDialog({
           content: pasteContent,
           format: pasteAsMarkdown ? 'markdown' : 'plain',
         });
-        applyPrepared(result.items);
+        dispatch(preparedEvent(result.items));
       } else {
         const result = await getDesktopApi().article.text.prepareImport({
           kind: 'files',
           files: await readTextImportFiles(files),
         });
-        applyPrepared(result.items);
+        dispatch(preparedEvent(result.items));
       }
     } catch {
-      setErrors([t('library.import.text.prepareFailed')]);
-    } finally {
-      setBusy(false);
+      dispatch({ type: 'prepareFailed', message: t('library.import.text.prepareFailed') });
     }
+    onBusyChange(false);
   }
 
   async function handleCommit() {
@@ -116,16 +191,18 @@ export function TextImportDialog({
         MAX_TEXT_IMPORT_BATCH_CHARS,
       )
     ) {
-      setErrors([
-        t('library.import.text.batchTooLarge', {
+      dispatch({
+        type: 'commitRejected',
+        message: t('library.import.text.batchTooLarge', {
           count: MAX_TEXT_IMPORT_FILES,
           megabytes: Math.floor(MAX_TEXT_IMPORT_BATCH_BYTES / (1024 * 1024)),
         }),
-      ]);
+      });
       return;
     }
 
-    setBusy(true);
+    dispatch({ type: 'commitStarted' });
+    onBusyChange(true);
     try {
       const items: TextImportCommitItem[] = rows.map((row) => ({
         title: row.title.trim(),
@@ -135,12 +212,12 @@ export function TextImportDialog({
         frontMatter: row.frontMatter,
       }));
       await onCommit({ items });
-      setBusy(false);
+      dispatch({ type: 'committed' });
       onBusyChange(false);
       onClose();
     } catch {
-      setErrors([t('library.import.text.commitFailed')]);
-      setBusy(false);
+      dispatch({ type: 'commitFailed', message: t('library.import.text.commitFailed') });
+      onBusyChange(false);
     }
   }
 
@@ -150,25 +227,23 @@ export function TextImportDialog({
     const selection = Array.from(fileList);
     const accepted = acceptTextImportFiles(selection);
 
-    setFiles(accepted);
-    setErrors(
-      accepted.length === selection.length
-        ? []
-        : [
-            t('library.import.text.batchTooLarge', {
-              count: MAX_TEXT_IMPORT_FILES,
-              megabytes: Math.floor(MAX_TEXT_IMPORT_BATCH_BYTES / (1024 * 1024)),
-            }),
-          ],
-    );
+    dispatch({
+      type: 'filesSelected',
+      files: accepted,
+      errors:
+        accepted.length === selection.length
+          ? []
+          : [
+              t('library.import.text.batchTooLarge', {
+                count: MAX_TEXT_IMPORT_FILES,
+                megabytes: Math.floor(MAX_TEXT_IMPORT_BATCH_BYTES / (1024 * 1024)),
+              }),
+            ],
+    });
   }
 
   function updateRow(index: number, patch: Partial<ConfirmRow>) {
-    setRows((current) =>
-      current
-        ? current.map((row, position) => (position === index ? { ...row, ...patch } : row))
-        : current,
-    );
+    dispatch({ type: 'rowEdited', index, patch });
   }
 
   const canPrepare = mode === 'paste' ? pasteContent.trim().length > 0 : files.length > 0;
@@ -240,7 +315,7 @@ export function TextImportDialog({
                     role="tab"
                     aria-selected={mode === 'paste'}
                     className={mode === 'paste' ? 'is-active' : ''}
-                    onClick={() => setMode('paste')}
+                    onClick={() => dispatch({ type: 'modeSelected', mode: 'paste' })}
                   >
                     <HugeiconsIcon icon={ClipboardTypeIcon} size={15} />
                     {t('library.import.text.modePaste')}
@@ -250,7 +325,7 @@ export function TextImportDialog({
                     role="tab"
                     aria-selected={mode === 'upload'}
                     className={mode === 'upload' ? 'is-active' : ''}
-                    onClick={() => setMode('upload')}
+                    onClick={() => dispatch({ type: 'modeSelected', mode: 'upload' })}
                   >
                     <HugeiconsIcon icon={Upload01Icon} size={15} />
                     {t('library.import.text.modeUpload')}
@@ -263,13 +338,17 @@ export function TextImportDialog({
                       className="library-text-import-textarea"
                       value={pasteContent}
                       placeholder={t('library.import.text.pastePlaceholder')}
-                      onChange={(event) => setPasteContent(event.target.value)}
+                      onChange={(event) =>
+                        dispatch({ type: 'pasteEdited', content: event.target.value })
+                      }
                     />
                     <label className="library-text-import-toggle">
                       <input
                         type="checkbox"
                         checked={pasteAsMarkdown}
-                        onChange={(event) => setPasteAsMarkdown(event.target.checked)}
+                        onChange={(event) =>
+                          dispatch({ type: 'markdownToggled', checked: event.target.checked })
+                        }
                       />
                       {t('library.import.text.asMarkdown')}
                     </label>
@@ -282,15 +361,15 @@ export function TextImportDialog({
                     htmlFor="library-text-import-file"
                     onDragLeave={(event) => {
                       event.preventDefault();
-                      setDragging(false);
+                      dispatch({ type: 'dragEnded' });
                     }}
                     onDragOver={(event) => {
                       event.preventDefault();
-                      setDragging(true);
+                      dispatch({ type: 'dragEntered' });
                     }}
                     onDrop={(event) => {
                       event.preventDefault();
-                      setDragging(false);
+                      dispatch({ type: 'dragEnded' });
                       selectFiles(event.dataTransfer.files);
                     }}
                   >
@@ -331,7 +410,12 @@ export function TextImportDialog({
 
             <footer className="library-text-import-actions">
               {inConfirm ? (
-                <Button type="button" variant="ghost" disabled={busy} onClick={() => setRows(null)}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={busy}
+                  onClick={() => dispatch({ type: 'confirmLeft' })}
+                >
                   {t('library.import.text.back')}
                 </Button>
               ) : (

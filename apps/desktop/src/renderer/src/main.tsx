@@ -265,16 +265,13 @@ function ReadyApp({
                   agents={store.agents}
                   articleActions={articleActions}
                   articleStore={articleStore}
-                  articles={store.articles}
                   catalogRevision={libraryCatalogRevision}
                   collectionMembers={store.collectionMembers}
                   collections={store.collections}
                   messageSendShortcut={store.settings.messageSendShortcut}
-                  libraryQuery={session.libraryQuery}
                   readerTheme={theme.readerTheme}
                   settings={store.settings}
                   selectionActionShortcuts={store.settings.selectionActionShortcuts}
-                  menuRequest={session.menuRequest}
                   openArticleTarget={session.pendingOpenArticle}
                   userProfile={store.user}
                   onAddCollectionMembers={addCollectionMembers}
