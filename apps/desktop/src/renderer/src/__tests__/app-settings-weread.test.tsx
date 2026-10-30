@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WeReadState } from '../../../ipc-contract';
 import { WeReadSettingsPanel } from '../settings/app-settings-panels';
 import { initializeAppI18n } from '../i18n/app-i18n';
+import { renderWithQueryClient } from './query-test-utils';
 
 vi.mock('../sound/app-sound-effects', () => ({
   playAppSoundEffect: vi.fn(),
@@ -62,7 +63,8 @@ describe('WeReadSettingsPanel', () => {
       },
     });
 
-    render(<WeReadSettingsPanel />);
+    renderWithQueryClient(<WeReadSettingsPanel />);
+    await screen.findByText('已保存到系统安全凭据库');
 
     const apiKeyInput = (await screen.findByLabelText('API Key')) as HTMLInputElement;
     expect(apiKeyInput.value).toBe('');
@@ -92,7 +94,8 @@ describe('WeReadSettingsPanel', () => {
       },
     });
 
-    render(<WeReadSettingsPanel />);
+    renderWithQueryClient(<WeReadSettingsPanel />);
+    await screen.findByText('已保存到系统安全凭据库');
 
     fireEvent.click(await screen.findByRole('button', { name: '删除已保存 Key' }));
     expect(screen.getByRole('dialog', { name: '删除微信读书 API Key？' })).toBeTruthy();
@@ -136,7 +139,7 @@ describe('WeReadSettingsPanel', () => {
         },
       });
       await act(async () => {
-        render(<WeReadSettingsPanel />);
+        renderWithQueryClient(<WeReadSettingsPanel />);
       });
       const input = screen.getByLabelText('API Key') as HTMLInputElement;
       fireEvent.change(input, { target: { value: 'test-key-a' } });
@@ -177,9 +180,8 @@ describe('WeReadSettingsPanel', () => {
         },
       },
     });
-    await act(async () => {
-      render(<WeReadSettingsPanel />);
-    });
+    renderWithQueryClient(<WeReadSettingsPanel />);
+    await screen.findByText('已保存到系统安全凭据库');
     fireEvent.click(screen.getByRole('button', { name: '删除已保存 Key' }));
     fireEvent.click(
       within(screen.getByRole('dialog')).getByRole('button', { name: '删除已保存 Key' }),
@@ -196,8 +198,10 @@ describe('WeReadSettingsPanel', () => {
       await removing.promise;
     });
 
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: '删除已保存 Key' }).disabled).toBe(
-      true,
+    await waitFor(() =>
+      expect(
+        screen.getByRole<HTMLButtonElement>('button', { name: '删除已保存 Key' }).disabled,
+      ).toBe(true),
     );
     expect(input.value).toBe('test-key-next');
     expect(screen.getByRole<HTMLButtonElement>('button', { name: '保存' }).disabled).toBe(false);
@@ -217,7 +221,7 @@ describe('WeReadSettingsPanel', () => {
       },
     });
     await act(async () => {
-      render(<WeReadSettingsPanel />);
+      renderWithQueryClient(<WeReadSettingsPanel />);
     });
     const input = screen.getByLabelText('API Key') as HTMLInputElement;
     fireEvent.change(input, { target: { value: 'test-key' } });
@@ -248,7 +252,7 @@ describe('WeReadSettingsPanel', () => {
       },
     });
 
-    render(<WeReadSettingsPanel />);
+    renderWithQueryClient(<WeReadSettingsPanel />);
 
     fireEvent.click(await screen.findByRole('radio', { name: /自动/ }));
 
@@ -275,7 +279,7 @@ describe('WeReadSettingsPanel', () => {
       },
     });
 
-    render(<WeReadSettingsPanel />);
+    renderWithQueryClient(<WeReadSettingsPanel />);
 
     fireEvent.click(await screen.findByRole('radio', { name: /自动/ }));
 
@@ -304,7 +308,7 @@ describe('WeReadSettingsPanel', () => {
       },
     });
 
-    render(<WeReadSettingsPanel />);
+    renderWithQueryClient(<WeReadSettingsPanel />);
 
     fireEvent.click(await screen.findByRole('radio', { name: /自动/ }));
     fireEvent.click(await screen.findByRole('button', { name: '重试' }));
@@ -336,7 +340,7 @@ describe('WeReadSettingsPanel', () => {
         },
       });
 
-      const view = render(<WeReadSettingsPanel />);
+      const view = renderWithQueryClient(<WeReadSettingsPanel />);
 
       fireEvent.click(await screen.findByRole('radio', { name: /自动/ }));
 
@@ -346,13 +350,17 @@ describe('WeReadSettingsPanel', () => {
         }),
       );
 
-      const resetTimerCount = setTimeoutSpy.mock.calls.filter((call) => call[1] === 1200).length;
+      const resetTimers = setTimeoutSpy.mock.results
+        .filter((_, index) => setTimeoutSpy.mock.calls[index]?.[1] === 1200)
+        .map((result) => result.value as number);
       const clearCallsBeforeUnmount = clearTimeoutSpy.mock.calls.length;
 
       view.unmount();
 
-      expect(resetTimerCount).toBe(1);
-      expect(clearTimeoutSpy).toHaveBeenCalledTimes(clearCallsBeforeUnmount + resetTimerCount);
+      expect(resetTimers).toHaveLength(1);
+      expect(clearTimeoutSpy.mock.calls.slice(clearCallsBeforeUnmount)).toContainEqual([
+        resetTimers[0],
+      ]);
     } finally {
       setTimeoutSpy.mockRestore();
       clearTimeoutSpy.mockRestore();
