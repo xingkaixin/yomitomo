@@ -103,10 +103,12 @@ function requireViewState() {
 }
 
 function FoliateViewProbe({
+  fontSize = 18,
   maxColumnCount = 1,
   onBeforePageTurn,
   onScheduleEbookBoxUpdate,
 }: {
+  fontSize?: number;
   maxColumnCount?: number;
   onBeforePageTurn: (trace: EbookPageTurnTrace) => void;
   onScheduleEbookBoxUpdate: (reason: EbookBoxUpdateReason) => void;
@@ -115,7 +117,7 @@ function FoliateViewProbe({
     article,
     maxColumnCount,
     readerTheme: defaultTheme.reader,
-    readerSettings: { fontSize: 18, contentWidth: 720, backgroundColor: '#fffdf8' },
+    readerSettings: { fontSize, contentWidth: 720, backgroundColor: '#fffdf8' },
     onSaveArticleReadingProgress,
     onAttachFoliateDocumentListeners,
     onBeforePageTurn,
@@ -124,7 +126,7 @@ function FoliateViewProbe({
     pageTurnTraceRef,
   });
 
-  return null;
+  return latestViewState.markers;
 }
 
 function MountedFoliateViewProbe({
@@ -182,6 +184,7 @@ function MountedFoliateViewProbe({
     <>
       <div ref={setViewHost} />
       <div ref={setMeasureHost} />
+      {viewState.markers}
     </>
   );
 }
@@ -814,6 +817,7 @@ describe('useEbookFoliateView', () => {
     await act(async () => {
       rerender(
         <FoliateViewProbe
+          fontSize={19}
           onBeforePageTurn={onBeforePageTurn}
           onScheduleEbookBoxUpdate={onScheduleEbookBoxUpdate}
         />,
@@ -830,6 +834,7 @@ describe('useEbookFoliateView', () => {
     await act(async () => {
       rerender(
         <FoliateViewProbe
+          fontSize={19}
           maxColumnCount={2}
           onBeforePageTurn={onBeforePageTurn}
           onScheduleEbookBoxUpdate={onScheduleEbookBoxUpdate}

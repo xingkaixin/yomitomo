@@ -76,14 +76,6 @@
     },
     {
       "files": [
-        "apps/desktop/src/renderer/src/source/ebook/app-source-bookcase-ebook.tsx",
-        "apps/desktop/src/renderer/src/source/ebook/use-ebook-annotation-navigation.ts",
-        "apps/desktop/src/renderer/src/source/ebook/use-ebook-bilingual-translation.tsx",
-        "apps/desktop/src/renderer/src/source/ebook/use-ebook-foliate-view.ts",
-        "apps/desktop/src/renderer/src/source/ebook/use-ebook-pagination-measurement.ts",
-        "apps/desktop/src/renderer/src/source/ebook/use-ebook-reader-boxes.ts",
-        "apps/desktop/src/renderer/src/source/ebook/use-ebook-spread-layout.ts",
-        "apps/desktop/src/renderer/src/source/ebook/use-foliate-input-bridge.ts",
         "apps/desktop/src/renderer/src/source/pdfium/app-source-bookcase-pdfium-document-text.ts",
         "apps/desktop/src/renderer/src/source/pdfium/app-source-bookcase-pdfium-navigation.ts",
         "apps/desktop/src/renderer/src/source/pdfium/app-source-bookcase-pdfium-page-metrics.ts",

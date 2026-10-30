@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { createElement, useCallback, useEffectEvent } from 'react';
 import type { Annotation } from '@yomitomo/shared';
 import { createEpubTextAnchor, type HighlightBox } from '@yomitomo/core';
 import { foliateRangeHighlightBoxes, type EbookBoxUpdateReason } from './ebook-annotation-layout';
@@ -16,6 +16,9 @@ import { recordRendererPerformanceTiming } from '../../shell/app-renderer-perfor
 import type { EbookBookcaseProps } from '../bookcase/source-bookcase-types';
 
 type NavigationRef<T> = { current: T };
+
+const completionCallbackIds = new WeakMap<object, number>();
+let nextCompletionCallbackId = 0;
 
 export function useEbookAnnotationNavigation({
   annotations,
@@ -225,69 +228,89 @@ export function useEbookAnnotationNavigation({
     [boxes, goToAnnotation, openAnnotation],
   );
 
-  useEffect(() => {
-    if (!focusAnnotationId || !openSettled) return;
-    recordRendererPerformanceTiming('reader_focus', {
-      source: 'ebook',
-      phase: 'effect_start',
-      articleId: article.id,
-      annotationId: focusAnnotationId,
-      annotationCount: annotations.length,
-      boxCount: boxes.length,
-      pageInfo: viewRef.current?.getPageInfo?.() ?? null,
-      hasView: Boolean(viewRef.current),
-    });
-    const currentAnnotations = annotationsRef.current;
-    if (!currentAnnotations.some((annotation) => annotation.id === focusAnnotationId)) {
+  const readFocusRequest = useEffectEvent(() => ({
+    annotationCount: annotations.length,
+    articleId: article.id,
+    boxCount: boxes.length,
+    focusAnnotationId,
+    goToAnnotation,
+    onFocusedAnnotation,
+  }));
+
+  const attachFocusRequest = useCallback(
+    (marker: HTMLElement | null) => {
+      const {
+        annotationCount,
+        articleId,
+        boxCount,
+        focusAnnotationId: annotationId,
+        goToAnnotation: navigateToAnnotation,
+        onFocusedAnnotation: completeFocus,
+      } = readFocusRequest();
+      if (!marker || !annotationId) return;
       recordRendererPerformanceTiming('reader_focus', {
         source: 'ebook',
-        phase: 'annotation_missing_consume',
-        articleId: article.id,
-        annotationId: focusAnnotationId,
-        annotationCount: currentAnnotations.length,
+        phase: 'effect_start',
+        articleId,
+        annotationId,
+        annotationCount,
+        boxCount,
+        pageInfo: viewRef.current?.getPageInfo?.() ?? null,
+        hasView: Boolean(viewRef.current),
       });
-      onFocusedAnnotation(false);
-      return;
-    }
-    let cancelled = false;
-    let timer: number | null = null;
-    void goToAnnotation(focusAnnotationId)
-      .catch(() => false)
-      .then((navigated) => {
+      const currentAnnotations = annotationsRef.current;
+      if (!currentAnnotations.some((annotation) => annotation.id === annotationId)) {
         recordRendererPerformanceTiming('reader_focus', {
           source: 'ebook',
-          phase: cancelled ? 'navigation_cancelled' : 'navigation_complete',
-          articleId: article.id,
-          annotationId: focusAnnotationId,
-          navigated,
-          boxCount: boxes.length,
-          pageInfo: viewRef.current?.getPageInfo?.() ?? null,
+          phase: 'annotation_missing_consume',
+          articleId,
+          annotationId,
+          annotationCount: currentAnnotations.length,
         });
-        if (cancelled) return;
-        timer = window.setTimeout(() => {
+        completeFocus(false);
+        return;
+      }
+      let cancelled = false;
+      let timer: number | null = null;
+      void navigateToAnnotation(annotationId)
+        .catch(() => false)
+        .then((navigated) => {
           recordRendererPerformanceTiming('reader_focus', {
             source: 'ebook',
-            phase: 'complete_timer',
-            articleId: article.id,
-            annotationId: focusAnnotationId,
+            phase: cancelled ? 'navigation_cancelled' : 'navigation_complete',
+            articleId,
+            annotationId,
+            navigated,
+            boxCount,
             pageInfo: viewRef.current?.getPageInfo?.() ?? null,
           });
-          onFocusedAnnotation(navigated);
-        }, 180);
-      });
-    return () => {
-      cancelled = true;
-      recordRendererPerformanceTiming('reader_focus', {
-        source: 'ebook',
-        phase: 'effect_cleanup',
-        articleId: article.id,
-        annotationId: focusAnnotationId,
-        hadTimer: timer !== null,
-        pageInfo: viewRef.current?.getPageInfo?.() ?? null,
-      });
-      if (timer !== null) window.clearTimeout(timer);
-    };
-  }, [article.id, focusAnnotationId, onFocusedAnnotation, openSettled]);
+          if (cancelled) return;
+          timer = window.setTimeout(() => {
+            recordRendererPerformanceTiming('reader_focus', {
+              source: 'ebook',
+              phase: 'complete_timer',
+              articleId,
+              annotationId,
+              pageInfo: viewRef.current?.getPageInfo?.() ?? null,
+            });
+            completeFocus(navigated);
+          }, 180);
+        });
+      return () => {
+        cancelled = true;
+        recordRendererPerformanceTiming('reader_focus', {
+          source: 'ebook',
+          phase: 'effect_cleanup',
+          articleId,
+          annotationId,
+          hadTimer: timer !== null,
+          pageInfo: viewRef.current?.getPageInfo?.() ?? null,
+        });
+        if (timer !== null) window.clearTimeout(timer);
+      };
+    },
+    [annotationsRef, viewRef],
+  );
 
   return {
     focusPageAnnotation,
@@ -296,7 +319,26 @@ export function useEbookAnnotationNavigation({
     navigateAnnotation,
     resolveAnnotationNavigation,
     revealSearchMatch,
+    focusMarker:
+      focusAnnotationId && openSettled
+        ? createElement('span', {
+            hidden: true,
+            // A new completion callback starts a new focus request, so the request rechecks its target.
+            key: `${focusAnnotationId}\n${completionCallbackId(onFocusedAnnotation)}`,
+            ref: attachFocusRequest,
+          })
+        : null,
   };
+}
+
+function completionCallbackId(callback: object) {
+  let id = completionCallbackIds.get(callback);
+  if (id === undefined) {
+    nextCompletionCallbackId += 1;
+    id = nextCompletionCallbackId;
+    completionCallbackIds.set(callback, id);
+  }
+  return id;
 }
 
 type EbookAnchorLocation = {

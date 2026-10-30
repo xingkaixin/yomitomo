@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffectEvent, useMemo, useReducer, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import {
   applyBilingualTranslation,
   clearBilingualTranslation,
@@ -18,7 +19,6 @@ import {
 } from './ebook-foliate-view';
 
 type ActiveEbookTranslationSource = {
-  articleId: string;
   doc: Document;
   sourceId: string;
 };
@@ -32,6 +32,18 @@ type UseEbookBilingualTranslationInput = {
 
 type EbookTranslationEffect = () => void | (() => void);
 
+const translationEffectIds = new WeakMap<EbookTranslationEffect, number>();
+let nextTranslationEffectId = 0;
+
+function activeEbookTranslationSourceReducer(
+  _source: ActiveEbookTranslationSource | null,
+  event:
+    | { type: 'documentAttached'; source: ActiveEbookTranslationSource }
+    | { type: 'documentCleared' },
+) {
+  return event.type === 'documentAttached' ? event.source : null;
+}
+
 export function useEbookBilingualTranslation({
   article,
   style,
@@ -41,9 +53,9 @@ export function useEbookBilingualTranslation({
   const { t } = useTranslation();
   const activeSourceRef = useRef<ActiveEbookTranslationSource | null>(null);
   const activeDocumentCleanupRef = useRef<() => void>(() => {});
-  const retryBlockRef = useRef<(blockId: string) => void>(() => {});
-  const [activeSource, setActiveSource] = useState<ActiveEbookTranslationSource | null>(null);
+  const [activeSource, dispatch] = useReducer(activeEbookTranslationSourceReducer, null);
   const supported = article.ebook.metadata.format === 'epub';
+  const layoutChanged = useEffectEvent(onLayoutChange);
 
   const detachFoliateDocument = useCallback(() => {
     activeDocumentCleanupRef.current();
@@ -53,7 +65,7 @@ export function useEbookBilingualTranslation({
 
   const translationSurface =
     useMemo<TranslationSurfaceAdapter<EbookTranslationEffect> | null>(() => {
-      if (!supported || !activeSource || activeSource.articleId !== article.id) return null;
+      if (!supported || !activeSource) return null;
       const { doc, sourceId } = activeSource;
       return {
         sourceId,
@@ -66,13 +78,13 @@ export function useEbookBilingualTranslation({
                 })
               : clearBilingualTranslation(doc.body);
             if (!changed) return;
-            doc.defaultView?.requestAnimationFrame?.(() => onLayoutChange());
+            doc.defaultView?.requestAnimationFrame?.(() => layoutChanged());
           }),
         extractBlocks: () =>
           extractBilingualTranslationBlocks(doc.body).map(({ id, text }) => ({ id, text })),
         scrollToBlock: (blockId) => scrollEbookTranslationBlockIntoView(doc, blockId),
       };
-    }, [activeSource, article.id, onLayoutChange, style, supported, t]);
+    }, [activeSource, style, supported, t]);
 
   const session = useSourceBilingualTranslation({
     articleId: article.id,
@@ -80,26 +92,20 @@ export function useEbookBilingualTranslation({
     surface: translationSurface,
     targetLanguage,
   });
-  retryBlockRef.current = session.retryBlock;
+  const { retryBlock, surfaceOutput } = session;
+  const readSurfaceOutput = useEffectEvent(() => surfaceOutput);
 
   const attachFoliateDocument = useCallback(
     (view: FoliateViewElement | null) => {
       if (!supported || !view) return;
-      const source = ebookTranslationSourceForView(article, view);
-      if (!source) return;
-      const nextSource = { ...source, articleId: article.id };
+      const nextSource = ebookTranslationSourceForView(article, view);
+      if (!nextSource) return;
       const current = activeSourceRef.current;
-      if (
-        current?.articleId === nextSource.articleId &&
-        current.doc === nextSource.doc &&
-        current.sourceId === nextSource.sourceId
-      ) {
-        return;
-      }
+      if (current?.doc === nextSource.doc && current.sourceId === nextSource.sourceId) return;
 
       detachFoliateDocument();
       activeSourceRef.current = nextSource;
-      setActiveSource(nextSource);
+      dispatch({ type: 'documentAttached', source: nextSource });
       const handleClick = (event: MouseEvent) => {
         const target = event.target instanceof Element ? event.target : null;
         const retryButton = target?.closest<HTMLElement>(
@@ -110,42 +116,51 @@ export function useEbookBilingualTranslation({
         if (!sourceBlockId) return;
         event.preventDefault();
         event.stopPropagation();
-        retryBlockRef.current(sourceBlockId);
+        retryBlock(sourceBlockId);
       };
       nextSource.doc.addEventListener('click', handleClick);
       activeDocumentCleanupRef.current = () =>
         nextSource.doc.removeEventListener('click', handleClick);
     },
-    [article, detachFoliateDocument, supported],
+    [article, detachFoliateDocument, retryBlock, supported],
   );
 
   const cleanupFoliateDocument = useCallback(() => {
     detachFoliateDocument();
-    setActiveSource(null);
+    dispatch({ type: 'documentCleared' });
   }, [detachFoliateDocument]);
 
-  useEffect(() => {
-    const current = activeSourceRef.current;
-    if (!current || current.articleId === article.id) return;
-    cleanupFoliateDocument();
-  }, [article.id, cleanupFoliateDocument]);
+  const applySurfaceOutput = useCallback((marker: HTMLElement | null) => {
+    if (marker) return readSurfaceOutput()?.() ?? undefined;
+  }, []);
 
-  useEffect(() => session.surfaceOutput?.(), [session.surfaceOutput]);
-
-  useEffect(() => detachFoliateDocument, [detachFoliateDocument]);
+  useMountEffect(() => detachFoliateDocument);
 
   return {
     attachFoliateDocument,
     cleanupFoliateDocument,
     dialog: session.dialog,
+    marker: surfaceOutput ? (
+      <span hidden key={translationEffectId(surfaceOutput)} ref={applySurfaceOutput} />
+    ) : null,
     toolbar: session.toolbar,
   };
+}
+
+function translationEffectId(effect: EbookTranslationEffect) {
+  let id = translationEffectIds.get(effect);
+  if (id === undefined) {
+    nextTranslationEffectId += 1;
+    id = nextTranslationEffectId;
+    translationEffectIds.set(effect, id);
+  }
+  return id;
 }
 
 export function ebookTranslationSourceForView(
   article: EbookArticleRecord,
   view: FoliateViewElement,
-): Omit<ActiveEbookTranslationSource, 'articleId'> | null {
+): ActiveEbookTranslationSource | null {
   const pageInfo = view.getPageInfo?.();
   const currentContent = currentFoliateContent(view);
   const sectionIndex = pageInfo?.sectionIndex ?? currentContent?.index;

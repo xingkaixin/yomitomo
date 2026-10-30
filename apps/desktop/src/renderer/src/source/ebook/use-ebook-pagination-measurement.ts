@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import {
+  createElement,
+  useCallback,
+  useEffectEvent,
+  useReducer,
+  useRef,
+  type RefObject,
+} from 'react';
 import type { ReaderTheme } from '@yomitomo/reader-ui/reader-theme';
 import type { ReaderSettings } from '@yomitomo/reader-ui/reader-types';
 import type { EbookBoxUpdateReason } from './ebook-annotation-layout';
@@ -62,6 +69,39 @@ type EbookPaginationSectionTiming = {
   sectionSize?: number;
   idleYieldMs: number;
 };
+type EbookPaginationState = {
+  layoutKey: string;
+  sectionPageCounts: Array<number | null>;
+};
+
+type EbookPaginationEvent =
+  | { type: 'hostMeasured'; layoutKey: string }
+  | { type: 'pageInfoSeen'; pageInfo: FoliatePageInfo }
+  | { type: 'pageCountsMeasured'; counts: Array<number | null> };
+
+const initialEbookPaginationState: EbookPaginationState = { layoutKey: '', sectionPageCounts: [] };
+
+function ebookPaginationReducer(
+  state: EbookPaginationState,
+  event: EbookPaginationEvent,
+): EbookPaginationState {
+  switch (event.type) {
+    case 'hostMeasured':
+      return state.layoutKey === event.layoutKey ? state : { ...state, layoutKey: event.layoutKey };
+    case 'pageInfoSeen': {
+      const sectionPageCounts = updateKnownSectionPageCount(
+        state.sectionPageCounts,
+        event.pageInfo,
+      );
+      return sectionPageCounts === state.sectionPageCounts
+        ? state
+        : { ...state, sectionPageCounts };
+    }
+    case 'pageCountsMeasured':
+      return { ...state, sectionPageCounts: event.counts };
+  }
+}
+
 type UseEbookPaginationMeasurementInput = {
   articleId: string;
   ebookFileRef: RefObject<File | null>;
@@ -93,416 +133,433 @@ export function useEbookPaginationMeasurement({
 }: UseEbookPaginationMeasurementInput) {
   const measureHostRef = useRef<HTMLDivElement | null>(null);
   const paginationLayoutKeyRef = useRef('');
-  const committedPaginationLayoutKeyRef = useRef('');
   const paginationResizeObservedAtRef = useRef(0);
-  const [paginationLayoutKey, setPaginationLayoutKey] = useState('');
-  const [sectionPageCounts, setSectionPageCounts] = useState<Array<number | null>>([]);
+  const [{ layoutKey: paginationLayoutKey, sectionPageCounts }, dispatch] = useReducer(
+    ebookPaginationReducer,
+    initialEbookPaginationState,
+  );
   const recordKnownPageInfo = useCallback((pageInfo: FoliatePageInfo) => {
-    setSectionPageCounts((counts) => updateKnownSectionPageCount(counts, pageInfo));
+    dispatch({ type: 'pageInfoSeen', pageInfo });
   }, []);
+  const scheduleEbookBoxUpdate = useEffectEvent(onScheduleEbookBoxUpdate);
+  const readMeasurementInput = useEffectEvent(() => ({
+    articleId,
+    onPageInfoChange,
+    paginationLayoutKey,
+    readerSettings,
+    readerStateStatus,
+  }));
 
-  useLayoutEffect(() => {
-    setSectionPageCounts([]);
-    paginationLayoutKeyRef.current = '';
-    committedPaginationLayoutKeyRef.current = '';
-    paginationResizeObservedAtRef.current = 0;
-    setPaginationLayoutKey('');
-  }, [articleId]);
+  const observeViewHost = useCallback(
+    (marker: HTMLElement | null) => {
+      const host = viewHostRef.current;
+      if (!marker || !host) return;
+      let resizeTimer = 0;
 
-  useLayoutEffect(() => {
-    const host = viewHostRef.current;
-    if (!host) return;
-    let resizeTimer = 0;
-
-    const readLayoutKey = () => {
-      const rect = host.getBoundingClientRect();
-      return `${Math.round(rect.width)}x${Math.round(rect.height)}`;
-    };
-    const updateLayoutKeyRef = () => {
-      const nextLayoutKey = readLayoutKey();
-      paginationLayoutKeyRef.current = nextLayoutKey;
-      return nextLayoutKey;
-    };
-    const updateLayoutKeyRefFromResize = () => {
-      const previousLayoutKey = paginationLayoutKeyRef.current;
-      const nextLayoutKey = updateLayoutKeyRef();
-      if (previousLayoutKey && previousLayoutKey !== nextLayoutKey) {
-        paginationResizeObservedAtRef.current = performance.now();
-      }
-      return nextLayoutKey;
-    };
-    const commitPaginationLayoutKey = (nextLayoutKey: string) => {
-      if (committedPaginationLayoutKeyRef.current === nextLayoutKey) return;
-      committedPaginationLayoutKeyRef.current = nextLayoutKey;
-      setPaginationLayoutKey(nextLayoutKey);
-    };
-    const updateLayoutKey = (reason: EbookBoxUpdateReason, scheduleBoxUpdate = true) => {
-      const nextLayoutKey = updateLayoutKeyRef();
-      commitPaginationLayoutKey(nextLayoutKey);
-      if (!scheduleBoxUpdate) return;
-      onScheduleEbookBoxUpdate(reason);
-    };
-
-    updateLayoutKey('layout_measure');
-    const scheduleResizeBoxUpdate = () => {
-      window.clearTimeout(resizeTimer);
-      resizeTimer = window.setTimeout(() => {
-        void (async () => {
-          await waitForFoliateIdle();
-          await waitForAnimationFrame();
-          await waitForAnimationFrame();
-          updateLayoutKey('resize_observer');
-        })();
-      }, EBOOK_PAGINATION_RESIZE_SETTLE_DELAY_MS);
-    };
-
-    const observer = new ResizeObserver(() => {
-      updateLayoutKeyRefFromResize();
-      scheduleResizeBoxUpdate();
-    });
-    observer.observe(host);
-    return () => {
-      window.clearTimeout(resizeTimer);
-      observer.disconnect();
-    };
-  }, [articleId, onScheduleEbookBoxUpdate]);
-
-  useEffect(() => {
-    const measureHost = measureHostRef.current;
-    const sourceFile = ebookFileRef.current;
-    const visibleView = viewRef.current;
-    const sections = visibleView?.book?.sections ?? [];
-    const [layoutWidth, layoutHeight] = paginationLayoutKey.split('x').map(Number);
-    if (
-      readerStateStatus !== 'ready' ||
-      !measureHost ||
-      !sourceFile ||
-      !visibleView ||
-      sections.length === 0 ||
-      !layoutWidth ||
-      !layoutHeight
-    ) {
-      return;
-    }
-    const measureHostElement = measureHost;
-    const sourceEbookFile = sourceFile;
-    const visibleEbookView = visibleView;
-    const paginationStartedAt = performance.now();
-    const cacheKey = ebookPaginationCacheKey({
-      articleId,
-      columns: maxColumnCountRef.current,
-      contentWidth: readerSettings.contentWidth,
-      fontSize: readerSettings.fontSize,
-      layoutKey: paginationLayoutKey,
-    });
-    const cachedCounts = ebookSectionPageCountsCache.get(cacheKey);
-
-    let cancelled = false;
-    let cancelReason: 'effect_cleanup' | 'layout_changed' | undefined;
-    let measureView: FoliateViewElement | null = null;
-    let timer = 0;
-    let counts: Array<number | null> =
-      cachedCounts?.length === sections.length
-        ? [...cachedCounts]
-        : sections.map((section) => (section.linear === 'no' ? 0 : null));
-    const isMeasurementStale = () => paginationLayoutKeyRef.current !== paginationLayoutKey;
-    const shouldCancelMeasurement = () => {
-      if (cancelled) return true;
-      if (isMeasurementStale()) {
-        cancelReason = 'layout_changed';
-        return true;
-      }
-      return false;
-    };
-    const refreshCountsFromCache = () => {
-      const latestCachedCounts = ebookSectionPageCountsCache.get(cacheKey);
-      if (latestCachedCounts?.length === sections.length) counts = [...latestCachedCounts];
-      return counts;
-    };
-    const resizeQuietMs = () =>
-      paginationResizeObservedAtRef.current
-        ? rendererPerformanceElapsedMs(paginationResizeObservedAtRef.current)
-        : null;
-    const resizeQuietDelayMs = () => {
-      const quietMs = resizeQuietMs();
-      if (quietMs === null) return 0;
-      return Math.max(0, EBOOK_PAGINATION_RESIZE_QUIET_MS - quietMs);
-    };
-    const measurementDelayMs = () =>
-      Math.max(EBOOK_PAGINATION_MEASURE_DELAY_MS, resizeQuietDelayMs());
-    const currentPageInfo = visibleEbookView.getPageInfo?.();
-    onPageInfoChange(currentPageInfo ?? null);
-    counts = currentPageInfo ? updateKnownSectionPageCount(counts, currentPageInfo) : counts;
-    ebookSectionPageCountsCache.set(cacheKey, counts);
-    setSectionPageCounts([...counts]);
-    const pendingSectionIndexes = ebookPendingPaginationSectionIndexes(
-      sections,
-      counts,
-      currentPageInfo?.sectionIndex,
-    );
-    const existingMeasurement = ebookPaginationMeasurements.get(cacheKey);
-    const scheduledDelayMs = measurementDelayMs();
-    recordRendererPerformanceTiming('ebook_pagination', {
-      articleId,
-      cachedSectionCount: counts.filter((count) => count !== null).length,
-      cacheEntryCount: ebookSectionPageCountsCache.size,
-      columns: maxColumnCountRef.current,
-      elapsedMs: rendererPerformanceElapsedMs(paginationStartedAt),
-      hasCacheEntry: cachedCounts?.length === sections.length,
-      layoutKey: paginationLayoutKey,
-      phase: 'plan',
-      pendingSectionCount: pendingSectionIndexes.length,
-      result:
-        pendingSectionIndexes.length === 0
-          ? 'cache_hit'
-          : existingMeasurement
-            ? 'joined'
-            : 'scheduled',
-      resizeQuietMs: resizeQuietMs(),
-      resizeQuietRequiredMs: EBOOK_PAGINATION_RESIZE_QUIET_MS,
-      scheduledDelayMs:
-        pendingSectionIndexes.length === 0 || existingMeasurement ? 0 : scheduledDelayMs,
-      sectionCount: sections.length,
-    });
-    if (pendingSectionIndexes.length === 0) return;
-
-    const scheduleMeasurement = (delayMs: number) => {
-      window.clearTimeout(timer);
-      timer = window.setTimeout(startOrJoinMeasurement, delayMs);
-    };
-
-    const followMeasurement = (measurement: Promise<EbookPaginationMeasurementResult>) => {
-      void measurement
-        .then((result) => {
-          if (shouldCancelMeasurement()) return;
-          refreshCountsFromCache();
-          if (result.result === 'complete') {
-            setSectionPageCounts([...counts]);
-            return;
-          }
-          if (
-            ebookPendingPaginationSectionIndexes(sections, counts, currentPageInfo?.sectionIndex)
-              .length > 0
-          ) {
-            scheduleMeasurement(measurementDelayMs());
-          }
-        })
-        .catch((error) => {
-          console.warn(error);
-        });
-    };
-
-    function startOrJoinMeasurement() {
-      if (shouldCancelMeasurement()) return;
-      const remainingResizeDelayMs = resizeQuietDelayMs();
-      if (remainingResizeDelayMs > 0) {
-        scheduleMeasurement(remainingResizeDelayMs);
-        return;
-      }
-
-      const inFlightMeasurement = ebookPaginationMeasurements.get(cacheKey);
-      if (inFlightMeasurement) {
-        followMeasurement(inFlightMeasurement);
-        return;
-      }
-
-      const measurement = measureEbookPages();
-      ebookPaginationMeasurements.set(cacheKey, measurement);
-      void measurement.finally(() => {
-        if (ebookPaginationMeasurements.get(cacheKey) === measurement) {
-          ebookPaginationMeasurements.delete(cacheKey);
+      const readLayoutKey = () => {
+        const rect = host.getBoundingClientRect();
+        return `${Math.round(rect.width)}x${Math.round(rect.height)}`;
+      };
+      const updateLayoutKeyRef = () => {
+        const nextLayoutKey = readLayoutKey();
+        paginationLayoutKeyRef.current = nextLayoutKey;
+        return nextLayoutKey;
+      };
+      const updateLayoutKeyRefFromResize = () => {
+        const previousLayoutKey = paginationLayoutKeyRef.current;
+        const nextLayoutKey = updateLayoutKeyRef();
+        if (previousLayoutKey && previousLayoutKey !== nextLayoutKey) {
+          paginationResizeObservedAtRef.current = performance.now();
         }
-      });
-    }
+        return nextLayoutKey;
+      };
+      const updateLayoutKey = (reason: EbookBoxUpdateReason) => {
+        dispatch({ type: 'hostMeasured', layoutKey: updateLayoutKeyRef() });
+        scheduleEbookBoxUpdate(reason);
+      };
 
-    if (existingMeasurement) followMeasurement(existingMeasurement);
-    else scheduleMeasurement(scheduledDelayMs);
-
-    async function measureEbookPages(): Promise<EbookPaginationMeasurementResult> {
-      const measureStartedAt = performance.now();
-      let importMs = 0;
-      let initialIdleMs = 0;
-      let openMs = 0;
-      let idleYieldMs = 0;
-      let measurePendingSectionIndexes = pendingSectionIndexes;
-      let measurementResult: EbookPaginationMeasurementResult['result'] = 'complete';
-      let errorMessage: string | undefined;
-      const sectionTimings: EbookPaginationSectionTiming[] = [];
-      try {
-        if (shouldCancelMeasurement()) {
-          measurementResult = 'cancelled';
-          return { counts: null, result: measurementResult };
-        }
-        refreshCountsFromCache();
-        measurePendingSectionIndexes = ebookPendingPaginationSectionIndexes(
-          sections,
-          counts,
-          currentPageInfo?.sectionIndex,
-        );
-        if (measurePendingSectionIndexes.length === 0) {
-          setSectionPageCounts([...counts]);
-          return { counts: [...counts], result: measurementResult };
-        }
-
-        const initialIdleStartedAt = performance.now();
-        await waitForFoliateIdle();
-        initialIdleMs = rendererPerformanceElapsedMs(initialIdleStartedAt);
-        if (shouldCancelMeasurement()) {
-          measurementResult = 'cancelled';
-          return { counts: null, result: measurementResult };
-        }
-
-        const importStartedAt = performance.now();
-        await import('../../vendor/foliate-js/view.js');
-        importMs = rendererPerformanceElapsedMs(importStartedAt);
-        measureView = document.createElement('foliate-view') as FoliateViewElement;
-        measureView.className = 'ebook-foliate-view';
-        measureHostElement.replaceChildren(measureView);
-        const openStartedAt = performance.now();
-        await measureView.open(sourceEbookFile);
-        openMs = rendererPerformanceElapsedMs(openStartedAt);
-        if (shouldCancelMeasurement()) {
-          measurementResult = 'cancelled';
-          return { counts: null, result: measurementResult };
-        }
-        configureFoliateView(
-          measureView,
-          readerSettingsRef.current,
-          readerThemeRef.current,
-          maxColumnCountRef.current,
-        );
-
-        for (const index of measurePendingSectionIndexes) {
-          if (shouldCancelMeasurement()) {
-            measurementResult = 'cancelled';
-            return { counts: null, result: measurementResult };
-          }
-          const section = sections[index];
-          const sectionStartedAt = performance.now();
-          const goToStartedAt = performance.now();
-
-          const goToMethod = await goToFoliateMeasureSection(measureView, index);
-          const goToMs = rendererPerformanceElapsedMs(goToStartedAt);
-          const pageInfoTiming: FoliatePageInfoWaitTiming = {
-            assetWaitMs: 0,
-            fontWaitMs: 0,
-            imageWaitMs: 0,
-            pendingImageCount: 0,
-            frameWaitMs: 0,
-            frameWaitCount: 0,
-            matched: false,
-            matchedAfterAssets: false,
-            synthesized: false,
-            observedPageInfo: null,
-            contentIndexes: [],
-            elapsedMs: 0,
-          };
-          const nextPageInfo = await waitForFoliatePageInfo(measureView, index, pageInfoTiming);
-          if (shouldCancelMeasurement()) {
-            measurementResult = 'cancelled';
-            return { counts: null, result: measurementResult };
-          }
-
-          counts[index] = Math.max(1, nextPageInfo?.pageCount ?? 1);
-          const nextCounts = [...counts];
-          ebookSectionPageCountsCache.set(cacheKey, nextCounts);
-          let sectionIdleYieldMs = 0;
-          if ((sectionTimings.length + 1) % EBOOK_PAGINATION_SECTION_YIELD_INTERVAL === 0) {
-            const idleStartedAt = performance.now();
+      updateLayoutKey('layout_measure');
+      const scheduleResizeBoxUpdate = () => {
+        window.clearTimeout(resizeTimer);
+        resizeTimer = window.setTimeout(() => {
+          void (async () => {
             await waitForFoliateIdle();
-            sectionIdleYieldMs = rendererPerformanceElapsedMs(idleStartedAt);
-            idleYieldMs += sectionIdleYieldMs;
+            await waitForAnimationFrame();
+            await waitForAnimationFrame();
+            updateLayoutKey('resize_observer');
+          })();
+        }, EBOOK_PAGINATION_RESIZE_SETTLE_DELAY_MS);
+      };
+
+      const observer = new ResizeObserver(() => {
+        updateLayoutKeyRefFromResize();
+        scheduleResizeBoxUpdate();
+      });
+      observer.observe(host);
+      return () => {
+        window.clearTimeout(resizeTimer);
+        observer.disconnect();
+      };
+    },
+    [viewHostRef],
+  );
+
+  const measurePagination = useCallback(
+    (marker: HTMLElement | null) => {
+      if (!marker) return;
+      const {
+        articleId: measureArticleId,
+        onPageInfoChange: pageInfoChanged,
+        paginationLayoutKey: measureLayoutKey,
+        readerSettings: measureSettings,
+        readerStateStatus: measureStatus,
+      } = readMeasurementInput();
+      const measureHost = measureHostRef.current;
+      const sourceFile = ebookFileRef.current;
+      const visibleView = viewRef.current;
+      const sections = visibleView?.book?.sections ?? [];
+      const [layoutWidth, layoutHeight] = measureLayoutKey.split('x').map(Number);
+      if (
+        measureStatus !== 'ready' ||
+        !measureHost ||
+        !sourceFile ||
+        !visibleView ||
+        sections.length === 0 ||
+        !layoutWidth ||
+        !layoutHeight
+      ) {
+        return;
+      }
+      const measureHostElement = measureHost;
+      const sourceEbookFile = sourceFile;
+      const visibleEbookView = visibleView;
+      const paginationStartedAt = performance.now();
+      const cacheKey = ebookPaginationCacheKey({
+        articleId: measureArticleId,
+        columns: maxColumnCountRef.current,
+        contentWidth: measureSettings.contentWidth,
+        fontSize: measureSettings.fontSize,
+        layoutKey: measureLayoutKey,
+      });
+      const cachedCounts = ebookSectionPageCountsCache.get(cacheKey);
+
+      let cancelled = false;
+      let cancelReason: 'effect_cleanup' | 'layout_changed' | undefined;
+      let measureView: FoliateViewElement | null = null;
+      let timer = 0;
+      let counts: Array<number | null> =
+        cachedCounts?.length === sections.length
+          ? [...cachedCounts]
+          : sections.map((section) => (section.linear === 'no' ? 0 : null));
+      const isMeasurementStale = () => paginationLayoutKeyRef.current !== measureLayoutKey;
+      const shouldCancelMeasurement = () => {
+        if (cancelled) return true;
+        if (isMeasurementStale()) {
+          cancelReason = 'layout_changed';
+          return true;
+        }
+        return false;
+      };
+      const refreshCountsFromCache = () => {
+        const latestCachedCounts = ebookSectionPageCountsCache.get(cacheKey);
+        if (latestCachedCounts?.length === sections.length) counts = [...latestCachedCounts];
+        return counts;
+      };
+      const resizeQuietMs = () =>
+        paginationResizeObservedAtRef.current
+          ? rendererPerformanceElapsedMs(paginationResizeObservedAtRef.current)
+          : null;
+      const resizeQuietDelayMs = () => {
+        const quietMs = resizeQuietMs();
+        if (quietMs === null) return 0;
+        return Math.max(0, EBOOK_PAGINATION_RESIZE_QUIET_MS - quietMs);
+      };
+      const measurementDelayMs = () =>
+        Math.max(EBOOK_PAGINATION_MEASURE_DELAY_MS, resizeQuietDelayMs());
+      const currentPageInfo = visibleEbookView.getPageInfo?.();
+      pageInfoChanged(currentPageInfo ?? null);
+      counts = currentPageInfo ? updateKnownSectionPageCount(counts, currentPageInfo) : counts;
+      ebookSectionPageCountsCache.set(cacheKey, counts);
+      dispatch({ type: 'pageCountsMeasured', counts: [...counts] });
+      const pendingSectionIndexes = ebookPendingPaginationSectionIndexes(
+        sections,
+        counts,
+        currentPageInfo?.sectionIndex,
+      );
+      const existingMeasurement = ebookPaginationMeasurements.get(cacheKey);
+      const scheduledDelayMs = measurementDelayMs();
+      recordRendererPerformanceTiming('ebook_pagination', {
+        articleId: measureArticleId,
+        cachedSectionCount: counts.filter((count) => count !== null).length,
+        cacheEntryCount: ebookSectionPageCountsCache.size,
+        columns: maxColumnCountRef.current,
+        elapsedMs: rendererPerformanceElapsedMs(paginationStartedAt),
+        hasCacheEntry: cachedCounts?.length === sections.length,
+        layoutKey: measureLayoutKey,
+        phase: 'plan',
+        pendingSectionCount: pendingSectionIndexes.length,
+        result:
+          pendingSectionIndexes.length === 0
+            ? 'cache_hit'
+            : existingMeasurement
+              ? 'joined'
+              : 'scheduled',
+        resizeQuietMs: resizeQuietMs(),
+        resizeQuietRequiredMs: EBOOK_PAGINATION_RESIZE_QUIET_MS,
+        scheduledDelayMs:
+          pendingSectionIndexes.length === 0 || existingMeasurement ? 0 : scheduledDelayMs,
+        sectionCount: sections.length,
+      });
+      if (pendingSectionIndexes.length === 0) return;
+
+      const scheduleMeasurement = (delayMs: number) => {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(startOrJoinMeasurement, delayMs);
+      };
+
+      const followMeasurement = (measurement: Promise<EbookPaginationMeasurementResult>) => {
+        void measurement
+          .then((result) => {
+            if (shouldCancelMeasurement()) return;
+            refreshCountsFromCache();
+            if (result.result === 'complete') {
+              dispatch({ type: 'pageCountsMeasured', counts: [...counts] });
+              return;
+            }
+            if (
+              ebookPendingPaginationSectionIndexes(sections, counts, currentPageInfo?.sectionIndex)
+                .length > 0
+            ) {
+              scheduleMeasurement(measurementDelayMs());
+            }
+          })
+          .catch((error) => {
+            console.warn(error);
+          });
+      };
+
+      function startOrJoinMeasurement() {
+        if (shouldCancelMeasurement()) return;
+        const remainingResizeDelayMs = resizeQuietDelayMs();
+        if (remainingResizeDelayMs > 0) {
+          scheduleMeasurement(remainingResizeDelayMs);
+          return;
+        }
+
+        const inFlightMeasurement = ebookPaginationMeasurements.get(cacheKey);
+        if (inFlightMeasurement) {
+          followMeasurement(inFlightMeasurement);
+          return;
+        }
+
+        const measurement = measureEbookPages();
+        ebookPaginationMeasurements.set(cacheKey, measurement);
+        void measurement.finally(() => {
+          if (ebookPaginationMeasurements.get(cacheKey) === measurement) {
+            ebookPaginationMeasurements.delete(cacheKey);
+          }
+        });
+      }
+
+      if (existingMeasurement) followMeasurement(existingMeasurement);
+      else scheduleMeasurement(scheduledDelayMs);
+
+      async function measureEbookPages(): Promise<EbookPaginationMeasurementResult> {
+        const measureStartedAt = performance.now();
+        let importMs = 0;
+        let initialIdleMs = 0;
+        let openMs = 0;
+        let idleYieldMs = 0;
+        let measurePendingSectionIndexes = pendingSectionIndexes;
+        let measurementResult: EbookPaginationMeasurementResult['result'] = 'complete';
+        let errorMessage: string | undefined;
+        const sectionTimings: EbookPaginationSectionTiming[] = [];
+        try {
+          if (shouldCancelMeasurement()) {
+            measurementResult = 'cancelled';
+            return { counts: null, result: measurementResult };
+          }
+          refreshCountsFromCache();
+          measurePendingSectionIndexes = ebookPendingPaginationSectionIndexes(
+            sections,
+            counts,
+            currentPageInfo?.sectionIndex,
+          );
+          if (measurePendingSectionIndexes.length === 0) {
+            dispatch({ type: 'pageCountsMeasured', counts: [...counts] });
+            return { counts: [...counts], result: measurementResult };
+          }
+
+          const initialIdleStartedAt = performance.now();
+          await waitForFoliateIdle();
+          initialIdleMs = rendererPerformanceElapsedMs(initialIdleStartedAt);
+          if (shouldCancelMeasurement()) {
+            measurementResult = 'cancelled';
+            return { counts: null, result: measurementResult };
+          }
+
+          const importStartedAt = performance.now();
+          await import('../../vendor/foliate-js/view.js');
+          importMs = rendererPerformanceElapsedMs(importStartedAt);
+          measureView = document.createElement('foliate-view') as FoliateViewElement;
+          measureView.className = 'ebook-foliate-view';
+          measureHostElement.replaceChildren(measureView);
+          const openStartedAt = performance.now();
+          await measureView.open(sourceEbookFile);
+          openMs = rendererPerformanceElapsedMs(openStartedAt);
+          if (shouldCancelMeasurement()) {
+            measurementResult = 'cancelled';
+            return { counts: null, result: measurementResult };
+          }
+          configureFoliateView(
+            measureView,
+            readerSettingsRef.current,
+            readerThemeRef.current,
+            maxColumnCountRef.current,
+          );
+
+          for (const index of measurePendingSectionIndexes) {
             if (shouldCancelMeasurement()) {
               measurementResult = 'cancelled';
               return { counts: null, result: measurementResult };
             }
+            const section = sections[index];
+            const sectionStartedAt = performance.now();
+            const goToStartedAt = performance.now();
+
+            const goToMethod = await goToFoliateMeasureSection(measureView, index);
+            const goToMs = rendererPerformanceElapsedMs(goToStartedAt);
+            const pageInfoTiming: FoliatePageInfoWaitTiming = {
+              assetWaitMs: 0,
+              fontWaitMs: 0,
+              imageWaitMs: 0,
+              pendingImageCount: 0,
+              frameWaitMs: 0,
+              frameWaitCount: 0,
+              matched: false,
+              matchedAfterAssets: false,
+              synthesized: false,
+              observedPageInfo: null,
+              contentIndexes: [],
+              elapsedMs: 0,
+            };
+            const nextPageInfo = await waitForFoliatePageInfo(measureView, index, pageInfoTiming);
+            if (shouldCancelMeasurement()) {
+              measurementResult = 'cancelled';
+              return { counts: null, result: measurementResult };
+            }
+
+            counts[index] = Math.max(1, nextPageInfo?.pageCount ?? 1);
+            const nextCounts = [...counts];
+            ebookSectionPageCountsCache.set(cacheKey, nextCounts);
+            let sectionIdleYieldMs = 0;
+            if ((sectionTimings.length + 1) % EBOOK_PAGINATION_SECTION_YIELD_INTERVAL === 0) {
+              const idleStartedAt = performance.now();
+              await waitForFoliateIdle();
+              sectionIdleYieldMs = rendererPerformanceElapsedMs(idleStartedAt);
+              idleYieldMs += sectionIdleYieldMs;
+              if (shouldCancelMeasurement()) {
+                measurementResult = 'cancelled';
+                return { counts: null, result: measurementResult };
+              }
+            }
+            sectionTimings.push({
+              elapsedMs: rendererPerformanceElapsedMs(sectionStartedAt),
+              index,
+              pageCount: counts[index] ?? 1,
+              goToMs,
+              goToMethod,
+              pageInfoWaitMs: pageInfoTiming.elapsedMs,
+              assetWaitMs: pageInfoTiming.assetWaitMs,
+              fontWaitMs: pageInfoTiming.fontWaitMs,
+              imageWaitMs: pageInfoTiming.imageWaitMs,
+              pendingImageCount: pageInfoTiming.pendingImageCount,
+              frameWaitMs: pageInfoTiming.frameWaitMs,
+              frameWaitCount: pageInfoTiming.frameWaitCount,
+              pageInfoMatched: pageInfoTiming.matched,
+              pageInfoMatchedAfterAssets: pageInfoTiming.matchedAfterAssets,
+              pageInfoSynthesized: pageInfoTiming.synthesized,
+              observedSectionIndex: pageInfoTiming.matched
+                ? undefined
+                : (pageInfoTiming.observedPageInfo?.sectionIndex ?? null),
+              observedPageIndex: pageInfoTiming.matched
+                ? undefined
+                : (pageInfoTiming.observedPageInfo?.pageIndex ?? null),
+              observedPageCount: pageInfoTiming.matched
+                ? undefined
+                : (pageInfoTiming.observedPageInfo?.pageCount ?? null),
+              contentIndexes: pageInfoTiming.matched ? undefined : pageInfoTiming.contentIndexes,
+              sectionId: typeof section?.id === 'string' ? section.id : undefined,
+              sectionLinear: section?.linear,
+              sectionSize: typeof section?.size === 'number' ? section.size : undefined,
+              idleYieldMs: sectionIdleYieldMs,
+            });
           }
-          sectionTimings.push({
-            elapsedMs: rendererPerformanceElapsedMs(sectionStartedAt),
-            index,
-            pageCount: counts[index] ?? 1,
-            goToMs,
-            goToMethod,
-            pageInfoWaitMs: pageInfoTiming.elapsedMs,
-            assetWaitMs: pageInfoTiming.assetWaitMs,
-            fontWaitMs: pageInfoTiming.fontWaitMs,
-            imageWaitMs: pageInfoTiming.imageWaitMs,
-            pendingImageCount: pageInfoTiming.pendingImageCount,
-            frameWaitMs: pageInfoTiming.frameWaitMs,
-            frameWaitCount: pageInfoTiming.frameWaitCount,
-            pageInfoMatched: pageInfoTiming.matched,
-            pageInfoMatchedAfterAssets: pageInfoTiming.matchedAfterAssets,
-            pageInfoSynthesized: pageInfoTiming.synthesized,
-            observedSectionIndex: pageInfoTiming.matched
-              ? undefined
-              : (pageInfoTiming.observedPageInfo?.sectionIndex ?? null),
-            observedPageIndex: pageInfoTiming.matched
-              ? undefined
-              : (pageInfoTiming.observedPageInfo?.pageIndex ?? null),
-            observedPageCount: pageInfoTiming.matched
-              ? undefined
-              : (pageInfoTiming.observedPageInfo?.pageCount ?? null),
-            contentIndexes: pageInfoTiming.matched ? undefined : pageInfoTiming.contentIndexes,
-            sectionId: typeof section?.id === 'string' ? section.id : undefined,
-            sectionLinear: section?.linear,
-            sectionSize: typeof section?.size === 'number' ? section.size : undefined,
-            idleYieldMs: sectionIdleYieldMs,
+          if (!shouldCancelMeasurement()) {
+            dispatch({ type: 'pageCountsMeasured', counts: [...counts] });
+            return { counts: [...counts], result: measurementResult };
+          }
+          measurementResult = 'cancelled';
+          return { counts: null, result: measurementResult };
+        } catch (error) {
+          console.warn(error);
+          errorMessage = error instanceof Error ? error.message : String(error);
+          measurementResult = 'error';
+          return { counts: null, result: measurementResult };
+        } finally {
+          recordRendererPerformanceTiming('ebook_pagination', {
+            articleId: measureArticleId,
+            columns: maxColumnCountRef.current,
+            elapsedMs: rendererPerformanceElapsedMs(measureStartedAt),
+            hasCacheEntry: cachedCounts?.length === sections.length,
+            idleYieldMs,
+            importMs,
+            initialIdleMs,
+            layoutKey: measureLayoutKey,
+            openMs,
+            phase: 'measure',
+            pendingSectionCount: measurePendingSectionIndexes.length,
+            result: measurementResult,
+            cancelReason,
+            errorMessage,
+            sectionCount: sections.length,
+            sectionTimings,
           });
+          closeFoliateView(measureView);
+          measureView?.remove();
+          if (measureHostElement.firstChild === measureView) measureHostElement.replaceChildren();
         }
-        if (!shouldCancelMeasurement()) {
-          setSectionPageCounts([...counts]);
-          return { counts: [...counts], result: measurementResult };
-        }
-        measurementResult = 'cancelled';
-        return { counts: null, result: measurementResult };
-      } catch (error) {
-        console.warn(error);
-        errorMessage = error instanceof Error ? error.message : String(error);
-        measurementResult = 'error';
-        return { counts: null, result: measurementResult };
-      } finally {
-        recordRendererPerformanceTiming('ebook_pagination', {
-          articleId,
-          columns: maxColumnCountRef.current,
-          elapsedMs: rendererPerformanceElapsedMs(measureStartedAt),
-          hasCacheEntry: cachedCounts?.length === sections.length,
-          idleYieldMs,
-          importMs,
-          initialIdleMs,
-          layoutKey: paginationLayoutKey,
-          openMs,
-          phase: 'measure',
-          pendingSectionCount: measurePendingSectionIndexes.length,
-          result: measurementResult,
-          cancelReason,
-          errorMessage,
-          sectionCount: sections.length,
-          sectionTimings,
-        });
+      }
+
+      return () => {
+        cancelled = true;
+        cancelReason ??= 'effect_cleanup';
+        window.clearTimeout(timer);
         closeFoliateView(measureView);
         measureView?.remove();
-        if (measureHostElement.firstChild === measureView) measureHostElement.replaceChildren();
-      }
-    }
+        if (measureHost.firstChild === measureView) measureHost.replaceChildren();
+      };
+    },
+    [ebookFileRef, maxColumnCountRef, readerSettingsRef, readerThemeRef, viewRef],
+  );
 
-    return () => {
-      cancelled = true;
-      cancelReason ??= 'effect_cleanup';
-      window.clearTimeout(timer);
-      closeFoliateView(measureView);
-      measureView?.remove();
-      if (measureHost.firstChild === measureView) measureHost.replaceChildren();
-    };
-  }, [
-    articleId,
-    maxColumnCount,
-    paginationLayoutKey,
-    readerSettings.contentWidth,
-    readerSettings.fontSize,
-    readerStateStatus,
-  ]);
   return {
     measureHostRef,
+    // Rendered after the reader shell so the view and measure hosts exist when they attach.
+    markers: [
+      createElement('span', { hidden: true, key: 'view-host', ref: observeViewHost }),
+      createElement('span', {
+        hidden: true,
+        key: [
+          readerStateStatus,
+          maxColumnCount,
+          paginationLayoutKey,
+          readerSettings.contentWidth,
+          readerSettings.fontSize,
+        ].join('|'),
+        ref: measurePagination,
+      }),
+    ],
     paginationLayoutKeyRef,
     recordKnownPageInfo,
     sectionPageCounts,

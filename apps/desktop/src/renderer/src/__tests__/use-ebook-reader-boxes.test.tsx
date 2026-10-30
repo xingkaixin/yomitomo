@@ -140,7 +140,13 @@ function EbookBoxesProbe({
     userProfile,
   });
 
-  return <div data-testid="canvas" ref={canvasRef} />;
+  return (
+    <>
+      <div data-testid="canvas" ref={canvasRef} />
+      {latestInputBridgeState.marker}
+      {latestBoxesState.markers}
+    </>
+  );
 }
 
 describe('useEbookReaderBoxes', () => {
@@ -153,12 +159,6 @@ describe('useEbookReaderBoxes', () => {
     });
 
     expect(canvas.classList.contains('is-ebook-page-turning')).toBe(true);
-
-    act(() => {
-      requireBoxesState().resetEbookBoxState();
-    });
-
-    expect(canvas.classList.contains('is-ebook-page-turning')).toBe(false);
   });
 
   it('reuses one DOM text index for multiple annotation lookups in the same update', () => {

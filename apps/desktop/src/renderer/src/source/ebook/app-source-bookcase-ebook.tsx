@@ -1,16 +1,16 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowLeft01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons';
 import type React from 'react';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffectEvent, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Annotation, ReaderQuestionContext } from '@yomitomo/shared';
 import {
   activeTocIndexForOffset,
   annotationIdsAtHighlightPoint,
   createEpubTextAnchor,
-  type HighlightBox,
   type TocItem,
 } from '@yomitomo/core';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import { buildTocAnnotationStats } from '@yomitomo/reader-ui/reader-annotations';
 import { ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
 import { ReaderSettingsToolbarControls } from '@yomitomo/reader-ui/reader-toolbar-controls';
@@ -48,7 +48,11 @@ import { useSourceReaderApp } from '../bookcase/use-source-reader-app';
 import { useSourceReaderAppView } from '../bookcase/use-source-reader-app-view';
 import { useEbookSpreadLayout } from './use-ebook-spread-layout';
 
-export function EbookBookcase({
+export function EbookBookcase(props: EbookBookcaseProps) {
+  return <EbookReader key={props.content.article.id} {...props} />;
+}
+
+function EbookReader({
   annotationActions: { onArticleChange, onFocusedAnnotation, onOpenAnnotation },
   articleActions,
   content: { agents, annotations: articleAnnotations, article, userProfile },
@@ -64,29 +68,30 @@ export function EbookBookcase({
 }: EbookBookcaseProps) {
   const { saveArticleReadingProgress } = articleActions;
   const { t } = useTranslation();
-  const scheduleEbookBoxUpdateRef = useRef<(reason: EbookBoxUpdateReason) => void>(() => {});
   const pageTurnTraceRef = useRef<EbookPageTurnTrace | null>(null);
-  const beforeEbookPageTurnRef = useRef<(trace: EbookPageTurnTrace) => void>(() => {});
-  const attachFoliateDocumentListenersRef = useRef<(view: FoliateViewElement | null) => void>(
-    () => {},
+  // Box layout is created after the foliate view it measures, so earlier hooks reach it lazily.
+  const boxUpdateRequested = useEffectEvent((reason: EbookBoxUpdateReason) =>
+    readerBoxes.scheduleEbookBoxUpdate(reason),
   );
-  const cleanupFoliateDocumentListenersRef = useRef<() => void>(() => {});
-  const attachFoliateTranslationRef = useRef<(view: FoliateViewElement | null) => void>(() => {});
-  const cleanupFoliateTranslationRef = useRef<() => void>(() => {});
   const scheduleEbookBoxUpdate = useCallback((reason: EbookBoxUpdateReason) => {
-    scheduleEbookBoxUpdateRef.current(reason);
+    boxUpdateRequested(reason);
   }, []);
-  const beforeEbookPageTurn = useCallback((trace: EbookPageTurnTrace) => {
-    beforeEbookPageTurnRef.current(trace);
-  }, []);
-  const attachFoliateDocumentListenersBridge = useCallback((view: FoliateViewElement | null) => {
-    attachFoliateDocumentListenersRef.current(view);
-    attachFoliateTranslationRef.current(view);
-  }, []);
-  const cleanupFoliateDocumentListenersBridge = useCallback(() => {
-    cleanupFoliateDocumentListenersRef.current();
-    cleanupFoliateTranslationRef.current();
-  }, []);
+  const beforeEbookPageTurn = (trace: EbookPageTurnTrace) => {
+    clearAnnotationUiState();
+    readerBoxes.hideEbookBoxLayer();
+    recordEbookPageTurnTrace(trace, 'overlay_hide_requested', {
+      boxCount: boxes.length,
+      pageAnnotationCount: pageAnnotations.length,
+    });
+  };
+  const attachFoliateDocumentListeners = (view: FoliateViewElement | null) => {
+    inputBridge.attachFoliateDocumentListeners(view);
+    ebookTranslation.attachFoliateDocument(view);
+  };
+  const cleanupFoliateDocumentListeners = () => {
+    inputBridge.cleanupFoliateDocumentListeners();
+    ebookTranslation.cleanupFoliateDocument();
+  };
   const sourceReaderApp = useSourceReaderApp({
     articleActions,
     onOpenEvidenceSource,
@@ -176,7 +181,7 @@ export function EbookBookcase({
   } = selection;
   const { ebook } = article;
   const ebookText = useMemo(() => ebookArticleText(ebook.chapters), [ebook.chapters]);
-  useEffect(() => {
+  useMountEffect(() => {
     const sections = (ebook.index?.chapters ?? []).map((chapter) => ({
       id: chapter.id,
       title: chapter.title,
@@ -184,21 +189,39 @@ export function EbookBookcase({
       end: chapter.textEnd,
     }));
     saveAssistantArticleText(article.id, { text: ebookText, sections });
-  }, [article.id, ebook.index, ebookText]);
+  });
   const articleAnnotationSignature = useMemo(
     () => ebookHighlightAnnotationsSignature(articleAnnotations, userProfile, annotationAgents),
     [annotationAgents, articleAnnotations, userProfile],
   );
-  const ebookBoxesRef = useRef<HighlightBox[]>([]);
-  const articleAnnotationSignatureRef = useRef({
-    articleId: article.id,
-    signature: articleAnnotationSignature,
-  });
+  const appliedAnnotationSignatureRef = useRef(articleAnnotationSignature);
+  const readArticleAnnotationSignature = useEffectEvent(() => articleAnnotationSignature);
+  const applyAnnotationSignature = useCallback(
+    (marker: HTMLElement | null) => {
+      const signature = readArticleAnnotationSignature();
+      if (!marker || appliedAnnotationSignatureRef.current === signature) return;
+      appliedAnnotationSignatureRef.current = signature;
+      scheduleEbookBoxUpdate('annotations_applied');
+    },
+    [scheduleEbookBoxUpdate],
+  );
   const spreadLayout = useEbookSpreadLayout({
     articleId: article.id,
     canvasRef,
     contentWidth: readerSettings.contentWidth,
     surfaceRef,
+  });
+  const foliateView = useEbookFoliateView({
+    article,
+    maxColumnCount: spreadLayout.columns,
+    readerTheme,
+    readerSettings,
+    onSaveArticleReadingProgress: saveArticleReadingProgress,
+    onAttachFoliateDocumentListeners: attachFoliateDocumentListeners,
+    onBeforePageTurn: beforeEbookPageTurn,
+    onCleanupFoliateDocumentListeners: cleanupFoliateDocumentListeners,
+    onScheduleEbookBoxUpdate: scheduleEbookBoxUpdate,
+    pageTurnTraceRef,
   });
   const {
     viewHostRef,
@@ -219,30 +242,13 @@ export function EbookBookcase({
     goRight,
     goToProgress,
     goToTocItem,
-  } = useEbookFoliateView({
-    article,
-    maxColumnCount: spreadLayout.columns,
-    readerTheme,
-    readerSettings,
-    onSaveArticleReadingProgress: saveArticleReadingProgress,
-    onAttachFoliateDocumentListeners: attachFoliateDocumentListenersBridge,
-    onBeforePageTurn: beforeEbookPageTurn,
-    onCleanupFoliateDocumentListeners: cleanupFoliateDocumentListenersBridge,
-    onScheduleEbookBoxUpdate: scheduleEbookBoxUpdate,
-    pageTurnTraceRef,
-  });
-  const handleTranslationLayoutChange = useCallback(
-    () => scheduleEbookBoxUpdate('translation'),
-    [scheduleEbookBoxUpdate],
-  );
+  } = foliateView;
   const ebookTranslation = useEbookBilingualTranslation({
     article,
     style: settings?.bilingualTranslationStyle || 'dashedLine',
     targetLanguage: settings?.bilingualTranslationTargetLanguage,
-    onLayoutChange: handleTranslationLayoutChange,
+    onLayoutChange: () => scheduleEbookBoxUpdate('translation'),
   });
-  attachFoliateTranslationRef.current = ebookTranslation.attachFoliateDocument;
-  cleanupFoliateTranslationRef.current = ebookTranslation.cleanupFoliateDocument;
   const turnPageFromKeyboard = useCallback(
     (direction: ReaderPageTurnDirection) => {
       if (direction === 'left') goLeft();
@@ -279,25 +285,18 @@ export function EbookBookcase({
     enabled: readerState.status === 'ready',
     onTurnPage: turnPageFromKeyboard,
   });
-  const { attachFoliateDocumentListeners, cleanupFoliateDocumentListeners } = useFoliateInputBridge(
-    {
-      canvasRef,
-      readerStateStatus: readerState.status,
-      viewRef,
-      onFoliateClick: handleFoliateClick,
-      onFoliatePointerDown: handleFoliatePointerDown,
-      onFoliatePageTurnClick: turnPageFromKeyboard,
-      onFoliatePageTurnKey: turnPageFromKeyboard,
-      onFoliateSelection: handleFoliateSelection,
-      onFoliateSelectionShortcut: handleFoliateSelectionShortcut,
-    },
-  );
-  const {
-    boxes,
-    hideEbookBoxLayer,
-    resetEbookBoxState,
-    scheduleEbookBoxUpdate: scheduleEbookBoxUpdateImpl,
-  } = useEbookReaderBoxes({
+  const inputBridge = useFoliateInputBridge({
+    canvasRef,
+    readerStateStatus: readerState.status,
+    viewRef,
+    onFoliateClick: handleFoliateClick,
+    onFoliatePointerDown: handleFoliatePointerDown,
+    onFoliatePageTurnClick: turnPageFromKeyboard,
+    onFoliatePageTurnKey: turnPageFromKeyboard,
+    onFoliateSelection: handleFoliateSelection,
+    onFoliateSelectionShortcut: handleFoliateSelectionShortcut,
+  });
+  const readerBoxes = useEbookReaderBoxes({
     annotationAgents,
     annotationsRef,
     article,
@@ -311,10 +310,7 @@ export function EbookBookcase({
     readerStateStatusRef,
     userProfile,
   });
-  ebookBoxesRef.current = boxes;
-  attachFoliateDocumentListenersRef.current = attachFoliateDocumentListeners;
-  cleanupFoliateDocumentListenersRef.current = cleanupFoliateDocumentListeners;
-  scheduleEbookBoxUpdateRef.current = scheduleEbookBoxUpdateImpl;
+  const { boxes } = readerBoxes;
   const ebookNavigation = useEbookAnnotationNavigation({
     annotations,
     annotationsRef,
@@ -348,33 +344,6 @@ export function EbookBookcase({
     () => buildTocAnnotationStats(readerTocItems, annotations, userProfile, annotationAgents),
     [annotationAgents, annotations, readerTocItems, userProfile],
   );
-  beforeEbookPageTurnRef.current = (trace) => {
-    clearAnnotationUiState();
-    hideEbookBoxLayer();
-    recordEbookPageTurnTrace(trace, 'overlay_hide_requested', {
-      boxCount: boxes.length,
-      pageAnnotationCount: pageAnnotations.length,
-    });
-  };
-
-  useLayoutEffect(() => {
-    resetEbookBoxState();
-    clearAnnotationUiState();
-    setStatusMessage('');
-  }, [article.id, clearAnnotationUiState, resetEbookBoxState]);
-
-  useEffect(() => {
-    const previous = articleAnnotationSignatureRef.current;
-    articleAnnotationSignatureRef.current = {
-      articleId: article.id,
-      signature: articleAnnotationSignature,
-    };
-    if (previous.articleId !== article.id || previous.signature === articleAnnotationSignature) {
-      return;
-    }
-    scheduleEbookBoxUpdate('annotations_applied');
-  }, [article.id, articleAnnotationSignature, scheduleEbookBoxUpdate]);
-
   function goToReaderTocItem(item: TocItem) {
     const tocItem = tocItems[item.index];
     if (!tocItem) return;
@@ -464,7 +433,7 @@ export function EbookBookcase({
       preferredAnnotationIds.length > 0
         ? preferredAnnotationIds
         : annotationIdsAtHighlightPoint(
-            ebookBoxesRef.current,
+            boxes,
             {
               x: clientX - canvasRect.left,
               y: clientY - canvasRect.top,
@@ -650,6 +619,13 @@ export function EbookBookcase({
         viewHostRef={viewHostRef}
         onReaderKeyDown={handleReaderKeyDown}
       />
+      {spreadLayout.marker}
+      {foliateView.markers}
+      {inputBridge.marker}
+      {readerBoxes.markers}
+      {ebookTranslation.marker}
+      <span hidden key={articleAnnotationSignature} ref={applyAnnotationSignature} />
+      {ebookNavigation.focusMarker}
       {ebookTranslation.dialog}
     </>
   );

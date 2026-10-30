@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createElement, useCallback, useEffectEvent, useMemo, useReducer, useRef } from 'react';
 import i18next from 'i18next';
 import type { ArticleReadingProgress, ArticleRecord } from '@yomitomo/shared';
 import { readingProgressRatio } from '@yomitomo/core';
@@ -42,6 +42,69 @@ type UseEbookFoliateViewInput = {
 };
 
 type PageTurnDirection = 'left' | 'right';
+
+type EbookFoliateViewState = {
+  tocItems: ReturnType<typeof flattenFoliateToc>;
+  sectionFractions: number[];
+  pageInfo: FoliatePageInfo | null;
+  progress: number;
+  readerState: EbookReaderState;
+  openSettled: boolean;
+};
+
+type EbookFoliateViewEvent =
+  | {
+      type: 'bookOpened';
+      tocItems: ReturnType<typeof flattenFoliateToc>;
+      sectionFractions: number[];
+    }
+  | { type: 'openFailed'; message: string }
+  | { type: 'openSettled' }
+  | { type: 'relocated'; pageInfo: FoliatePageInfo | null; progress: number }
+  | { type: 'pageInfoMeasured'; pageInfo: FoliatePageInfo | null }
+  | { type: 'progressJumped'; progress: number };
+
+function initialEbookFoliateViewState(
+  readingProgress: ArticleReadingProgress | undefined,
+): EbookFoliateViewState {
+  return {
+    tocItems: [],
+    sectionFractions: [],
+    pageInfo: null,
+    progress: readingProgressRatio(readingProgress),
+    readerState: { status: 'loading', message: i18next.t('ebookReader.opening') },
+    openSettled: false,
+  };
+}
+
+function ebookFoliateViewReducer(
+  state: EbookFoliateViewState,
+  event: EbookFoliateViewEvent,
+): EbookFoliateViewState {
+  switch (event.type) {
+    case 'bookOpened':
+      return {
+        ...state,
+        tocItems: event.tocItems,
+        sectionFractions: event.sectionFractions,
+        readerState: { status: 'ready', message: '' },
+      };
+    case 'openFailed':
+      return {
+        ...state,
+        readerState: { status: 'error', message: event.message },
+        openSettled: true,
+      };
+    case 'openSettled':
+      return { ...state, openSettled: true };
+    case 'relocated':
+      return { ...state, pageInfo: event.pageInfo, progress: event.progress };
+    case 'pageInfoMeasured':
+      return { ...state, pageInfo: event.pageInfo };
+    case 'progressJumped':
+      return { ...state, progress: event.progress };
+  }
+}
 
 type EbookProgressRestoreTarget =
   | {
@@ -113,76 +176,65 @@ export function useEbookFoliateView({
   const readerThemeRef = useRef<ReaderTheme>(readerTheme);
   const maxColumnCountRef = useRef(1);
   const progressRef = useRef(readingProgressRatio(article.readingProgress));
-  const onBeforePageTurnRef = useRef(onBeforePageTurn);
   const pageTurnQueueRef = useRef<PageTurnDirection[]>([]);
   const pageTurnRunningRef = useRef(false);
   const pageTurnSequenceRef = useRef(0);
-  const [tocItems, setTocItems] = useState<ReturnType<typeof flattenFoliateToc>>([]);
-  const [sectionFractions, setSectionFractions] = useState<number[]>([]);
-  const [pageInfo, setPageInfo] = useState<FoliatePageInfo | null>(null);
-  const [progress, setProgress] = useState(() => readingProgressRatio(article.readingProgress));
-  const [readerState, setReaderState] = useState<EbookReaderState>({
-    status: 'loading',
-    message: i18next.t('ebookReader.opening'),
-  });
+  const [{ tocItems, sectionFractions, pageInfo, progress, readerState, openSettled }, dispatch] =
+    useReducer(ebookFoliateViewReducer, article.readingProgress, initialEbookFoliateViewState);
   const readerStateStatusRef = useRef<EbookReaderState['status']>(readerState.status);
-  const [openSettledArticleId, setOpenSettledArticleId] = useState<string | null>(null);
   const { scheduleSave: scheduleEbookProgressSave } = useSourceReadingProgressSaver({
     articleId: article.id,
     initialProgress: article.readingProgress,
     onSaveArticleReadingProgress,
   });
-  const synchronizePageInfo = useCallback((nextPageInfo: FoliatePageInfo | null) => {
+  const attachDocumentListeners = useEffectEvent(onAttachFoliateDocumentListeners);
+  const beforePageTurn = useEffectEvent(onBeforePageTurn);
+  const cleanupDocumentListeners = useEffectEvent(onCleanupFoliateDocumentListeners);
+  const scheduleEbookBoxUpdate = useEffectEvent(onScheduleEbookBoxUpdate);
+  const readLayoutInput = useEffectEvent(() => ({
+    articleId: article.id,
+    maxColumnCount,
+    readerSettings,
+    readerTheme,
+  }));
+  const readArticle = useEffectEvent(() => article);
+  const rememberPageInfo = useCallback((nextPageInfo: FoliatePageInfo | null) => {
     pageInfoSectionIndexRef.current = nextPageInfo?.sectionIndex;
     if (nextPageInfo) lastStablePageInfoRef.current = nextPageInfo;
-    setPageInfo(nextPageInfo);
   }, []);
+  const synchronizePageInfo = useCallback(
+    (nextPageInfo: FoliatePageInfo | null) => {
+      rememberPageInfo(nextPageInfo);
+      dispatch({ type: 'pageInfoMeasured', pageInfo: nextPageInfo });
+    },
+    [rememberPageInfo],
+  );
+  const pagination = useEbookPaginationMeasurement({
+    articleId: article.id,
+    ebookFileRef,
+    maxColumnCount,
+    maxColumnCountRef,
+    onPageInfoChange: synchronizePageInfo,
+    onScheduleEbookBoxUpdate,
+    readerSettings,
+    readerSettingsRef,
+    readerStateStatus: readerState.status,
+    readerThemeRef,
+    viewHostRef,
+    viewRef,
+  });
   const { measureHostRef, paginationLayoutKeyRef, recordKnownPageInfo, sectionPageCounts } =
-    useEbookPaginationMeasurement({
-      articleId: article.id,
-      ebookFileRef,
-      maxColumnCount,
-      maxColumnCountRef,
-      onPageInfoChange: synchronizePageInfo,
-      onScheduleEbookBoxUpdate,
-      readerSettings,
-      readerSettingsRef,
-      readerStateStatus: readerState.status,
-      readerThemeRef,
-      viewHostRef,
-      viewRef,
-    });
-
-  useEffect(() => {
-    onBeforePageTurnRef.current = onBeforePageTurn;
-  }, [onBeforePageTurn]);
-
-  useLayoutEffect(() => {
-    onCleanupFoliateDocumentListeners();
-    pageTurnQueueRef.current = [];
-    pageTurnRunningRef.current = false;
-    pageTurnTraceRef.current = null;
-    setTocItems([]);
-    setSectionFractions([]);
-    pageInfoSectionIndexRef.current = undefined;
-    lastStablePageInfoRef.current = null;
-    setPageInfo(null);
-    const savedProgress = readingProgressRatio(article.readingProgress);
-    progressRef.current = savedProgress;
-    setProgress(savedProgress);
-    readerStateStatusRef.current = 'loading';
-    setReaderState({ status: 'loading', message: i18next.t('ebookReader.opening') });
-    setOpenSettledArticleId(null);
-  }, [article.id, onCleanupFoliateDocumentListeners, pageTurnTraceRef]);
+    pagination;
 
   const beginPageTurnTrace = useCallback(
     (source: EbookPageTurnTrace['source'], direction: EbookPageTurnTrace['direction']) => {
+      const articleId = readArticle().id;
       const trace: EbookPageTurnTrace = {
-        articleId: article.id,
+        articleId,
         direction,
         source,
         startedAt: performance.now(),
-        turnId: `${article.id}:${Date.now().toString(36)}:${++pageTurnSequenceRef.current}`,
+        turnId: `${articleId}:${Date.now().toString(36)}:${++pageTurnSequenceRef.current}`,
       };
       pageTurnTraceRef.current = trace;
       recordEbookPageTurnTrace(trace, 'start', {
@@ -191,23 +243,31 @@ export function useEbookFoliateView({
       });
       return trace;
     },
-    [article.id, pageTurnTraceRef],
+    [pageTurnTraceRef],
   );
 
-  useEffect(() => {
+  const layoutKey = useMemo(
+    () => JSON.stringify([maxColumnCount, readerSettings, readerTheme]),
+    [maxColumnCount, readerSettings, readerTheme],
+  );
+
+  const applyLayout = useCallback((marker: HTMLElement | null) => {
+    if (!marker) return;
+    const {
+      articleId,
+      maxColumnCount: columns,
+      readerSettings: settings,
+      readerTheme: theme,
+    } = readLayoutInput();
     const previousMaxColumnCount = maxColumnCountRef.current;
-    maxColumnCountRef.current = maxColumnCount;
-    readerSettingsRef.current = readerSettings;
-    readerThemeRef.current = readerTheme;
+    maxColumnCountRef.current = columns;
+    readerSettingsRef.current = settings;
+    readerThemeRef.current = theme;
     const view = viewRef.current;
     const pageInfoBeforeLayout = view?.getPageInfo?.() ?? lastStablePageInfoRef.current;
     if (pageInfoBeforeLayout) lastStablePageInfoRef.current = pageInfoBeforeLayout;
-    configureFoliateView(view, readerSettings, readerTheme, maxColumnCount);
-    if (
-      view &&
-      readerStateStatusRef.current === 'ready' &&
-      previousMaxColumnCount !== maxColumnCount
-    ) {
+    configureFoliateView(view, settings, theme, columns);
+    if (view && readerStateStatusRef.current === 'ready' && previousMaxColumnCount !== columns) {
       const livePageInfo = view.getPageInfo?.() ?? null;
       const restorePageInfo = pageInfoBeforeLayout ?? livePageInfo;
       if (restorePageInfo) lastStablePageInfoRef.current = restorePageInfo;
@@ -225,157 +285,148 @@ export function useEbookFoliateView({
             updatedAt: new Date().toISOString(),
           };
       recordRendererPerformanceTiming('ebook_layout', {
-        articleId: article.id,
+        articleId,
         fromColumns: previousMaxColumnCount,
         livePageInfo,
         pageInfo: restorePageInfo,
         progress: progressRef.current,
-        toColumns: maxColumnCount,
+        toColumns: columns,
       });
       void restoreEbookReadingProgress(view, restoreProgress);
     }
-    onScheduleEbookBoxUpdate('reader_settings');
-  }, [article.id, maxColumnCount, onScheduleEbookBoxUpdate, readerSettings, readerTheme]);
+    scheduleEbookBoxUpdate('reader_settings');
+  }, []);
 
-  useEffect(() => {
-    readerStateStatusRef.current = readerState.status;
-  }, [readerState.status]);
+  const openBook = useCallback(
+    (marker: HTMLElement | null) => {
+      const host = viewHostRef.current;
+      if (!marker || !host) return;
+      const hostElement = host;
+      const openedArticle = readArticle();
 
-  useEffect(() => {
-    const host = viewHostRef.current;
-    if (!host) return;
-    const hostElement = host;
+      let cancelled = false;
+      let view: FoliateViewElement | null = null;
 
-    let cancelled = false;
-    let view: FoliateViewElement | null = null;
-
-    const handleRelocate = (event: Event) => {
-      const detail = (event as CustomEvent<FoliateRelocateDetail>).detail;
-      const nextProgress = clampNumber(detail.fraction, 0, 1, 0);
-      const nextPageInfo =
-        (event.currentTarget as FoliateViewElement | null)?.getPageInfo?.() ?? null;
-      const progressSnapshot = ebookReadingProgressSnapshot(nextPageInfo, nextProgress);
-      recordEbookPageTurnTrace(pageTurnTraceRef.current, 'relocate', {
-        pageIndex: nextPageInfo?.pageIndex,
-        pageCount: nextPageInfo?.pageCount,
-        reason: detail.reason,
-        sectionIndex: nextPageInfo?.sectionIndex,
-      });
-
-      setProgress(nextProgress);
-      progressRef.current = nextProgress;
-      synchronizePageInfo(nextPageInfo);
-      if (nextPageInfo) recordKnownPageInfo(nextPageInfo);
-      onAttachFoliateDocumentListeners(event.currentTarget as FoliateViewElement);
-      onScheduleEbookBoxUpdate('relocate');
-      scheduleEbookProgressSave({
-        ...progressSnapshot,
-        updatedAt: new Date().toISOString(),
-      });
-    };
-
-    const handleExternalLink = (event: Event) => {
-      const customEvent = event as CustomEvent<Record<string, string | undefined>>;
-      const href = customEvent.detail['href_'] || customEvent.detail.href;
-      if (!href) return;
-      event.preventDefault();
-      void getDesktopApi().app.openUrl(href);
-    };
-
-    const handleLoad = (event: Event) => {
-      const detail = (event as CustomEvent<{ index?: number }>).detail;
-      recordEbookPageTurnTrace(pageTurnTraceRef.current, 'load', {
-        sectionIndex: detail.index,
-      });
-    };
-
-    const handlePageTurnStart = (event: Event) => {
-      const detail = (event as CustomEvent<{ direction?: number; reason?: string }>).detail;
-      const trace =
-        pageTurnTraceRef.current ?? beginPageTurnTrace('foliate', detail.direction ?? 0);
-      recordEbookPageTurnTrace(trace, 'foliate_page_turn_start', {
-        pageInfo: viewRef.current?.getPageInfo?.() ?? null,
-        reason: detail.reason,
-      });
-      onBeforePageTurnRef.current(trace);
-    };
-
-    async function openEbook() {
-      try {
-        await import('../../vendor/foliate-js/view.js');
-        const data = await getDesktopApi().article.ebook.readFile(article.id);
-        if (cancelled) return;
-
-        const file = ebookSourceFile(article, data);
-        ebookFileRef.current = file;
-        view = document.createElement('foliate-view') as FoliateViewElement;
-        view.className = 'ebook-foliate-view';
-        view.addEventListener('relocate', handleRelocate);
-        view.addEventListener('external-link', handleExternalLink);
-        view.addEventListener('load', handleLoad);
-        view.addEventListener('page-turn-start', handlePageTurnStart);
-        hostElement.replaceChildren(view);
-        await view.open(file);
-        if (cancelled) return;
-
-        viewRef.current = view;
-        configureFoliateView(
-          view,
-          readerSettingsRef.current,
-          readerThemeRef.current,
-          maxColumnCountRef.current,
-        );
-        setTocItems(flattenFoliateToc(view.book?.toc ?? []));
-        setSectionFractions(view.getSectionFractions?.() ?? []);
-        readerStateStatusRef.current = 'ready';
-        setReaderState({ status: 'ready', message: '' });
-
-        if (!(await restoreEbookReadingProgress(view, article.readingProgress))) {
-          await view.next();
-        }
-        onAttachFoliateDocumentListeners(view);
-        onScheduleEbookBoxUpdate('open_ebook');
-        setOpenSettledArticleId(article.id);
-      } catch (error) {
-        if (cancelled) return;
-        readerStateStatusRef.current = 'error';
-        setReaderState({
-          status: 'error',
-          message: ebookOpenErrorMessage(error),
+      const handleRelocate = (event: Event) => {
+        const detail = (event as CustomEvent<FoliateRelocateDetail>).detail;
+        const nextProgress = clampNumber(detail.fraction, 0, 1, 0);
+        const nextPageInfo =
+          (event.currentTarget as FoliateViewElement | null)?.getPageInfo?.() ?? null;
+        const progressSnapshot = ebookReadingProgressSnapshot(nextPageInfo, nextProgress);
+        recordEbookPageTurnTrace(pageTurnTraceRef.current, 'relocate', {
+          pageIndex: nextPageInfo?.pageIndex,
+          pageCount: nextPageInfo?.pageCount,
+          reason: detail.reason,
+          sectionIndex: nextPageInfo?.sectionIndex,
         });
-        setOpenSettledArticleId(article.id);
+
+        progressRef.current = nextProgress;
+        rememberPageInfo(nextPageInfo);
+        dispatch({ type: 'relocated', pageInfo: nextPageInfo, progress: nextProgress });
+        if (nextPageInfo) recordKnownPageInfo(nextPageInfo);
+        attachDocumentListeners(event.currentTarget as FoliateViewElement);
+        scheduleEbookBoxUpdate('relocate');
+        scheduleEbookProgressSave({
+          ...progressSnapshot,
+          updatedAt: new Date().toISOString(),
+        });
+      };
+
+      const handleExternalLink = (event: Event) => {
+        const customEvent = event as CustomEvent<Record<string, string | undefined>>;
+        const href = customEvent.detail['href_'] || customEvent.detail.href;
+        if (!href) return;
+        event.preventDefault();
+        void getDesktopApi().app.openUrl(href);
+      };
+
+      const handleLoad = (event: Event) => {
+        const detail = (event as CustomEvent<{ index?: number }>).detail;
+        recordEbookPageTurnTrace(pageTurnTraceRef.current, 'load', {
+          sectionIndex: detail.index,
+        });
+      };
+
+      const handlePageTurnStart = (event: Event) => {
+        const detail = (event as CustomEvent<{ direction?: number; reason?: string }>).detail;
+        const trace =
+          pageTurnTraceRef.current ?? beginPageTurnTrace('foliate', detail.direction ?? 0);
+        recordEbookPageTurnTrace(trace, 'foliate_page_turn_start', {
+          pageInfo: viewRef.current?.getPageInfo?.() ?? null,
+          reason: detail.reason,
+        });
+        beforePageTurn(trace);
+      };
+
+      async function openEbook() {
+        try {
+          await import('../../vendor/foliate-js/view.js');
+          const data = await getDesktopApi().article.ebook.readFile(openedArticle.id);
+          if (cancelled) return;
+
+          const file = ebookSourceFile(openedArticle, data);
+          ebookFileRef.current = file;
+          view = document.createElement('foliate-view') as FoliateViewElement;
+          view.className = 'ebook-foliate-view';
+          view.addEventListener('relocate', handleRelocate);
+          view.addEventListener('external-link', handleExternalLink);
+          view.addEventListener('load', handleLoad);
+          view.addEventListener('page-turn-start', handlePageTurnStart);
+          hostElement.replaceChildren(view);
+          await view.open(file);
+          if (cancelled) return;
+
+          viewRef.current = view;
+          configureFoliateView(
+            view,
+            readerSettingsRef.current,
+            readerThemeRef.current,
+            maxColumnCountRef.current,
+          );
+          readerStateStatusRef.current = 'ready';
+          dispatch({
+            type: 'bookOpened',
+            tocItems: flattenFoliateToc(view.book?.toc ?? []),
+            sectionFractions: view.getSectionFractions?.() ?? [],
+          });
+
+          if (!(await restoreEbookReadingProgress(view, openedArticle.readingProgress))) {
+            await view.next();
+          }
+          attachDocumentListeners(view);
+          scheduleEbookBoxUpdate('open_ebook');
+          dispatch({ type: 'openSettled' });
+        } catch (error) {
+          if (cancelled) return;
+          readerStateStatusRef.current = 'error';
+          dispatch({ type: 'openFailed', message: ebookOpenErrorMessage(error) });
+        }
       }
-    }
 
-    void openEbook();
+      void openEbook();
 
-    return () => {
-      cancelled = true;
-      view?.removeEventListener('relocate', handleRelocate);
-      view?.removeEventListener('external-link', handleExternalLink);
-      view?.removeEventListener('load', handleLoad);
-      view?.removeEventListener('page-turn-start', handlePageTurnStart);
-      onCleanupFoliateDocumentListeners();
-      closeFoliateView(view);
-      view?.remove();
-      if (viewRef.current === view) viewRef.current = null;
-      if (viewRef.current === null) ebookFileRef.current = null;
-      hostElement.replaceChildren();
-    };
-  }, [
-    article.id,
-    article.ebook.metadata.fileName,
-    article.ebook.metadata.format,
-    article.title,
-    onAttachFoliateDocumentListeners,
-    beginPageTurnTrace,
-    onCleanupFoliateDocumentListeners,
-    onScheduleEbookBoxUpdate,
-    pageTurnTraceRef,
-    scheduleEbookProgressSave,
-    recordKnownPageInfo,
-    synchronizePageInfo,
-  ]);
+      return () => {
+        cancelled = true;
+        view?.removeEventListener('relocate', handleRelocate);
+        view?.removeEventListener('external-link', handleExternalLink);
+        view?.removeEventListener('load', handleLoad);
+        view?.removeEventListener('page-turn-start', handlePageTurnStart);
+        cleanupDocumentListeners();
+        closeFoliateView(view);
+        view?.remove();
+        if (viewRef.current === view) viewRef.current = null;
+        if (viewRef.current === null) ebookFileRef.current = null;
+        hostElement.replaceChildren();
+      };
+    },
+    [
+      beginPageTurnTrace,
+      pageTurnTraceRef,
+      recordKnownPageInfo,
+      rememberPageInfo,
+      scheduleEbookProgressSave,
+    ],
+  );
 
   const drainPageTurnQueue = useCallback(() => {
     if (pageTurnRunningRef.current) return;
@@ -389,20 +440,20 @@ export function useEbookFoliateView({
           if (!view || readerStateStatusRef.current !== 'ready') continue;
 
           const trace = beginPageTurnTrace('control', direction);
-          onBeforePageTurnRef.current(trace);
+          beforePageTurn(trace);
           recordEbookPageTurnTrace(trace, 'view_go_start');
           if (direction === 'left') await view.goLeft();
           else await view.goRight();
           recordEbookPageTurnTrace(trace, 'view_go_done', {
             pageInfo: view.getPageInfo?.() ?? null,
           });
-          onScheduleEbookBoxUpdate('page_turn');
+          scheduleEbookBoxUpdate('page_turn');
         }
       } finally {
         pageTurnRunningRef.current = false;
       }
     })();
-  }, [article.id, article.ebook.metadata.format, beginPageTurnTrace, onScheduleEbookBoxUpdate]);
+  }, [beginPageTurnTrace]);
 
   const turnPage = useCallback(
     (direction: PageTurnDirection) => {
@@ -427,7 +478,7 @@ export function useEbookFoliateView({
   const goToProgress = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const nextProgress = clampNumber(Number(event.currentTarget.value), 0, 1, progress);
-      setProgress(nextProgress);
+      dispatch({ type: 'progressJumped', progress: nextProgress });
       progressRef.current = nextProgress;
       void viewRef.current?.goToFraction(nextProgress);
     },
@@ -448,7 +499,13 @@ export function useEbookFoliateView({
     sectionPageCounts,
     progress,
     readerState,
-    openSettled: openSettledArticleId === article.id,
+    openSettled,
+    // Rendered after the reader shell; layout settings attach before pagination reads them.
+    markers: [
+      createElement('span', { hidden: true, key: layoutKey, ref: applyLayout }),
+      createElement('span', { hidden: true, key: 'open', ref: openBook }),
+      ...pagination.markers,
+    ],
     goLeft,
     goRight,
     goToProgress,
