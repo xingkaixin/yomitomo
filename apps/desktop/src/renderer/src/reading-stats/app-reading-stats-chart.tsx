@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useReducer } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   CartesianGrid,
@@ -48,7 +48,7 @@ export function ReadingStatsChart({
   recordedDays: number;
 }) {
   const { t } = useTranslation();
-  const [chartMode, setChartMode] = useState<ChartMode>('recorded');
+  const [chartMode, dispatch] = useReducer(chartModeReducer, 'recorded');
   const chartConfig = makeChartConfig(t);
   const fullChartData = buildChartData(activityDays.slice(-21), activityStartDate);
   const chartRecordedDays = fullChartData.reduce(
@@ -67,12 +67,15 @@ export function ReadingStatsChart({
       ? t('readingStats.chart.windowTitle')
       : t('readingStats.chart.trendTitle');
 
-  useEffect(() => {
-    onReady();
-  }, [onReady]);
+  const reportReady = useCallback(
+    (card: HTMLDivElement | null) => {
+      if (card) onReady();
+    },
+    [onReady],
+  );
 
   return (
-    <div className="stats-chart-card">
+    <div ref={reportReady} className="stats-chart-card">
       <div className="stats-section-heading">
         <h3>{chartTitle}</h3>
         <p>{chartActivityDescription(recordedDays)}</p>
@@ -90,7 +93,7 @@ export function ReadingStatsChart({
               },
               { value: 'window', label: t('readingStats.chart.window') },
             ]}
-            onValueChange={setChartMode}
+            onValueChange={(mode) => dispatch({ type: 'modeSelected', mode })}
           />
         ) : null}
         <div className="stats-chart-legend" aria-hidden="true">
@@ -175,6 +178,10 @@ export function ReadingStatsChart({
       </ChartContainer>
     </div>
   );
+}
+
+function chartModeReducer(_mode: ChartMode, event: { type: 'modeSelected'; mode: ChartMode }) {
+  return event.mode;
 }
 
 function makeChartConfig(t: (key: string) => string) {

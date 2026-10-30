@@ -5,7 +5,8 @@ import {
   Refresh01Icon,
   Search01Icon,
 } from '@hugeicons/core-free-icons';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useReducer } from 'react';
+import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -21,13 +22,28 @@ import { getDesktopApi } from '../shell/app-desktop-api';
 
 const MODES: WeReadReadingStatsMode[] = ['weekly', 'monthly', 'annually', 'overall'];
 
+const weReadReadingStatsQuery = queryOptions({
+  queryKey: ['weread', 'readingStats'],
+  queryFn: () => getDesktopApi().weRead.getReadingStats(),
+});
+
+const emptyReadingStats: WeReadReadingStatsState = { snapshots: [] };
+
 export function WeReadReadingStatsPanel() {
   const { t } = useTranslation();
-  const [mode, setMode] = useState<WeReadReadingStatsMode>('monthly');
-  const [periodStart, setPeriodStart] = useState(() => getPeriodStart('monthly'));
-  const [state, setState] = useState<WeReadReadingStatsState>({ snapshots: [] });
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
+  const queryClient = useQueryClient();
+  const statsQuery = useQuery(weReadReadingStatsQuery);
+  const state = statsQuery.data ?? emptyReadingStats;
+  const [{ loading, message: actionMessage, mode, periodStart }, dispatch] = useReducer(
+    weReadStatsReducer,
+    undefined,
+    initialWeReadStatsState,
+  );
+  const message =
+    actionMessage ??
+    (statsQuery.error
+      ? errorMessageOrFallback(statsQuery.error, t('readingStats.weread.cacheReadFailed'))
+      : '');
   const activePeriodStart = mode === 'overall' ? 0 : periodStart;
   const snapshot = useMemo(
     () =>
@@ -36,37 +52,23 @@ export function WeReadReadingStatsPanel() {
   );
   const latestSnapshot = state.snapshots[0];
 
-  useEffect(() => {
-    let canceled = false;
-    void getDesktopApi()
-      .weRead.getReadingStats()
-      .then((nextState) => {
-        if (!canceled) setState(nextState);
-      })
-      .catch((error: unknown) => {
-        if (!canceled)
-          setMessage(errorMessageOrFallback(error, t('readingStats.weread.cacheReadFailed')));
-      });
-    return () => {
-      canceled = true;
-    };
-  }, []);
-
   function changeMode(nextMode: WeReadReadingStatsMode) {
-    setMode(nextMode);
-    setMessage('');
-    if (nextMode !== 'overall') setPeriodStart(getPeriodStart(nextMode));
+    dispatch({
+      type: 'modeChanged',
+      mode: nextMode,
+      periodStart: nextMode === 'overall' ? null : getPeriodStart(nextMode),
+    });
   }
 
   async function queryStats() {
-    setLoading(true);
-    setMessage('');
+    dispatch({ type: 'queryStarted' });
     try {
       const nextState = await getDesktopApi().weRead.queryReadingStats({
         mode,
         ...(mode === 'overall' ? {} : { baseTime: activePeriodStart * 1000 }),
       });
-      setState(nextState);
+      await queryClient.cancelQueries({ queryKey: weReadReadingStatsQuery.queryKey });
+      queryClient.setQueryData(weReadReadingStatsQuery.queryKey, nextState);
       const queriedSnapshot = nextState.snapshots.find(
         (item) => item.mode === mode && item.periodStart === activePeriodStart,
       );
@@ -81,12 +83,11 @@ export function WeReadReadingStatsPanel() {
               period: periodLabel(mode, activePeriodStart),
             }),
       });
+      dispatch({ type: 'queryFinished' });
     } catch (error) {
       const failureMessage = errorMessageOrFallback(error, t('readingStats.weread.queryFailed'));
-      setMessage(failureMessage);
+      dispatch({ type: 'queryFailed', message: failureMessage });
       appToast.error(t('readingStats.weread.queryFailed'), { description: failureMessage });
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -109,7 +110,12 @@ export function WeReadReadingStatsPanel() {
             <button
               type="button"
               aria-label={t('readingStats.weread.previousPeriod')}
-              onClick={() => setPeriodStart(shiftPeriod(mode, activePeriodStart, -1))}
+              onClick={() =>
+                dispatch({
+                  type: 'periodChanged',
+                  periodStart: shiftPeriod(mode, activePeriodStart, -1),
+                })
+              }
             >
               <HugeiconsIcon icon={ArrowLeft01Icon} size={15} />
             </button>
@@ -120,7 +126,12 @@ export function WeReadReadingStatsPanel() {
               type="button"
               aria-label={t('readingStats.weread.nextPeriod')}
               disabled={activePeriodStart >= getPeriodStart(mode)}
-              onClick={() => setPeriodStart(shiftPeriod(mode, activePeriodStart, 1))}
+              onClick={() =>
+                dispatch({
+                  type: 'periodChanged',
+                  periodStart: shiftPeriod(mode, activePeriodStart, 1),
+                })
+              }
             >
               <HugeiconsIcon icon={ArrowRight01Icon} size={15} />
             </button>
@@ -154,6 +165,45 @@ export function WeReadReadingStatsPanel() {
       )}
     </section>
   );
+}
+
+type WeReadStatsState = {
+  loading: boolean;
+  message: string | null;
+  mode: WeReadReadingStatsMode;
+  periodStart: number;
+};
+
+type WeReadStatsEvent =
+  | { type: 'modeChanged'; mode: WeReadReadingStatsMode; periodStart: number | null }
+  | { type: 'periodChanged'; periodStart: number }
+  | { type: 'queryFailed'; message: string }
+  | { type: 'queryFinished' }
+  | { type: 'queryStarted' };
+
+function initialWeReadStatsState(): WeReadStatsState {
+  return { loading: false, message: null, mode: 'monthly', periodStart: getPeriodStart('monthly') };
+}
+
+// A null message falls back to the cache read error until the user changes mode or queries.
+function weReadStatsReducer(state: WeReadStatsState, event: WeReadStatsEvent): WeReadStatsState {
+  switch (event.type) {
+    case 'modeChanged':
+      return {
+        ...state,
+        message: '',
+        mode: event.mode,
+        periodStart: event.periodStart ?? state.periodStart,
+      };
+    case 'periodChanged':
+      return { ...state, periodStart: event.periodStart };
+    case 'queryFailed':
+      return { ...state, loading: false, message: event.message };
+    case 'queryFinished':
+      return { ...state, loading: false };
+    case 'queryStarted':
+      return { ...state, loading: true, message: '' };
+  }
 }
 
 function WeReadStatsSnapshotView({ snapshot }: { snapshot: WeReadReadingStatsSnapshot }) {

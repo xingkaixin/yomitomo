@@ -7,20 +7,27 @@ import {
   LibraryIcon,
   Search01Icon,
 } from '@hugeicons/core-free-icons';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useMemo, useReducer, useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { keepPreviousData, queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ReadingEvidenceCard } from '@yomitomo/reader-ui/reading-evidence-card';
-import type { DistillationLibraryListResult } from '../../../ipc-contract';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import { getDesktopApi } from '../shell/app-desktop-api';
 import type { ReadingEvidenceSourceTarget } from '../shell/app-reading-types';
+import { useDesktopEvent } from '../shell/use-desktop-event';
 
 const PAGE_SIZE = 12;
 const SEARCH_DEBOUNCE_MS = 180;
 
-type LoadState =
-  | { status: 'loading'; result: DistillationLibraryListResult | null }
-  | { status: 'ready'; result: DistillationLibraryListResult }
-  | { status: 'error'; result: DistillationLibraryListResult | null };
+const distillationLibraryQueryKey = ['distillations', 'library'] as const;
+
+function distillationLibraryQuery(page: number, query: string) {
+  return queryOptions({
+    queryKey: [...distillationLibraryQueryKey, { page, query }],
+    queryFn: () => getDesktopApi().library.distillations.list({ page, pageSize: PAGE_SIZE, query }),
+    placeholderData: keepPreviousData,
+  });
+}
 
 export function DistillationLibrary({
   onOpenEvidenceSource,
@@ -28,13 +35,15 @@ export function DistillationLibrary({
   onOpenEvidenceSource: (target: ReadingEvidenceSourceTarget) => void;
 }) {
   const { i18n, t } = useTranslation();
-  const [query, setQuery] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [page, setPage] = useState(1);
-  const [refreshVersion, setRefreshVersion] = useState(0);
-  const [loadState, setLoadState] = useState<LoadState>({ status: 'loading', result: null });
-  const requestIdRef = useRef(0);
+  const queryClient = useQueryClient();
+  const [{ page, query, searchQuery }, dispatch] = useReducer(distillationLibraryReducer, {
+    page: 1,
+    query: '',
+    searchQuery: '',
+  });
+  const searchTimerRef = useRef<number | undefined>(undefined);
   const scrollRef = useRef<HTMLElement>(null);
+  const listQuery = useQuery(distillationLibraryQuery(page, searchQuery));
   const dateFormatter = useMemo(
     () =>
       new Intl.DateTimeFormat(i18n.resolvedLanguage || i18n.language, {
@@ -45,41 +54,32 @@ export function DistillationLibrary({
     [i18n.language, i18n.resolvedLanguage],
   );
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setPage(1);
-      setSearchQuery(query.trim());
-    }, SEARCH_DEBOUNCE_MS);
-    return () => window.clearTimeout(timer);
-  }, [query]);
+  useMountEffect(() => () => window.clearTimeout(searchTimerRef.current));
 
-  useEffect(() => {
-    return getDesktopApi().annotations.onDistillationCommitted(() => {
-      setRefreshVersion((version) => version + 1);
-    });
-  }, []);
+  useDesktopEvent(getDesktopApi().annotations.onDistillationCommitted, () => {
+    void queryClient.invalidateQueries({ queryKey: distillationLibraryQueryKey });
+  });
 
-  useEffect(() => {
-    const requestId = ++requestIdRef.current;
-    setLoadState((current) => ({ status: 'loading', result: current.result }));
-    void getDesktopApi()
-      .library.distillations.list({ page, pageSize: PAGE_SIZE, query: searchQuery })
-      .then((result) => {
-        if (requestId !== requestIdRef.current) return;
-        setLoadState({ status: 'ready', result });
-      })
-      .catch(() => {
-        if (requestId !== requestIdRef.current) return;
-        setLoadState((current) => ({ status: 'error', result: current.result }));
-      });
-  }, [page, refreshVersion, searchQuery]);
-
-  const result = loadState.result;
+  const result = listQuery.data ?? null;
+  const status = listQuery.isFetching ? 'loading' : listQuery.isError ? 'error' : 'ready';
   const totalPages = result ? Math.max(1, Math.ceil(result.totalCount / result.pageSize)) : 1;
-  const isResolving = loadState.status === 'loading' && Boolean(result);
+  const isResolving = status === 'loading' && Boolean(result);
+
+  function editQuery(nextQuery: string) {
+    dispatch({ type: 'queryEdited', query: nextQuery });
+    window.clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = window.setTimeout(
+      () => dispatch({ type: 'searchSettled', searchQuery: nextQuery.trim() }),
+      SEARCH_DEBOUNCE_MS,
+    );
+  }
+
+  function retry() {
+    void listQuery.refetch();
+  }
 
   function changePage(nextPage: number) {
-    setPage(nextPage);
+    dispatch({ type: 'pageChanged', page: nextPage });
     scrollRef.current?.scrollTo({ top: 0 });
   }
 
@@ -87,7 +87,7 @@ export function DistillationLibrary({
     <section
       ref={scrollRef}
       className="distillation-library"
-      aria-busy={loadState.status === 'loading'}
+      aria-busy={status === 'loading'}
       aria-labelledby="distillation-library-title"
     >
       <div className="distillation-library-inner">
@@ -118,13 +118,13 @@ export function DistillationLibrary({
             value={query}
             placeholder={t('distillationLibrary.searchPlaceholder')}
             autoComplete="off"
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => editQuery(event.target.value)}
           />
           {query ? (
             <button
               type="button"
               aria-label={t('distillationLibrary.clearSearch')}
-              onClick={() => setQuery('')}
+              onClick={() => editQuery('')}
             >
               <HugeiconsIcon icon={Cancel01Icon} aria-hidden="true" size={16} />
             </button>
@@ -133,12 +133,12 @@ export function DistillationLibrary({
         </div>
 
         <div className="sr-only" aria-live="polite">
-          {loadState.status === 'loading'
+          {status === 'loading'
             ? t('distillationLibrary.loading')
             : t('distillationLibrary.resultCount', { count: result?.totalCount || 0 })}
         </div>
 
-        {loadState.status === 'error' && !result ? (
+        {status === 'error' && !result ? (
           <DistillationLibraryMessage
             icon={
               <HugeiconsIcon icon={LibraryIcon} aria-hidden="true" size={26} strokeWidth={1.6} />
@@ -146,11 +146,11 @@ export function DistillationLibrary({
             title={t('distillationLibrary.loadFailed')}
             description={t('distillationLibrary.loadFailedDescription')}
             actionLabel={t('distillationLibrary.retry')}
-            onAction={() => setRefreshVersion((version) => version + 1)}
+            onAction={retry}
           />
         ) : null}
 
-        {loadState.status === 'loading' && !result ? <DistillationLibrarySkeleton /> : null}
+        {status === 'loading' && !result ? <DistillationLibrarySkeleton /> : null}
 
         {result && result.totalCount === 0 ? (
           <DistillationLibraryMessage
@@ -172,10 +172,10 @@ export function DistillationLibrary({
 
         {result && result.items.length > 0 ? (
           <>
-            {loadState.status === 'error' ? (
+            {status === 'error' ? (
               <div className="distillation-library-inline-error" role="status">
                 <span>{t('distillationLibrary.refreshFailed')}</span>
-                <button type="button" onClick={() => setRefreshVersion((version) => version + 1)}>
+                <button type="button" onClick={retry}>
                   {t('distillationLibrary.retry')}
                 </button>
               </div>
@@ -231,7 +231,7 @@ export function DistillationLibrary({
                 <button
                   type="button"
                   aria-label={t('distillationLibrary.previousPage')}
-                  disabled={page <= 1 || loadState.status === 'loading'}
+                  disabled={page <= 1 || status === 'loading'}
                   onClick={() => changePage(page - 1)}
                 >
                   <HugeiconsIcon icon={ArrowLeft01Icon} aria-hidden="true" size={17} />
@@ -240,7 +240,7 @@ export function DistillationLibrary({
                 <button
                   type="button"
                   aria-label={t('distillationLibrary.nextPage')}
-                  disabled={page >= totalPages || loadState.status === 'loading'}
+                  disabled={page >= totalPages || status === 'loading'}
                   onClick={() => changePage(page + 1)}
                 >
                   <HugeiconsIcon icon={ArrowRight01Icon} aria-hidden="true" size={17} />
@@ -252,6 +252,27 @@ export function DistillationLibrary({
       </div>
     </section>
   );
+}
+
+type DistillationLibraryState = { page: number; query: string; searchQuery: string };
+
+type DistillationLibraryEvent =
+  | { type: 'pageChanged'; page: number }
+  | { type: 'queryEdited'; query: string }
+  | { type: 'searchSettled'; searchQuery: string };
+
+function distillationLibraryReducer(
+  state: DistillationLibraryState,
+  event: DistillationLibraryEvent,
+): DistillationLibraryState {
+  switch (event.type) {
+    case 'pageChanged':
+      return { ...state, page: event.page };
+    case 'queryEdited':
+      return { ...state, query: event.query };
+    case 'searchSettled':
+      return { ...state, page: 1, searchQuery: event.searchQuery };
+  }
 }
 
 function DistillationLibraryMessage({
