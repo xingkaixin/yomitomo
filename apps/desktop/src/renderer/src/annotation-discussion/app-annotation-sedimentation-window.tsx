@@ -5,9 +5,8 @@ import {
   SentIcon,
   SparklesIcon,
 } from '@hugeicons/core-free-icons';
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import type { CSSProperties } from 'react';
 import type { Annotation, ArticleRecord, UserProfile } from '@yomitomo/shared';
-import { normalizeUiLanguage } from '@yomitomo/shared';
 import { annotationAuthorName } from '@yomitomo/core';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
@@ -18,7 +17,6 @@ import {
   ReaderTooltip,
   SubmitShortcutTooltipContent,
 } from '@yomitomo/reader-ui/reader-component-primitives';
-import { applyAppTheme, readCachedThemeId, themeRegistry } from '../theme/app-theme';
 import { useSourceAwareWindowTransition } from '../shell/app-window-transition';
 import {
   DraftAnchorHighlightLayer,
@@ -29,95 +27,39 @@ import {
   OrganizeDiscussionConfirmDialog,
 } from './app-annotation-sedimentation-organize-card';
 import { SedimentationReviewTimeline } from './app-annotation-sedimentation-review-timeline';
-import { useAnnotationWindowArticlePatches } from './use-annotation-window-article-patches';
 import { annotationWindowActions } from './app-annotation-window-actions';
+import { readAnnotationWindowRoute, type AnnotationWindowRoute } from './annotation-window-startup';
+import {
+  bindSedimentationWindow,
+  createSedimentationWindowStore,
+  SedimentationWindowStoreProvider,
+  useSedimentationWindow,
+  type SedimentationWindowStatus,
+} from './app-annotation-sedimentation-window-store';
 import {
   useAnnotationSedimentationController,
   type SedimentationReadyStatus,
 } from './use-annotation-sedimentation-controller';
 
-type SedimentationWindowStatus =
-  | { type: 'loading' }
-  | SedimentationReadyStatus
-  | { type: 'missing' }
-  | { type: 'error'; message: string };
+export function createAnnotationSedimentationWindow() {
+  const route = readAnnotationWindowRoute();
+  const store = createSedimentationWindowStore();
+  const unbind = bindSedimentationWindow(store, route);
+  import.meta.hot?.dispose(unbind);
+  return function AnnotationSedimentationWindow() {
+    return (
+      <SedimentationWindowStoreProvider store={store}>
+        <AnnotationSedimentationWindowApp route={route} />
+      </SedimentationWindowStoreProvider>
+    );
+  };
+}
 
-export function AnnotationSedimentationWindowApp() {
-  const { t } = useTranslation();
-  const params = useMemo(() => new URLSearchParams(window.location.search), []);
-  const articleId = params.get('articleId') || '';
-  const annotationId = params.get('annotationId') || '';
-  const [status, setStatus] = useState<SedimentationWindowStatus>({ type: 'loading' });
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const pendingArticleUpdateRef = useRef<ArticleRecord | null | undefined>(undefined);
-  const windowTransition = useSourceAwareWindowTransition(params);
-
-  useAnnotationWindowArticlePatches(articleId, annotationId, (article) => {
-    pendingArticleUpdateRef.current = article;
-    setStatus((current) => {
-      if (!article) return { type: 'missing' };
-      if (current.type !== 'ready') return current;
-      const annotation = article.annotations.find((item) => item.id === annotationId);
-      return annotation ? { ...current, annotation, article } : { type: 'missing' };
-    });
-  });
-
-  useEffect(() => {
-    const syncTheme = () => applyAppTheme(themeRegistry[readCachedThemeId()]);
-    window.addEventListener('storage', syncTheme);
-    window.addEventListener('focus', syncTheme);
-    return () => {
-      window.removeEventListener('storage', syncTheme);
-      window.removeEventListener('focus', syncTheme);
-    };
-  }, []);
-
-  useEffect(() => {
-    document.title =
-      status.type === 'ready'
-        ? sedimentationWindowTitle(status.annotation)
-        : t('sedimentation.title');
-  }, [status, t]);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!articleId || !annotationId) {
-      setStatus({ type: 'missing' });
-      return;
-    }
-
-    void annotationWindowActions
-      .loadWindow(articleId)
-      .then(({ article, store }) => {
-        if (cancelled) return;
-        setUser(store.user);
-        const pendingArticle = pendingArticleUpdateRef.current;
-        const currentArticle = pendingArticle === undefined ? article : pendingArticle;
-        const annotation = currentArticle?.annotations.find((item) => item.id === annotationId);
-        setStatus(
-          pendingArticle !== null && currentArticle && annotation
-            ? {
-                type: 'ready',
-                agents: store.agents,
-                article: currentArticle,
-                annotation,
-                uiLanguage: normalizeUiLanguage(store.settings?.uiLanguage),
-              }
-            : { type: 'missing' },
-        );
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return;
-        setStatus({
-          type: 'error',
-          message: error instanceof Error ? error.message : t('sedimentation.loadFailed'),
-        });
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [annotationId, articleId, t]);
+function AnnotationSedimentationWindowApp({ route }: { route: AnnotationWindowRoute }) {
+  const status = useSedimentationWindow((state) => state.status);
+  const user = useSedimentationWindow((state) => state.user);
+  const annotationChanged = useSedimentationWindow((state) => state.actions.annotationChanged);
+  const windowTransition = useSourceAwareWindowTransition(route.params);
 
   if (status.type !== 'ready' || !user) {
     return (
@@ -134,7 +76,7 @@ export function AnnotationSedimentationWindowApp() {
       user={user}
       style={windowTransition.style}
       className={windowTransition.className}
-      onStatusChange={setStatus}
+      onStatusChange={annotationChanged}
     />
   );
 }
@@ -150,7 +92,7 @@ function SedimentationShell({
   status: SedimentationReadyStatus;
   user: UserProfile;
   style: CSSProperties;
-  onStatusChange: (status: SedimentationWindowStatus) => void;
+  onStatusChange: (status: SedimentationReadyStatus) => void;
 }) {
   const { t } = useTranslation();
   const { article, annotation } = status;
@@ -428,18 +370,6 @@ function sedimentationWindowClassName() {
   ]
     .filter(Boolean)
     .join(' ');
-}
-
-function sedimentationWindowTitle(annotation: Annotation) {
-  const quote = compactTitleText(annotation.anchor.exact);
-  return quote
-    ? i18next.t('sedimentation.windowTitle', { title: quote })
-    : i18next.t('sedimentation.title');
-}
-
-function compactTitleText(value: string) {
-  const normalized = value.replace(/\s+/g, ' ').trim();
-  return normalized.length > 34 ? `${normalized.slice(0, 34)}...` : normalized;
 }
 
 function sedimentationUserProfile(

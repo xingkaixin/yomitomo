@@ -1,6 +1,6 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowDown01Icon, BubbleChatIcon, SentIcon } from '@hugeicons/core-free-icons';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffectEvent, useMemo, useReducer, useRef, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PublicAgent, UserProfile } from '@yomitomo/shared';
 import { getMentionQuery } from '@yomitomo/core';
@@ -68,14 +68,16 @@ export function DiscussionThreadView({
   const messages = thread.replies;
   const hasReplies = messages.length > 0;
   const threadScrollRef = useRef<HTMLDivElement>(null);
-  const activeThreadIdRef = useRef(thread.root.id);
-  const hasRepliesRef = useRef(false);
+  const openedThreadKeyRef = useRef<string | null>(null);
   const shouldStickToBottomRef = useRef(true);
   const scrollFrameRef = useRef<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const mentionCandidateRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
-  const [showScrollBottom, setShowScrollBottom] = useState(false);
+  const [{ mentionIndex, mentionQuery: highlightedMentionQuery, showScrollBottom }, dispatch] =
+    useReducer(threadViewReducer, {
+      mentionIndex: 0,
+      mentionQuery: null,
+      showScrollBottom: false,
+    });
   const rootThoughtHtml = useMemo(
     () =>
       renderDiscussionMessageMarkdown(thread.root.content, annotationAgents, thread.root.author),
@@ -90,6 +92,10 @@ export function DiscussionThreadView({
     mentionQuery === null
       ? []
       : annotationAgents.filter((agent) => matchesAgentMentionQuery(agent, mentionQuery.query));
+  const selectedMentionIndex =
+    highlightedMentionQuery === (mentionQuery?.query ?? null) && mentionIndex < matchedAgents.length
+      ? mentionIndex
+      : 0;
   const shortcutModifier = getShortcutModifier();
   const composerStatus = sendError || (sendingReply ? t('discussion.sending') : '');
   const replyPlaceholder = discussionReplyPlaceholder(thread.root, annotationAgents);
@@ -97,80 +103,48 @@ export function DiscussionThreadView({
     'annotation-discussion-messages',
     layoutMode === 'left' ? 'is-left-aligned' : 'is-split',
   ].join(' ');
-  activeThreadIdRef.current = thread.root.id;
-  hasRepliesRef.current = hasReplies;
+  const readScrollThread = useEffectEvent(() => ({ hasReplies, threadId: thread.root.id }));
 
-  useEffect(() => {
-    setSelectedMentionIndex(0);
-  }, [mentionQuery?.query]);
-
-  useEffect(() => {
-    if (matchedAgents.length > 0 && selectedMentionIndex >= matchedAgents.length)
-      setSelectedMentionIndex(0);
-  }, [matchedAgents.length, selectedMentionIndex]);
-
-  useEffect(() => {
-    mentionCandidateRefs.current[selectedMentionIndex]?.scrollIntoView?.({ block: 'nearest' });
-  }, [selectedMentionIndex]);
-
-  useLayoutEffect(() => {
+  const followThreadContent = useEffectEvent(() => {
+    const openedThreadKey = `${thread.root.id}:${hasReplies}`;
+    const threadOpened = openedThreadKeyRef.current !== openedThreadKey;
+    openedThreadKeyRef.current = openedThreadKey;
     if (!hasReplies) {
-      cancelScheduledScroll();
+      cancelAnimationFrameRef(scrollFrameRef);
       shouldStickToBottomRef.current = false;
       const element = threadScrollRef.current;
-      if (element) element.scrollTop = 0;
-      setShowScrollBottom(false);
+      if (threadOpened && element) element.scrollTop = 0;
+      dispatch({ type: 'scrollPositionMeasured', atBottom: true });
       return;
     }
-    shouldStickToBottomRef.current = true;
-    scheduleScrollToBottom('auto');
-    return () => cancelScheduledScroll();
-  }, [hasReplies, thread.root.id]);
-
-  useLayoutEffect(() => {
-    if (!hasReplies) {
-      cancelScheduledScroll();
-      shouldStickToBottomRef.current = false;
-      updateScrollBottomVisibility();
-      return;
-    }
-    if (!shouldStickToBottomRef.current) {
-      updateScrollBottomVisibility();
-      return;
-    }
-    scheduleScrollToBottom('auto');
-    return () => cancelScheduledScroll();
-  }, [hasReplies, messagesVersion, rootVersion, thread.root.id]);
-
-  useEffect(
-    () => () => {
-      cancelScheduledScroll();
-    },
-    [],
-  );
-
-  useEffect(() => {
-    resizeReplyTextarea();
-  }, [replyDraft, thread.root.id]);
-
-  useEffect(() => {
-    if (sendingReply) return;
-    textareaRef.current?.focus();
-  }, [sendingReply]);
+    if (threadOpened) shouldStickToBottomRef.current = true;
+    if (shouldStickToBottomRef.current) scheduleScrollToBottom('auto');
+    else updateScrollBottomVisibility();
+  });
+  // The markers' keys change with the thread, its messages and the draft, so their refs run
+  // after each change; they render after the scroll area and composer so both refs are set.
+  const threadContentMarkerRef = useCallback((element: HTMLSpanElement | null) => {
+    if (!element) return;
+    followThreadContent();
+    return () => cancelAnimationFrameRef(scrollFrameRef);
+  }, []);
+  const replyDraftMarkerRef = useCallback((element: HTMLSpanElement | null) => {
+    if (element) resizeReplyTextarea(textareaRef.current);
+  }, []);
+  const focusIdleComposer = useCallback((element: HTMLElement | null) => {
+    if (element) textareaRef.current?.focus();
+  }, []);
 
   function updateCaret(element: HTMLTextAreaElement) {
     onReplyCaretChange(element.selectionStart);
+    dispatch({
+      type: 'caretMoved',
+      mentionQuery: getMentionQuery(element.value, element.selectionStart)?.query ?? null,
+    });
   }
 
-  function resizeReplyTextarea() {
-    const element = textareaRef.current;
-    if (!element) return;
-    element.style.height = 'auto';
-    const maxHeight = 168;
-    const minHeight = 40;
-    const nextHeight = Math.max(minHeight, Math.min(element.scrollHeight, maxHeight));
-    element.style.height = `${nextHeight}px`;
-    element.style.overflowY = element.scrollHeight > maxHeight ? 'auto' : 'hidden';
+  function highlightMention(index: number) {
+    dispatch({ type: 'mentionHighlighted', index, mentionQuery: mentionQuery?.query ?? null });
   }
 
   function selectMentionAgent(agent: PublicAgent) {
@@ -204,58 +178,54 @@ export function DiscussionThreadView({
 
   function updateScrollBottomVisibility() {
     if (!hasReplies) {
-      cancelScheduledScroll();
+      cancelAnimationFrameRef(scrollFrameRef);
       shouldStickToBottomRef.current = false;
-      setShowScrollBottom(false);
+      dispatch({ type: 'scrollPositionMeasured', atBottom: true });
       return;
     }
     const element = threadScrollRef.current;
     if (!element) {
-      setShowScrollBottom(false);
+      dispatch({ type: 'scrollPositionMeasured', atBottom: true });
       return;
     }
     const distance = element.scrollHeight - element.scrollTop - element.clientHeight;
     const atBottom = distance <= 56;
-    if (!atBottom) cancelScheduledScroll();
+    if (!atBottom) cancelAnimationFrameRef(scrollFrameRef);
     shouldStickToBottomRef.current = atBottom;
-    setShowScrollBottom(!atBottom);
+    dispatch({ type: 'scrollPositionMeasured', atBottom });
   }
 
   function scheduleScrollToBottom(behavior: ScrollBehavior) {
     if (!hasReplies) return;
     const scheduledThreadId = thread.root.id;
-    cancelScheduledScroll();
+    const isScheduledThreadShown = () => {
+      const latest = readScrollThread();
+      return latest.threadId === scheduledThreadId && latest.hasReplies;
+    };
+    cancelAnimationFrameRef(scrollFrameRef);
     scrollFrameRef.current = window.requestAnimationFrame(() => {
       scrollFrameRef.current = null;
-      if (activeThreadIdRef.current !== scheduledThreadId) return;
-      if (!hasRepliesRef.current) return;
+      if (!isScheduledThreadShown()) return;
       if (!shouldStickToBottomRef.current) return;
       const previousScrollHeight = threadScrollRef.current?.scrollHeight ?? 0;
       scrollDiscussionToBottom(behavior);
       scrollFrameRef.current = window.requestAnimationFrame(() => {
         scrollFrameRef.current = null;
-        if (activeThreadIdRef.current !== scheduledThreadId) return;
-        if (!hasRepliesRef.current) return;
+        if (!isScheduledThreadShown()) return;
         if ((threadScrollRef.current?.scrollHeight ?? 0) === previousScrollHeight) return;
         if (shouldStickToBottomRef.current) scrollDiscussionToBottom(behavior);
       });
     });
   }
 
-  function cancelScheduledScroll() {
-    if (scrollFrameRef.current === null) return;
-    window.cancelAnimationFrame(scrollFrameRef.current);
-    scrollFrameRef.current = null;
-  }
-
   function scrollDiscussionToBottom(behavior: ScrollBehavior = 'smooth') {
-    if (!hasRepliesRef.current) return;
-    if (activeThreadIdRef.current !== thread.root.id) return;
+    const latest = readScrollThread();
+    if (!latest.hasReplies || latest.threadId !== thread.root.id) return;
     const element = threadScrollRef.current;
     if (!element) return;
     shouldStickToBottomRef.current = true;
     element.scrollTo({ top: element.scrollHeight, behavior });
-    setShowScrollBottom(false);
+    dispatch({ type: 'scrollPositionMeasured', atBottom: true });
   }
 
   function handleSubmitReply() {
@@ -319,7 +289,10 @@ export function DiscussionThreadView({
             </div>
           )}
         </div>
-        <footer className="annotation-discussion-composer">
+        <footer
+          className="annotation-discussion-composer"
+          ref={sendingReply ? undefined : focusIdleComposer}
+        >
           {showScrollBottom ? (
             <button
               className="annotation-discussion-scroll-bottom"
@@ -354,9 +327,9 @@ export function DiscussionThreadView({
                     <button
                       className={index === selectedMentionIndex ? 'is-active' : ''}
                       key={agent.id}
-                      ref={(element) => {
-                        mentionCandidateRefs.current[index] = element;
-                      }}
+                      ref={
+                        index === selectedMentionIndex ? scrollMentionCandidateIntoView : undefined
+                      }
                       type="button"
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => selectMentionAgent(agent)}
@@ -391,19 +364,19 @@ export function DiscussionThreadView({
               onChange: (event) => {
                 onReplyDraftChange(event.currentTarget.value);
                 updateCaret(event.currentTarget);
-                requestAnimationFrame(resizeReplyTextarea);
+                requestAnimationFrame(() => resizeReplyTextarea(textareaRef.current));
               },
               onClick: (event) => updateCaret(event.currentTarget),
               onKeyDown: (event) => {
                 if (matchedAgents.length > 0 && event.key === 'ArrowDown') {
                   event.preventDefault();
-                  setSelectedMentionIndex((index) => (index + 1) % matchedAgents.length);
+                  highlightMention((selectedMentionIndex + 1) % matchedAgents.length);
                   return;
                 }
                 if (matchedAgents.length > 0 && event.key === 'ArrowUp') {
                   event.preventDefault();
-                  setSelectedMentionIndex(
-                    (index) => (index - 1 + matchedAgents.length) % matchedAgents.length,
+                  highlightMention(
+                    (selectedMentionIndex - 1 + matchedAgents.length) % matchedAgents.length,
                   );
                   return;
                 }
@@ -425,7 +398,59 @@ export function DiscussionThreadView({
             onSubmit={handleSubmitReply}
           />
         </footer>
+        <span
+          hidden
+          key={`${thread.root.id}:${hasReplies}:${rootVersion}:${messagesVersion}`}
+          ref={threadContentMarkerRef}
+        />
+        <span hidden key={`${thread.root.id}:${replyDraft}`} ref={replyDraftMarkerRef} />
       </div>
     </ReaderTooltipProvider>
   );
+}
+
+type ThreadViewState = {
+  mentionIndex: number;
+  mentionQuery: string | null;
+  showScrollBottom: boolean;
+};
+
+type ThreadViewEvent =
+  | { type: 'caretMoved'; mentionQuery: string | null }
+  | { type: 'mentionHighlighted'; index: number; mentionQuery: string | null }
+  | { type: 'scrollPositionMeasured'; atBottom: boolean };
+
+function threadViewReducer(state: ThreadViewState, event: ThreadViewEvent): ThreadViewState {
+  switch (event.type) {
+    case 'caretMoved':
+      return state.mentionQuery === event.mentionQuery
+        ? state
+        : { ...state, mentionIndex: 0, mentionQuery: event.mentionQuery };
+    case 'mentionHighlighted':
+      return { ...state, mentionIndex: event.index, mentionQuery: event.mentionQuery };
+    case 'scrollPositionMeasured':
+      return state.showScrollBottom === !event.atBottom
+        ? state
+        : { ...state, showScrollBottom: !event.atBottom };
+  }
+}
+
+function scrollMentionCandidateIntoView(element: HTMLButtonElement | null) {
+  element?.scrollIntoView?.({ block: 'nearest' });
+}
+
+function resizeReplyTextarea(element: HTMLTextAreaElement | null) {
+  if (!element) return;
+  element.style.height = 'auto';
+  const maxHeight = 168;
+  const minHeight = 40;
+  const nextHeight = Math.max(minHeight, Math.min(element.scrollHeight, maxHeight));
+  element.style.height = `${nextHeight}px`;
+  element.style.overflowY = element.scrollHeight > maxHeight ? 'auto' : 'hidden';
+}
+
+function cancelAnimationFrameRef(frameRef: RefObject<number | null>) {
+  if (frameRef.current === null) return;
+  window.cancelAnimationFrame(frameRef.current);
+  frameRef.current = null;
 }

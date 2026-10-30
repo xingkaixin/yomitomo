@@ -76,17 +76,6 @@
     },
     {
       "files": [
-        "apps/desktop/src/renderer/src/annotation-discussion/app-annotation-discussion-add-dialog.tsx",
-        "apps/desktop/src/renderer/src/annotation-discussion/app-annotation-discussion-hooks.ts",
-        "apps/desktop/src/renderer/src/annotation-discussion/app-annotation-discussion-message.tsx",
-        "apps/desktop/src/renderer/src/annotation-discussion/app-annotation-discussion-thread-list.tsx",
-        "apps/desktop/src/renderer/src/annotation-discussion/app-annotation-discussion-thread-view.tsx",
-        "apps/desktop/src/renderer/src/annotation-discussion/app-annotation-discussion-window.tsx",
-        "apps/desktop/src/renderer/src/annotation-discussion/app-annotation-sedimentation-organize-card.tsx",
-        "apps/desktop/src/renderer/src/annotation-discussion/app-annotation-sedimentation-review-timeline.tsx",
-        "apps/desktop/src/renderer/src/annotation-discussion/app-annotation-sedimentation-window.tsx",
-        "apps/desktop/src/renderer/src/annotation-discussion/use-annotation-sedimentation-controller.ts",
-        "apps/desktop/src/renderer/src/annotation-discussion/use-annotation-window-article-patches.ts",
         "apps/desktop/src/renderer/src/source/bookcase/use-assistant-passage-reveal.ts",
         "apps/desktop/src/renderer/src/source/bookcase/use-reader-chat-session.ts",
         "apps/desktop/src/renderer/src/source/bookcase/use-reader-search-matches.ts",

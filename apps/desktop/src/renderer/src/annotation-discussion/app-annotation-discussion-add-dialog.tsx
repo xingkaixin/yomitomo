@@ -1,6 +1,6 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Add01Icon, Cancel01Icon } from '@hugeicons/core-free-icons';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useReducer, useRef } from 'react';
 import type { PublicAgent } from '@yomitomo/shared';
 import { findMentionedAgents, getMentionQuery } from '@yomitomo/core';
 import { useTranslation } from 'react-i18next';
@@ -59,14 +59,21 @@ export function AddThoughtDialog({
 }) {
   const { t } = useTranslation();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const mentionCandidateRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
+  const [mentionHighlight, dispatchMentionHighlight] = useReducer(mentionHighlightReducer, {
+    index: 0,
+    query: null,
+  });
   const shortcutModifier = getShortcutModifier();
   const mentionQuery = mode === 'assistant' ? getMentionQuery(draft, caretIndex) : null;
   const matchedAgents =
     mentionQuery === null
       ? []
       : agents.filter((agent) => matchesAgentMentionQuery(agent, mentionQuery.query));
+  const selectedMentionIndex =
+    mentionHighlight.query === (mentionQuery?.query ?? null) &&
+    mentionHighlight.index < matchedAgents.length
+      ? mentionHighlight.index
+      : 0;
   const mentionedAgents = findMentionedAgents(draft, agents);
   const canSubmit =
     Boolean(draft.trim()) && !submitting && (mode === 'self' || mentionedAgents.length > 0);
@@ -79,35 +86,27 @@ export function AddThoughtDialog({
     onSubmit,
   });
 
-  useEffect(() => {
-    setSelectedMentionIndex(0);
-  }, [mentionQuery?.query]);
-
-  useEffect(() => {
-    if (matchedAgents.length > 0 && selectedMentionIndex >= matchedAgents.length)
-      setSelectedMentionIndex(0);
-  }, [matchedAgents.length, selectedMentionIndex]);
-
-  useEffect(() => {
-    mentionCandidateRefs.current[selectedMentionIndex]?.scrollIntoView?.({ block: 'nearest' });
-  }, [selectedMentionIndex]);
-
-  useEffect(() => {
-    resizeAddThoughtTextarea();
-  }, [draft, mode]);
+  // The marker renders after the composer and its key changes with the draft and mode, so this
+  // runs after each change with the textarea ref already set.
+  const draftMarkerRef = useCallback((element: HTMLSpanElement | null) => {
+    if (element) resizeAddThoughtTextarea(textareaRef.current);
+  }, []);
 
   function updateCaret(element: HTMLTextAreaElement) {
     onCaretChange(element.selectionStart);
+    const query =
+      mode === 'assistant'
+        ? (getMentionQuery(element.value, element.selectionStart)?.query ?? null)
+        : null;
+    dispatchMentionHighlight({ type: 'caretMoved', query });
   }
 
-  function resizeAddThoughtTextarea() {
-    const element = textareaRef.current;
-    if (!element) return;
-    element.style.height = 'auto';
-    const maxHeight = 320;
-    const nextHeight = Math.min(element.scrollHeight, maxHeight);
-    element.style.height = `${nextHeight}px`;
-    element.style.overflowY = element.scrollHeight > maxHeight ? 'auto' : 'hidden';
+  function highlightMention(index: number) {
+    dispatchMentionHighlight({
+      type: 'mentionHighlighted',
+      index,
+      query: mentionQuery?.query ?? null,
+    });
   }
 
   function selectMentionAgent(agent: PublicAgent) {
@@ -218,9 +217,11 @@ export function AddThoughtDialog({
                           <button
                             className={index === selectedMentionIndex ? 'is-active' : ''}
                             key={agent.id}
-                            ref={(element) => {
-                              mentionCandidateRefs.current[index] = element;
-                            }}
+                            ref={
+                              index === selectedMentionIndex
+                                ? scrollMentionCandidateIntoView
+                                : undefined
+                            }
                             type="button"
                             onMouseDown={(event) => event.preventDefault()}
                             onClick={() => selectMentionAgent(agent)}
@@ -267,19 +268,19 @@ export function AddThoughtDialog({
                     onChange: (event) => {
                       onDraftChange(event.currentTarget.value);
                       updateCaret(event.currentTarget);
-                      requestAnimationFrame(resizeAddThoughtTextarea);
+                      requestAnimationFrame(() => resizeAddThoughtTextarea(textareaRef.current));
                     },
                     onClick: (event) => updateCaret(event.currentTarget),
                     onKeyDown: (event) => {
                       if (matchedAgents.length > 0 && event.key === 'ArrowDown') {
                         event.preventDefault();
-                        setSelectedMentionIndex((index) => (index + 1) % matchedAgents.length);
+                        highlightMention((selectedMentionIndex + 1) % matchedAgents.length);
                         return;
                       }
                       if (matchedAgents.length > 0 && event.key === 'ArrowUp') {
                         event.preventDefault();
-                        setSelectedMentionIndex(
-                          (index) => (index - 1 + matchedAgents.length) % matchedAgents.length,
+                        highlightMention(
+                          (selectedMentionIndex - 1 + matchedAgents.length) % matchedAgents.length,
                         );
                         return;
                       }
@@ -305,10 +306,42 @@ export function AddThoughtDialog({
                   onSubmit={onSubmit}
                 />
               )}
+              <span hidden key={`${mode}:${draft}`} ref={draftMarkerRef} />
             </DialogContent>
           </DialogOverlay>
         </DialogPortal>
       </Dialog>
     </ReaderTooltipProvider>
   );
+}
+
+type MentionHighlight = { index: number; query: string | null };
+
+type MentionHighlightEvent =
+  | { type: 'caretMoved'; query: string | null }
+  | { type: 'mentionHighlighted'; index: number; query: string | null };
+
+function mentionHighlightReducer(
+  state: MentionHighlight,
+  event: MentionHighlightEvent,
+): MentionHighlight {
+  switch (event.type) {
+    case 'caretMoved':
+      return state.query === event.query ? state : { index: 0, query: event.query };
+    case 'mentionHighlighted':
+      return { index: event.index, query: event.query };
+  }
+}
+
+function scrollMentionCandidateIntoView(element: HTMLButtonElement | null) {
+  element?.scrollIntoView?.({ block: 'nearest' });
+}
+
+function resizeAddThoughtTextarea(element: HTMLTextAreaElement | null) {
+  if (!element) return;
+  element.style.height = 'auto';
+  const maxHeight = 320;
+  const nextHeight = Math.min(element.scrollHeight, maxHeight);
+  element.style.height = `${nextHeight}px`;
+  element.style.overflowY = element.scrollHeight > maxHeight ? 'auto' : 'hidden';
 }

@@ -1,6 +1,6 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Cancel01Icon, RotateLeft01Icon, SparklesIcon, ViewIcon } from '@hugeicons/core-free-icons';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useReducer } from 'react';
 import type {
   AnnotationDistillationProposal,
   AnnotationDistillationReviewMessage,
@@ -138,33 +138,23 @@ export function OrganizeDiscussionCard({
     () => renderSafeMarkdown(message.content || fallback),
     [fallback, message.content],
   );
-  const bodyRef = useRef<HTMLDivElement | null>(null);
-  const [hasScrollMore, setHasScrollMore] = useState(false);
-
-  function updateScrollHint() {
-    const body = bodyRef.current;
-    if (!body) {
-      setHasScrollMore(false);
-      return;
-    }
-    setHasScrollMore(body.scrollTop + body.clientHeight < body.scrollHeight - 3);
-  }
-
-  useEffect(() => {
+  const [hasScrollMore, dispatchScrollHint] = useReducer(scrollHintReducer, false);
+  const bodyRef = useCallback((body: HTMLDivElement | null) => {
+    if (!body) return;
+    const updateScrollHint = () =>
+      dispatchScrollHint({ type: 'bodyMeasured', hasMore: canScrollFurther(body) });
     updateScrollHint();
-    const body = bodyRef.current;
-    if (!body || typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(updateScrollHint);
-    observer.observe(body);
-    return () => observer.disconnect();
-  }, [
-    message.assistantProgress,
-    message.content,
-    message.items,
-    message.proposals,
-    state.notice,
-    state.type,
-  ]);
+    // Streamed content can grow past the body's fixed height without resizing it.
+    const contentObserver = new MutationObserver(updateScrollHint);
+    contentObserver.observe(body, { characterData: true, childList: true, subtree: true });
+    const resizeObserver =
+      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateScrollHint);
+    resizeObserver?.observe(body);
+    return () => {
+      contentObserver.disconnect();
+      resizeObserver?.disconnect();
+    };
+  }, []);
 
   if (minimized) {
     return (
@@ -229,7 +219,12 @@ export function OrganizeDiscussionCard({
         ]
           .filter(Boolean)
           .join(' ')}
-        onScroll={updateScrollHint}
+        onScroll={(event) =>
+          dispatchScrollHint({
+            type: 'bodyMeasured',
+            hasMore: canScrollFurther(event.currentTarget),
+          })
+        }
       >
         <AssistantRuntimeProgressList progress={message.assistantProgress} />
         {structuredItems.length > 0 ? (
@@ -347,6 +342,17 @@ function OrganizeProposalList({
       })}
     </section>
   );
+}
+
+function scrollHintReducer(
+  _hasScrollMore: boolean,
+  event: { type: 'bodyMeasured'; hasMore: boolean },
+) {
+  return event.hasMore;
+}
+
+function canScrollFurther(body: HTMLElement) {
+  return body.scrollTop + body.clientHeight < body.scrollHeight - 3;
 }
 
 function focusStayedInside(currentTarget: EventTarget, relatedTarget: EventTarget | null) {

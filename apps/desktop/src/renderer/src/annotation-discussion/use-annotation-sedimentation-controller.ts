@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useMemo, useReducer, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18next from 'i18next';
 import type {
@@ -21,6 +21,7 @@ import {
 } from '../shell/app-assistant-runtime-progress';
 import { recordRendererPerformanceTiming } from '../shell/app-renderer-performance';
 import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import { useCompositionSubmit } from '@yomitomo/reader-ui/use-composition-submit';
 import { desktopIpcErrorCodes, isDesktopIpcErrorLike } from '../../../ipc-errors';
 import type { HoveredDraftAnchor } from './app-annotation-sedimentation-draft-preview';
@@ -82,23 +83,32 @@ export function useAnnotationSedimentationController({
   const { t } = useTranslation();
   const { agents, article, annotation, uiLanguage } = status;
   const reviewAgents = useMemo(() => publicReviewAgents(agents, uiLanguage), [agents, uiLanguage]);
-  const [activeAgentId, setActiveAgentId] = useState<string | null>(
-    () => reviewAgents[0]?.id || null,
+  const [
+    {
+      activeOperation,
+      draft,
+      draftPreviewScroll,
+      hoveredDraftAnchor,
+      organizeConfirmOpen,
+      organizeState,
+      reviewDraft,
+      reviewNotice,
+      selectedReviewAgentId,
+    },
+    dispatch,
+  ] = useReducer(
+    sedimentationReducer,
+    { articleId: article.id, annotation },
+    initialSedimentationState,
   );
-  const activeAgent = reviewAgents.find((agent) => agent.id === activeAgentId) || null;
-  const [draft, setDraft] = useState(() => initialDistillationDraft(article.id, annotation));
-  const [reviewDraft, setReviewDraft] = useState('');
-  const [activeOperation, setActiveOperation] = useState<DistillationOperation>(null);
-  const [reviewNotice, setReviewNotice] = useState('');
-  const [organizeState, setOrganizeState] = useState<OrganizeDiscussionState>({ type: 'idle' });
-  const [organizeConfirmOpen, setOrganizeConfirmOpen] = useState(false);
+  const activeAgent =
+    reviewAgents.find((agent) => agent.id === selectedReviewAgentId) || reviewAgents[0] || null;
+  const activeAgentId = activeAgent?.id || null;
   const [proposalWorkflow, dispatchProposalWorkflow] = useReducer(
     draftProposalWorkflowReducer,
     undefined,
     initialDraftProposalWorkflowState,
   );
-  const [hoveredDraftAnchor, setHoveredDraftAnchor] = useState<HoveredDraftAnchor | null>(null);
-  const [draftPreviewScroll, setDraftPreviewScroll] = useState({ left: 0, top: 0 });
   const {
     appliedOrganizeProposalIds,
     dismissedOrganizeProposalIds,
@@ -115,23 +125,14 @@ export function useAnnotationSedimentationController({
   const shortcutModifier = getShortcutModifier();
   const messageSendShortcut = 'mod-enter' as const;
 
-  useEffect(() => {
-    setActiveAgentId((current) => {
-      if (current && reviewAgents.some((agent) => agent.id === current)) return current;
-      return reviewAgents[0]?.id || null;
-    });
-  }, [reviewAgents]);
-
-  useEffect(() => {
-    window.localStorage.setItem(draftKey, draft);
-  }, [draft, draftKey]);
+  useMountEffect(() => window.localStorage.setItem(draftKey, draftRef.current));
 
   async function publish() {
     const content = draft.trim();
     if (!content || busy) return;
     const transition = isPublished ? 'update' : 'publish';
     recordOperation(annotation.id, transition, 'started');
-    setActiveOperation(transition);
+    dispatch({ type: 'operationStarted', operation: transition });
     try {
       const nextArticle = publishedDistillationArticle({
         annotationId: annotation.id,
@@ -158,17 +159,17 @@ export function useAnnotationSedimentationController({
         transition,
       });
     } catch (error) {
-      setReviewNotice(distillationSaveErrorMessage(error));
+      dispatch({ type: 'reviewNoticeShown', notice: distillationSaveErrorMessage(error) });
     } finally {
       recordOperation(annotation.id, transition, 'settled');
-      setActiveOperation(null);
+      dispatch({ type: 'operationSettled' });
     }
   }
 
   async function unpublish() {
     if (!isPublished || busy) return;
     recordOperation(annotation.id, 'unpublish', 'started');
-    setActiveOperation('unpublish');
+    dispatch({ type: 'operationStarted', operation: 'unpublish' });
     try {
       const nextArticle = unpublishedDistillationArticle({
         annotationId: annotation.id,
@@ -194,31 +195,26 @@ export function useAnnotationSedimentationController({
         transition: 'unpublish',
       });
     } catch (error) {
-      setReviewNotice(distillationSaveErrorMessage(error));
+      dispatch({ type: 'reviewNoticeShown', notice: distillationSaveErrorMessage(error) });
     } finally {
       recordOperation(annotation.id, 'unpublish', 'settled');
-      setActiveOperation(null);
+      dispatch({ type: 'operationSettled' });
     }
   }
 
   function selectReviewAgent(agent: PublicAgent) {
-    setActiveAgentId((current) => {
-      if (current === agent.id) {
-        setReviewNotice(t('sedimentation.selectReviewerRequired'));
-        return current;
-      }
-      setReviewNotice('');
-      return agent.id;
-    });
+    if (activeAgentId === agent.id) {
+      dispatch({ type: 'reviewNoticeShown', notice: t('sedimentation.selectReviewerRequired') });
+      return;
+    }
+    dispatch({ type: 'reviewAgentSelected', agentId: agent.id });
   }
 
   async function submitReview() {
     if (!activeAgent || busy) return;
     recordOperation(annotation.id, 'review', 'started');
-    setActiveOperation('review');
-    setReviewNotice('');
+    dispatch({ type: 'reviewSubmitted' });
     const effectiveReviewDraft = reviewDraft;
-    setReviewDraft('');
     let workingArticle = article;
     let workingAnnotation = annotation;
     try {
@@ -290,11 +286,12 @@ export function useAnnotationSedimentationController({
       }
     } catch (error) {
       const conflict = isDistillationConflict(error);
-      setReviewNotice(
-        conflict
+      dispatch({
+        type: 'reviewNoticeShown',
+        notice: conflict
           ? distillationSaveErrorMessage(error)
           : assistantRuntimeErrorMessage(error, 'sedimentation.reviewFailed'),
-      );
+      });
       if (workingArticle !== article && !conflict) {
         try {
           await saveAndRefresh(
@@ -306,12 +303,15 @@ export function useAnnotationSedimentationController({
             onStatusChange,
           );
         } catch {
-          setReviewNotice(assistantRuntimeErrorMessage(error, 'sedimentation.reviewFailed'));
+          dispatch({
+            type: 'reviewNoticeShown',
+            notice: assistantRuntimeErrorMessage(error, 'sedimentation.reviewFailed'),
+          });
         }
       }
     } finally {
       recordOperation(annotation.id, 'review', 'settled');
-      setActiveOperation(null);
+      dispatch({ type: 'operationSettled' });
     }
   }
 
@@ -325,21 +325,19 @@ export function useAnnotationSedimentationController({
   });
 
   function requestOrganize() {
-    if (activeAgent && !busy && !hasPendingDraftPreview) setOrganizeConfirmOpen(true);
+    if (activeAgent && !busy && !hasPendingDraftPreview) dispatch({ type: 'organizeRequested' });
   }
 
   function confirmOrganize() {
     if (!activeAgent || busy || hasPendingDraftPreview) return;
-    setOrganizeConfirmOpen(false);
+    dispatch({ type: 'organizeConfirmClosed' });
     void runOrganize();
   }
 
   async function runOrganize() {
     if (!activeAgent || busy) return;
     recordOperation(annotation.id, 'organize', 'started');
-    setActiveOperation('organize');
     dispatchProposalWorkflow({ type: 'reset-organize-decisions' });
-    setReviewNotice('');
     const now = new Date().toISOString();
     const instruction = t('sedimentation.organizeDiscussionInstruction');
     const session =
@@ -359,13 +357,19 @@ export function useAnnotationSedimentationController({
     });
     const setMessage = (message: AnnotationDistillationReviewMessage) => {
       workingMessage = message;
-      setOrganizeState({
-        type: message.status === 'failed' ? 'failed' : 'running',
-        agent: activeAgent,
-        message,
+      dispatch({
+        type: 'organizeProgressed',
+        state: {
+          type: message.status === 'failed' ? 'failed' : 'running',
+          agent: activeAgent,
+          message,
+        },
       });
     };
-    setOrganizeState({ type: 'running', agent: activeAgent, message: workingMessage });
+    dispatch({
+      type: 'organizeStarted',
+      state: { type: 'running', agent: activeAgent, message: workingMessage },
+    });
 
     try {
       const finalMessage = await annotationWindowActions.requestAgentDistillationReviewStream(
@@ -420,16 +424,22 @@ export function useAnnotationSedimentationController({
         proposals: sourcedFinalMessage.proposals || workingMessage.proposals || [],
         status: 'done',
       };
-      setOrganizeState({ type: 'done', agent: activeAgent, message: workingMessage });
+      dispatch({
+        type: 'organizeProgressed',
+        state: { type: 'done', agent: activeAgent, message: workingMessage },
+      });
       if (draftRef.current === draft)
         previewOrganizeProposals(workingMessage.proposals || [], false);
     } catch (error) {
       const errorMessage = assistantRuntimeErrorMessage(error, 'sedimentation.reviewFailed');
       workingMessage = { ...workingMessage, errorMessage, status: 'failed' };
-      setOrganizeState({ type: 'failed', agent: activeAgent, message: workingMessage });
+      dispatch({
+        type: 'organizeProgressed',
+        state: { type: 'failed', agent: activeAgent, message: workingMessage },
+      });
     } finally {
       recordOperation(annotation.id, 'organize', 'settled');
-      setActiveOperation(null);
+      dispatch({ type: 'operationSettled' });
     }
   }
 
@@ -440,30 +450,37 @@ export function useAnnotationSedimentationController({
   }
 
   function changeDraft(value: string) {
-    setHoveredDraftAnchor(null);
     updateDraft(value);
+    dispatch({ type: 'draftEdited', draft: value });
     recordDraftSelection();
+  }
+
+  function replaceDraft(value: string) {
+    updateDraft(value);
+    dispatch({ type: 'draftReplaced', draft: value });
   }
 
   function updateDraft(value: string) {
     draftRef.current = value;
-    setDraft(value);
+    window.localStorage.setItem(draftKey, value);
   }
 
   function openDraftPreview(preview: PendingDraftPreview) {
-    setHoveredDraftAnchor(null);
+    dispatch({ type: 'draftPreviewOpened' });
     dispatchProposalWorkflow({ type: 'open-preview', preview });
   }
 
   function handleDraftAnchorEnter(proposal: AnnotationDistillationProposal) {
     if (pendingDraftPreview) return;
     const result = planDistillationProposalDraftAnchor(draftRef.current, proposal);
-    setHoveredDraftAnchor(result.ok ? result : null);
+    dispatch({ type: 'proposalAnchorEntered', anchor: result.ok ? result : null });
   }
 
   function syncDraftPreviewScroll() {
     const textarea = draftTextareaRef.current;
-    if (textarea) setDraftPreviewScroll({ left: textarea.scrollLeft, top: textarea.scrollTop });
+    if (textarea) {
+      dispatch({ type: 'draftScrolled', left: textarea.scrollLeft, top: textarea.scrollTop });
+    }
   }
 
   function previewReviewProposals(
@@ -476,7 +493,9 @@ export function useAnnotationSedimentationController({
     const selection = pendingProposals.length === 1 ? draftSelectionRef.current : null;
     const result = planDistillationProposalChangeSet(draftRef.current, pendingProposals, selection);
     if (!result.ok) {
-      if (showFailure) setReviewNotice(proposalApplyFailureMessage(result.reason));
+      if (showFailure) {
+        dispatch({ type: 'reviewNoticeShown', notice: proposalApplyFailureMessage(result.reason) });
+      }
       return false;
     }
     openDraftPreview({
@@ -486,7 +505,7 @@ export function useAnnotationSedimentationController({
       changeSet: result.changeSet,
       decisions: draftPreviewDecisionsForProposals(pendingProposals),
     });
-    setReviewNotice(t('sedimentation.previewReady'));
+    dispatch({ type: 'reviewNoticeShown', notice: t('sedimentation.previewReady') });
     focusDraftChange(result.changeSet.changes[0]);
     return true;
   }
@@ -529,7 +548,7 @@ export function useAnnotationSedimentationController({
       return;
     }
     const acceptedChanges = acceptedDraftPreviewChanges(preview.changeSet, nextDecisions);
-    updateDraft(draftPreviewDraft(preview.changeSet, nextDecisions));
+    replaceDraft(draftPreviewDraft(preview.changeSet, nextDecisions));
 
     if (preview.source === 'review') {
       dispatchProposalWorkflow({ type: 'close-preview' });
@@ -537,7 +556,7 @@ export function useAnnotationSedimentationController({
         preview.messageId,
         draftPreviewStatusesFromDecisions(nextDecisions),
       );
-      setReviewNotice('');
+      dispatch({ type: 'reviewNoticeShown', notice: '' });
     } else {
       dispatchProposalWorkflow({ type: 'apply-organize-decisions', decisions: nextDecisions });
       setOrganizeNotice(acceptedChanges.length > 0 ? t('sedimentation.organizeAddedToDraft') : '');
@@ -553,12 +572,12 @@ export function useAnnotationSedimentationController({
       dispatchProposalWorkflow({ type: 'close-preview' });
     }
     await updateProposalStatusesById(messageId, { [proposalId]: 'ignored' });
-    setReviewNotice('');
+    dispatch({ type: 'reviewNoticeShown', notice: '' });
   }
 
   async function restoreProposal(messageId: string, proposalId: string) {
     await updateProposalStatusesById(messageId, { [proposalId]: 'pending' });
-    setReviewNotice('');
+    dispatch({ type: 'reviewNoticeShown', notice: '' });
   }
 
   async function updateProposalStatusesById(
@@ -596,7 +615,7 @@ export function useAnnotationSedimentationController({
   }
 
   function setOrganizeNotice(notice: string) {
-    setOrganizeState((current) => (current.type === 'idle' ? current : { ...current, notice }));
+    dispatch({ type: 'organizeNoticeShown', notice });
   }
 
   const canReview = Boolean(activeAgent) && !busy && !hasPendingDraftPreview;
@@ -615,7 +634,7 @@ export function useAnnotationSedimentationController({
       handlePublishKeyDown,
       decidePreview: decideDraftPreview,
       enterProposalAnchor: handleDraftAnchorEnter,
-      leaveProposalAnchor: () => setHoveredDraftAnchor(null),
+      leaveProposalAnchor: () => dispatch({ type: 'proposalAnchorLeft' }),
     },
     publication: {
       isPublished,
@@ -631,7 +650,7 @@ export function useAnnotationSedimentationController({
       reviewing: activeOperation === 'review',
       notice: reviewNotice,
       value: reviewDraft,
-      change: setReviewDraft,
+      change: (value: string) => dispatch({ type: 'reviewDraftChanged', draft: value }),
       canSubmit: canReview,
       selectAgent: selectReviewAgent,
       submit: submitReview,
@@ -650,16 +669,119 @@ export function useAnnotationSedimentationController({
       confirmOpen: organizeConfirmOpen,
       request: requestOrganize,
       confirm: confirmOrganize,
-      cancel: () => setOrganizeConfirmOpen(false),
+      cancel: () => dispatch({ type: 'organizeConfirmClosed' }),
       close: () => {
         dispatchProposalWorkflow({ type: 'close-organize' });
-        setOrganizeState({ type: 'idle' });
+        dispatch({ type: 'organizeClosed' });
       },
       retry: runOrganize,
       previewProposals: previewOrganizeProposals,
     },
     shortcut: { messageSendShortcut, shortcutModifier },
   };
+}
+
+type SedimentationState = {
+  activeOperation: DistillationOperation;
+  draft: string;
+  draftPreviewScroll: { left: number; top: number };
+  hoveredDraftAnchor: HoveredDraftAnchor | null;
+  organizeConfirmOpen: boolean;
+  organizeState: OrganizeDiscussionState;
+  reviewDraft: string;
+  reviewNotice: string;
+  selectedReviewAgentId: string | null;
+};
+
+type SedimentationEvent =
+  | { type: 'draftEdited'; draft: string }
+  | { type: 'draftPreviewOpened' }
+  | { type: 'draftReplaced'; draft: string }
+  | { type: 'draftScrolled'; left: number; top: number }
+  | { type: 'operationSettled' }
+  | { type: 'operationStarted'; operation: Exclude<DistillationOperation, null> }
+  | { type: 'organizeClosed' }
+  | { type: 'organizeConfirmClosed' }
+  | { type: 'organizeNoticeShown'; notice: string }
+  | { type: 'organizeProgressed'; state: OrganizeDiscussionState }
+  | { type: 'organizeRequested' }
+  | { type: 'organizeStarted'; state: OrganizeDiscussionState }
+  | { type: 'proposalAnchorEntered'; anchor: HoveredDraftAnchor | null }
+  | { type: 'proposalAnchorLeft' }
+  | { type: 'reviewAgentSelected'; agentId: string }
+  | { type: 'reviewDraftChanged'; draft: string }
+  | { type: 'reviewNoticeShown'; notice: string }
+  | { type: 'reviewSubmitted' };
+
+function initialSedimentationState({
+  annotation,
+  articleId,
+}: {
+  annotation: Annotation;
+  articleId: string;
+}): SedimentationState {
+  return {
+    activeOperation: null,
+    draft: initialDistillationDraft(articleId, annotation),
+    draftPreviewScroll: { left: 0, top: 0 },
+    hoveredDraftAnchor: null,
+    organizeConfirmOpen: false,
+    organizeState: { type: 'idle' },
+    reviewDraft: '',
+    reviewNotice: '',
+    selectedReviewAgentId: null,
+  };
+}
+
+function sedimentationReducer(
+  state: SedimentationState,
+  event: SedimentationEvent,
+): SedimentationState {
+  switch (event.type) {
+    case 'draftEdited':
+      return { ...state, draft: event.draft, hoveredDraftAnchor: null };
+    case 'draftPreviewOpened':
+      return { ...state, hoveredDraftAnchor: null };
+    case 'draftReplaced':
+      return { ...state, draft: event.draft };
+    case 'draftScrolled':
+      return { ...state, draftPreviewScroll: { left: event.left, top: event.top } };
+    case 'operationSettled':
+      return { ...state, activeOperation: null };
+    case 'operationStarted':
+      return { ...state, activeOperation: event.operation };
+    case 'organizeClosed':
+      return { ...state, organizeState: { type: 'idle' } };
+    case 'organizeConfirmClosed':
+      return { ...state, organizeConfirmOpen: false };
+    case 'organizeNoticeShown':
+      return state.organizeState.type === 'idle'
+        ? state
+        : { ...state, organizeState: { ...state.organizeState, notice: event.notice } };
+    case 'organizeProgressed':
+      return { ...state, organizeState: event.state };
+    case 'organizeRequested':
+      return { ...state, organizeConfirmOpen: true };
+    case 'organizeStarted':
+      return {
+        ...state,
+        activeOperation: 'organize',
+        organizeState: event.state,
+        reviewNotice: '',
+      };
+    case 'proposalAnchorEntered':
+      return { ...state, hoveredDraftAnchor: event.anchor };
+    case 'proposalAnchorLeft':
+      return { ...state, hoveredDraftAnchor: null };
+    case 'reviewAgentSelected':
+      return { ...state, reviewNotice: '', selectedReviewAgentId: event.agentId };
+    case 'reviewDraftChanged':
+      return { ...state, reviewDraft: event.draft };
+    case 'reviewNoticeShown':
+      return { ...state, reviewNotice: event.notice };
+    case 'reviewSubmitted':
+      return { ...state, activeOperation: 'review', reviewDraft: '', reviewNotice: '' };
+  }
 }
 
 function pendingDraftProposalIds(

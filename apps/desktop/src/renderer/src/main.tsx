@@ -388,12 +388,12 @@ recordStartupTiming('renderer.module_loaded', {
 // Annotation windows share this entry; the main window should not parse their apps.
 const AnnotationDiscussionWindowApp = lazy(() =>
   import('./annotation-discussion/app-annotation-discussion-window').then((module) => ({
-    default: module.AnnotationDiscussionWindowApp,
+    default: module.createAnnotationDiscussionWindow(),
   })),
 );
 const AnnotationSedimentationWindowApp = lazy(() =>
   import('./annotation-discussion/app-annotation-sedimentation-window').then((module) => ({
-    default: module.AnnotationSedimentationWindowApp,
+    default: module.createAnnotationSedimentationWindow(),
   })),
 );
 
