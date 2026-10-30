@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useReducer } from 'react';
 import i18next from 'i18next';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import type { ArticleRecord, ArticleSummaryRecord } from '@yomitomo/shared';
 import { articleDisplayTitle } from '../reading-library/app-reading-library-utils';
 import { getOptionalDesktopApi } from './app-desktop-api';
@@ -52,11 +53,17 @@ const siteIconCache = createRecentCache(256);
 
 type ArticleBookRecord = ArticleRecord | ArticleSummaryRecord;
 
+type RecentCache = ReturnType<typeof createRecentCache>;
+
+type StoredImageRequest = (articleId: string) => Promise<string | null> | undefined;
+
+// Covers that load a stored image are keyed by what they load, so each mount loads once.
 export function ArticleBook({ article }: { article: ArticleBookRecord }) {
-  if (article.sourceType === 'pdf') return <PdfCover article={article} />;
+  if (article.sourceType === 'pdf') return <PdfCover key={article.id} article={article} />;
   if (article.sourceType === 'text') return <TextCover article={article} />;
-  if (article.sourceType !== 'ebook') return <WebCover article={article} />;
-  return <EbookBook article={article} />;
+  if (article.sourceType !== 'ebook') return <WebCover key={article.id} article={article} />;
+  const coverSource = safeHttpUrl(article.leadImageUrl) ? 'direct' : 'stored';
+  return <EbookBook key={`${article.id}:${coverSource}`} article={article} />;
 }
 
 // 文本封面：稿纸（装订色条 + 标题 + 横线 + 作者），后层叠纸 hover 扇出；类型仅由色条区分。
@@ -182,15 +189,12 @@ function PdfCover({ article }: { article: ArticleBookRecord }) {
 
 // 网页封面：白底卡片，favicon + 域名 + 标题，hover 滑入浏览器栏。
 function WebCover({ article }: { article: ArticleBookRecord }) {
-  const [faviconFailed, setFaviconFailed] = useState(false);
+  const [failedFaviconUrl, dispatch] = useReducer(webCoverReducer, undefined);
   const faviconUrl = useArticleSiteIcon(article.id);
+  const faviconFailed = failedFaviconUrl === faviconUrl;
   const domain = articleDomain(article);
   const title = normalizeLabel(articleDisplayTitle(article));
   const letter = (domain || title || '·').charAt(0).toUpperCase();
-
-  useEffect(() => {
-    setFaviconFailed(false);
-  }, [faviconUrl]);
 
   return (
     <span aria-hidden="true" className="article-book is-flat-cover is-web-cover">
@@ -204,7 +208,11 @@ function WebCover({ article }: { article: ArticleBookRecord }) {
         <span className="web-cover-body">
           <span className="web-cover-fav">
             {faviconUrl && !faviconFailed ? (
-              <img alt="" src={faviconUrl} onError={() => setFaviconFailed(true)} />
+              <img
+                alt=""
+                src={faviconUrl}
+                onError={() => dispatch({ type: 'faviconFailed', url: faviconUrl })}
+              />
             ) : (
               <span className="web-cover-fav-letter">{letter}</span>
             )}
@@ -217,97 +225,99 @@ function WebCover({ article }: { article: ArticleBookRecord }) {
   );
 }
 
+function webCoverReducer(
+  _failedFaviconUrl: string | undefined,
+  event: { type: 'faviconFailed'; url: string },
+) {
+  return event.url;
+}
+
 function usePdfThumbnail(articleId: string) {
-  const [thumbnail, setThumbnail] = useState<string | undefined>(
-    () => pdfThumbnailCache.get(articleId) || undefined,
+  return useStoredArticleImage(pdfThumbnailCache, articleId, (id) =>
+    getOptionalDesktopApi()
+      ?.article?.pdf?.getThumbnail(id)
+      .then((value) => value || null),
   );
-
-  useEffect(() => {
-    const cached = pdfThumbnailCache.get(articleId);
-    if (cached !== undefined) {
-      setThumbnail(cached || undefined);
-      return;
-    }
-
-    const request = getOptionalDesktopApi()?.article?.pdf?.getThumbnail(articleId);
-    if (!request) return;
-
-    let cancelled = false;
-    void request
-      .then((value) => {
-        const next = value || null;
-        pdfThumbnailCache.set(articleId, next);
-        if (!cancelled) setThumbnail(next || undefined);
-      })
-      .catch(() => {
-        pdfThumbnailCache.set(articleId, null);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [articleId]);
-
-  return thumbnail;
 }
 
 // 懒加载本地 favicon（data URI）：摘要不携带 siteIconUrl 以避免全量快照膨胀，按需读取并缓存。
-export function useArticleSiteIcon(articleId: string, enabled = true) {
-  const [iconUrl, setIconUrl] = useState<string | undefined>(
-    () => siteIconCache.get(articleId) || undefined,
+function useArticleSiteIcon(articleId: string) {
+  return useStoredArticleImage(siteIconCache, articleId, (id) =>
+    getOptionalDesktopApi()
+      ?.article?.getSiteIcon?.(id)
+      .then((value) => value || null),
+  );
+}
+
+function useStoredArticleImage(
+  cache: RecentCache,
+  articleId: string,
+  request: StoredImageRequest | null,
+) {
+  const [image, dispatch] = useReducer(storedImageReducer, undefined, () =>
+    request ? cache.get(articleId) : undefined,
   );
 
-  useEffect(() => {
-    if (!enabled) return;
-    const cached = siteIconCache.get(articleId);
+  useMountEffect(() => {
+    if (!request) return;
+    const cached = cache.get(articleId);
     if (cached !== undefined) {
-      setIconUrl(cached || undefined);
+      dispatch({ type: 'loaded', image: cached });
       return;
     }
-
-    const request = getOptionalDesktopApi()?.article?.getSiteIcon?.(articleId);
-    if (!request) return;
-
-    let cancelled = false;
-    void request
-      .then((value) => {
-        const next = value || null;
-        siteIconCache.set(articleId, next);
-        if (!cancelled) setIconUrl(next || undefined);
+    void request(articleId)
+      ?.then((value) => {
+        cache.set(articleId, value);
+        dispatch({ type: 'loaded', image: value });
       })
       .catch(() => {
-        siteIconCache.set(articleId, null);
+        cache.set(articleId, null);
       });
+  });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [articleId, enabled]);
+  return image || undefined;
+}
 
-  return iconUrl;
+function storedImageReducer(
+  _image: string | null | undefined,
+  event: { type: 'loaded'; image: string | null },
+) {
+  return event.image;
 }
 
 export function useNativeCoverRatio(imageUrl: string | undefined) {
-  const [ratio, setRatio] = useState<number | null>(null);
-  const imageRef = useRef<HTMLImageElement | null>(null);
+  const [measured, dispatch] = useReducer(nativeCoverRatioReducer, null);
+  const ratio = measured && measured.imageUrl === imageUrl ? measured.ratio : null;
 
-  const updateRatioFromImage = useCallback((image: HTMLImageElement) => {
-    const { naturalHeight, naturalWidth } = image;
-    if (naturalWidth > 0 && naturalHeight > 0) setRatio(naturalWidth / naturalHeight);
-  }, []);
+  const measure = useCallback(
+    (image: HTMLImageElement) => {
+      const { naturalHeight, naturalWidth } = image;
+      if (naturalWidth > 0 && naturalHeight > 0) {
+        dispatch({ type: 'measured', imageUrl, ratio: naturalWidth / naturalHeight });
+      }
+    },
+    [imageUrl],
+  );
+
+  const imageRef = useCallback(
+    (image: HTMLImageElement | null) => {
+      if (imageUrl && image?.complete) measure(image);
+    },
+    [imageUrl, measure],
+  );
 
   function updateRatio(event: React.SyntheticEvent<HTMLImageElement>) {
-    updateRatioFromImage(event.currentTarget);
+    measure(event.currentTarget);
   }
 
-  useEffect(() => {
-    setRatio(null);
-    const image = imageRef.current;
-    if (!imageUrl || !image?.complete) return;
-    updateRatioFromImage(image);
-  }, [imageUrl, updateRatioFromImage]);
-
   return { imageRef, ratio, updateRatio };
+}
+
+function nativeCoverRatioReducer(
+  _measured: { imageUrl: string | undefined; ratio: number } | null,
+  event: { type: 'measured'; imageUrl: string | undefined; ratio: number },
+) {
+  return { imageUrl: event.imageUrl, ratio: event.ratio };
 }
 
 export function nativeBookCoverStyle(ratio: number | null): BookCoverFrameStyle {
@@ -320,40 +330,17 @@ export function nativeBookCoverStyle(ratio: number | null): BookCoverFrameStyle 
 
 function useEbookCover(article: ArticleBookRecord) {
   const directCoverUrl = safeHttpUrl(article.leadImageUrl);
-  const [coverUrl, setCoverUrl] = useState<string | undefined>(directCoverUrl);
-
-  useEffect(() => {
-    const nextDirectCoverUrl = safeHttpUrl(article.leadImageUrl);
-    if (nextDirectCoverUrl) {
-      setCoverUrl(nextDirectCoverUrl);
-      return;
-    }
-
-    const cached = articleCoverCache.get(article.id);
-    if (cached !== undefined) {
-      setCoverUrl(cached || undefined);
-      return;
-    }
-
-    const request = getOptionalDesktopApi()?.article?.getCover?.(article.id);
-    if (!request) return;
-    let cancelled = false;
-    void request
-      .then((value) => {
-        const loadedUrl = safeHttpUrl(value) || null;
-        articleCoverCache.set(article.id, loadedUrl);
-        if (!cancelled) setCoverUrl(loadedUrl || undefined);
-      })
-      .catch(() => {
-        articleCoverCache.set(article.id, null);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [article.id, article.leadImageUrl]);
-
-  return coverUrl;
+  const storedCoverUrl = useStoredArticleImage(
+    articleCoverCache,
+    article.id,
+    directCoverUrl
+      ? null
+      : (id) =>
+          getOptionalDesktopApi()
+            ?.article?.getCover?.(id)
+            .then((value) => safeHttpUrl(value) || null),
+  );
+  return directCoverUrl ?? storedCoverUrl;
 }
 
 function ebookBookVisual(

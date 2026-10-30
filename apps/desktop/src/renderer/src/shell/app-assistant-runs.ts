@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
 import type {
   AssistantChannel,
   AssistantDeliveryRequest,
@@ -52,48 +52,63 @@ export function assistantRunScope(channel: AssistantChannel) {
 }
 
 export function useAssistantRuns(articleId: string, scope: string) {
-  const [runs, setRuns] = useState<ReadonlyMap<string, AssistantRunView>>(() => new Map());
+  // A new store per article and scope starts empty and reloads, like a remount would.
+  const store = useMemo(() => createAssistantRunStore(articleId, scope), [articleId, scope]);
+  const runs = useSyncExternalStore(store.subscribe, store.getRuns);
+  return { runs, settle: store.settle };
+}
 
-  useEffect(() => {
-    let active = true;
-    const apply = (events: AssistantRunEvent[], initial: boolean) =>
-      setRuns((current) => {
-        const next = new Map(current);
-        for (const event of events) {
-          if (event.articleId !== articleId || assistantRunScope(event.channel) !== scope) continue;
-          if (initial && next.has(event.runKey)) continue;
-          if (event.status === 'failed' || (event.status === 'done' && !event.commentId)) {
-            next.delete(event.runKey);
-            continue;
-          }
-          const startedAt = current.get(event.runKey)?.startedAt ?? new Date().toISOString();
-          next.set(event.runKey, { ...event, startedAt });
-        }
-        return next;
-      });
-    const stop = listen((event) => apply([event], false));
-    void getOptionalDesktopApi()
-      ?.assistant?.runs?.(articleId)
-      .then((events) => {
-        if (active) apply(events, true);
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
-      stop();
-      setRuns(new Map());
-    };
-  }, [articleId, scope]);
+function createAssistantRunStore(articleId: string, scope: string) {
+  let runs: ReadonlyMap<string, AssistantRunView> = new Map();
+  let runList: AssistantRunView[] = [];
+  const listeners = new Set<() => void>();
 
-  // A finished run keeps its placeholder until the saved comment reaches this window.
-  const settle = useCallback((runKey: string) => {
-    setRuns((current) => {
-      if (!current.has(runKey)) return current;
-      const next = new Map(current);
+  function replaceRuns(next: ReadonlyMap<string, AssistantRunView>) {
+    if (next === runs) return;
+    runs = next;
+    runList = [...next.values()];
+    for (const listener of listeners) listener();
+  }
+
+  function apply(events: AssistantRunEvent[], initial: boolean) {
+    const next = new Map(runs);
+    for (const event of events) {
+      if (event.articleId !== articleId || assistantRunScope(event.channel) !== scope) continue;
+      if (initial && next.has(event.runKey)) continue;
+      if (event.status === 'failed' || (event.status === 'done' && !event.commentId)) {
+        next.delete(event.runKey);
+        continue;
+      }
+      const startedAt = runs.get(event.runKey)?.startedAt ?? new Date().toISOString();
+      next.set(event.runKey, { ...event, startedAt });
+    }
+    replaceRuns(next);
+  }
+
+  return {
+    getRuns: () => runList,
+    // A finished run keeps its placeholder until the saved comment reaches this window.
+    settle: (runKey: string) => {
+      if (!runs.has(runKey)) return;
+      const next = new Map(runs);
       next.delete(runKey);
-      return next;
-    });
-  }, []);
-
-  return { runs: useMemo(() => [...runs.values()], [runs]), settle };
+      replaceRuns(next);
+    },
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      let active = true;
+      const stop = listen((event) => apply([event], false));
+      void getOptionalDesktopApi()
+        ?.assistant?.runs?.(articleId)
+        .then((events) => {
+          if (active) apply(events, true);
+        })
+        .catch(() => undefined);
+      return () => {
+        active = false;
+        stop();
+        listeners.delete(listener);
+      };
+    },
+  };
 }

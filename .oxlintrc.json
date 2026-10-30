@@ -65,6 +65,7 @@
     },
     {
       "files": [
+        "apps/desktop/src/renderer/src/shell/use-desktop-event.ts",
         "packages/reader-ui/src/hooks/use-event-listener.ts",
         "packages/reader-ui/src/hooks/use-mount-effect.ts"
       ],
@@ -116,16 +117,6 @@
         "apps/desktop/src/renderer/src/reading-stats/app-reading-stats-chart.tsx",
         "apps/desktop/src/renderer/src/reading-stats/app-reading-stats-weread.tsx",
         "apps/desktop/src/renderer/src/reading-stats/app-reading-stats.tsx",
-        "apps/desktop/src/renderer/src/shell/app-agent-actions.ts",
-        "apps/desktop/src/renderer/src/shell/app-article-book.tsx",
-        "apps/desktop/src/renderer/src/shell/app-assistant-runs.ts",
-        "apps/desktop/src/renderer/src/shell/app-onboarding.tsx",
-        "apps/desktop/src/renderer/src/shell/app-toast.tsx",
-        "apps/desktop/src/renderer/src/shell/app-ui.tsx",
-        "apps/desktop/src/renderer/src/shell/app-weread-bookcase.tsx",
-        "apps/desktop/src/renderer/src/shell/app-window-transition.ts",
-        "apps/desktop/src/renderer/src/shell/use-pending-annotation-agents.ts",
-        "apps/desktop/src/renderer/src/shell/use-reader-page-turn-keys.ts",
         "apps/desktop/src/renderer/src/source/bookcase/use-assistant-passage-reveal.ts",
         "apps/desktop/src/renderer/src/source/bookcase/use-reader-chat-session.ts",
         "apps/desktop/src/renderer/src/source/bookcase/use-reader-search-matches.ts",

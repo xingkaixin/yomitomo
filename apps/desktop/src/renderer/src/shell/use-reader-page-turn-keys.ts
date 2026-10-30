@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEventListener } from '@yomitomo/reader-ui/use-event-listener';
 
 export type ReaderPageTurnDirection = 'left' | 'right';
 
@@ -9,19 +9,12 @@ export function useReaderPageTurnKeys({
   enabled?: boolean;
   onTurnPage: (direction: ReaderPageTurnDirection) => void;
 }) {
-  useEffect(() => {
-    if (!enabled) return;
-
-    function handleKeyDown(event: KeyboardEvent) {
-      const direction = readerPageTurnDirectionFromKeyboardEvent(event);
-      if (!direction) return;
-      event.preventDefault();
-      onTurnPage(direction);
-    }
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [enabled, onTurnPage]);
+  useEventListener(enabled ? window : null, 'keydown', (event) => {
+    const direction = readerPageTurnDirectionFromKeyboardEvent(event);
+    if (!direction) return;
+    event.preventDefault();
+    onTurnPage(direction);
+  });
 }
 
 export function readerPageTurnDirectionFromKey(key: string): ReaderPageTurnDirection | null {
