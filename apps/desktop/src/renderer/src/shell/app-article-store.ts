@@ -1,4 +1,3 @@
-import { useCallback, useMemo, useRef } from 'react';
 import type {
   ArticleDeletePatch,
   ArticleRecord,
@@ -10,9 +9,6 @@ import type {
   DesktopStore,
 } from '@yomitomo/shared';
 import { isAppLockSettingsLocked } from '../../../app-store';
-
-type DesktopStoreRef = { current: DesktopStore | null };
-type ApplyStore = (nextStore: DesktopStore) => DesktopStore;
 
 export type ArticleProjectionCommit = {
   patches: ArticleStorePatch[];
@@ -45,64 +41,54 @@ export type ArticleStore = {
   runMutation<T>(spec: ArticleMutationSpec<T>): Promise<T>;
 };
 
-export function useArticleStore(input: {
-  storeRef: DesktopStoreRef;
-  applyStore: ApplyStore;
+export function createArticleStore(input: {
+  getStore: () => DesktopStore | null;
+  applyStore: (nextStore: DesktopStore) => DesktopStore;
 }): ArticleStore {
-  const inputRef = useRef(input);
-  inputRef.current = input;
-  const currentArticleSinkRef = useRef<CurrentArticleSink | null>(null);
-  const readingProgressMutationQueueRef = useRef<Promise<void>>(Promise.resolve());
+  let currentArticleSink: CurrentArticleSink | null = null;
+  let readingProgressMutationQueue: Promise<void> = Promise.resolve();
 
-  const commit = useCallback((projection: ArticleProjectionCommit) => {
-    const { applyStore, storeRef } = inputRef.current;
-    const store = storeRef.current;
+  function commit(projection: ArticleProjectionCommit) {
+    const store = input.getStore();
     if (!store || isAppLockSettingsLocked(store.settings)) return false;
     if (projection.patches.length > 0) {
-      const nextStore = projection.patches.reduce(applyArticleStorePatch, store);
-      applyStore(nextStore);
+      input.applyStore(projection.patches.reduce(applyArticleStorePatch, store));
     }
     const current = projection.current;
-    const sink = currentArticleSinkRef.current;
+    const sink = currentArticleSink;
     if (current && sink && (current.type === 'delete' || sink.isCurrent(current.articleId))) {
       sink.apply(current);
     }
     return true;
-  }, []);
+  }
 
-  const registerCurrentArticleSink = useCallback((sink: CurrentArticleSink) => {
-    currentArticleSinkRef.current = sink;
+  function registerCurrentArticleSink(sink: CurrentArticleSink) {
+    currentArticleSink = sink;
     return () => {
-      if (currentArticleSinkRef.current === sink) currentArticleSinkRef.current = null;
+      if (currentArticleSink === sink) currentArticleSink = null;
     };
-  }, []);
+  }
 
-  const runMutation = useCallback(
-    async <T>(spec: ArticleMutationSpec<T>) => {
-      const run = async () => {
-        // Optimistic projection intentionally remains when invoke fails; a later
-        // authoritative patch or full store refresh reconciles it.
-        if (spec.optimistic) commit(spec.optimistic);
-        const result = await spec.invoke();
-        commit(spec.reconcile(result));
-        return result;
-      };
-      if (spec.serialize !== 'reading-progress') return run();
+  async function runMutation<T>(spec: ArticleMutationSpec<T>) {
+    const run = async () => {
+      // Optimistic projection intentionally remains when invoke fails; a later
+      // authoritative patch or full store refresh reconciles it.
+      if (spec.optimistic) commit(spec.optimistic);
+      const result = await spec.invoke();
+      commit(spec.reconcile(result));
+      return result;
+    };
+    if (spec.serialize !== 'reading-progress') return run();
 
-      const nextMutation = readingProgressMutationQueueRef.current.then(run, run);
-      readingProgressMutationQueueRef.current = nextMutation.then(
-        () => undefined,
-        () => undefined,
-      );
-      return nextMutation;
-    },
-    [commit],
-  );
+    const nextMutation = readingProgressMutationQueue.then(run, run);
+    readingProgressMutationQueue = nextMutation.then(
+      () => undefined,
+      () => undefined,
+    );
+    return nextMutation;
+  }
 
-  return useMemo(
-    () => ({ commit, registerCurrentArticleSink, runMutation }),
-    [commit, registerCurrentArticleSink, runMutation],
-  );
+  return { commit, registerCurrentArticleSink, runMutation };
 }
 
 export function applyArticleStorePatch(

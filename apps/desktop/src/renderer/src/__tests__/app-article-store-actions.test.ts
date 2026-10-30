@@ -12,11 +12,7 @@ import type {
 } from '@yomitomo/shared';
 
 import { emptyStore } from '../settings/app-settings';
-import {
-  type ArticleStore,
-  type CurrentArticleUpdate,
-  useArticleStore,
-} from '../shell/app-article-store';
+import { type CurrentArticleUpdate, createArticleStore } from '../shell/app-article-store';
 import { useAppArticleStoreActions } from '../shell/app-article-store-actions';
 import {
   annotationFixture,
@@ -383,7 +379,7 @@ function renderArticleActions({
     return store;
   });
   let actions!: ReturnType<typeof useAppArticleStoreActions>;
-  let articleStore!: ArticleStore;
+  const articleStore = createArticleStore({ applyStore, getStore: () => storeRef.current });
   let current = currentArticle;
   const applyCurrent = vi.fn((update: CurrentArticleUpdate) => {
     if (update.type === 'delete') {
@@ -395,7 +391,6 @@ function renderArticleActions({
 
   render(
     createElement(function Harness() {
-      articleStore = useArticleStore({ storeRef, applyStore });
       actions = useAppArticleStoreActions({ articleStore });
       return null;
     }),

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DesktopStore } from '@yomitomo/shared';
 import type { SettingsStorePatch } from '../../../ipc-contract';
 import {
@@ -13,7 +13,7 @@ import {
 import { desktopIpcErrorCodes, isDesktopIpcErrorLike } from '../../../ipc-errors';
 
 import { recordStartupTiming, rendererPerformanceElapsedMs } from './app-renderer-performance';
-import { articleStorePatchCommit, useArticleStore } from './app-article-store';
+import { articleStorePatchCommit, createArticleStore } from './app-article-store';
 import {
   applyCollectionStorePatch,
   applyLibraryPinPatch,
@@ -40,7 +40,10 @@ export function useDesktopStoreState() {
     setStore(rendererStore);
     return rendererStore;
   }, []);
-  const articleStore = useArticleStore({ storeRef, applyStore });
+  const articleStore = useMemo(
+    () => createArticleStore({ getStore: () => storeRef.current, applyStore }),
+    [applyStore],
+  );
 
   const applySettingsPatch = useCallback(
     (patch: SettingsStorePatch) => applyStore(applySettingsStorePatch(storeRef.current, patch)),

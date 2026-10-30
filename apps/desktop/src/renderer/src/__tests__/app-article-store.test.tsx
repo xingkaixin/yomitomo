@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, renderHook } from '@testing-library/react';
+import { cleanup } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
   AppSettingsPatch,
@@ -16,7 +16,7 @@ import {
   articleStorePatchCommit,
   type CurrentArticleSink,
   type CurrentArticleUpdate,
-  useArticleStore,
+  createArticleStore,
 } from '../shell/app-article-store';
 import { articleSummaryFromRecord, webArticleRecord } from './article-actions-test-utils';
 import { normalizeAppSettings } from '../../../settings/app-settings-normalization';
@@ -26,7 +26,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe('useArticleStore', () => {
+describe('createArticleStore', () => {
   it('projects article deletes and reader chat changes onto catalog and current article', () => {
     const deletion = { type: 'article-delete' as const, articleId: 'article-1' };
 
@@ -361,8 +361,8 @@ function renderArticleStore(
     storeRef.current = store;
     return store;
   });
-  const { result } = renderHook(() => useArticleStore({ applyStore, storeRef }));
-  return { applyStore, articleStore: result.current, storeRef };
+  const articleStore = createArticleStore({ applyStore, getStore: () => storeRef.current });
+  return { applyStore, articleStore, storeRef };
 }
 
 function currentArticleSink(
