@@ -83,7 +83,7 @@ function HookProbe() {
   const noteRefs = React.useRef(new Map<string, HTMLElement>());
   const annotations = React.useMemo(() => [annotation('note-1')], []);
   const boxes = React.useMemo(() => [box('note-1')], []);
-  const { activeConnection } = useReaderActiveConnection({
+  const { activeConnection, trackActiveConnection } = useReaderActiveConnection({
     annotationAgents,
     annotations,
     boxes,
@@ -99,7 +99,9 @@ function HookProbe() {
     <div
       ref={(element) => {
         readerRootRef.current = element;
-        if (element) mockRect(element, rect(10, 20, 900, 700));
+        if (!element) return;
+        mockRect(element, rect(10, 20, 900, 700));
+        return trackActiveConnection();
       }}
     >
       <div

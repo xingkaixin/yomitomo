@@ -7,7 +7,7 @@ import {
   SentIcon,
   Tick01Icon,
 } from '@hugeicons/core-free-icons';
-import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useReducer, useRef, useSyncExternalStore } from 'react';
 import { renderSafeMarkdown } from '@yomitomo/core/safe-markdown';
 import type {
   MessageSendShortcut,
@@ -26,6 +26,8 @@ import {
 import { FloatingComposer } from '../shared/floating-composer';
 import { formatRelativeTime, formatTime } from '../reader-date-utils';
 import { useCompositionSubmit } from '../use-composition-submit';
+import { useInterval } from '../hooks/use-interval';
+import { useMountEffect } from '../hooks/use-mount-effect';
 import type { ReaderChatActivationSource, ReaderUiLabels } from './reader-app-view-types';
 import { defaultReaderUiLabels } from './reader-app-view-types';
 
@@ -63,6 +65,85 @@ type ReaderChatViewport = {
   width: number;
   height: number;
 };
+
+type ReaderChatPanelState = {
+  activationSource: ReaderChatActivationSource;
+  draft: string;
+  layout: ReaderChatPanelLayout;
+  open: boolean;
+  panelPhase: ReaderChatPanelPhase;
+  panelVisible: boolean;
+  resizeFeedback: ReaderChatResizeFeedback;
+  resizing: boolean;
+};
+
+type ReaderChatPanelEvent =
+  | { type: 'chatToggled'; open: boolean; source: ReaderChatActivationSource }
+  | { type: 'closeFinished' }
+  | { type: 'draftChanged'; draft: string }
+  | { type: 'draftSubmitted' }
+  | { type: 'openFrameShown' }
+  | { type: 'resizeEnded' }
+  | { type: 'resizeStarted' }
+  | { type: 'resized'; feedback: ReaderChatResizeFeedback; size: ReaderChatPanelSize };
+
+const restingResizeFeedback: ReaderChatResizeFeedback = { scaleX: 1, scaleY: 1 };
+
+function readerChatPanelReducer(
+  state: ReaderChatPanelState,
+  event: ReaderChatPanelEvent,
+): ReaderChatPanelState {
+  switch (event.type) {
+    case 'chatToggled': {
+      const next = { ...state, activationSource: event.source, open: event.open };
+      if (event.source === 'keyboard') {
+        return { ...next, panelPhase: event.open ? 'open' : 'closing', panelVisible: event.open };
+      }
+      if (event.open) return { ...next, panelPhase: 'opening', panelVisible: true };
+      return state.panelVisible ? { ...next, panelPhase: 'closing' } : next;
+    }
+    case 'closeFinished':
+      return state.panelPhase === 'closing' ? { ...state, panelVisible: false } : state;
+    case 'draftChanged':
+      return { ...state, draft: event.draft };
+    case 'draftSubmitted':
+      return { ...state, draft: '' };
+    case 'openFrameShown':
+      return state.panelPhase === 'opening' ? { ...state, panelPhase: 'open' } : state;
+    case 'resizeEnded':
+      return { ...state, resizeFeedback: restingResizeFeedback, resizing: false };
+    case 'resizeStarted':
+      return { ...state, resizing: true };
+    case 'resized':
+      return {
+        ...state,
+        layout: { mode: 'custom', size: event.size },
+        resizeFeedback: event.feedback,
+      };
+  }
+}
+
+function initialReaderChatPanelState({
+  activationSource,
+  open,
+}: {
+  activationSource: ReaderChatActivationSource;
+  open: boolean;
+}): ReaderChatPanelState {
+  return readerChatPanelReducer(
+    {
+      activationSource,
+      draft: '',
+      layout: { mode: 'default' },
+      open,
+      panelPhase: open ? 'open' : 'closing',
+      panelVisible: open,
+      resizeFeedback: restingResizeFeedback,
+      resizing: false,
+    },
+    { type: 'chatToggled', open, source: activationSource },
+  );
+}
 
 type ReaderChatMessageLabels = Pick<
   ReaderUiLabels,
@@ -133,85 +214,33 @@ export function ReaderChatPanel({
   onSelectAssistant,
   onSubmit,
 }: ReaderChatPanelProps) {
-  const [draft, setDraft] = useState('');
-  const [layout, setLayout] = useState<ReaderChatPanelLayout>({ mode: 'default' });
-  const [panelVisible, setPanelVisible] = useState(open);
-  const [panelPhase, setPanelPhase] = useState<ReaderChatPanelPhase>(open ? 'open' : 'closing');
-  const [resizing, setResizing] = useState(false);
-  const [resizeFeedback, setResizeFeedback] = useState<ReaderChatResizeFeedback>({
-    scaleX: 1,
-    scaleY: 1,
-  });
+  const [chatState, dispatch] = useReducer(
+    readerChatPanelReducer,
+    { activationSource, open },
+    initialReaderChatPanelState,
+  );
+  if (chatState.open !== open || chatState.activationSource !== activationSource) {
+    dispatch({ type: 'chatToggled', open, source: activationSource });
+  }
+  const { draft, layout, panelPhase, panelVisible, resizeFeedback, resizing } = chatState;
   const renderPanel = open || (activationSource === 'pointer' && panelVisible);
   const viewport = useReaderChatViewport(renderPanel);
-  const closeTimerRef = useRef<number | null>(null);
-  const messagesRef = useRef<HTMLDivElement>(null);
-  const openFrameRef = useRef(0);
   const resizeCleanupRef = useRef<(() => void) | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const activeSession = useMemo(
     () => state?.sessions.find((session) => session.id === state.activeSessionId),
     [state],
   );
   const selectedAssistant =
     agents.find((agent) => agent.id === selectedAssistantId) || agents[0] || null;
-
-  useLayoutEffect(() => {
-    resizeTextarea(textareaRef.current);
-  }, [draft, open, draftContext]);
-
-  useLayoutEffect(() => {
-    if (!open) return;
-    textareaRef.current?.focus({ preventScroll: true });
-  }, [draftContext, open]);
-
   const panelSize = readerChatPanelSize(layout, viewport);
-  const panelSizeRef = useRef(panelSize);
-  panelSizeRef.current = panelSize;
 
-  React.useEffect(() => {
-    const clearAnimationWork = () => {
-      if (closeTimerRef.current !== null) {
-        window.clearTimeout(closeTimerRef.current);
-        closeTimerRef.current = null;
-      }
-      window.cancelAnimationFrame(openFrameRef.current);
-      openFrameRef.current = 0;
-    };
-
-    clearAnimationWork();
-    if (activationSource === 'keyboard') {
-      setPanelVisible(open);
-      setPanelPhase(open ? 'open' : 'closing');
-      return clearAnimationWork;
-    }
-    if (open) {
-      setPanelVisible(true);
-      setPanelPhase('opening');
-      openFrameRef.current = window.requestAnimationFrame(() => {
-        setPanelPhase('open');
-      });
-      return clearAnimationWork;
-    }
-    if (!panelVisible) return clearAnimationWork;
-
-    setPanelPhase('closing');
-    closeTimerRef.current = window.setTimeout(() => {
-      setPanelVisible(false);
-      closeTimerRef.current = null;
-    }, CHAT_PANEL_EXIT_MS);
-    return clearAnimationWork;
-  }, [activationSource, open, panelVisible]);
-
-  useLayoutEffect(
-    () => () => {
-      if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
-      window.cancelAnimationFrame(openFrameRef.current);
-      resizeCleanupRef.current?.();
-      resizeCleanupRef.current = null;
-    },
-    [],
+  useInterval(
+    () => dispatch({ type: 'closeFinished' }),
+    panelVisible && panelPhase === 'closing' ? CHAT_PANEL_EXIT_MS : null,
   );
+
+  useMountEffect(() => () => resizeCleanupRef.current?.());
 
   const messageScrollKey = activeSession
     ? activeSession.messages.map((message) => `${message.id}:${message.content.length}`).join('|')
@@ -221,21 +250,45 @@ export function ReaderChatPanel({
       ? activeSession.messages.at(-1)?.id
       : undefined;
 
-  useLayoutEffect(() => {
-    if (!open) return;
-    const element = messagesRef.current;
-    if (!element) return;
-    if (typeof element.scrollTo === 'function') {
-      element.scrollTo({ top: element.scrollHeight, behavior: 'smooth' });
-    } else {
-      element.scrollTop = element.scrollHeight;
-    }
-  }, [error, messageScrollKey, open]);
+  // Recreated when the draft, open state or quote changes, so the textarea is resized after that commit.
+  const attachTextarea = useCallback(
+    (textarea: HTMLTextAreaElement) => {
+      textareaRef.current = textarea;
+      resizeTextarea(textarea);
+      return () => {
+        textareaRef.current = null;
+      };
+    },
+    [draft, open, draftContext],
+  );
+
+  // Recreated when the phase, open state or quote changes, so motion and focus follow that commit.
+  const attachPanel = useCallback(() => {
+    const frame =
+      panelPhase === 'opening'
+        ? window.requestAnimationFrame(() => dispatch({ type: 'openFrameShown' }))
+        : 0;
+    if (open) textareaRef.current?.focus({ preventScroll: true });
+    return () => window.cancelAnimationFrame(frame);
+  }, [panelPhase, open, draftContext]);
+
+  // Recreated when messages, errors or the open state change, so the list scrolls to the end after that commit.
+  const attachMessages = useCallback(
+    (element: HTMLDivElement | null) => {
+      if (!element || !open) return;
+      if (typeof element.scrollTo === 'function') {
+        element.scrollTo({ top: element.scrollHeight, behavior: 'smooth' });
+      } else {
+        element.scrollTop = element.scrollHeight;
+      }
+    },
+    [error, messageScrollKey, open],
+  );
 
   async function submit() {
     const content = draft.trim();
     if (!content || sending || !selectedAssistant) return;
-    setDraft('');
+    dispatch({ type: 'draftSubmitted' });
     await onSubmit(content);
   }
 
@@ -249,7 +302,7 @@ export function ReaderChatPanel({
   }
 
   function handleDraftChange(event: React.ChangeEvent<HTMLTextAreaElement>) {
-    setDraft(event.currentTarget.value);
+    dispatch({ type: 'draftChanged', draft: event.currentTarget.value });
     resizeTextarea(event.currentTarget);
   }
 
@@ -264,17 +317,16 @@ export function ReaderChatPanel({
 
     const startX = event.clientX;
     const startY = event.clientY;
-    const startSize = panelSizeRef.current;
+    const startSize = panelSize;
     resizeCleanupRef.current?.();
-    setResizing(true);
+    dispatch({ type: 'resizeStarted' });
 
     function cleanupResize() {
       handle.releasePointerCapture?.(pointerId);
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
       window.removeEventListener('pointercancel', handlePointerUp);
-      setResizing(false);
-      setResizeFeedback({ scaleX: 1, scaleY: 1 });
+      dispatch({ type: 'resizeEnded' });
       if (resizeCleanupRef.current === cleanupResize) resizeCleanupRef.current = null;
     }
 
@@ -286,13 +338,13 @@ export function ReaderChatPanel({
       const height = startSize.height + (edges.top ? startY - moveEvent.clientY : 0);
       const widthDelta = width - startSize.width;
       const heightDelta = height - startSize.height;
-      setLayout({
-        mode: 'custom',
+      dispatch({
+        type: 'resized',
+        feedback: {
+          scaleX: 1 + clampNumber(widthDelta / 5200, -0.008, 0.014),
+          scaleY: 1 + clampNumber(heightDelta / 5600, -0.008, 0.014),
+        },
         size: clampReaderChatPanelSize({ width, height }, currentReaderChatViewport()),
-      });
-      setResizeFeedback({
-        scaleX: 1 + clampNumber(widthDelta / 5200, -0.008, 0.014),
-        scaleY: 1 + clampNumber(heightDelta / 5600, -0.008, 0.014),
       });
     }
 
@@ -340,17 +392,9 @@ export function ReaderChatPanel({
     '--reader-chat-resize-scale-y': resizeFeedback.scaleY.toFixed(4),
     '--reader-chat-panel-width': `${panelSize.width}px`,
   };
-  const effectivePanelPhase =
-    activationSource === 'keyboard'
-      ? open
-        ? 'open'
-        : 'closing'
-      : open && panelPhase === 'closing'
-        ? 'opening'
-        : panelPhase;
   const panelClassName = [
     'reader-chat-panel',
-    `is-${effectivePanelPhase}`,
+    `is-${panelPhase}`,
     layout.mode === 'custom' ? 'is-custom' : '',
     resizing ? 'is-resizing' : '',
   ]
@@ -361,10 +405,11 @@ export function ReaderChatPanel({
     <>
       {minimizedButton}
       <section
+        ref={attachPanel}
         className={panelClassName}
         data-open={open ? 'true' : 'false'}
         data-activation-source={activationSource}
-        data-state={effectivePanelPhase}
+        data-state={panelPhase}
         style={panelStyle}
         aria-label={labels.readerChatAria}
       >
@@ -403,7 +448,7 @@ export function ReaderChatPanel({
           </div>
         </header>
 
-        <div className="reader-chat-messages" ref={messagesRef}>
+        <div className="reader-chat-messages" ref={attachMessages}>
           {activeSession?.messages.length ? (
             activeSession.messages.map((message) => (
               <ReaderChatMessageView
@@ -423,7 +468,7 @@ export function ReaderChatPanel({
         </div>
 
         <FloatingComposer
-          ref={textareaRef}
+          ref={attachTextarea}
           className="reader-chat-composer"
           accessory={
             agents.length > 0 ? (
@@ -589,19 +634,33 @@ function resizeTextarea(textarea: HTMLTextAreaElement | null) {
   textarea.style.overflowY = textarea.scrollHeight > maxHeight ? 'auto' : 'hidden';
 }
 
-function useReaderChatViewport(open: boolean) {
-  const [viewport, setViewport] = useState<ReaderChatViewport>(() => currentReaderChatViewport());
+const serverReaderChatViewport: ReaderChatViewport = { width: 1024, height: 768 };
+let cachedReaderChatViewport = serverReaderChatViewport;
 
-  useLayoutEffect(() => {
-    if (!open || typeof window === 'undefined') return;
+function useReaderChatViewport(active: boolean) {
+  return useSyncExternalStore(
+    active ? subscribeToViewportResize : subscribeToNothing,
+    readReaderChatViewport,
+    () => serverReaderChatViewport,
+  );
+}
 
-    const updateViewport = () => setViewport(currentReaderChatViewport());
-    updateViewport();
-    window.addEventListener('resize', updateViewport);
-    return () => window.removeEventListener('resize', updateViewport);
-  }, [open]);
+function subscribeToViewportResize(onChange: () => void) {
+  window.addEventListener('resize', onChange);
+  return () => window.removeEventListener('resize', onChange);
+}
 
-  return viewport;
+function subscribeToNothing() {
+  return () => {};
+}
+
+// useSyncExternalStore needs a stable snapshot until the viewport size actually changes.
+function readReaderChatViewport() {
+  const { width, height } = currentReaderChatViewport();
+  if (cachedReaderChatViewport.width !== width || cachedReaderChatViewport.height !== height) {
+    cachedReaderChatViewport = { width, height };
+  }
+  return cachedReaderChatViewport;
 }
 
 function readerChatPanelSize(layout: ReaderChatPanelLayout, viewport: ReaderChatViewport) {

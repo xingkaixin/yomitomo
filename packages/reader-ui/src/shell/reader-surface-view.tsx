@@ -7,7 +7,7 @@ import type { ReaderAnnotationRailState } from '../annotations/use-reader-annota
 import { Composer, type ComposerPopupPhase } from './reader-composer';
 import { EmptyNotes } from './reader-empty-notes';
 import { HighlightChoiceMenu } from './reader-highlight-choice-menu';
-import { SelectionMenu } from './reader-selection-menu';
+import { SelectionMenu, type SelectionMenuHandle } from './reader-selection-menu';
 import { SelectionHandles } from './reader-selection-handles';
 import type {
   PendingComposer,
@@ -38,11 +38,8 @@ type ReaderSurfaceRefs = {
   articleRef: React.RefObject<HTMLElement | null>;
   canvasRef: React.RefObject<HTMLDivElement | null>;
   notesRef: React.RefObject<HTMLElement | null>;
+  selectionMenuRef?: React.Ref<SelectionMenuHandle>;
   surfaceRef: React.RefObject<HTMLDivElement | null>;
-};
-
-type ReaderSurfaceSelectionModel = ReaderSelectionModel & {
-  copyRequestKey: number;
 };
 
 type AnimatedComposerLabels = Pick<
@@ -100,13 +97,12 @@ export type ReaderSurfaceViewProps = {
   chatAvailable: boolean;
   labels?: ReaderSurfaceViewLabels;
   refs: ReaderSurfaceRefs;
-  selection: ReaderSurfaceSelectionModel;
+  selection: ReaderSelectionModel;
   settings: ReaderSettingsModel;
   userProfile: UserProfile;
 };
 
 const emptyNewAnnotationIds = new Set<string>();
-const COMPOSER_CLOSE_FALLBACK_MS = 120;
 
 function HighlightDots({ colors }: { colors: string[] }) {
   if (colors.length <= 1) return null;
@@ -138,9 +134,50 @@ function ReaderEdgeBlur({ position }: { position: 'top' | 'bottom' }) {
   );
 }
 
+type AnimatedComposerState = {
+  composer: PendingComposer | null;
+  phase: ComposerPopupPhase;
+  sessionKey: number;
+  visibleComposer: PendingComposer | null;
+};
+
+type AnimatedComposerEvent =
+  | { type: 'closeFinished' }
+  | { type: 'composerChanged'; composer: PendingComposer | null }
+  | { type: 'openFrameShown' };
+
+function animatedComposerReducer(
+  state: AnimatedComposerState,
+  event: AnimatedComposerEvent,
+): AnimatedComposerState {
+  switch (event.type) {
+    case 'closeFinished':
+      return state.phase === 'closing' ? { ...state, visibleComposer: null } : state;
+    case 'composerChanged':
+      if (event.composer) {
+        return {
+          composer: event.composer,
+          phase: 'opening',
+          sessionKey: state.sessionKey + 1,
+          visibleComposer: event.composer,
+        };
+      }
+      if (!state.visibleComposer || state.phase === 'closing') return { ...state, composer: null };
+      return { ...state, composer: null, phase: 'closing' };
+    case 'openFrameShown':
+      return state.phase === 'opening' ? { ...state, phase: 'open' } : state;
+  }
+}
+
+function initialAnimatedComposerState(composer: PendingComposer | null) {
+  return animatedComposerReducer(
+    { composer: null, phase: 'closing', sessionKey: 0, visibleComposer: null },
+    { type: 'composerChanged', composer },
+  );
+}
+
 function AnimatedComposer({
   agents,
-  canvasRef,
   composer,
   labels,
   messageSendShortcut,
@@ -149,7 +186,6 @@ function AnimatedComposer({
   onSave,
 }: {
   agents: PublicAgent[];
-  canvasRef: React.RefObject<HTMLDivElement | null>;
   composer: PendingComposer | null;
   labels: AnimatedComposerLabels;
   messageSendShortcut: MessageSendShortcut;
@@ -157,85 +193,30 @@ function AnimatedComposer({
   onCancel: () => void;
   onSave: (note: string) => void | Promise<void>;
 }) {
-  const [visibleComposer, setVisibleComposer] = React.useState<PendingComposer | null>(composer);
-  const [phase, setPhase] = React.useState<ComposerPopupPhase>(composer ? 'opening' : 'closing');
-  const [sessionKey, setSessionKey] = React.useState(0);
-  const openFrameRef = React.useRef<number | null>(null);
-  const closeTimerRef = React.useRef<number | null>(null);
+  const [state, dispatch] = React.useReducer(
+    animatedComposerReducer,
+    composer,
+    initialAnimatedComposerState,
+  );
+  if (state.composer !== composer) dispatch({ type: 'composerChanged', composer });
 
-  React.useEffect(() => {
-    return () => {
-      if (openFrameRef.current !== null) window.cancelAnimationFrame(openFrameRef.current);
-      if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
-    };
-  }, []);
-
-  React.useEffect(() => {
-    if (!composer) return;
-
-    if (openFrameRef.current !== null) window.cancelAnimationFrame(openFrameRef.current);
-    if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
-    openFrameRef.current = null;
-    closeTimerRef.current = null;
-
-    setVisibleComposer(composer);
-    setSessionKey((key) => key + 1);
-    setPhase('opening');
-    openFrameRef.current = window.requestAnimationFrame(() => {
-      openFrameRef.current = null;
-      setPhase('open');
-    });
-  }, [composer]);
-
-  React.useEffect(() => {
-    if (composer || !visibleComposer || phase === 'closing') return;
-
-    if (openFrameRef.current !== null) {
-      window.cancelAnimationFrame(openFrameRef.current);
-      openFrameRef.current = null;
-    }
-
-    setPhase('closing');
-    const readerApp = canvasRef.current?.closest<HTMLElement>('.reader-app');
-    const closeMs = prefersReducedMotion()
-      ? 0
-      : getCssDurationMs(
-          readerApp || document.documentElement,
-          '--dropdown-close-dur',
-          COMPOSER_CLOSE_FALLBACK_MS,
-        );
-    closeTimerRef.current = window.setTimeout(() => {
-      closeTimerRef.current = null;
-      setVisibleComposer(null);
-    }, closeMs);
-  }, [canvasRef, composer, phase, visibleComposer]);
-
-  if (!visibleComposer) return null;
+  if (!state.visibleComposer) return null;
 
   return (
     <Composer
       agents={agents}
-      composer={visibleComposer}
-      key={sessionKey}
+      composer={state.visibleComposer}
+      key={state.sessionKey}
       labels={labels}
       messageSendShortcut={messageSendShortcut}
-      phase={phase}
+      phase={state.phase}
       shortcutModifier={shortcutModifier}
       onCancel={onCancel}
+      onClosed={() => dispatch({ type: 'closeFinished' })}
+      onOpened={() => dispatch({ type: 'openFrameShown' })}
       onSave={onSave}
     />
   );
-}
-
-function prefersReducedMotion() {
-  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-}
-
-function getCssDurationMs(element: Element, variableName: string, fallback: number) {
-  const raw = window.getComputedStyle(element).getPropertyValue(variableName).trim();
-  const value = Number.parseFloat(raw);
-  if (!Number.isFinite(value)) return fallback;
-  return raw.endsWith('ms') ? value : value * 1000;
 }
 
 export function ReaderSurfaceView({
@@ -244,6 +225,7 @@ export function ReaderSurfaceView({
   annotationRail: {
     annotationRailItems,
     exitingAnnotationIds,
+    layoutChangeRef,
     noteRefForAnnotation,
     visibleAnnotationIds,
     visibleAnnotations,
@@ -262,27 +244,19 @@ export function ReaderSurfaceView({
   article: { content: articleContent, extracted },
   chatAvailable,
   labels = defaultReaderUiLabels,
-  refs: { articleRef, canvasRef, notesRef, surfaceRef },
-  selection: {
-    composer,
-    copyRequestKey: selectionCopyRequestKey,
-    highlightChoice,
-    selectionAction,
-  },
+  refs: { articleRef, canvasRef, notesRef, selectionMenuRef, surfaceRef },
+  selection: { composer, highlightChoice, selectionAction },
   settings: { messageSendShortcut, selectionActionShortcuts, shortcutModifier },
   userProfile,
 }: ReaderSurfaceViewProps) {
   const timeFormatter = React.useMemo(() => createReaderTimeFormatter(labels), [labels]);
-  const annotationActionsRef = React.useRef(annotationActions);
-  React.useLayoutEffect(() => {
-    annotationActionsRef.current = annotationActions;
-  }, [annotationActions]);
+  const latestAnnotationActions = React.useEffectEvent(() => annotationActions);
   const cardActions = React.useMemo(
     () => ({
-      onDelete: (id: string) => annotationActionsRef.current.onDeleteAnnotation(id),
-      onFocus: (id: string) => annotationActionsRef.current.onScrollToHighlight(id),
+      onDelete: (id: string) => latestAnnotationActions().onDeleteAnnotation(id),
+      onFocus: (id: string) => latestAnnotationActions().onScrollToHighlight(id),
       onOpenDiscussion: (id: string, rect?: ReaderWindowSourceRect) =>
-        annotationActionsRef.current.onOpenAnnotationDiscussion?.(id, rect),
+        latestAnnotationActions().onOpenAnnotationDiscussion?.(id, rect),
     }),
     [],
   );
@@ -348,7 +322,7 @@ export function ReaderSurfaceView({
         };
 
   return (
-    <div className="reader-surface-frame">
+    <div className="reader-surface-frame" ref={layoutChangeRef}>
       <section className="reader-surface" ref={surfaceRef} onMouseUp={selectionActions.onMouseUp}>
         <div className="reader-canvas" ref={canvasRef} tabIndex={-1}>
           <article className="reader-article" ref={articleRef}>
@@ -465,10 +439,10 @@ export function ReaderSurfaceView({
           </aside>
           {selectionAction && !composer ? (
             <SelectionMenu
+              ref={selectionMenuRef}
               action={selectionAction}
               labels={labels}
               shortcuts={selectionActionShortcuts}
-              copyRequestKey={selectionCopyRequestKey}
               onAnnotate={() => selectionActions.onOpenComposer(selectionAction)}
               onAsk={
                 chatAvailable ? () => selectionActions.onAskSelection?.(selectionAction) : undefined
@@ -495,7 +469,6 @@ export function ReaderSurfaceView({
           ) : null}
           <AnimatedComposer
             agents={agents}
-            canvasRef={canvasRef}
             composer={composer}
             labels={labels}
             messageSendShortcut={messageSendShortcut}

@@ -25,6 +25,15 @@ type ReaderAppStyle = React.CSSProperties & {
   '--reader-layout-article-width'?: string;
 };
 
+type ChatTriggerEvent = { type: 'chatTriggered'; source: ReaderChatActivationSource };
+
+function chatActivationSourceReducer(
+  _source: ReaderChatActivationSource,
+  event: ChatTriggerEvent,
+): ReaderChatActivationSource {
+  return event.source;
+}
+
 export type {
   AnnotationNavigationDirection,
   AnnotationNavigationRequest,
@@ -89,18 +98,18 @@ function ReaderAppViewComponent(
   const notesRef = React.useRef<HTMLElement | null>(null);
   const rootRef = React.useRef<HTMLDivElement | null>(null);
   const surfaceRef = React.useRef<HTMLDivElement | null>(null);
-  const surfaceRefs = React.useMemo(() => ({ articleRef, canvasRef, notesRef, surfaceRef }), []);
-  const { activeConnection, recalculateActiveConnection } = useReaderActiveConnection({
-    annotationAgents: agents,
-    annotations,
-    boxes,
-    canvasRef,
-    noteRefs,
-    readerRootRef: rootRef,
-    selectedAnnotationId: activeId,
-    surfaceRef,
-    userProfile,
-  });
+  const { activeConnection, recalculateActiveConnection, trackActiveConnection } =
+    useReaderActiveConnection({
+      annotationAgents: agents,
+      annotations,
+      boxes,
+      canvasRef,
+      noteRefs,
+      readerRootRef: rootRef,
+      selectedAnnotationId: activeId,
+      surfaceRef,
+      userProfile,
+    });
   const handleAnnotationLayoutChange = React.useCallback(() => {
     annotationActions.onAnnotationLayoutChange?.();
     recalculateActiveConnection();
@@ -108,25 +117,27 @@ function ReaderAppViewComponent(
   const { embedded = false } = options ?? {};
   const tocOpen = toc.open;
   const tocItems = toc.items;
-  const [chatActivationSource, setChatActivationSource] =
-    React.useState<ReaderChatActivationSource>('pointer');
+  const [chatActivationSource, dispatchChatTrigger] = React.useReducer(
+    chatActivationSourceReducer,
+    'pointer',
+  );
   const openReaderChat = React.useCallback(
     (source: ReaderChatActivationSource) => {
-      setChatActivationSource(source);
+      dispatchChatTrigger({ type: 'chatTriggered', source });
       chatActions?.onOpen();
     },
     [chatActions],
   );
   const closeReaderChat = React.useCallback(
     (source: ReaderChatActivationSource) => {
-      setChatActivationSource(source);
+      dispatchChatTrigger({ type: 'chatTriggered', source });
       chatActions?.onClose();
     },
     [chatActions],
   );
   const askSelection = React.useCallback(
     (action: SelectionAction, source: ReaderChatActivationSource) => {
-      setChatActivationSource(source);
+      dispatchChatTrigger({ type: 'chatTriggered', source });
       selectionActions.onAskSelection?.(action);
     },
     [selectionActions],
@@ -135,10 +146,12 @@ function ReaderAppViewComponent(
     annotationNavigation,
     annotationRail,
     annotationRailLayout,
+    clearHiddenActiveAnnotation,
     handleReaderPointerDownCapture,
     navigateAnnotation,
+    railLayoutRef,
     requestSelectionCopy,
-    selectionCopyRequestKey: shellSelectionCopyRequestKey,
+    selectionMenuRef,
   } = useReaderShellState({
     activeId,
     annotationRailLayoutOverride: railLayoutOverride,
@@ -192,12 +205,18 @@ function ReaderAppViewComponent(
     }),
     [annotationActions, askSelection, selectionActions],
   );
-  const surfaceSelection = React.useMemo(
-    () => ({
-      ...selection,
-      copyRequestKey: shellSelectionCopyRequestKey,
-    }),
-    [selection, shellSelectionCopyRequestKey],
+  const surfaceRefs = React.useMemo(
+    () => ({ articleRef, canvasRef, notesRef, selectionMenuRef, surfaceRef }),
+    [selectionMenuRef],
+  );
+  // Recreated when the active annotation or its connection inputs change, so both are re-checked after that commit.
+  const attachRoot = React.useCallback(
+    (root: HTMLDivElement) => {
+      rootRef.current = root;
+      clearHiddenActiveAnnotation();
+      return trackActiveConnection();
+    },
+    [clearHiddenActiveAnnotation, trackActiveConnection],
   );
   const hasToc = tocItems.length > 0;
 
@@ -213,7 +232,7 @@ function ReaderAppViewComponent(
   return (
     <ReaderTooltipProvider>
       <div
-        ref={rootRef}
+        ref={attachRoot}
         className={[
           'reader-app',
           embedded ? 'is-embedded' : '',
@@ -273,7 +292,7 @@ function ReaderAppViewComponent(
           onClick={shell.onCloseResponsivePanels}
         />
 
-        <main className="reader-main">
+        <main className="reader-main" ref={railLayoutRef}>
           <ReaderTocPanel
             annotationTotals={annotationTotals}
             hasToc={hasToc}
@@ -295,7 +314,7 @@ function ReaderAppViewComponent(
             chatAvailable={Boolean(chat)}
             labels={labels}
             refs={surfaceRefs}
-            selection={surfaceSelection}
+            selection={selection}
             settings={settings}
             userProfile={userProfile}
           />

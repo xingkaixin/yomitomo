@@ -44,12 +44,13 @@ export function ReaderTocPanel({
   onScrollToHeading,
 }: ReaderTocPanelProps) {
   const tocRef = React.useRef<HTMLElement | null>(null);
-  const activeItemRef = React.useRef<HTMLButtonElement | null>(null);
-
-  React.useEffect(() => {
-    if (!tocOpen || activeTocIndex === null || activeTocIndex === undefined) return;
-    activeItemRef.current?.scrollIntoView?.({ block: 'nearest' });
-  }, [activeTocIndex, tocOpen]);
+  // Recreated when the panel opens or closes, so the active item scrolls into view after that commit.
+  const revealActiveItem = React.useCallback(
+    (item: HTMLButtonElement | null) => {
+      if (tocOpen) item?.scrollIntoView?.({ block: 'nearest' });
+    },
+    [tocOpen],
+  );
 
   function setTocProximity(activeIndex: number | null, phase: 'in' | 'out') {
     if (!tocRef.current) return;
@@ -137,7 +138,7 @@ export function ReaderTocPanel({
               <button
                 className={active ? 'reader-toc-item is-active' : 'reader-toc-item'}
                 data-depth={Math.min(item.depth, 4)}
-                ref={active ? activeItemRef : undefined}
+                ref={active ? revealActiveItem : undefined}
                 type="button"
                 aria-label={buttonLabel}
                 aria-current={active ? 'location' : undefined}

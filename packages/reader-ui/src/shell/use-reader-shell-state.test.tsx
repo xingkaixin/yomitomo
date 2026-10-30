@@ -170,8 +170,10 @@ function AnnotationLayoutProbe({ contentWidth }: { contentWidth: number }) {
 
   return (
     <div ref={surfaceRef}>
-      <div ref={setCanvasRef}>
-        <article ref={setArticleRef} />
+      <div ref={shell.railLayoutRef}>
+        <div ref={setCanvasRef}>
+          <article ref={setArticleRef} />
+        </div>
       </div>
       <output data-testid="layout-width">{shell.annotationRailLayout.articleWidth}</output>
     </div>

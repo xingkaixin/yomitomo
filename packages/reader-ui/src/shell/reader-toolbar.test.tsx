@@ -3,7 +3,7 @@
 import React from 'react';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { SelectionMenu } from './reader-selection-menu';
+import { SelectionMenu, type SelectionMenuHandle } from './reader-selection-menu';
 import { ReaderFloatingToolbar, ReaderToolbar } from './reader-toolbar';
 import { defaultReaderUiLabels } from './reader-app-view-types';
 
@@ -331,14 +331,15 @@ describe('SelectionMenu', () => {
     expect(onCopySettled).toHaveBeenCalledOnce();
   });
 
-  it('shows copy success when copy is requested by shortcut state', async () => {
+  it('shows copy success when copy is requested through the menu handle', async () => {
     vi.useFakeTimers();
     const onCopy = vi.fn().mockResolvedValue(undefined);
     const onCopySettled = vi.fn();
-    const { rerender } = render(
+    const menuRef = React.createRef<SelectionMenuHandle>();
+    render(
       <SelectionMenu
+        ref={menuRef}
         action={{ x: 10, y: 20 }}
-        copyRequestKey={0}
         onAnnotate={vi.fn()}
         onCopy={onCopy}
         onCopySettled={onCopySettled}
@@ -346,16 +347,7 @@ describe('SelectionMenu', () => {
     );
 
     await act(async () => {
-      rerender(
-        <SelectionMenu
-          action={{ x: 10, y: 20 }}
-          copyRequestKey={1}
-          onAnnotate={vi.fn()}
-          onCopy={onCopy}
-          onCopySettled={onCopySettled}
-        />,
-      );
-      await Promise.resolve();
+      await menuRef.current?.copy();
     });
 
     expect(onCopy).toHaveBeenCalledOnce();

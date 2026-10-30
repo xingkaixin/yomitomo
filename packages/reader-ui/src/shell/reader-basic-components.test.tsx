@@ -295,7 +295,6 @@ describe('ReaderSurfaceView', () => {
         }}
         selection={{
           composer,
-          copyRequestKey: 0,
           highlightChoice: null,
           selectionAction,
         }}

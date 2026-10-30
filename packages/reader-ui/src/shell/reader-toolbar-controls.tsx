@@ -6,7 +6,7 @@ import {
   MinusSignIcon,
 } from '@hugeicons/core-free-icons';
 import type React from 'react';
-import { useId, useState } from 'react';
+import { useId, useReducer } from 'react';
 import type { ReaderSettings } from '../reader-types';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { ReaderTooltip } from '../shared/reader-component-primitives';
@@ -65,13 +65,16 @@ export function ReaderToolbarSliderPopover({
   value: number;
   onChange: (value: number) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, dispatch] = useReducer(sliderPopoverReducer, false);
   const popoverId = useId();
   const percent = ((value - min) / Math.max(1, max - min)) * 100;
   const formattedValue = `${Math.round(value)}${unit}`;
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(nextOpen) => dispatch({ type: 'openChanged', open: nextOpen })}
+    >
       <ReaderTooltip content={label} side="bottom">
         <PopoverTrigger asChild>
           <button
@@ -119,4 +122,10 @@ export function ReaderToolbarSliderPopover({
       </PopoverContent>
     </Popover>
   );
+}
+
+type SliderPopoverEvent = { type: 'openChanged'; open: boolean };
+
+function sliderPopoverReducer(_open: boolean, event: SliderPopoverEvent) {
+  return event.open;
 }

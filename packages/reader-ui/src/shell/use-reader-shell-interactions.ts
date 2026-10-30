@@ -7,6 +7,7 @@ import type {
   SelectionAction,
 } from './reader-app-view-types';
 import { selectionActionShortcut } from '../reader-shortcuts';
+import { useEventListener } from '../hooks/use-event-listener';
 
 const activeAnnotationPreserveSelector = [
   'button',
@@ -56,6 +57,8 @@ export type UseReaderShellInteractionsOptions = {
 };
 
 export type ReaderShellInteractions = {
+  /** Clears the active annotation when filters hide it; call it after commits that change either input. */
+  clearHiddenActiveAnnotation: () => void;
   handleReaderPointerDownCapture: (event: React.PointerEvent<HTMLDivElement>) => void;
   toggleSettings: () => void;
 };
@@ -82,72 +85,51 @@ export function useReaderShellInteractions({
   readerChatOpen = false,
   shouldPreserveActiveAnnotationOnPointerDown,
 }: UseReaderShellInteractionsOptions): ReaderShellInteractions {
-  React.useEffect(() => {
-    if (!activeId || visibleAnnotationIds.has(activeId)) return;
+  const clearActiveAnnotation = React.useEffectEvent(() => {
     onCloseHighlightChoice();
     onClearActiveAnnotation();
-  }, [activeId, onClearActiveAnnotation, onCloseHighlightChoice, visibleAnnotationIds]);
+  });
 
-  React.useEffect(() => {
-    if (!selectionAction || composer) return;
-    const activeSelectionAction = selectionAction;
+  const clearHiddenActiveAnnotation = React.useCallback(() => {
+    if (!activeId || visibleAnnotationIds.has(activeId)) return;
+    clearActiveAnnotation();
+  }, [activeId, visibleAnnotationIds]);
 
-    function handleSelectionShortcut(event: KeyboardEvent) {
-      if (event.defaultPrevented) return;
-      if (isEditableKeyboardTarget(event.target)) return;
+  useEventListener(selectionAction && !composer ? window : null, 'keydown', (event) => {
+    if (!selectionAction || event.defaultPrevented) return;
+    if (isEditableKeyboardTarget(event.target)) return;
 
-      const shortcut = selectionActionShortcut(event, selectionActionShortcuts);
-      if (!shortcut) return;
+    const shortcut = selectionActionShortcut(event, selectionActionShortcuts);
+    if (!shortcut) return;
 
-      event.preventDefault();
-      event.stopPropagation();
-      if (shortcut === 'copy') {
-        void onCopySelection(activeSelectionAction);
-        return;
-      }
-      if (shortcut === 'ask' && onAskSelection) {
-        onAskSelection(activeSelectionAction, 'keyboard');
-        return;
-      }
-      onOpenComposer(activeSelectionAction);
+    event.preventDefault();
+    event.stopPropagation();
+    if (shortcut === 'copy') {
+      void onCopySelection(selectionAction);
+      return;
     }
+    if (shortcut === 'ask' && onAskSelection) {
+      onAskSelection(selectionAction, 'keyboard');
+      return;
+    }
+    onOpenComposer(selectionAction);
+  });
 
-    window.addEventListener('keydown', handleSelectionShortcut);
-    return () => {
-      window.removeEventListener('keydown', handleSelectionShortcut);
-    };
-  }, [
-    composer,
-    onAskSelection,
-    onClearSelection,
-    onCopySelection,
-    onOpenComposer,
-    selectionAction,
-    selectionActionShortcuts,
-  ]);
-
-  React.useEffect(() => {
-    if (!onOpenReaderChat || !onCloseReaderChat || selectionAction || composer) return;
-    const openReaderChat = onOpenReaderChat;
-    const closeReaderChat = onCloseReaderChat;
-
-    function handleReaderChatShortcut(event: KeyboardEvent) {
+  useEventListener(
+    onOpenReaderChat && onCloseReaderChat && !selectionAction && !composer ? window : null,
+    'keydown',
+    (event) => {
       if (!readerChatShortcut(event)) return;
 
       event.preventDefault();
       event.stopPropagation();
       if (readerChatOpen) {
-        closeReaderChat('keyboard');
+        onCloseReaderChat?.('keyboard');
         return;
       }
-      openReaderChat('keyboard');
-    }
-
-    window.addEventListener('keydown', handleReaderChatShortcut);
-    return () => {
-      window.removeEventListener('keydown', handleReaderChatShortcut);
-    };
-  }, [composer, onCloseReaderChat, onOpenReaderChat, readerChatOpen, selectionAction]);
+      onOpenReaderChat?.('keyboard');
+    },
+  );
 
   const toggleSettings = React.useCallback(() => {
     onToggleSettings();
@@ -199,6 +181,7 @@ export function useReaderShellInteractions({
   );
 
   return {
+    clearHiddenActiveAnnotation,
     handleReaderPointerDownCapture,
     toggleSettings,
   };
