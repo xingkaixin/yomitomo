@@ -146,6 +146,8 @@ telemetry → shared
   由 `pnpm ui:check-primitives` 校验。
 - 桌面端样式归属见 [Desktop renderer style ownership](desktop-style-ownership.md)。颜色来自主题变量，
   不在组件中写死核心色。
+- 局部状态用 `useReducer`，跨组件状态用 zustand，按需 IPC 读取用 TanStack Query。业务代码不直接使用
+  `useState` 和 `useEffect`，见 [Renderer state boundary](renderer-state.md)，由 `pnpm lint` 校验。
 
 ## 分发与外部服务
 

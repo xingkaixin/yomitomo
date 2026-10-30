@@ -1,5 +1,5 @@
 import { Popover as PopoverPrimitive } from '@base-ui/react/popover';
-import * as React from 'react';
+import React from 'react';
 import { composePopupClassName } from './popup-class-name';
 
 export function Popover(props: React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Root>) {

@@ -1,5 +1,5 @@
 import { Menu as MenuPrimitive } from '@base-ui/react/menu';
-import * as React from 'react';
+import React from 'react';
 import { composePopupClassName } from './popup-class-name';
 
 export function DropdownMenu(props: React.ComponentPropsWithoutRef<typeof MenuPrimitive.Root>) {

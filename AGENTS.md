@@ -13,7 +13,7 @@
 动手前先读与任务相关的文档。改动目标、边界或流程时，在同一 PR 更新对应文档；文档与代码不一致时，核实后修正文档。
 
 - 方向与架构：`docs/product.md`（目标、非目标、取舍原则、隐私边界）、`docs/architecture.md`（运行单元、包归属与依赖方向、关键决策）、`CONTEXT.md`（领域术语）。
-- 子系统设计：`docs/annotation-data-flow.md`、`docs/effect-v4-runtime.md`、`docs/ui-primitives.md`、`docs/desktop-style-ownership.md`、`docs/reading-memory-model-evaluation.md`。
+- 子系统设计：`docs/annotation-data-flow.md`、`docs/effect-v4-runtime.md`、`docs/ui-primitives.md`、`docs/renderer-state.md`、`docs/desktop-style-ownership.md`、`docs/reading-memory-model-evaluation.md`。
 - 发布与运维：`docs/release-guide.md`、`docs/reading-memory-release.md`、`docs/reading-memory-model-distribution.md`、`docs/web-performance.md`、`docs/web-backgrounds.md`。
 
 `docs/` 只保存仍然有效的目标、约束和流程。一次性的代码审查、拆分计划、spike、性能实验和单次发布清单不进入仓库；结论写进对应文档，过程留在 PR 和 commit history。

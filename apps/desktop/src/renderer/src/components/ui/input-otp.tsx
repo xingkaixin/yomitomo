@@ -1,4 +1,4 @@
-import * as React from 'react';
+import React from 'react';
 import { OTPInput, OTPInputContext, REGEXP_ONLY_DIGITS } from 'input-otp';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { DotIcon } from '@hugeicons/core-free-icons';

@@ -1,4 +1,4 @@
-import * as React from 'react';
+import React from 'react';
 import { animate, motion, useMotionValue, useTransform, type MotionValue } from 'framer-motion';
 
 import { cn } from '../../lib/utils';

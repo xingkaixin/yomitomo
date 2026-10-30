@@ -1,7 +1,7 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowDown01Icon, Tick01Icon } from '@hugeicons/core-free-icons';
 import { Select as SelectPrimitive } from '@base-ui/react/select';
-import * as React from 'react';
+import React from 'react';
 import { cn } from '../../lib/utils';
 import { composePopupClassName } from './popup-class-name';
 

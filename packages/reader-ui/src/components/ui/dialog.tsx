@@ -1,5 +1,5 @@
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
-import * as React from 'react';
+import React from 'react';
 
 export const Dialog = DialogPrimitive.Root;
 export const DialogPortal = DialogPrimitive.Portal;
