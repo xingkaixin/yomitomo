@@ -6,7 +6,8 @@ import {
   Refresh01Icon,
   Route01Icon,
 } from '@hugeicons/core-free-icons';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useReducer } from 'react';
+import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
 import { addDays, format } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import {
@@ -24,8 +25,6 @@ import type {
   AssistantExecutionRunDetail,
   AssistantExecutionRunListItem,
   AssistantExecutionSummary,
-  AssistantExecutionSummaryGroup,
-  AssistantExecutionTotals,
 } from '../../../preload';
 import { AvatarImage, PanelHeader } from './app-ui';
 import { resolveAgentPersonaAssets } from '../settings/agent-persona-assets';
@@ -55,72 +54,98 @@ type DiagnosticsFilters = {
 const allValue = '__all__';
 type Translate = ReturnType<typeof useTranslation>['t'];
 
+const noRuns: AssistantExecutionRunListItem[] = [];
+
+type TracePanelState = {
+  expandedId: string;
+  filters: DiagnosticsFilters;
+  query: AssistantExecutionQueryInput;
+};
+
+type TracePanelEvent =
+  | { type: 'filtersChanged'; filters: DiagnosticsFilters }
+  | { type: 'refreshed'; query: AssistantExecutionQueryInput }
+  | { type: 'runToggled'; runId: string };
+
+function tracePanelReducer(state: TracePanelState, event: TracePanelEvent): TracePanelState {
+  switch (event.type) {
+    case 'filtersChanged':
+      return { ...state, filters: event.filters };
+    case 'refreshed':
+      return { ...state, query: event.query };
+    case 'runToggled':
+      return { ...state, expandedId: state.expandedId === event.runId ? '' : event.runId };
+  }
+}
+
+function initialTracePanelState(): TracePanelState {
+  const filters = defaultFilters();
+  return { expandedId: '', filters, query: queryInput(filters) };
+}
+
+function assistantExecutionsQuery(query: AssistantExecutionQueryInput) {
+  return queryOptions({
+    queryKey: ['diagnostics', 'assistantExecutions', query],
+    queryFn: async () => {
+      const [runs, summary] = await Promise.all([
+        getDesktopApi().diagnostics.assistantExecutions.list(query),
+        getDesktopApi().diagnostics.assistantExecutions.summarize(query),
+      ]);
+      return { runs, summary };
+    },
+  });
+}
+
+// A loaded run detail is kept until the user retries it.
+function assistantExecutionDetailQuery(runId: string) {
+  return queryOptions({
+    queryKey: ['diagnostics', 'assistantExecutionDetail', runId],
+    queryFn: async () =>
+      (await getDesktopApi().diagnostics.assistantExecutions.getDetail(runId)) ?? null,
+    staleTime: Infinity,
+  });
+}
+
+const aiUsageQuery = queryOptions({
+  queryKey: ['diagnostics', 'aiUsage'],
+  queryFn: () => getDesktopApi().diagnostics.assistantExecutions.summarize(recentWindowQuery()),
+});
+
 export function AiTraceSettingsPanel({ agents, providers }: DiagnosticsProps) {
   const { t, i18n } = useTranslation();
-  const [filters, setFilters] = useState(defaultFilters);
-  const [runs, setRuns] = useState<AssistantExecutionRunListItem[]>([]);
-  const [runDetails, setRunDetails] = useState<Record<string, AssistantExecutionRunDetail>>({});
-  const [detailLoadingId, setDetailLoadingId] = useState('');
-  const [detailErrors, setDetailErrors] = useState<Record<string, string>>({});
-  const [summary, setSummary] = useState<AssistantExecutionSummary | null>(null);
-  const [expandedId, setExpandedId] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const queryClient = useQueryClient();
+  const [{ expandedId, filters, query }, dispatch] = useReducer(
+    tracePanelReducer,
+    undefined,
+    initialTracePanelState,
+  );
+  const executions = useQuery(assistantExecutionsQuery(query));
+  const runDetail = useQuery({
+    ...assistantExecutionDetailQuery(expandedId),
+    enabled: Boolean(expandedId),
+  });
+  const runs = executions.data?.runs ?? noRuns;
+  const summary = executions.data?.summary ?? null;
+  const busy = executions.isFetching;
+  const error = executions.error
+    ? errorMessageOrFallback(executions.error, t('diagnostics.traceReadFailed'))
+    : '';
+  const runDetailError = runDetail.error
+    ? errorMessageOrFallback(runDetail.error, t('diagnostics.traceReadFailed'))
+    : runDetail.data === null
+      ? t('diagnostics.traceReadFailed')
+      : '';
 
   const options = useDiagnosticsOptions(runs, agents, providers, t);
   const agentById = useAgentMap(agents);
 
-  useEffect(() => {
-    void refresh();
-  }, []);
-
-  async function refresh() {
-    const query = queryInput(filters);
-    setBusy(true);
-    setError('');
-    try {
-      const [nextRuns, nextSummary] = await Promise.all([
-        getDesktopApi().diagnostics.assistantExecutions.list(query),
-        getDesktopApi().diagnostics.assistantExecutions.summarize(query),
-      ]);
-      setRuns(nextRuns);
-      setRunDetails((current) => filterRunDetails(current, nextRuns));
-      setDetailErrors({});
-      setDetailLoadingId('');
-      setSummary(nextSummary);
-      if (expandedId && !nextRuns.some((run) => run.id === expandedId)) setExpandedId('');
-    } catch (nextError) {
-      setError(errorMessageOrFallback(nextError, t('diagnostics.traceReadFailed')));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function loadRunDetail(runId: string, force = false) {
-    if (!force && runDetails[runId]) return;
-    setDetailLoadingId(runId);
-    setDetailErrors((current) => ({ ...current, [runId]: '' }));
-    try {
-      const detail = await getDesktopApi().diagnostics.assistantExecutions.getDetail(runId);
-      if (!detail) throw new Error(t('diagnostics.traceReadFailed'));
-      setRunDetails((current) => ({ ...current, [runId]: detail }));
-    } catch (nextError) {
-      setDetailErrors((current) => ({
-        ...current,
-        [runId]: errorMessageOrFallback(nextError, t('diagnostics.traceReadFailed')),
-      }));
-    } finally {
-      setDetailLoadingId((current) => (current === runId ? '' : current));
-    }
-  }
-
-  async function toggleRunDetail(runId: string) {
-    if (expandedId === runId) {
-      setExpandedId('');
-      return;
-    }
-    setExpandedId(runId);
-    await loadRunDetail(runId);
+  function refresh() {
+    const nextQuery = queryInput(filters);
+    dispatch({ type: 'refreshed', query: nextQuery });
+    void queryClient.refetchQueries({
+      queryKey: assistantExecutionsQuery(nextQuery).queryKey,
+      exact: true,
+    });
   }
 
   return (
@@ -135,7 +160,7 @@ export function AiTraceSettingsPanel({ agents, providers }: DiagnosticsProps) {
         options={options}
         showModeFilters
         busy={busy}
-        onChange={setFilters}
+        onChange={(nextFilters) => dispatch({ type: 'filtersChanged', filters: nextFilters })}
         onRefresh={refresh}
       />
       <DiagnosticsSummaryCards locale={i18n.language} summary={summary} />
@@ -149,7 +174,7 @@ export function AiTraceSettingsPanel({ agents, providers }: DiagnosticsProps) {
             <button
               className="diagnostics-run-header"
               type="button"
-              onClick={() => void toggleRunDetail(run.id)}
+              onClick={() => dispatch({ type: 'runToggled', runId: run.id })}
             >
               <span className={`diagnostics-status-dot is-${run.status}`} aria-hidden="true" />
               <AgentIdentity agent={agentById.get(run.agentId)} fallbackName={agentName(run)}>
@@ -169,11 +194,11 @@ export function AiTraceSettingsPanel({ agents, providers }: DiagnosticsProps) {
             </button>
             {expandedId === run.id ? (
               <TraceRunDetails
-                busy={detailLoadingId === run.id}
-                detail={runDetails[run.id]}
-                error={detailErrors[run.id]}
+                busy={runDetail.isFetching}
+                detail={runDetail.data ?? undefined}
+                error={runDetailError}
                 run={run}
-                onRetry={() => void loadRunDetail(run.id, true)}
+                onRetry={() => void runDetail.refetch()}
               />
             ) : null}
           </section>
@@ -187,32 +212,19 @@ const AI_USAGE_WINDOW_DAYS = 70;
 
 export function AiUsagePanel({ agents }: { agents: Agent[] }) {
   const { t, i18n } = useTranslation();
-  const [overview, setOverview] = useState<AssistantExecutionTotals | null>(null);
-  const [byAgent, setByAgent] = useState<AssistantExecutionSummaryGroup[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const usage = useQuery(aiUsageQuery);
+  const byAgent = usage.data?.byAgent ?? [];
+  const busy = usage.isFetching;
+  const error = usage.error
+    ? errorMessageOrFallback(usage.error, t('diagnostics.usageReadFailed'))
+    : '';
   const agentById = useAgentMap(agents);
 
-  useEffect(() => {
-    void refresh();
-  }, []);
-
-  async function refresh() {
-    setBusy(true);
-    setError('');
-    try {
-      const summary =
-        await getDesktopApi().diagnostics.assistantExecutions.summarize(recentWindowQuery());
-      setOverview(summary.totals);
-      setByAgent(summary.byAgent);
-    } catch (nextError) {
-      setError(errorMessageOrFallback(nextError, t('diagnostics.usageReadFailed')));
-    } finally {
-      setBusy(false);
-    }
+  function refresh() {
+    void usage.refetch();
   }
 
-  const totals = overview || emptyTotals();
+  const totals = usage.data?.totals || emptyTotals();
   return (
     <div className="stats-ai-usage">
       <div className="stats-ai-usage-bar">
@@ -800,14 +812,6 @@ function dateRangeLabel(range: DateRange, t: Translate) {
   if (!range.from) return t('diagnostics.chooseTimeRange');
   if (!range.to) return format(range.from, 'yyyy/MM/dd');
   return `${format(range.from, 'yyyy/MM/dd')} - ${format(range.to, 'yyyy/MM/dd')}`;
-}
-
-function filterRunDetails(
-  details: Record<string, AssistantExecutionRunDetail>,
-  runs: AssistantExecutionRunListItem[],
-) {
-  const nextIds = new Set(runs.map((run) => run.id));
-  return Object.fromEntries(Object.entries(details).filter(([id]) => nextIds.has(id)));
 }
 
 function agentName(run: AssistantExecutionRunListItem) {

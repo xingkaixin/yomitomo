@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Agent, LlmProvider } from '@yomitomo/shared';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { AiUsagePanel, AiTraceSettingsPanel } from '../shell/app-assistant-diagnostics';
+import { renderWithQueryClient } from './query-test-utils';
 
 beforeEach(() => {
   initializeAppI18n('zh-CN');
@@ -154,7 +155,7 @@ describe('assistant diagnostics panels', () => {
   it('shows assistant execution runs and expands safe steps', async () => {
     const desktop = installDiagnosticsApi();
 
-    render(<AiTraceSettingsPanel agents={agents} providers={providers} />);
+    renderWithQueryClient(<AiTraceSettingsPanel agents={agents} providers={providers} />);
 
     expect(await screen.findByText('助手调用链路')).toBeTruthy();
     expect(await screen.findByText('selection_first')).toBeTruthy();
@@ -172,7 +173,7 @@ describe('assistant diagnostics panels', () => {
   it('shows ai usage overview and per-agent distribution', async () => {
     const desktop = installDiagnosticsApi();
 
-    render(<AiUsagePanel agents={agents} />);
+    renderWithQueryClient(<AiUsagePanel agents={agents} />);
 
     expect(await screen.findByText('按助手分布')).toBeTruthy();
     expect(await screen.findByText('周现')).toBeTruthy();
