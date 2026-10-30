@@ -6,7 +6,8 @@ import {
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
 } from '@hugeicons/core-free-icons';
-import { useEffectEvent, useMemo, useReducer, useRef, type CSSProperties } from 'react';
+import { useMemo, useReducer, useRef, type CSSProperties } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import type {
   Agent,
   Annotation,
@@ -505,7 +506,7 @@ function AnnotationDiscussionShell({
     .join(' ');
 
   const assistantThoughtWriting = addThoughtAgentRuns.some((run) => run.status === 'active');
-  const receiveThoughtDraft = useEffectEvent((draft: string) => {
+  const receiveThoughtDraft = useStableCallback((draft: string) => {
     if (
       thoughtDraftHandoffRef.current ||
       newThoughtDraft.length > 0 ||
@@ -520,7 +521,7 @@ function AnnotationDiscussionShell({
     thoughtDraftHandoffRef.current = true;
     dispatch({ type: 'thoughtDraftReceived', draft });
   });
-  const reportThoughtDraftFailure = useEffectEvent((error: unknown) => {
+  const reportThoughtDraftFailure = useStableCallback((error: unknown) => {
     console.warn('[annotation-discussion] thought draft loading failed', {
       articleId: article.id,
       annotationId: annotation.id,

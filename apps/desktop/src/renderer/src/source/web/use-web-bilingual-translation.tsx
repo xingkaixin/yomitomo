@@ -1,4 +1,5 @@
-import { useCallback, useEffectEvent, useMemo, useReducer, useRef, type RefObject } from 'react';
+import { useCallback, useMemo, useReducer, useRef, type RefObject } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import { useTranslation } from 'react-i18next';
 import type { Annotation, ArticleRecord, ArticleTranslation } from '@yomitomo/shared';
@@ -103,7 +104,7 @@ export function useWebBilingualTranslation({
   const htmlRenderFlushTimerRef = useRef<number | null>(null);
   const translationSuccessTimerRef = useRef(new Map<string, number>());
   const selectionToastAtRef = useRef(0);
-  const readAnnotations = useEffectEvent(() => annotations);
+  const readAnnotations = useStableCallback(() => annotations);
 
   const scrollTranslationBlockIntoView = useCallback(
     (blockId: string) => {
@@ -236,7 +237,7 @@ export function useWebBilingualTranslation({
   const renderedHtml = view.shownHtml;
   const isSelectionDisabled = session.visible && session.translationInProgress;
 
-  const debugContext = useEffectEvent(() => ({
+  const debugContext = useStableCallback(() => ({
     translationVisible: session.visible,
     hasTranslation: Boolean(session.translation),
     translationStatus: session.translation?.status ?? null,
@@ -245,8 +246,8 @@ export function useWebBilingualTranslation({
     pendingArticleHtml: view.frozen && view.latestHtml !== view.shownHtml,
     translationSelectionDisabled: isSelectionDisabled,
   }));
-  const readView = useEffectEvent(() => view);
-  const readTranslation = useEffectEvent(() => session.translation);
+  const readView = useStableCallback(() => view);
+  const readTranslation = useStableCallback(() => session.translation);
 
   const flushHtmlRendering = useCallback((reason: string) => {
     const { latestHtml, shownHtml } = readView();

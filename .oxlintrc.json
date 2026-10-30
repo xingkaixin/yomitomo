@@ -1,5 +1,11 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "unicorn",
+    "typescript",
+    "oxc",
+    "react"
+  ],
   "categories": {
     "correctness": "error",
     "suspicious": "error",
@@ -23,6 +29,13 @@
               "useInsertionEffect"
             ],
             "message": "Use useReducer for local state, zustand or TanStack Query for shared state, and the hooks listed in docs/renderer-state.md for effects."
+          },
+          {
+            "name": "react",
+            "importNames": [
+              "useEffectEvent"
+            ],
+            "message": "Call callbacks from ref callbacks, event handlers, timers, and subscriptions through useStableCallback. useEffectEvent belongs only in the effect primitives listed in docs/renderer-state.md."
           }
         ]
       }
@@ -48,8 +61,28 @@
         "object": "React",
         "property": "useInsertionEffect",
         "message": "Use useReducer for local state, zustand or TanStack Query for shared state, and the hooks listed in docs/renderer-state.md for effects."
+      },
+      {
+        "object": "React",
+        "property": "useEffectEvent",
+        "message": "Call callbacks from ref callbacks, event handlers, timers, and subscriptions through useStableCallback. useEffectEvent belongs only in the effect primitives listed in docs/renderer-state.md."
       }
-    ]
+    ],
+    "react/rules-of-hooks": "error",
+    "react/react-in-jsx-scope": "off",
+    "react/exhaustive-deps": "off",
+    "react/memo-dependencies": "off",
+    "react/refs": "off",
+    "react/no-object-type-as-default-prop": "off",
+    "react/immutability": "off",
+    "react/no-array-index-key": "off",
+    "react/globals": "off",
+    "react/purity": "off",
+    "react/use-memo": "off",
+    "react/preserve-manual-memoization": "off",
+    "react/no-unstable-nested-components": "off",
+    "react/set-state-in-effect": "off",
+    "react/jsx-no-constructed-context-values": "off"
   },
   "overrides": [
     {
@@ -66,9 +99,11 @@
     {
       "files": [
         "apps/desktop/src/renderer/src/shell/use-desktop-event.ts",
+        "apps/web/src/components/landing/use-stable-callback.ts",
         "packages/reader-ui/src/hooks/use-event-listener.ts",
         "packages/reader-ui/src/hooks/use-interval.ts",
-        "packages/reader-ui/src/hooks/use-mount-effect.ts"
+        "packages/reader-ui/src/hooks/use-mount-effect.ts",
+        "packages/reader-ui/src/hooks/use-stable-callback.ts"
       ],
       "rules": {
         "no-restricted-imports": "off"

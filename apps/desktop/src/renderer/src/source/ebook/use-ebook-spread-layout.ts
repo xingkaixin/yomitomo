@@ -1,11 +1,5 @@
-import {
-  createElement,
-  useCallback,
-  useEffectEvent,
-  useReducer,
-  useRef,
-  type RefObject,
-} from 'react';
+import { createElement, useCallback, useReducer, useRef, type RefObject } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { recordRendererPerformanceTiming } from '../../shell/app-renderer-performance';
 import { ebookSpreadAvailableWidth, ebookSpreadLayout } from './app-source-bookcase-ebook-utils';
 
@@ -33,7 +27,7 @@ export function useEbookSpreadLayout({
     ebookSpreadLayout({ canvasWidth: 0, contentWidth: width }),
   );
   const traceRef = useRef('');
-  const readInput = useEffectEvent(() => ({ articleId, contentWidth }));
+  const readInput = useStableCallback(() => ({ articleId, contentWidth }));
 
   const observeLayout = useCallback(
     (marker: HTMLElement | null) => {

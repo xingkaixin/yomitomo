@@ -1,4 +1,5 @@
-import { useCallback, useEffectEvent, useRef } from 'react';
+import { useCallback, useRef } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import type { ArticleReadingProgress } from '@yomitomo/shared';
 
@@ -194,7 +195,7 @@ export function useSourceReadingProgressSaver({
   onSaveArticleReadingProgress: SourceReadingProgressSave;
   shouldSave?: SourceReadingProgressSavePredicate;
 }) {
-  const readInput = useEffectEvent(() => ({
+  const readInput = useStableCallback(() => ({
     articleId,
     initialProgress,
     onSave: onSaveArticleReadingProgress,

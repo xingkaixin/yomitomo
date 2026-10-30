@@ -1,4 +1,5 @@
 import React from 'react';
+import { useStableCallback } from '../hooks/use-stable-callback';
 import { annotationOrdinalsById, highlightDiscussionLabel } from './reader-highlight-labels';
 import type { Annotation, MessageSendShortcut, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { buildHighlightSegments, highlightSegmentStyle } from '@yomitomo/core';
@@ -250,7 +251,7 @@ export function ReaderSurfaceView({
   userProfile,
 }: ReaderSurfaceViewProps) {
   const timeFormatter = React.useMemo(() => createReaderTimeFormatter(labels), [labels]);
-  const latestAnnotationActions = React.useEffectEvent(() => annotationActions);
+  const latestAnnotationActions = useStableCallback(() => annotationActions);
   const cardActions = React.useMemo(
     () => ({
       onDelete: (id: string) => latestAnnotationActions().onDeleteAnnotation(id),

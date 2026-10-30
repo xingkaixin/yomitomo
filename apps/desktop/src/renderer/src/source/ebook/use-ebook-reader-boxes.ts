@@ -1,11 +1,5 @@
-import {
-  createElement,
-  useCallback,
-  useEffectEvent,
-  useReducer,
-  useRef,
-  type RefObject,
-} from 'react';
+import { createElement, useCallback, useReducer, useRef, type RefObject } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { hashText } from '@yomitomo/shared';
@@ -87,7 +81,7 @@ export function useEbookReaderBoxes({
     resolvedAnchorCount: 0,
   });
 
-  const readInput = useEffectEvent(() => ({ annotationAgents, article, userProfile }));
+  const readInput = useStableCallback(() => ({ annotationAgents, article, userProfile }));
 
   const setEbookBoxLayerHidden = useCallback(
     (hidden: boolean) => {

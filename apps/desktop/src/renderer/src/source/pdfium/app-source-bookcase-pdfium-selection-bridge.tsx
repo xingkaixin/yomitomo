@@ -1,4 +1,5 @@
-import { useCallback, useEffectEvent, useRef } from 'react';
+import { useCallback, useRef } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import i18next from 'i18next';
 import { useDocumentState } from '@embedpdf/core/react';
 import { useSelectionCapability } from '@embedpdf/plugin-selection/react';
@@ -22,9 +23,9 @@ export function EmbedPdfSelectionBridge({
   const { provides } = useSelectionCapability();
   const ignoreSelectionClearUntilRef = useRef(0);
   const selectionGenerationRef = useRef(0);
-  const selected = useEffectEvent(onSelection);
-  const selectionRejected = useEffectEvent(onInvalidSelection);
-  const readSelectionSource = useEffectEvent(() => ({
+  const selected = useStableCallback(onSelection);
+  const selectionRejected = useStableCallback(onInvalidSelection);
+  const readSelectionSource = useStableCallback(() => ({
     document: documentState?.document,
     documentId,
     engine,

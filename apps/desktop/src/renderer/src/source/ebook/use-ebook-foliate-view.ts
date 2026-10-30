@@ -1,5 +1,6 @@
 import type React from 'react';
-import { createElement, useCallback, useEffectEvent, useMemo, useReducer, useRef } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
+import { createElement, useCallback, useMemo, useReducer, useRef } from 'react';
 import i18next from 'i18next';
 import type { ArticleReadingProgress, ArticleRecord } from '@yomitomo/shared';
 import { readingProgressRatio } from '@yomitomo/core';
@@ -187,17 +188,17 @@ export function useEbookFoliateView({
     initialProgress: article.readingProgress,
     onSaveArticleReadingProgress,
   });
-  const attachDocumentListeners = useEffectEvent(onAttachFoliateDocumentListeners);
-  const beforePageTurn = useEffectEvent(onBeforePageTurn);
-  const cleanupDocumentListeners = useEffectEvent(onCleanupFoliateDocumentListeners);
-  const scheduleEbookBoxUpdate = useEffectEvent(onScheduleEbookBoxUpdate);
-  const readLayoutInput = useEffectEvent(() => ({
+  const attachDocumentListeners = useStableCallback(onAttachFoliateDocumentListeners);
+  const beforePageTurn = useStableCallback(onBeforePageTurn);
+  const cleanupDocumentListeners = useStableCallback(onCleanupFoliateDocumentListeners);
+  const scheduleEbookBoxUpdate = useStableCallback(onScheduleEbookBoxUpdate);
+  const readLayoutInput = useStableCallback(() => ({
     articleId: article.id,
     maxColumnCount,
     readerSettings,
     readerTheme,
   }));
-  const readArticle = useEffectEvent(() => article);
+  const readArticle = useStableCallback(() => article);
   const rememberPageInfo = useCallback((nextPageInfo: FoliatePageInfo | null) => {
     pageInfoSectionIndexRef.current = nextPageInfo?.sectionIndex;
     if (nextPageInfo) lastStablePageInfoRef.current = nextPageInfo;

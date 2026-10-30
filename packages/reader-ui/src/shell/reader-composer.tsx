@@ -1,4 +1,5 @@
-import React, { useCallback, useEffectEvent, useReducer, useRef } from 'react';
+import React, { useCallback, useReducer, useRef } from 'react';
+import { useStableCallback } from '../hooks/use-stable-callback';
 import type { MessageSendShortcut, PublicAgent } from '@yomitomo/shared';
 import {
   ReaderTooltip,
@@ -111,8 +112,8 @@ export function Composer({
     .filter(Boolean)
     .join(' ');
 
-  const reportOpened = useEffectEvent(() => onOpened?.());
-  const reportClosed = useEffectEvent(() => onClosed?.());
+  const reportOpened = useStableCallback(() => onOpened?.());
+  const reportClosed = useStableCallback(() => onClosed?.());
 
   // Recreated when the composer or its phase changes, so placement and motion timing follow that commit.
   const attachRoot = useCallback(

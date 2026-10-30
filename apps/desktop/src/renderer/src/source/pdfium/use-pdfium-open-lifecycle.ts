@@ -1,4 +1,5 @@
-import { createElement, useCallback, useEffectEvent, useRef } from 'react';
+import { createElement, useCallback, useRef } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import type { PageMetric } from './pdfium-geometry';
 import {
   recordPdfOpenTiming,
@@ -39,7 +40,7 @@ export function usePdfiumOpenLifecycle({
 }) {
   const recordedPhasesRef = useRef(new Set<string>());
   const restoreMetricsWaitLoggedRef = useRef(false);
-  const readOpenInput = useEffectEvent(() => ({
+  const readOpenInput = useStableCallback(() => ({
     currentPage,
     initialPageNumber,
     loadedDocumentPageCount,

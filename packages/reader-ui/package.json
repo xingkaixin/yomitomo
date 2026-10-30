@@ -30,7 +30,8 @@
     "./use-composition-submit": "./src/use-composition-submit.ts",
     "./use-event-listener": "./src/hooks/use-event-listener.ts",
     "./use-interval": "./src/hooks/use-interval.ts",
-    "./use-mount-effect": "./src/hooks/use-mount-effect.ts"
+    "./use-mount-effect": "./src/hooks/use-mount-effect.ts",
+    "./use-stable-callback": "./src/hooks/use-stable-callback.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json --noEmit",

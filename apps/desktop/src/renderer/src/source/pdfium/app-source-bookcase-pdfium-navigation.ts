@@ -1,4 +1,5 @@
-import { createElement, useCallback, useEffectEvent } from 'react';
+import { createElement, useCallback } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { useBookmarkCapability } from '@embedpdf/plugin-bookmark/react';
 import { isPdfTextAnchor, resolveTextAnchor, type Annotation } from '@yomitomo/shared';
 import type { TocItem } from '@yomitomo/core';
@@ -37,7 +38,7 @@ export function usePdfiumNavigation({
   onSetTocItems: (items: TocItem[]) => void;
 }) {
   const { provides: bookmark } = useBookmarkCapability();
-  const readBookmarkInput = useEffectEvent(() => ({
+  const readBookmarkInput = useStableCallback(() => ({
     bookmark,
     documentId,
     onSetTocItems,
@@ -89,7 +90,7 @@ export function usePdfiumNavigation({
     },
     [annotations, onOpenAnnotation, pageCount, scroll],
   );
-  const readFocusRequest = useEffectEvent(() => ({
+  const readFocusRequest = useStableCallback(() => ({
     annotations,
     documentId,
     extractPageText,

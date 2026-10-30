@@ -1,11 +1,5 @@
-import {
-  createElement,
-  useCallback,
-  useEffectEvent,
-  useReducer,
-  useRef,
-  type RefObject,
-} from 'react';
+import { createElement, useCallback, useReducer, useRef, type RefObject } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { findTocTargets, type TocItem } from '@yomitomo/core';
 import { sourceTocOptions } from './use-web-reader-boxes';
 
@@ -28,7 +22,7 @@ export function useWebActiveTocIndex({
 }) {
   const [activeIndex, dispatch] = useReducer(activeTocIndexReducer, null);
   const itemsMeasuredRef = useRef<((items: TocItem[]) => void) | null>(null);
-  const readTocItems = useEffectEvent(() => tocItems);
+  const readTocItems = useStableCallback(() => tocItems);
 
   // Rendered html replaces the toc targets, so tracking restarts for each article body.
   const attachContent = useCallback(

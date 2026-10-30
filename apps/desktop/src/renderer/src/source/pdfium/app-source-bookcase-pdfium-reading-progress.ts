@@ -1,4 +1,5 @@
-import { createElement, useCallback, useEffectEvent, useMemo, useReducer, useRef } from 'react';
+import { createElement, useCallback, useMemo, useReducer, useRef } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { useScrollCapability } from '@embedpdf/plugin-scroll/react';
 import type { ArticleReadingProgress, ArticleRecord } from '@yomitomo/shared';
 import { recordPdfOpenTiming, type PdfOpenTrace } from './app-source-bookcase-pdfium-open-trace';
@@ -98,7 +99,7 @@ export function usePdfiumReadingProgress({
     initialProgress: article.readingProgress,
     onSaveArticleReadingProgress,
   });
-  const readScrollInput = useEffectEvent(() => ({
+  const readScrollInput = useStableCallback(() => ({
     documentId,
     openTrace,
     pageCount,

@@ -1,4 +1,5 @@
-import { useCallback, useEffectEvent, useMemo, useReducer, useRef } from 'react';
+import { useCallback, useMemo, useReducer, useRef } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import type { ResolvedAppSettings, ArticleRecord } from '@yomitomo/shared';
 import type { AnnotationDistillationCommittedEvent } from '../../../ipc-contract';
@@ -68,7 +69,7 @@ type UseReadingLibraryDistillationSyncOptions = {
 export function useReadingLibraryDistillationSync(
   options: UseReadingLibraryDistillationSyncOptions,
 ) {
-  const readOptions = useEffectEvent(() => options);
+  const readOptions = useStableCallback(() => options);
   const lifecycleRef = useRef<DistillationSyncLifecycle>({ status: 'idle', token: 0 });
   const reservedUpdatedAtRef = useRef(new Map<string, number>());
   const [animation, dispatchAnimation] = useReducer(distillationAnimation, null);

@@ -1,11 +1,5 @@
-import {
-  createElement,
-  useCallback,
-  useEffectEvent,
-  useReducer,
-  useRef,
-  type RefObject,
-} from 'react';
+import { createElement, useCallback, useReducer, useRef, type RefObject } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import type { ReaderTheme } from '@yomitomo/reader-ui/reader-theme';
 import type { ReaderSettings } from '@yomitomo/reader-ui/reader-types';
 import type { EbookBoxUpdateReason } from './ebook-annotation-layout';
@@ -141,8 +135,8 @@ export function useEbookPaginationMeasurement({
   const recordKnownPageInfo = useCallback((pageInfo: FoliatePageInfo) => {
     dispatch({ type: 'pageInfoSeen', pageInfo });
   }, []);
-  const scheduleEbookBoxUpdate = useEffectEvent(onScheduleEbookBoxUpdate);
-  const readMeasurementInput = useEffectEvent(() => ({
+  const scheduleEbookBoxUpdate = useStableCallback(onScheduleEbookBoxUpdate);
+  const readMeasurementInput = useStableCallback(() => ({
     articleId,
     onPageInfoChange,
     paginationLayoutKey,

@@ -1,4 +1,5 @@
-import { useCallback, useEffectEvent, useMemo, useReducer, useRef } from 'react';
+import { useCallback, useMemo, useReducer, useRef } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import { articleCounts } from '@yomitomo/core';
 import type {
@@ -55,7 +56,7 @@ export function useReadingLibraryNavigation({
   const contentLoadRef = useRef<ContentRef | null>(null);
   const discussionArticleIdRef = useRef<string | null>(null);
   const routeListenersRef = useRef(new Set<RouteListener>());
-  const closeDiscussions = useEffectEvent((articleId: string) => {
+  const closeDiscussions = useStableCallback((articleId: string) => {
     void onCloseArticleDiscussions?.(articleId);
   });
 

@@ -1,4 +1,5 @@
-import { useEffectEvent, useMemo, useRef, type RefObject } from 'react';
+import { useMemo, useRef, type RefObject } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import type {
   Annotation,
@@ -73,7 +74,7 @@ export function useSourceAnnotations(options: UseSourceAnnotationsOptions) {
   const mountedRef = useRef(false);
   // Saves resolve before the owner re-renders, so later operations read the saved list from here.
   const savedAnnotationsRef = useRef<{ base: Annotation[]; next: Annotation[] } | null>(null);
-  const readInput = useEffectEvent(() => ({ annotations, options }));
+  const readInput = useStableCallback(() => ({ annotations, options }));
 
   useMountEffect(() => {
     mountedRef.current = true;

@@ -1,12 +1,6 @@
 import type React from 'react';
-import {
-  useCallback,
-  useEffectEvent,
-  useRef,
-  type Dispatch,
-  type RefObject,
-  type SetStateAction,
-} from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
+import { useCallback, useRef, type Dispatch, type RefObject, type SetStateAction } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useEventListener } from '@yomitomo/reader-ui/use-event-listener';
 import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
@@ -119,7 +113,7 @@ export function useWebReaderSelection({
   userProfile,
 }: UseWebReaderSelectionInput) {
   const { t } = useTranslation();
-  const readInput = useEffectEvent(() => ({
+  const readInput = useStableCallback(() => ({
     article,
     getArticleText,
     selection,

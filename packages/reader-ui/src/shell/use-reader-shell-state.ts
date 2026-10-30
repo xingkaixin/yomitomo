@@ -1,4 +1,5 @@
 import React from 'react';
+import { useStableCallback } from '../hooks/use-stable-callback';
 import { annotationIdsAtHighlightPoint, type HighlightBox } from '@yomitomo/core';
 import type { Annotation, SelectionActionShortcuts } from '@yomitomo/shared';
 import type { AnnotationRailLayout } from '../annotations/annotation-rail-layout';
@@ -187,7 +188,7 @@ export function useReaderShellState({
     scrolledNavigation?.basis === resolvedNavigation
       ? scrolledNavigation.navigation
       : resolvedNavigation;
-  const refreshNavigation = React.useEffectEvent(() => {
+  const refreshNavigation = useStableCallback(() => {
     if (!onResolveAnnotationNavigation) return;
     dispatchScrolledNavigation({
       type: 'surfaceScrolled',

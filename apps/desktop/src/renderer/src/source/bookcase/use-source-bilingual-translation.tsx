@@ -1,4 +1,5 @@
-import { useCallback, useEffectEvent, useMemo, useSyncExternalStore } from 'react';
+import { useCallback, useMemo, useSyncExternalStore } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { useTranslation } from 'react-i18next';
 import type { ArticleTranslation, ArticleTranslationSourceBlockInput } from '@yomitomo/shared';
 import { normalizeArticleTranslationTargetLanguage } from '@yomitomo/shared';
@@ -86,7 +87,7 @@ export function useSourceBilingualTranslation<ApplyResult>({
   const hasSurface = Boolean(surface);
   const contentLabels = translationContentLabels(contentKind, t);
 
-  const revealFirstFailedTranslationSegment = useEffectEvent(
+  const revealFirstFailedTranslationSegment = useStableCallback(
     (nextTranslation: ArticleTranslation) => {
       const blockId = nextTranslation.segments.find(
         (segment) => segment.status === 'failed',
@@ -105,7 +106,7 @@ export function useSourceBilingualTranslation<ApplyResult>({
     translatingLabel: contentLabels.translating,
   });
 
-  const receiveTranslation = useEffectEvent(
+  const receiveTranslation = useStableCallback(
     (session: TranslationSession, nextTranslation: ArticleTranslation) => {
       const { scope } = session;
       if (
@@ -137,8 +138,8 @@ export function useSourceBilingualTranslation<ApplyResult>({
     translationSession.subscribe,
     translationSession.getState,
   );
-  const readSurface = useEffectEvent(() => surface);
-  const isCurrentSession = useEffectEvent(
+  const readSurface = useStableCallback(() => surface);
+  const isCurrentSession = useStableCallback(
     (session: TranslationSession) => session === translationSession,
   );
 
@@ -146,7 +147,7 @@ export function useSourceBilingualTranslation<ApplyResult>({
     receiveTranslation(translationSession, update),
   );
 
-  const requestTranslation = useEffectEvent(async (options: TranslationRequestOptions = {}) => {
+  const requestTranslation = useStableCallback(async (options: TranslationRequestOptions = {}) => {
     const session = translationSession;
     const activeSurface = surface;
     const { scope } = session;

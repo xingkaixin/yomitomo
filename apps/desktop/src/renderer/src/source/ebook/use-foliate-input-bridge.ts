@@ -1,4 +1,5 @@
-import { createElement, useCallback, useEffectEvent, useRef, type RefObject } from 'react';
+import { createElement, useCallback, useRef, type RefObject } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import { isContinuousTextSelectionMouseEvent } from '../bookcase/source-reader-selection-events';
 import {
@@ -40,13 +41,13 @@ export function useFoliateInputBridge({
   const suppressedSelectionDocumentsRef = useRef(new WeakSet<Document>());
   const listenerCleanupsRef = useRef<Array<() => void>>([]);
   const selectionTimersRef = useRef(new Set<number>());
-  const foliateClicked = useEffectEvent(onFoliateClick);
-  const foliatePageTurnClicked = useEffectEvent(onFoliatePageTurnClick);
-  const foliatePageTurnKeyPressed = useEffectEvent(onFoliatePageTurnKey);
-  const foliatePointerDown = useEffectEvent(onFoliatePointerDown);
-  const foliateSelected = useEffectEvent(onFoliateSelection);
-  const foliateSelectionShortcutPressed = useEffectEvent(onFoliateSelectionShortcut);
-  const readReaderStateStatus = useEffectEvent(() => readerStateStatus);
+  const foliateClicked = useStableCallback(onFoliateClick);
+  const foliatePageTurnClicked = useStableCallback(onFoliatePageTurnClick);
+  const foliatePageTurnKeyPressed = useStableCallback(onFoliatePageTurnKey);
+  const foliatePointerDown = useStableCallback(onFoliatePointerDown);
+  const foliateSelected = useStableCallback(onFoliateSelection);
+  const foliateSelectionShortcutPressed = useStableCallback(onFoliateSelectionShortcut);
+  const readReaderStateStatus = useStableCallback(() => readerStateStatus);
 
   const setClickPagingHoverDirection = useCallback(
     (direction: EbookClickPagingDirection | null) => {

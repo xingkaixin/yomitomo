@@ -1,4 +1,5 @@
-import { useCallback, useEffectEvent, useMemo, useReducer, useRef } from 'react';
+import { useCallback, useMemo, useReducer, useRef } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { useTranslation } from 'react-i18next';
 import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import {
@@ -55,7 +56,7 @@ export function useEbookBilingualTranslation({
   const activeDocumentCleanupRef = useRef<() => void>(() => {});
   const [activeSource, dispatch] = useReducer(activeEbookTranslationSourceReducer, null);
   const supported = article.ebook.metadata.format === 'epub';
-  const layoutChanged = useEffectEvent(onLayoutChange);
+  const layoutChanged = useStableCallback(onLayoutChange);
 
   const detachFoliateDocument = useCallback(() => {
     activeDocumentCleanupRef.current();
@@ -93,7 +94,7 @@ export function useEbookBilingualTranslation({
     targetLanguage,
   });
   const { retryBlock, surfaceOutput } = session;
-  const readSurfaceOutput = useEffectEvent(() => surfaceOutput);
+  const readSurfaceOutput = useStableCallback(() => surfaceOutput);
 
   const attachFoliateDocument = useCallback(
     (view: FoliateViewElement | null) => {
