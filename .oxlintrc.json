@@ -67,6 +67,7 @@
       "files": [
         "apps/desktop/src/renderer/src/shell/use-desktop-event.ts",
         "packages/reader-ui/src/hooks/use-event-listener.ts",
+        "packages/reader-ui/src/hooks/use-interval.ts",
         "packages/reader-ui/src/hooks/use-mount-effect.ts"
       ],
       "rules": {
