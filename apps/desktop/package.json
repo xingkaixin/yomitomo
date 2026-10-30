@@ -99,6 +99,7 @@
     "undici": "8.12.3",
     "vite": "catalog:",
     "vitest": "catalog:",
-    "zod": "4.6.5"
+    "zod": "4.6.5",
+    "zustand": "^5.0.16"
   }
 }

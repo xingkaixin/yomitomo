@@ -2,7 +2,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { LockKeyIcon } from '@hugeicons/core-free-icons';
 import { lazy, Suspense, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import type { AppSettingsPatch } from '@yomitomo/shared';
+import type { AppSettingsPatch, DesktopStore } from '@yomitomo/shared';
 import { normalizeUiLanguage } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
 
@@ -11,7 +11,13 @@ import { AvatarImage } from './shell/app-ui';
 import { useAppAgentActions } from './shell/app-agent-actions';
 import { useAppArticleStoreActions } from './shell/app-article-store-actions';
 import { useAppCollectionStoreActions } from './shell/app-library-collection-store-actions';
-import { useDesktopStoreState } from './shell/app-desktop-store-state';
+import { bindDesktopStoreEvents } from './shell/app-desktop-event-bindings';
+import {
+  createDesktopStore,
+  DesktopStoreProvider,
+  useDesktopStore,
+  useDesktopStoreApi,
+} from './shell/app-desktop-store';
 import { useSecondaryModulePreload } from './shell/app-secondary-module-preload';
 import { applySavedSettings } from './settings/app-settings-application';
 import { recordStartupTiming } from './shell/app-renderer-performance';
@@ -51,54 +57,52 @@ const rendererModuleLoadedAt = performance.now();
 function App() {
   const appUpdateState = useAppUpdateState();
   useSecondaryModulePreload();
-  const storeState = useDesktopStoreState();
-  const readyStore = storeState.status === 'ready' ? storeState.store : null;
+  const { applyStore, refreshStore } = useDesktopStoreApi().getState();
+  const loadedStore = useDesktopStore((state) => state.store);
+  const loadError = useDesktopStore((state) => state.loadError);
+  const storeStatus = loadError ? 'error' : loadedStore ? 'ready' : 'loading';
+  const readyStore = loadError ? null : loadedStore;
   const appLockEnabled = Boolean(readyStore?.settings.appLockEnabled);
   const appLocked = Boolean(appLockEnabled && readyStore?.settings.appLockLocked);
   const session = useAppSession({
     appLocked,
-    applyStore: storeState.applyStore,
+    applyStore,
     articles: readyStore?.articles || [],
     developerModeEnabled: Boolean(readyStore?.settings.developerModeEnabled),
     onboardingCompletedAt: readyStore?.settings.onboardingCompletedAt,
     readStatsArticles: () => getDesktopApi().article.readStatsSummaries(),
-    storeStatus: storeState.status,
+    storeStatus,
   });
   const theme = useReaderThemeController({
     appLocked,
-    applyStore: storeState.applyStore,
+    applyStore,
     settings: readyStore?.settings || null,
   });
 
-  if (storeState.status === 'error') {
-    return <StoreLoadErrorScreen error={storeState.error} onRetry={storeState.refreshStore} />;
-  }
-  if (storeState.status === 'loading') return <StartupShell />;
+  if (loadError) return <StoreLoadErrorScreen error={loadError} onRetry={refreshStore} />;
+  if (!readyStore) return <StartupShell />;
 
   return (
-    <ReadyApp
-      appUpdateState={appUpdateState}
-      session={session}
-      storeState={storeState}
-      theme={theme}
-    />
+    <ReadyApp appUpdateState={appUpdateState} session={session} store={readyStore} theme={theme} />
   );
 }
 
 function ReadyApp({
   appUpdateState,
   session,
-  storeState,
+  store,
   theme,
 }: {
   appUpdateState: ReturnType<typeof useAppUpdateState>;
   session: ReturnType<typeof useAppSession>;
-  storeState: Extract<ReturnType<typeof useDesktopStoreState>, { status: 'ready' }>;
+  store: DesktopStore;
   theme: ReturnType<typeof useReaderThemeController>;
 }) {
   const { t } = useTranslation();
-  const { store, settingsSyncSnapshot, storeRef, applyStore, applySettingsPatch, articleStore } =
-    storeState;
+  const { getStore, applyStore, applySettingsPatch, articleStore } =
+    useDesktopStoreApi().getState();
+  const settingsSyncSnapshot = useDesktopStore((state) => state.settingsSyncSnapshot);
+  const libraryCatalogRevision = useDesktopStore((state) => state.libraryCatalogRevision);
   const appLockEnabled = store.settings.appLockEnabled;
   const appLocked = appLockEnabled && store.settings.appLockLocked;
   const toastTopOffset = useHeaderToastOffset(session.readerOpen);
@@ -118,7 +122,7 @@ function ReadyApp({
     removeCollectionMember,
     renameCollection,
     setLibraryPin,
-  } = useAppCollectionStoreActions({ storeRef, applyStore });
+  } = useAppCollectionStoreActions({ getStore, applyStore });
   const settingsDrafts = useSettingsDrafts({
     store,
     settingsSyncSnapshot,
@@ -247,7 +251,7 @@ function ReadyApp({
                   articleActions={articleActions}
                   articleStore={articleStore}
                   articles={store.articles}
-                  catalogRevision={storeState.libraryCatalogRevision}
+                  catalogRevision={libraryCatalogRevision}
                   collectionMembers={store.collectionMembers}
                   collections={store.collections}
                   messageSendShortcut={store.settings.messageSendShortcut}
@@ -273,7 +277,7 @@ function ReadyApp({
               {session.surface === 'reading-memory' ? (
                 <ReadingMemory
                   collections={store.collections}
-                  catalogRevision={storeState.libraryCatalogRevision}
+                  catalogRevision={libraryCatalogRevision}
                   onOpenEvidenceSource={session.actions.openEvidenceSource}
                 />
               ) : null}
@@ -381,17 +385,25 @@ const AnnotationSedimentationWindowApp = lazy(() =>
   })),
 );
 
-const rendererWindowKind = new URLSearchParams(window.location.search).get('window');
-const RootApp =
-  rendererWindowKind === 'annotation-discussion'
-    ? AnnotationDiscussionWindowApp
-    : rendererWindowKind === 'annotation-sedimentation'
-      ? AnnotationSedimentationWindowApp
-      : App;
+function createMainWindowStore() {
+  const desktopStore = createDesktopStore();
+  void desktopStore.getState().refreshStore();
+  const unbindDesktopStoreEvents = bindDesktopStoreEvents(desktopStore);
+  import.meta.hot?.dispose(unbindDesktopStoreEvents);
+  return desktopStore;
+}
 
-createRoot(document.getElementById('root')!).render(
-  <Suspense fallback={null}>
-    <RootApp />
-  </Suspense>,
-);
+const rendererWindowKind = new URLSearchParams(window.location.search).get('window');
+const rootApp =
+  rendererWindowKind === 'annotation-discussion' ? (
+    <AnnotationDiscussionWindowApp />
+  ) : rendererWindowKind === 'annotation-sedimentation' ? (
+    <AnnotationSedimentationWindowApp />
+  ) : (
+    <DesktopStoreProvider store={createMainWindowStore()}>
+      <App />
+    </DesktopStoreProvider>
+  );
+
+createRoot(document.getElementById('root')!).render(<Suspense fallback={null}>{rootApp}</Suspense>);
 recordStartupTiming('react.render_scheduled');

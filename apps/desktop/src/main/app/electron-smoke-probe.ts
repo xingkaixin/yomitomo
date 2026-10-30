@@ -49,7 +49,11 @@ async function runElectronSmokeProbe(browserWindow: BrowserWindow) {
           const deadline = Date.now() + 10000;
           const check = () => {
             const root = document.getElementById('root');
-            if (root && (root.childElementCount > 0 || root.textContent.trim().length > 0)) {
+            // A fresh profile shows onboarding in a portal outside #root.
+            const portal = document.querySelector('[data-base-ui-portal]');
+            const hasContent = (element) =>
+              element && (element.childElementCount > 0 || element.textContent.trim().length > 0);
+            if (hasContent(root) || hasContent(portal)) {
               resolve(true);
               return;
             }
