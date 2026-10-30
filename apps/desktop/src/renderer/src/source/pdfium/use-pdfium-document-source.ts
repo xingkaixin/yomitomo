@@ -1,12 +1,5 @@
-import {
-  createElement,
-  use,
-  useCallback,
-  useEffectEvent,
-  useMemo,
-  useReducer,
-  useRef,
-} from 'react';
+import { createElement, use, useCallback, useMemo, useReducer, useRef } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { usePdfiumEngine } from '@embedpdf/engines/react';
 import devPdfiumWasmUrl from '@embedpdf/pdfium/pdfium.wasm?url';
 import type { ArticleRecord } from '@yomitomo/shared';
@@ -61,7 +54,7 @@ export function usePdfiumDocumentSource(
     buffer: null,
     loadError: '',
   });
-  const readEngineState = useEffectEvent(() => ({ engine, engineError, isLoading }));
+  const readEngineState = useStableCallback(() => ({ engine, engineError, isLoading }));
 
   useMountEffect(() => {
     let cancelled = false;

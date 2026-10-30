@@ -7,7 +7,7 @@ import {
   SparklesIcon,
   Wrench01Icon,
 } from '@hugeicons/core-free-icons';
-import { useEffectEvent } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { useStore } from 'zustand';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
@@ -70,7 +70,7 @@ export function UpdateReleaseDialog({
   });
 
   // B：每次启动只判定一次。无论是否弹窗，都把 lastSeenVersion 推进到当前版本，避免下次误判。
-  const handleCurrentVersion = useEffectEvent((version: string) => {
+  const handleCurrentVersion = useStableCallback((version: string) => {
     if (!version) return;
     const lastSeenVersion = store.settings.lastSeenVersion;
     if (lastSeenVersion !== version) {

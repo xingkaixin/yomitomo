@@ -1,4 +1,5 @@
-import { useEffectEvent, useReducer, useRef } from 'react';
+import { useReducer, useRef } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import { providerPresets } from '@yomitomo/shared';
 import type { ProviderDraft } from './app-settings';
@@ -15,7 +16,7 @@ export function useProviderModelFetch(
     modelFetchReducer,
     initialModelFetchState,
   );
-  const readLatestDraft = useEffectEvent(() => draft);
+  const readLatestDraft = useStableCallback(() => draft);
   const modelRequestRef = useRef(0);
   useMountEffect(() => () => {
     modelRequestRef.current += 1;

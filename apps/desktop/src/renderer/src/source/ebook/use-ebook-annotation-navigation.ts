@@ -1,4 +1,5 @@
-import { createElement, useCallback, useEffectEvent } from 'react';
+import { createElement, useCallback } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import type { Annotation } from '@yomitomo/shared';
 import { createEpubTextAnchor, type HighlightBox } from '@yomitomo/core';
 import { foliateRangeHighlightBoxes, type EbookBoxUpdateReason } from './ebook-annotation-layout';
@@ -228,7 +229,7 @@ export function useEbookAnnotationNavigation({
     [boxes, goToAnnotation, openAnnotation],
   );
 
-  const readFocusRequest = useEffectEvent(() => ({
+  const readFocusRequest = useStableCallback(() => ({
     annotationCount: annotations.length,
     articleId: article.id,
     boxCount: boxes.length,

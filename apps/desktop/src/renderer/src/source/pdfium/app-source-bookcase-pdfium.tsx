@@ -6,7 +6,8 @@ import {
   SearchAddIcon,
 } from '@hugeicons/core-free-icons';
 import type React from 'react';
-import { useCallback, useEffectEvent, useMemo, useReducer } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
+import { useCallback, useMemo, useReducer } from 'react';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { EmbedPDF, useDocumentState } from '@embedpdf/core/react';
@@ -806,7 +807,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     },
     userProfile,
   });
-  const readAssistantTextInput = useEffectEvent(() => ({
+  const readAssistantTextInput = useStableCallback(() => ({
     articleId: article.id,
     ensurePdfTextDocument,
     loadedDocument,
@@ -847,7 +848,10 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
       if (page) scroll?.scrollToPage({ pageNumber: page.pageIndex + 1, behavior: 'smooth' });
     })().catch(() => undefined);
   });
-  const readSearchTextInput = useEffectEvent(() => ({ ensurePdfTextDocument, setStatusMessage }));
+  const readSearchTextInput = useStableCallback(() => ({
+    ensurePdfTextDocument,
+    setStatusMessage,
+  }));
   const prepareSearchText = useCallback((marker: HTMLElement | null) => {
     if (!marker) return;
     const input = readSearchTextInput();

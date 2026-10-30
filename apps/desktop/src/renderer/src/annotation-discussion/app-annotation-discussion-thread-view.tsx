@@ -1,6 +1,7 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowDown01Icon, BubbleChatIcon, SentIcon } from '@hugeicons/core-free-icons';
-import { useCallback, useEffectEvent, useMemo, useReducer, useRef, type RefObject } from 'react';
+import { useCallback, useMemo, useReducer, useRef, type RefObject } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { useTranslation } from 'react-i18next';
 import type { PublicAgent, UserProfile } from '@yomitomo/shared';
 import { getMentionQuery } from '@yomitomo/core';
@@ -103,9 +104,9 @@ export function DiscussionThreadView({
     'annotation-discussion-messages',
     layoutMode === 'left' ? 'is-left-aligned' : 'is-split',
   ].join(' ');
-  const readScrollThread = useEffectEvent(() => ({ hasReplies, threadId: thread.root.id }));
+  const readScrollThread = useStableCallback(() => ({ hasReplies, threadId: thread.root.id }));
 
-  const followThreadContent = useEffectEvent(() => {
+  const followThreadContent = useStableCallback(() => {
     const openedThreadKey = `${thread.root.id}:${hasReplies}`;
     const threadOpened = openedThreadKeyRef.current !== openedThreadKey;
     openedThreadKeyRef.current = openedThreadKey;

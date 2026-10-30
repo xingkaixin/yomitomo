@@ -1,4 +1,5 @@
-import { createElement, useCallback, useEffectEvent, type RefObject } from 'react';
+import { createElement, useCallback, type RefObject } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import type { Annotation } from '@yomitomo/shared';
 import { recordRendererPerformanceTiming } from '../../shell/app-renderer-performance';
 
@@ -22,7 +23,7 @@ export function useWebAnnotationFocus({
   scrollRef: RefObject<HTMLElement | null>;
   scrollToAnnotation: (annotationId: string) => boolean;
 }) {
-  const readInput = useEffectEvent(() => ({
+  const readInput = useStableCallback(() => ({
     articleId,
     boxCount,
     focusAnnotationId,

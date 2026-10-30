@@ -1,7 +1,8 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowLeft01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons';
 import type React from 'react';
-import { useCallback, useEffectEvent, useMemo, useRef } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
+import { useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Annotation, ReaderQuestionContext } from '@yomitomo/shared';
 import {
@@ -70,7 +71,7 @@ function EbookReader({
   const { t } = useTranslation();
   const pageTurnTraceRef = useRef<EbookPageTurnTrace | null>(null);
   // Box layout is created after the foliate view it measures, so earlier hooks reach it lazily.
-  const boxUpdateRequested = useEffectEvent((reason: EbookBoxUpdateReason) =>
+  const boxUpdateRequested = useStableCallback((reason: EbookBoxUpdateReason) =>
     readerBoxes.scheduleEbookBoxUpdate(reason),
   );
   const scheduleEbookBoxUpdate = useCallback((reason: EbookBoxUpdateReason) => {
@@ -195,7 +196,7 @@ function EbookReader({
     [annotationAgents, articleAnnotations, userProfile],
   );
   const appliedAnnotationSignatureRef = useRef(articleAnnotationSignature);
-  const readArticleAnnotationSignature = useEffectEvent(() => articleAnnotationSignature);
+  const readArticleAnnotationSignature = useStableCallback(() => articleAnnotationSignature);
   const applyAnnotationSignature = useCallback(
     (marker: HTMLElement | null) => {
       const signature = readArticleAnnotationSignature();

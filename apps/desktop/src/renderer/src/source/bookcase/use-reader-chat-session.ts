@@ -1,4 +1,5 @@
-import { useEffectEvent, useMemo, useReducer, useRef } from 'react';
+import { useMemo, useReducer, useRef } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import type {
   ArticleRecord,
   PublicAgent,
@@ -151,7 +152,7 @@ export function useReaderChatSession({
       ? override.value
       : article.readerChatState;
   const submittingRef = useRef<string | undefined>(undefined);
-  const readChat = useEffectEvent(() => ({
+  const readChat = useStableCallback(() => ({
     articleId: article.id,
     base: article.readerChatState,
     state,

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useStableCallback } from '../hooks/use-stable-callback';
 import type { HighlightBox } from '@yomitomo/core';
 import type { Annotation } from '@yomitomo/shared';
 import { buildAnnotationRailItems, type AnnotationRailLayout } from './annotation-rail-layout';
@@ -156,7 +157,7 @@ export function useReaderAnnotationRail({
   const noteResizeObserverRef = React.useRef<ResizeObserver | null>(null);
   const pendingNoteHeightsRef = React.useRef(new Map<string, number>());
   const noteHeightFrameRef = React.useRef(0);
-  const notifyAnnotationLayoutChange = React.useEffectEvent(() => {
+  const notifyAnnotationLayoutChange = useStableCallback(() => {
     onAnnotationLayoutChange?.();
   });
 

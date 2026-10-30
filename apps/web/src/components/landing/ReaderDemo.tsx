@@ -1,13 +1,7 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { BubbleChatIcon, Cancel01Icon } from '@hugeicons/core-free-icons';
-import {
-  useCallback,
-  useEffectEvent,
-  useMemo,
-  useReducer,
-  useRef,
-  useSyncExternalStore,
-} from 'react';
+import { useCallback, useMemo, useReducer, useRef, useSyncExternalStore } from 'react';
+import { useStableCallback } from './use-stable-callback';
 import { createPortal } from 'react-dom';
 import {
   getLandingContent,
@@ -96,7 +90,7 @@ function DiscussionModal({
     }, closeMs);
   }
 
-  const onEscape = useEffectEvent(requestClose);
+  const onEscape = useStableCallback(requestClose);
 
   const attachOverlay = useCallback((overlay: HTMLDivElement) => {
     const background = Array.from(document.body.children).filter(

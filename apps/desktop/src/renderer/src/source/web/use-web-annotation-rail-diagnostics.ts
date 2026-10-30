@@ -1,4 +1,5 @@
-import { createElement, useCallback, useEffectEvent, useRef, type RefObject } from 'react';
+import { createElement, useCallback, useRef, type RefObject } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import type { HighlightBox } from '@yomitomo/core';
 import { recordRendererPerformanceTiming } from '../../shell/app-renderer-performance';
 import {
@@ -38,7 +39,7 @@ export function useWebAnnotationRailDiagnostics({
 }: UseWebAnnotationRailDiagnosticsInput) {
   const lastLogAtRef = useRef(0);
   const scheduleRef = useRef<(() => void) | null>(null);
-  const readInput = useEffectEvent(() => ({ articleId, boxes, selectedAnnotationId }));
+  const readInput = useStableCallback(() => ({ articleId, boxes, selectedAnnotationId }));
 
   const attachRail = useCallback(
     (marker: HTMLElement | null) => {

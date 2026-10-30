@@ -1,4 +1,5 @@
-import { createElement, useCallback, useEffectEvent, useMemo, useRef, type RefObject } from 'react';
+import { createElement, useCallback, useMemo, useRef, type RefObject } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import type { ArticleReadingProgress } from '@yomitomo/shared';
 import {
   useSourceReadingProgressSaver,
@@ -26,7 +27,7 @@ export function useWebReadingProgress({
     [],
   );
   const restoredRef = useRef(false);
-  const readInitialProgress = useEffectEvent(() => initialProgress);
+  const readInitialProgress = useStableCallback(() => initialProgress);
   const shouldSave = useCallback(
     (next: ArticleReadingProgress, saved: ArticleReadingProgress | null) =>
       next.kind === 'scroll' &&

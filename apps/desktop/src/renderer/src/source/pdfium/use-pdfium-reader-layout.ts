@@ -1,12 +1,5 @@
-import {
-  createElement,
-  useCallback,
-  useEffectEvent,
-  useMemo,
-  useReducer,
-  useRef,
-  type RefObject,
-} from 'react';
+import { createElement, useCallback, useMemo, useReducer, useRef, type RefObject } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import { computeAutoPdfZoom, pdfiumAnnotationRailLayout } from './pdfium-annotation-layout';
 import {
@@ -125,7 +118,7 @@ export function usePdfiumReaderLayout({
   const appliedAutoZoomRef = useRef<number | null>(null);
   // EmbedPDF recreates its controls object during render, so markers read its latest method
   // without treating that object identity as a zoom trigger.
-  const zoomRequested = useEffectEvent((scale: number) => requestZoom?.(scale));
+  const zoomRequested = useStableCallback((scale: number) => requestZoom?.(scale));
 
   const annotationRailLayout = useMemo(
     () =>
@@ -141,7 +134,7 @@ export function usePdfiumReaderLayout({
   const autoZoomScale = autoZoomEnabled
     ? computeAutoPdfZoom({ viewportWidth, baseWidth: pdfBaseWidth })
     : null;
-  const readAutoZoomScale = useEffectEvent(() => autoZoomScale);
+  const readAutoZoomScale = useStableCallback(() => autoZoomScale);
 
   const applyAutoZoom = useCallback((marker: HTMLElement | null) => {
     const scale = readAutoZoomScale();
@@ -161,7 +154,7 @@ export function usePdfiumReaderLayout({
     debugPdfLayout('debug-enabled', { articleId });
   });
 
-  const readDebugInput = useEffectEvent(() => ({
+  const readDebugInput = useStableCallback(() => ({
     annotationCount,
     annotationRailLayout,
     layoutPageWidth,

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useStableCallback } from '../hooks/use-stable-callback';
 import type { SelectionActionShortcuts } from '@yomitomo/shared';
 import type {
   HighlightChoice,
@@ -85,7 +86,7 @@ export function useReaderShellInteractions({
   readerChatOpen = false,
   shouldPreserveActiveAnnotationOnPointerDown,
 }: UseReaderShellInteractionsOptions): ReaderShellInteractions {
-  const clearActiveAnnotation = React.useEffectEvent(() => {
+  const clearActiveAnnotation = useStableCallback(() => {
     onCloseHighlightChoice();
     onClearActiveAnnotation();
   });

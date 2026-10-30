@@ -1,4 +1,5 @@
-import { createElement, useCallback, useEffectEvent, useReducer, useRef } from 'react';
+import { createElement, useCallback, useReducer, useRef } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import type { PdfEngine } from '@embedpdf/models';
 import type { useDocumentState } from '@embedpdf/core/react';
@@ -155,7 +156,7 @@ export function usePdfiumDocumentText({
     [document, engine],
   );
 
-  const readPrefetchInput = useEffectEvent(() => ({
+  const readPrefetchInput = useStableCallback(() => ({
     currentPageIndex,
     document,
     extractPdfiumPageText,

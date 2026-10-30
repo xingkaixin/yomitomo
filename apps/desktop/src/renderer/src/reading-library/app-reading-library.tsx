@@ -1,6 +1,7 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowDown01Icon, BubbleChatIcon } from '@hugeicons/core-free-icons';
-import React, { useCallback, useEffectEvent, useMemo, useReducer, useRef } from 'react';
+import React, { useCallback, useMemo, useReducer, useRef } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
@@ -254,7 +255,7 @@ export function ReadingLibrary({
   );
 
   const rehydrateRequestRef = useRef(0);
-  const rehydrateCurrentArticle = useEffectEvent(() => {
+  const rehydrateCurrentArticle = useStableCallback(() => {
     rehydrateRequestRef.current += 1;
     const request = rehydrateRequestRef.current;
     const currentArticle = navigation.actions.getCurrentArticle();
@@ -273,14 +274,14 @@ export function ReadingLibrary({
         if (request === rehydrateRequestRef.current) reportArticleLoadError();
       });
   });
-  const notifyReadingModeChange = useEffectEvent((open: boolean) => {
+  const notifyReadingModeChange = useStableCallback((open: boolean) => {
     onReadingModeChange?.(open);
   });
-  const showLibraryHome = useEffectEvent(() => {
+  const showLibraryHome = useStableCallback(() => {
     sourceJumpRef.current = null;
     navigation.actions.resetLibrary();
   });
-  const receiveWeReadState = useEffectEvent((state: WeReadState) => {
+  const receiveWeReadState = useStableCallback((state: WeReadState) => {
     void weRead.receiveState(state);
   });
 

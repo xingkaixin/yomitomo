@@ -1,11 +1,5 @@
-import {
-  useEffectEvent,
-  useReducer,
-  useRef,
-  type MouseEvent,
-  type PointerEvent,
-  type RefObject,
-} from 'react';
+import { useReducer, useRef, type MouseEvent, type PointerEvent, type RefObject } from 'react';
+import { useStableCallback } from '../hooks/use-stable-callback';
 import { useMountEffect } from '../hooks/use-mount-effect';
 
 type SearchClearElements = {
@@ -79,7 +73,7 @@ export function useSearchClearDissolveCore({
     clearingText: '',
   });
   const mirrorText = formatMirrorText(clearing ? clearingText : query);
-  const queryRefilled = useEffectEvent(() => query.length > 0);
+  const queryRefilled = useStableCallback(() => query.length > 0);
 
   useMountEffect(() => () => cancelClearFrame(frameRef));
 

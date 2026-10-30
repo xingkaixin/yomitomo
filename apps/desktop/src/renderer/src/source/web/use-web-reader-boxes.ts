@@ -1,11 +1,5 @@
-import {
-  createElement,
-  useCallback,
-  useEffectEvent,
-  useReducer,
-  useRef,
-  type RefObject,
-} from 'react';
+import { createElement, useCallback, useReducer, useRef, type RefObject } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import type { Annotation, ArticleRecord, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { resolveTextAnchor } from '@yomitomo/shared';
 import {
@@ -73,7 +67,7 @@ export function useWebReaderBoxes({
   const [result, dispatch] = useReducer(webReaderBoxesReducer, emptyWebReaderBoxes);
   const lastResultRef = useRef(emptyResultSignature);
   const measureRef = useRef<((force?: boolean) => void) | null>(null);
-  const readInput = useEffectEvent(() => ({
+  const readInput = useStableCallback(() => ({
     annotationAgents,
     annotations,
     article,

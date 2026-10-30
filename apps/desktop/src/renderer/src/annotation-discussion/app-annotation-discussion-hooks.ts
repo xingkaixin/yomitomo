@@ -1,8 +1,9 @@
-import { useCallback, useEffectEvent } from 'react';
+import { useCallback } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 
 /** Returns a ref callback that reports whether the element is at most `threshold` wide. */
 export function useElementWidthBelowRef(threshold: number, onChange: (isBelow: boolean) => void) {
-  const reportWidth = useEffectEvent((width: number) => {
+  const reportWidth = useStableCallback((width: number) => {
     if (width > 0) onChange(width <= threshold);
   });
 
