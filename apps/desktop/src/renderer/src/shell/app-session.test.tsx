@@ -9,6 +9,7 @@ import { emptyStore } from '../settings/app-settings';
 import { createReaderThemeStore } from '../theme/use-reader-theme-controller';
 import { bindMainWindowEvents } from './app-desktop-event-bindings';
 import { createDesktopStore } from './app-desktop-store';
+import { createAppQueryClient } from './app-query-client';
 import {
   AppSessionStoreProvider,
   appNavigationReducer,
@@ -69,8 +70,9 @@ beforeEach(() => {
 });
 
 describe('app session store', () => {
-  it('closes transient surfaces when the app locks', async () => {
-    const { desktopStore, sessionStore } = startMainWindow();
+  it('closes transient surfaces and drops cached reads when the app locks', async () => {
+    const { desktopStore, queryClient, sessionStore } = startMainWindow();
+    queryClient.setQueryData(['weread', 'settings'], { configured: true });
     const { actions } = sessionStore.getState();
     await actions.openStats();
     actions.openProfileDialog();
@@ -87,6 +89,7 @@ describe('app session store', () => {
       statsNavigationStartedAt: undefined,
       themeDialogOpen: false,
     });
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(0);
   });
 
   it('routes menu commands to their surface or desktop action', () => {
@@ -217,8 +220,9 @@ function startMainWindow(store: DesktopStore = emptyStore) {
   desktopStore.getState().applyStore(store);
   const sessionStore = createAppSessionStore(desktopStore);
   const themeStore = createReaderThemeStore({ applyStore: desktopStore.getState().applyStore });
-  onTestFinished(bindMainWindowEvents({ desktopStore, sessionStore, themeStore }));
-  return { desktopStore, sessionStore };
+  const queryClient = createAppQueryClient();
+  onTestFinished(bindMainWindowEvents({ desktopStore, queryClient, sessionStore, themeStore }));
+  return { desktopStore, queryClient, sessionStore };
 }
 
 function renderSession(sessionStore: AppSessionStoreApi, input: Partial<typeof sessionInput> = {}) {
