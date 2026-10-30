@@ -8,9 +8,8 @@ oxlint enforces this with `no-restricted-imports` and `no-restricted-properties`
 in the root `.oxlintrc.json`. Import React as a default import; a namespace
 import (`import * as React`) fails `no-restricted-imports`.
 
-Test files are exempt. Files that still use these hooks are listed in the
-exemption override of `.oxlintrc.json`. A migration removes its files from that
-list; new code never adds to it.
+Test files are exempt. Production code has no other exemptions; effects go
+through the primitives in the effect allowlist below.
 
 ## State ownership
 
