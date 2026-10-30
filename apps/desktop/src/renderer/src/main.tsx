@@ -11,7 +11,11 @@ import { AvatarImage } from './shell/app-ui';
 import { useAppAgentActions } from './shell/app-agent-actions';
 import { useAppArticleStoreActions } from './shell/app-article-store-actions';
 import { useAppCollectionStoreActions } from './shell/app-library-collection-store-actions';
-import { bindDesktopStoreEvents, bindMainWindowEvents } from './shell/app-desktop-event-bindings';
+import {
+  bindDesktopStoreEvents,
+  bindMainWindowEvents,
+  bindSettingsDraftEvents,
+} from './shell/app-desktop-event-bindings';
 import {
   createDesktopStore,
   DesktopStoreProvider,
@@ -34,7 +38,11 @@ import {
   LibrarySkeleton,
   StartupShell,
 } from './shell/app-shell-chrome';
-import { useSettingsDrafts } from './settings/app-settings-drafts';
+import {
+  createSettingsDraftStore,
+  SettingsDraftStoreProvider,
+  useSettingsDrafts,
+} from './settings/app-settings-drafts';
 import { SettingsNavButton } from './settings/app-settings-nav-button';
 import { getDesktopApi } from './shell/app-desktop-api';
 import { StoreLoadErrorScreen } from './shell/app-store-load-error';
@@ -116,7 +124,6 @@ function ReadyApp({
   const { t } = useTranslation();
   const { getStore, applyStore, applySettingsPatch, articleStore } =
     useDesktopStoreApi().getState();
-  const settingsSyncSnapshot = useDesktopStore((state) => state.settingsSyncSnapshot);
   const libraryCatalogRevision = useDesktopStore((state) => state.libraryCatalogRevision);
   const appLockEnabled = store.settings.appLockEnabled;
   const appLocked = appLockEnabled && store.settings.appLockLocked;
@@ -133,12 +140,7 @@ function ReadyApp({
     renameCollection,
     setLibraryPin,
   } = useAppCollectionStoreActions({ getStore, applyStore });
-  const settingsDrafts = useSettingsDrafts({
-    store,
-    settingsSyncSnapshot,
-    applyStore,
-    applySettingsPatch,
-  });
+  const settingsDrafts = useSettingsDrafts();
   const { agentSaveError, agentSaveState, toggleAgent } = useAppAgentActions({
     applySettingsPatch,
   });
@@ -400,10 +402,13 @@ function createMainWindow() {
   const desktopStore = createDesktopStore();
   const sessionStore = createAppSessionStore(desktopStore);
   const themeStore = createReaderThemeStore({ applyStore: desktopStore.getState().applyStore });
-  void desktopStore.getState().refreshStore();
+  const settingsDraftStore = createSettingsDraftStore(desktopStore);
   const unbindDesktopStoreEvents = bindDesktopStoreEvents(desktopStore);
   const unbindMainWindowEvents = bindMainWindowEvents({ desktopStore, sessionStore, themeStore });
+  const unbindSettingsDraftEvents = bindSettingsDraftEvents(desktopStore, settingsDraftStore);
+  void desktopStore.getState().refreshStore();
   import.meta.hot?.dispose(() => {
+    unbindSettingsDraftEvents();
     unbindMainWindowEvents();
     unbindDesktopStoreEvents();
   });
@@ -411,7 +416,9 @@ function createMainWindow() {
     <DesktopStoreProvider store={desktopStore}>
       <AppSessionStoreProvider store={sessionStore}>
         <ReaderThemeStoreProvider store={themeStore}>
-          <App />
+          <SettingsDraftStoreProvider store={settingsDraftStore}>
+            <App />
+          </SettingsDraftStoreProvider>
         </ReaderThemeStoreProvider>
       </AppSessionStoreProvider>
     </DesktopStoreProvider>

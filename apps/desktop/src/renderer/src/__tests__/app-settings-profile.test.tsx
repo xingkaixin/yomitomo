@@ -7,7 +7,7 @@ import { UserProfileSettingsDialog as UserProfileSettingsDialogComponent } from 
 import { defaultUser, type UserDraft } from '../settings/app-settings';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import type { SaveState } from '../shell/app-types';
-import type { SaveableDraft } from '../settings/use-saveable-draft';
+import type { SaveableDraft } from '../settings/settings-draft-saver';
 
 vi.mock('../sound/app-sound-effects', () => ({
   playAppSoundEffect: vi.fn(),

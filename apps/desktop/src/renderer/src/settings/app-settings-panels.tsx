@@ -48,7 +48,7 @@ import {
   SettingsRow,
   SettingsSegmented,
 } from './app-settings-kit';
-import type { SaveableDraft } from './use-saveable-draft';
+import type { SaveableDraft } from './settings-draft-saver';
 import { useSaveStatus } from './use-save-status';
 import { getDesktopApi } from '../shell/app-desktop-api';
 

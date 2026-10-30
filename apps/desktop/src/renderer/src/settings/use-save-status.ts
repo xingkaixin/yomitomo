@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useReducer, useRef } from 'react';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import type { SaveState } from '../shell/app-types';
+import { idleSaveStatus, type SaveStatusState } from './settings-draft-saver';
 
 type SaveStatusOptions = {
   errorMessage: (error: unknown) => string;
@@ -25,8 +27,10 @@ export function useSaveStatus({
   errorMessage,
   resetDelayMs = 1200,
 }: SaveStatusOptions): SaveStatus {
-  const [saveState, setSaveState] = useState<SaveState>('idle');
-  const [saveError, setSaveError] = useState('');
+  const [{ saveError, saveState }, setStatus] = useReducer(
+    (_status: SaveStatusState, next: SaveStatusState) => next,
+    idleSaveStatus,
+  );
   const idleTimerRef = useRef<number | undefined>(undefined);
   const activeSaveRef = useRef<symbol | undefined>(undefined);
 
@@ -39,8 +43,7 @@ export function useSaveStatus({
   const reset = useCallback(() => {
     activeSaveRef.current = undefined;
     clearIdleTimer();
-    setSaveState('idle');
-    setSaveError('');
+    setStatus(idleSaveStatus);
   }, [clearIdleTimer]);
 
   const run = useCallback(
@@ -48,19 +51,18 @@ export function useSaveStatus({
       const request = Symbol();
       activeSaveRef.current = request;
       clearIdleTimer();
-      setSaveState('saving');
-      setSaveError('');
+      setStatus({ saveError: '', saveState: 'saving' });
       try {
         const result = await task();
         if (activeSaveRef.current !== request) return undefined;
         const shouldMarkSaved = options?.onSaved?.(result) !== false;
         if (!shouldMarkSaved) {
-          setSaveState('idle');
+          setStatus(idleSaveStatus);
           return result;
         }
-        setSaveState('saved');
+        setStatus({ saveError: '', saveState: 'saved' });
         idleTimerRef.current = window.setTimeout(() => {
-          setSaveState('idle');
+          setStatus(idleSaveStatus);
           idleTimerRef.current = undefined;
         }, resetDelayMs);
         return result;
@@ -68,20 +70,17 @@ export function useSaveStatus({
         if (activeSaveRef.current !== request) return undefined;
         const message = errorMessage(error);
         options?.onError?.(error, message);
-        setSaveError(message);
-        setSaveState('error');
+        setStatus({ saveError: message, saveState: 'error' });
         return undefined;
       }
     },
     [clearIdleTimer, errorMessage, resetDelayMs],
   );
 
-  useEffect(() => {
-    return () => {
-      activeSaveRef.current = undefined;
-      clearIdleTimer();
-    };
-  }, [clearIdleTimer]);
+  useMountEffect(() => () => {
+    activeSaveRef.current = undefined;
+    clearIdleTimer();
+  });
 
   return useMemo(() => ({ reset, run, saveError, saveState }), [reset, run, saveError, saveState]);
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import type { ReaderSettings } from '@yomitomo/reader-ui/reader-types';
 import {
   clampNumber,
@@ -13,12 +13,30 @@ const DESKTOP_READER_SETTINGS_KEY = 'yomitomo.desktop.readerSettings';
 const DESKTOP_READER_SETTINGS_EVENT = 'yomitomo:desktop-reader-settings';
 const DESKTOP_READER_BACKGROUNDS_BY_TONE_KEY = 'yomitomo.desktop.readerBackgroundsByTone';
 
+let cachedReaderSettings: { raw: string | null; settings: ReaderSettings } = {
+  raw: null,
+  settings: defaultReaderSettings,
+};
+
 export function readDesktopReaderSettings(): ReaderSettings {
   if (typeof window === 'undefined') return defaultReaderSettings;
 
+  let raw: string | null;
   try {
-    const raw = window.localStorage.getItem(DESKTOP_READER_SETTINGS_KEY);
-    if (!raw) return defaultReaderSettings;
+    raw = window.localStorage.getItem(DESKTOP_READER_SETTINGS_KEY);
+  } catch {
+    return defaultReaderSettings;
+  }
+  // useSyncExternalStore needs the same object until the stored value changes.
+  if (raw !== cachedReaderSettings.raw) {
+    cachedReaderSettings = { raw, settings: parseDesktopReaderSettings(raw) };
+  }
+  return cachedReaderSettings.settings;
+}
+
+function parseDesktopReaderSettings(raw: string | null): ReaderSettings {
+  if (!raw) return defaultReaderSettings;
+  try {
     return normalizeDesktopReaderSettings(JSON.parse(raw) as Partial<ReaderSettings>);
   } catch {
     return defaultReaderSettings;
@@ -105,17 +123,11 @@ export function subscribeDesktopReaderSettings(listener: (settings: ReaderSettin
 }
 
 export function useDesktopReaderSettings() {
-  const [readerSettings, setReaderSettings] = useState<ReaderSettings>(() =>
-    readDesktopReaderSettings(),
+  const readerSettings = useSyncExternalStore(
+    subscribeDesktopReaderSettings,
+    readDesktopReaderSettings,
   );
-
-  useEffect(() => subscribeDesktopReaderSettings(setReaderSettings), []);
-
-  const updateReaderSettings = useCallback((nextSettings: ReaderSettings) => {
-    writeDesktopReaderSettings(nextSettings);
-  }, []);
-
-  return [readerSettings, updateReaderSettings] as const;
+  return [readerSettings, writeDesktopReaderSettings] as const;
 }
 
 function defaultReaderBackgroundsByTone(): Record<ReaderBackgroundTone, string> {

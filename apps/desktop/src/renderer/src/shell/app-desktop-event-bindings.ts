@@ -2,6 +2,7 @@ import { normalizeUiLanguage, type DesktopStore } from '@yomitomo/shared';
 import { isAppLockSettingsLocked } from '../../../app-store';
 import { changeAppI18nLanguage } from '../i18n/app-i18n';
 import { writeCachedUiLanguage } from '../i18n/app-language-cache';
+import type { SettingsDraftStoreApi } from '../settings/app-settings-drafts';
 import type { ReaderThemeStoreApi } from '../theme/use-reader-theme-controller';
 import type { DesktopStoreApi } from './app-desktop-store';
 import type { AppSessionStoreApi } from './app-session';
@@ -57,6 +58,24 @@ export function bindMainWindowEvents(stores: {
     unsubscribeStore();
     unsubscribeMenuCommands();
   };
+}
+
+export function bindSettingsDraftEvents(
+  desktopStore: DesktopStoreApi,
+  draftStore: SettingsDraftStoreApi,
+) {
+  return desktopStore.subscribe((state, previousState) => {
+    const { resetFromSnapshot, syncProviders } = draftStore.getState().actions;
+    if (
+      state.settingsSyncSnapshot &&
+      state.settingsSyncSnapshot !== previousState.settingsSyncSnapshot
+    ) {
+      resetFromSnapshot(state.settingsSyncSnapshot);
+    }
+    const providers = state.store?.providers ?? [];
+    const previousProviders = previousState.store?.providers ?? [];
+    if (providers !== previousProviders) syncProviders(providers, previousProviders);
+  });
 }
 
 function isStoreLocked(store: DesktopStore | null | undefined) {
