@@ -54,8 +54,9 @@ the session store from `apps/desktop/src/renderer/src/shell/app-session.tsx`, th
 theme store from `apps/desktop/src/renderer/src/theme/use-reader-theme-controller.tsx`,
 and the settings draft store from `apps/desktop/src/renderer/src/settings/app-settings-drafts.tsx`.
 Push subscriptions and reactions between these stores, such as resetting the
-session on lock, syncing theme and UI language from settings, or resetting
-settings drafts when a sync snapshot arrives, live in
+session on lock, syncing theme and UI language from settings, opening the update
+dialog when update status changes, or resetting settings drafts when a sync
+snapshot arrives, live in
 `apps/desktop/src/renderer/src/shell/app-desktop-event-bindings.ts`.
 
 Annotation windows create their store and bind its subscriptions in

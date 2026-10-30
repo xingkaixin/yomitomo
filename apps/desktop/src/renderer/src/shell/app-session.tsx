@@ -3,6 +3,7 @@ import { createStore, useStore, type StoreApi } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import type { ArticleSummaryRecord } from '@yomitomo/shared';
 import type { AppMenuCommand } from '../../../app-menu-types';
+import type { AppUpdateState } from '../../../app-update-types';
 import type { WeReadState } from '../../../ipc-contract';
 import type { SettingsSectionKey } from '../settings/app-settings-panels';
 import type { DesktopStoreApi } from './app-desktop-store';
@@ -15,6 +16,12 @@ import {
   recordStatsTiming,
   rendererPerformanceElapsedMs,
 } from './app-renderer-performance';
+import {
+  initialUpdateDialogState,
+  updateDialogReducer,
+  type UpdateDialogEvent,
+  type UpdateDialogState,
+} from './app-update-dialog-state';
 import {
   createLibraryQuerySessionState,
   libraryQuerySessionReducer,
@@ -106,6 +113,7 @@ export type AppSessionActions = {
   closeProfileDialog: () => void;
   completeOnboarding: () => void;
   dispatchLibraryQuery: (event: LibraryQuerySessionEvent) => void;
+  dispatchUpdateDialog: (event: UpdateDialogEvent) => void;
   openAgents: () => void;
   openEvidenceSource: (target: ReadingEvidenceSourceTarget) => void;
   openLibrary: () => void;
@@ -117,7 +125,7 @@ export type AppSessionActions = {
   openStats: () => Promise<void>;
   refreshStatsArticles: () => void;
   registerLibraryView: (view: LibraryView) => () => void;
-  requestUpdateDialog: () => void;
+  requestUpdateDialog: (updateState: AppUpdateState | null) => void;
   resetForLock: () => void;
   runMenuCommand: (command: AppMenuCommand) => void;
   setLibraryImportBusy: (busy: boolean) => void;
@@ -139,7 +147,7 @@ export type AppSessionState = {
   profileDialogOpen: boolean;
   profileDialogSourceRect: DialogSourceRect | undefined;
   themeDialogOpen: boolean;
-  updateDialogRequest: number;
+  updateDialog: UpdateDialogState;
   weReadLibrarySyncing: boolean;
   actions: AppSessionActions;
 };
@@ -156,6 +164,11 @@ export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSession
     let libraryView: LibraryView | null = null;
     const navigate = (event: AppNavigationEvent) =>
       set((state) => ({ navigation: appNavigationReducer(state.navigation, event) }));
+    const dispatchUpdateDialog = (event: UpdateDialogEvent) =>
+      set((state) => {
+        const updateDialog = updateDialogReducer(state.updateDialog, event);
+        return updateDialog === state.updateDialog ? state : { updateDialog };
+      });
     const storeArticles = () => desktopStore.getState().store?.articles ?? [];
     const developerModeEnabled = () =>
       Boolean(desktopStore.getState().store?.settings.developerModeEnabled);
@@ -273,7 +286,7 @@ export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSession
       profileDialogOpen: false,
       profileDialogSourceRect: undefined,
       themeDialogOpen: false,
-      updateDialogRequest: 0,
+      updateDialog: initialUpdateDialogState,
       weReadLibrarySyncing: false,
       actions: {
         changeSettingsSection,
@@ -287,6 +300,7 @@ export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSession
             const libraryQuery = libraryQuerySessionReducer(state.libraryQuery, event);
             return libraryQuery === state.libraryQuery ? state : { libraryQuery };
           }),
+        dispatchUpdateDialog,
         openAgents: () => {
           recordStartupTiming('secondary_modules.navigation', {
             key: 'agents',
@@ -320,9 +334,9 @@ export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSession
             if (libraryView === view) libraryView = null;
           };
         },
-        requestUpdateDialog: () => {
+        requestUpdateDialog: (updateState) => {
           openSettingsSection('about');
-          set((state) => ({ updateDialogRequest: state.updateDialogRequest + 1 }));
+          dispatchUpdateDialog({ type: 'requested', updateState });
         },
         resetForLock: () => {
           navigate({ type: 'reset-transients' });
@@ -333,6 +347,7 @@ export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSession
             statsNavigationStartedAt: undefined,
             themeDialogOpen: false,
           });
+          dispatchUpdateDialog({ type: 'closed' });
         },
         runMenuCommand,
         setLibraryImportBusy: (busy) => {
@@ -379,8 +394,12 @@ export function useAppSession(input: {
   const state = useStore(
     sessionStore,
     useShallow(
-      ({ actions: _actions, libraryQuery: _libraryQuery, ...sessionState }: AppSessionState) =>
-        sessionState,
+      ({
+        actions: _actions,
+        libraryQuery: _libraryQuery,
+        updateDialog: _updateDialog,
+        ...sessionState
+      }: AppSessionState) => sessionState,
     ),
   );
   const { navigation } = state;
@@ -400,7 +419,6 @@ export function useAppSession(input: {
     statsNavigationStartedAt: state.statsNavigationStartedAt,
     surface: navigation.surface,
     themeDialogOpen: state.themeDialogOpen,
-    updateDialogRequest: state.updateDialogRequest,
     actions: sessionStore.getState().actions,
   };
 }

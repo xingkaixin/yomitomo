@@ -7,7 +7,8 @@ import {
   SparklesIcon,
   Wrench01Icon,
 } from '@hugeicons/core-free-icons';
-import { useEffectEvent, useReducer } from 'react';
+import { useEffectEvent } from 'react';
+import { useStore } from 'zustand';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import './app-update-dialog.css';
@@ -26,78 +27,11 @@ import coverDarkerImage from '../assets/update/updater-cover-darker.webp';
 import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogOverlay, DialogPortal } from '../components/ui/dialog';
 import { getDesktopApi } from './app-desktop-api';
+import { useAppSessionStoreApi } from './app-session';
 
 type ReleaseDialogScene = 'before-update' | 'after-update';
 
 type DownloadStatus = 'idle' | 'downloading' | 'error' | 'downloaded';
-
-type ActiveReleaseDialog =
-  | { scene: 'after-update'; version: string; highlights: ReleaseNoteHighlight[] }
-  | { scene: 'before-update'; version: string };
-
-type ReleaseDialogState = {
-  dialog: ActiveReleaseDialog | null;
-  handledDownloadedKey: string | null;
-  handledManualKey: string | null;
-  observedOpenRequest: number;
-  observedUpdateState: AppUpdateState | null;
-};
-
-type ReleaseDialogEvent =
-  | { type: 'afterUpdateOpened'; version: string; highlights: ReleaseNoteHighlight[] }
-  | { type: 'closed' }
-  | { type: 'openRequested'; openRequest: number; updateState: AppUpdateState | null }
-  | { type: 'updateStateChanged'; updateState: AppUpdateState | null };
-
-const initialReleaseDialogState: ReleaseDialogState = {
-  dialog: null,
-  handledDownloadedKey: null,
-  handledManualKey: null,
-  observedOpenRequest: 0,
-  observedUpdateState: null,
-};
-
-function releaseDialogReducer(
-  state: ReleaseDialogState,
-  event: ReleaseDialogEvent,
-): ReleaseDialogState {
-  switch (event.type) {
-    case 'afterUpdateOpened':
-      return {
-        ...state,
-        dialog: { scene: 'after-update', version: event.version, highlights: event.highlights },
-      };
-    case 'closed':
-      return { ...state, dialog: null };
-    case 'openRequested': {
-      const next = { ...state, observedOpenRequest: event.openRequest };
-      const update = event.updateState;
-      if (event.openRequest === 0 || !update?.availableVersion) return next;
-      if (!canOpenUpdateDialog(update.status)) return next;
-      return { ...next, dialog: { scene: 'before-update', version: update.availableVersion } };
-    }
-    case 'updateStateChanged': {
-      const next = { ...state, observedUpdateState: event.updateState };
-      const update = event.updateState;
-      if (!update?.availableVersion) return next;
-      // checkedAt 去重：同一次命中只弹一次，再次检查会重新弹。
-      const handledKey = update.checkedAt ?? update.availableVersion;
-      const beforeUpdate = { scene: 'before-update', version: update.availableVersion } as const;
-      if (update.status === 'available' && update.trigger === 'manual') {
-        if (state.handledManualKey === handledKey) return next;
-        return { ...next, dialog: beforeUpdate, handledManualKey: handledKey };
-      }
-      if (update.status !== 'downloaded' || state.handledDownloadedKey === handledKey) return next;
-      const showingVersion =
-        state.dialog?.scene === 'before-update' && state.dialog.version === update.availableVersion;
-      return {
-        ...next,
-        dialog: showingVersion ? state.dialog : beforeUpdate,
-        handledDownloadedKey: handledKey,
-      };
-    }
-  }
-}
 
 // 版本号和下载决策是必需 UI，远程文案是可选补充：先开弹窗，文案到了再补。
 function remoteReleaseNoteQuery(version: string, language: UiLanguage) {
@@ -114,32 +48,21 @@ const TYPE_ICON: Record<ReleaseNoteHighlightType, IconSvgElement> = {
   fixed: Wrench01Icon,
 };
 
-// 容器：负责 A/B 触发时机与文案数据获取，渲染纯展示的 View。
-// 共享状态来自父级 useAppUpdateState，弹窗不再单独订阅 onUpdateStatus，避免重复订阅与状态割裂。
+// 容器：负责更新后弹窗的判定与文案数据获取，渲染纯展示的 View。更新前弹窗的开关由 session store 决定。
 // B（更新后）：启动比对 lastSeenVersion 与当前版本，命中则读本地文案并弹窗，随后推进 lastSeenVersion。
-// A（更新前）：手动检查命中即弹；自动检查命中只点亮常驻入口，用户从 header 主动请求时再弹（openRequest）。
 export function UpdateReleaseDialog({
   store,
   updateState,
-  openRequest,
   onSaveSettings,
 }: {
   store: DesktopStore;
   updateState: AppUpdateState | null;
-  openRequest: number;
   onSaveSettings: (settings: AppSettingsPatch) => Promise<DesktopStore>;
 }) {
   const { i18n } = useTranslation();
-  const [state, dispatch] = useReducer(releaseDialogReducer, initialReleaseDialogState);
-  // The parent owns updateState and openRequest; noting their changes during render keeps the
-  // open decision in the reducer instead of an effect.
-  if (state.observedUpdateState !== updateState) {
-    dispatch({ type: 'updateStateChanged', updateState });
-  }
-  if (state.observedOpenRequest !== openRequest) {
-    dispatch({ type: 'openRequested', openRequest, updateState });
-  }
-  const { dialog } = state;
+  const sessionStore = useAppSessionStoreApi();
+  const dialog = useStore(sessionStore, (state) => state.updateDialog.dialog);
+  const { dispatchUpdateDialog } = sessionStore.getState().actions;
   const beforeUpdateVersion = dialog?.scene === 'before-update' ? dialog.version : '';
   const { data: remoteNote } = useQuery({
     ...remoteReleaseNoteQuery(beforeUpdateVersion, normalizeUiLanguage(i18n.language)),
@@ -161,7 +84,7 @@ export function UpdateReleaseDialog({
         language: normalizeUiLanguage(i18n.language),
       })
       .then((note) => {
-        dispatch({
+        dispatchUpdateDialog({
           type: 'afterUpdateOpened',
           version,
           highlights: note ? selectHighlights(note, 'after-update') : [],
@@ -195,7 +118,7 @@ export function UpdateReleaseDialog({
 
   const handlePrimary = () => {
     if (dialog.scene === 'after-update') {
-      dispatch({ type: 'closed' });
+      dispatchUpdateDialog({ type: 'closed' });
       return;
     }
     // 下载完成停留在「重启安装」态；点击触发安装。其余情况触发下载，下载进度在弹窗内推进，不关闭弹窗。
@@ -223,7 +146,7 @@ export function UpdateReleaseDialog({
       downloadStatus={downloadStatus}
       downloadProgress={updateState?.progress}
       onPrimary={handlePrimary}
-      onSecondary={() => dispatch({ type: 'closed' })}
+      onSecondary={() => dispatchUpdateDialog({ type: 'closed' })}
     />
   );
 }
@@ -407,15 +330,6 @@ export function UpdateReleaseDialogView({
 function ReleaseConfetti() {
   useMountEffect(fireReleaseConfetti);
   return null;
-}
-
-function canOpenUpdateDialog(status: AppUpdateState['status']) {
-  return (
-    status === 'available' ||
-    status === 'downloading' ||
-    status === 'download-error' ||
-    status === 'downloaded'
-  );
 }
 
 function normalizedProgress(progress: AppUpdateProgress | undefined) {
