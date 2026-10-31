@@ -58,6 +58,15 @@ The inventory includes both root and subpath imports.
 
 ## Runtime semantics
 
+The `4.0.3` to `4.1.0` source comparison covers every production namespace above and the
+internal runtime implementations. The API inventory remains compatible; `Effect.fn` only gains
+`{ self }` overloads. A cause with both a defect and a typed failure now counts as a defect:
+`Effect.catch` no longer recovers it, and exit finalizers and concurrent `Effect.forEach` convert
+the failures to defects. `Effect.mapError` maps every failure and keeps other reasons.
+`Effect.repeat` no longer preserves mixed failure/interruption causes; repository repeats have
+no typed errors. Semaphore newcomers no longer overtake queued requests that fit, and
+`Effect.forkIn` never starts work in a closed Scope. Decoding of the Schemas used here is unchanged.
+
 The `4.0.0` to `4.0.3` source comparison covers every production namespace above and the
 internal runtime implementations. The API inventory and signatures remain compatible.
 `Queue.take` now delivers dequeued results in the same fiber step to avoid message loss on
