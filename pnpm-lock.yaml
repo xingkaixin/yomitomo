@@ -180,8 +180,8 @@ catalogs:
       specifier: 1.4.0
       version: 1.4.0
     '@effect/vitest':
-      specifier: 4.0.3
-      version: 4.0.3
+      specifier: 4.1.0
+      version: 4.1.0
     '@hugeicons/core-free-icons':
       specifier: ^4.4.0
       version: 4.4.0
@@ -210,8 +210,8 @@ catalogs:
       specifier: ^19.3.0
       version: 19.3.0
     effect:
-      specifier: 4.0.3
-      version: 4.0.3
+      specifier: 4.1.0
+      version: 4.1.0
     jsdom:
       specifier: ^30.1.3
       version: 30.1.3
@@ -302,7 +302,7 @@ importers:
         version: 2.1.2
       effect:
         specifier: 'catalog:'
-        version: 4.0.3
+        version: 4.1.0
       jsdom:
         specifier: 'catalog:'
         version: 30.1.3(@noble/hashes@1.8.0)
@@ -327,7 +327,7 @@ importers:
         version: 1.4.0(@aws-sdk/credential-provider-node@3.972.86)(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@8.12.3)(ws@8.21.0)(zod@4.6.7)
       '@effect/vitest':
         specifier: 'catalog:'
-        version: 4.0.3(effect@4.0.3)(vitest@5.0.5(@opentelemetry/api@1.9.1)(@types/node@26.6.6)(jsdom@30.1.3(@noble/hashes@1.8.0))(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.1)))
+        version: 4.1.0(effect@4.1.0)(vitest@5.0.5(@opentelemetry/api@1.9.1)(@types/node@26.6.6)(jsdom@30.1.3(@noble/hashes@1.8.0))(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.1)))
       '@electron/rebuild':
         specifier: ^4.2.1
         version: 4.2.1(supports-color@10.2.2)
@@ -623,7 +623,7 @@ importers:
         version: link:../shared
       effect:
         specifier: 'catalog:'
-        version: 4.0.3
+        version: 4.1.0
     devDependencies:
       '@huggingface/transformers':
         specifier: 'catalog:'
@@ -651,7 +651,7 @@ importers:
         version: 3.4.17
       effect:
         specifier: 'catalog:'
-        version: 4.0.3
+        version: 4.1.0
     devDependencies:
       typescript:
         specifier: 'catalog:'
@@ -1273,10 +1273,10 @@ packages:
     resolution: {integrity: sha512-MLIfowwUYIY65jSjMX82paZOrX/NTvLk6D08h+3Jq42a99RzUOewzuCR0zOlPul3D6UBfddat76VT6LvsHEs1w==}
     engines: {node: '>=22.19.0'}
 
-  '@effect/vitest@4.0.3':
-    resolution: {integrity: sha512-jsIkpssf0CFuOeycW2sQZkWx0qzlsRv+JIkzd9qQpoFDcHC9JZFSdIjEBAhsdp20pDy4Y/b2vT/ew7wXZxvEig==}
+  '@effect/vitest@4.1.0':
+    resolution: {integrity: sha512-+APF69oTYgGj5WCewowk1/udepH74xz4ONyH7d+UfcK0SrF3osiSwsWEyODUpJvWd6MIk5F5PcFJiE4evMuG2A==}
     peerDependencies:
-      effect: ^4.0.3
+      effect: ^4.1.0
       vitest: '>=5.0.0 <6.0.0'
 
   '@electron-internal/extract-zip@1.0.5':
@@ -3832,8 +3832,8 @@ packages:
   ecdsa-sig-formatter@1.0.11:
     resolution: {integrity: sha512-nagl3RYrbNv6kQkeJIpt6NJZy8twLB/2vtz6yN9Z4vRKHN4/QZJIEbqohALSgwKdnksuY3k5Addp5lg8sVoVcQ==}
 
-  effect@4.0.3:
-    resolution: {integrity: sha512-LoWn/Uwwx0JjHSDmBAAahx8sB+klzM6vsZovnbYowBNw6B4QScJLRLBByO61plvNiycx7HPN8FnsWUCu0eXW5w==}
+  effect@4.1.0:
+    resolution: {integrity: sha512-lGx2MJJyrXA8RZb2UpQ/0Nkb5Utaimby7oD92+18noBxLPE85IFOvptdzau8dvcxAOwfwHo9iqapbKeFzqQM/Q==}
 
   ejs@3.1.10:
     resolution: {integrity: sha512-UeJmFfOrAQS8OJWPZ4qtgHyWExa088/MtK5UEyoJGFH67cDEXkZSviOiKRCZ4Xij0zxI3JECgYs3oKx+AizQBA==}
@@ -7098,9 +7098,9 @@ snapshots:
 
   '@earendil-works/pi-telemetry@1.4.0': {}
 
-  '@effect/vitest@4.0.3(effect@4.0.3)(vitest@5.0.5(@opentelemetry/api@1.9.1)(@types/node@26.6.6)(jsdom@30.1.3(@noble/hashes@1.8.0))(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.1)))':
+  '@effect/vitest@4.1.0(effect@4.1.0)(vitest@5.0.5(@opentelemetry/api@1.9.1)(@types/node@26.6.6)(jsdom@30.1.3(@noble/hashes@1.8.0))(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.1)))':
     dependencies:
-      effect: 4.0.3
+      effect: 4.1.0
       vitest: 5.0.5(@opentelemetry/api@1.9.1)(@types/node@26.6.6)(jsdom@30.1.3(@noble/hashes@1.8.0))(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.1))
 
   '@electron-internal/extract-zip@1.0.5': {}
@@ -9315,7 +9315,7 @@ snapshots:
     dependencies:
       safe-buffer: 5.1.2
 
-  effect@4.0.3: {}
+  effect@4.1.0: {}
 
   ejs@3.1.10:
     dependencies:
