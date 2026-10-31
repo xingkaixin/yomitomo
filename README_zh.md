@@ -50,7 +50,7 @@ assets             项目静态资源
 - 包管理器：`pnpm@12.x`
 - 构建编排：Turbo
 - 语言：TypeScript，ESM
-- 桌面端：Electron 44、electron-vite、React 19、Vite 8、Tailwind CSS 4
+- 桌面端：Electron 45、electron-vite、React 19、Vite 8、Tailwind CSS 4
 - 官网：Astro 7、React 19、Vite 8、Tailwind CSS 4
 - 本地数据库：SQLite、better-sqlite3、Drizzle ORM
 - 测试：Vitest

@@ -50,7 +50,7 @@ assets             Project static assets
 - Package manager: `pnpm@12.x`
 - Build orchestration: Turbo
 - Language: TypeScript, ESM
-- Desktop: Electron 44, electron-vite, React 19, Vite 8, Tailwind CSS 4
+- Desktop: Electron 45, electron-vite, React 19, Vite 8, Tailwind CSS 4
 - Website: Astro 7, React 19, Vite 8, Tailwind CSS 4
 - Local database: SQLite, better-sqlite3, Drizzle ORM
 - Tests: Vitest
