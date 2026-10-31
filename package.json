@@ -39,10 +39,10 @@
     "@testing-library/dom": "catalog:",
     "@testing-library/react": "catalog:",
     "jsdom": "catalog:",
-    "oxfmt": "^0.72.0",
-    "oxlint": "^1.87.0",
-    "oxlint-tsgolint": "^7.0.2004",
-    "turbo": "^2.11.7",
+    "oxfmt": "^0.75.0",
+    "oxlint": "^1.90.0",
+    "oxlint-tsgolint": "^7.0.2005",
+    "turbo": "^2.11.10",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

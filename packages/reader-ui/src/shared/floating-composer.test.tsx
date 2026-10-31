@@ -46,7 +46,7 @@ function renderComposer(value: string, onScroll = vi.fn()) {
   return {
     ...view,
     onScroll,
-    textarea: screen.getByLabelText('正文') as HTMLTextAreaElement,
+    textarea: screen.getByLabelText<HTMLTextAreaElement>('正文'),
   };
 }
 

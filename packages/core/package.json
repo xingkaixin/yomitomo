@@ -22,8 +22,8 @@
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
     "@yomitomo/shared": "workspace:*",
-    "defuddle": "^0.19.5",
-    "dompurify": "^3.4.16",
+    "defuddle": "^0.19.6",
+    "dompurify": "^3.4.17",
     "effect": "catalog:"
   },
   "devDependencies": {
