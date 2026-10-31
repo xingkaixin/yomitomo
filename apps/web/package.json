@@ -16,17 +16,17 @@
     "deploy:cf": "pnpm build && cf-wrangler build && cf deploy --prebuilt"
   },
   "dependencies": {
-    "@astrojs/react": "^7.0.1",
-    "@astrojs/starlight": "^0.42.6",
+    "@astrojs/react": "^7.1.2",
+    "@astrojs/starlight": "^0.42.7",
     "@base-ui/react": "catalog:",
     "@hugeicons/core-free-icons": "catalog:",
     "@hugeicons/react": "catalog:",
-    "astro": "^7.3.8",
+    "astro": "^7.4.4",
     "react": "catalog:",
     "react-dom": "catalog:"
   },
   "devDependencies": {
-    "@astrojs/check": "^0.9.10",
+    "@astrojs/check": "^0.9.12",
     "@tailwindcss/postcss": "catalog:",
     "@testing-library/dom": "catalog:",
     "@testing-library/react": "catalog:",

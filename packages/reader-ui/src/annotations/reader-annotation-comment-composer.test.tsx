@@ -58,7 +58,7 @@ function renderComposer(onSubmit = vi.fn(), agents = testAgents()) {
     container: view.container,
     onSubmit,
     scrollIntoView,
-    textarea: screen.getByLabelText('留言内容') as HTMLTextAreaElement,
+    textarea: screen.getByLabelText<HTMLTextAreaElement>('留言内容'),
   };
 }
 

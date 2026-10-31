@@ -84,6 +84,8 @@ function createAssistantSessions(host: AssistantSessionHost) {
       models,
       registry,
       settings: { ...settings, extensions: [reading] },
+      // pi-durable attributes requests to pi by default, which would add headers for some providers.
+      identity: { attribution: null },
       onReport: reportHarnessError,
     }),
     onOpen: (articleId, harness) => runtime.resume(articleId, harness),
