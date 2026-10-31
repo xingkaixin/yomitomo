@@ -45,6 +45,7 @@ export const RunContextDoc = defineDoc<AssistantRunContext>({
     visibleRanges: null,
     toolCalls: 0,
   }),
+  checkpointWhen: () => false,
 });
 
 export type AssistantReadingPorts = {

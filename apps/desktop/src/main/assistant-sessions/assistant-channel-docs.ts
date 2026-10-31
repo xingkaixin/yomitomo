@@ -27,6 +27,7 @@ export const AgentConversationsDoc = defineDoc<{ conversations: Record<string, n
   version: 1,
   scope: 'session',
   initial: () => ({ conversations: {} }),
+  checkpointWhen: () => false,
 });
 
 export const ChannelCursorsDoc = defineDoc<{ delivered: Record<string, string[]> }>({
@@ -34,6 +35,7 @@ export const ChannelCursorsDoc = defineDoc<{ delivered: Record<string, string[]>
   version: 1,
   scope: 'session',
   initial: () => ({ delivered: {} }),
+  checkpointWhen: () => false,
 });
 
 export const ChannelRunsDoc = defineDoc<{ runs: Record<string, AssistantRunRecord> }>({
@@ -41,4 +43,5 @@ export const ChannelRunsDoc = defineDoc<{ runs: Record<string, AssistantRunRecor
   version: 1,
   scope: 'session',
   initial: () => ({ runs: {} }),
+  checkpointWhen: () => false,
 });
