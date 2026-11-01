@@ -285,14 +285,14 @@ function agentPresenceLine(agent: Agent, nextEnabled: boolean, uiLanguage: UiLan
 type AgentRouteSettings = Partial<
   Pick<
     ResolvedAppSettings,
-    'readingAssistantProviderId' | 'reviewAssistantProviderId' | 'uiLanguage'
+    'defaultProviderId' | 'readingAssistantProviderId' | 'reviewAssistantProviderId' | 'uiLanguage'
   >
 >;
 
 function agentRouteProviderId(settings: AgentRouteSettings, filter: AgentFilter) {
-  return filter === 'review'
-    ? settings.reviewAssistantProviderId
-    : settings.readingAssistantProviderId;
+  const taskProviderId =
+    filter === 'review' ? settings.reviewAssistantProviderId : settings.readingAssistantProviderId;
+  return taskProviderId || settings.defaultProviderId;
 }
 
 function hasAgentRoute(

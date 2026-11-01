@@ -241,6 +241,12 @@ describe('AgentSettings', () => {
     fireEvent.click(screen.getByRole('button', { name: /去配置模型与路由/ }));
     expect(onConfigureRoutes).toHaveBeenCalledOnce();
   });
+
+  it('treats the default model as the route for inherited tasks', () => {
+    renderAgentSettings({ settings: { defaultProviderId: 'provider_1' } });
+
+    expect(screen.queryByText('还没有配置阅读理解模型路由')).toBeNull();
+  });
 });
 
 function makeAgent(
