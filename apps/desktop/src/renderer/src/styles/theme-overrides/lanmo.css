@@ -1,0 +1,311 @@
+/* Inherited sketch settings would make a child of a ruled header draw a rule instead of its frame. */
+@property --sketch-stroke {
+  syntax: '*';
+  inherits: false;
+}
+
+@property --sketch-width {
+  syntax: '*';
+  inherits: false;
+}
+
+@property --sketch-edge {
+  syntax: '*';
+  inherits: false;
+}
+
+@property --sketch-wash {
+  syntax: '*';
+  inherits: false;
+}
+
+@property --sketch-wash-opacity {
+  syntax: '*';
+  inherits: false;
+}
+
+:root[data-theme='lanmo'] {
+  --lanmo-line-strong: #24345a;
+  --lanmo-accent-wash: #7d9be0;
+  --lanmo-danger-wash: #ec9a8a;
+
+  ::selection {
+    background: hsl(var(--accent));
+    color: hsl(var(--foreground));
+  }
+
+  .reader-highlight.is-temporary {
+    background: hsl(var(--accent) / 0.4);
+    box-shadow: none;
+  }
+}
+
+:root[data-theme='lanmo'][data-sketch='ready'] {
+  :is(
+    [data-variant='default'],
+    [data-variant='secondary'],
+    [data-variant='outline'],
+    [data-variant='destructive'],
+    [data-slot='input']:not(.library-search-combo *, .library-search-typed *),
+    [data-slot='textarea'],
+    [data-slot='select-trigger']:not(.library-search-combo *, .library-search-typed *),
+    .library-search-combo,
+    .library-search-typed,
+    .settings-combobox-trigger,
+    .settings-segmented,
+    .settings-key-button,
+    .library-article-import-input,
+    .reading-evidence-card button,
+    .provider-select-trigger,
+    .task-route-select-trigger,
+    .provider-model-select-trigger,
+    .segmented-control,
+    .library-add-trigger,
+    .reader-add-comment,
+    .reader-chat-fab,
+    .reader-composer-cancel,
+    .floating-composer-submit,
+    .update-dialog-button
+  ) {
+    --sketch-stroke: var(--lanmo-line-strong);
+    --sketch-width: 1.8;
+    border-color: transparent;
+    background-image: paint(lanmo-sketch);
+    background-origin: border-box;
+    box-shadow: none;
+  }
+
+  :is(
+    .library-entity-grid .library-list-item,
+    .ui-popup-content,
+    .library-add-menu-popover,
+    .library-card-menu-popover,
+    .reader-popup-content,
+    .settings-card,
+    .provider-card,
+    .agent-profile-card,
+    .stats-chart-card,
+    .stats-activity-card,
+    .stats-status-card,
+    .stats-total-strip,
+    .stats-insights,
+    .agent-route-notice,
+    .reading-evidence-card,
+    .settings-translation-style-preview,
+    .library-article-import-box,
+    .reader-note:not(.is-distillation-dual-morph),
+    .reader-note-dual-face-annotation,
+    .reader-note-dual-face-distillation,
+    .reader-note-tab,
+    .reader-toc-summary,
+    .reader-floating-toolbar,
+    .reader-selection-menu,
+    .reader-chat-panel,
+    .reader-composer,
+    .floating-composer,
+    .theme-dialog,
+    .library-import-dialog,
+    .provider-editor-dialog,
+    .user-profile-dialog,
+    .reader-settings-panel
+  ) {
+    --sketch-stroke: hsl(var(--input));
+    --sketch-width: 1.4;
+    border-color: transparent;
+    background-image: paint(lanmo-sketch);
+    background-origin: border-box;
+    box-shadow: none;
+  }
+
+  :is(
+    .ui-popup-content,
+    .library-add-menu-popover,
+    .library-card-menu-popover,
+    .reader-popup-content,
+    .reader-selection-menu,
+    .reader-chat-panel,
+    .reader-composer,
+    .theme-dialog,
+    .library-import-dialog,
+    .provider-editor-dialog,
+    .user-profile-dialog,
+    .reader-settings-panel
+  ) {
+    box-shadow: var(--app-shell-panel-shadow);
+  }
+
+  :is(.app-masthead, .library-home-header-main) {
+    --sketch-stroke: var(--lanmo-line-strong);
+    --sketch-width: 1.6;
+    --sketch-edge: bottom;
+    border-bottom-color: transparent;
+    background-image: paint(lanmo-sketch);
+    background-origin: border-box;
+  }
+
+  .reader-toc {
+    --sketch-stroke: hsl(var(--input));
+    --sketch-width: 1.4;
+    --sketch-edge: right;
+    border-color: transparent;
+    background-image: paint(lanmo-sketch);
+    background-origin: border-box;
+  }
+
+  :is(.reader-chat-composer, .reader-composer-editor) {
+    --sketch-edge: top;
+    background-color: transparent;
+    box-shadow: none;
+  }
+
+  .reader-composer-header {
+    border-bottom-color: transparent;
+    background: transparent;
+  }
+
+  /* Cover images and slider fills sit above their box, so the frame has to be drawn over them. */
+  :is(.agent-list-card, .settings-elastic-slider) {
+    border-color: transparent;
+
+    &::after {
+      --sketch-stroke: hsl(var(--input));
+      --sketch-width: 1.4;
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      border-radius: inherit;
+      background-image: paint(lanmo-sketch);
+      pointer-events: none;
+    }
+  }
+
+  :is(
+    .segmented-control-indicator,
+    .settings-side-nav-item.is-active,
+    .settings-segmented-option.is-active,
+    .reader-toc-item.is-active
+  ) {
+    --sketch-wash: var(--lanmo-accent-wash);
+    --sketch-wash-opacity: 0.45;
+    background-color: transparent;
+    background-image: paint(lanmo-sketch);
+    box-shadow: none;
+  }
+
+  .segmented-control {
+    --segmented-indicator-bg: transparent;
+    background-color: transparent;
+  }
+
+  .segmented-control-option[aria-checked='true'],
+  .segmented-control-option[aria-selected='true'],
+  .agent-filter-tab[aria-checked='true'],
+  .settings-side-nav-item.is-active,
+  .settings-segmented-option.is-active,
+  .reader-toc-item.is-active {
+    color: hsl(var(--foreground));
+  }
+
+  .agent-filter-tab[aria-selected='true'] :is(svg, strong, span) {
+    color: hsl(var(--foreground));
+  }
+
+  .settings-side-nav-item.is-active::before {
+    opacity: 0;
+  }
+
+  :is(
+    .reader-note.is-active,
+    .reader-note-dual-face-annotation,
+    .reader-note-dual-face-distillation
+  ) {
+    box-shadow: none;
+  }
+
+  .reader-note.is-active {
+    --sketch-stroke: hsl(var(--ring));
+    --sketch-width: 2;
+  }
+
+  :is([data-variant='secondary'], [data-variant='outline'], .reader-composer-cancel) {
+    --sketch-wash: hsl(var(--input));
+    background-color: transparent;
+  }
+
+  :is([data-variant='secondary'], [data-variant='outline'], .reader-composer-cancel):hover {
+    --sketch-wash-opacity: 0.32;
+    background-color: transparent;
+    color: hsl(var(--foreground));
+  }
+
+  :is(
+    [data-variant='default'],
+    .library-add-trigger,
+    .reader-add-comment,
+    .floating-composer-submit:not(:disabled),
+    .reader-note.has-distillation .reader-note-tab
+  ) {
+    --sketch-wash: var(--lanmo-accent-wash);
+    --sketch-wash-opacity: 0.6;
+    background-color: hsl(var(--card));
+    color: hsl(var(--foreground));
+  }
+
+  :is([data-variant='default'], .library-add-trigger, .reader-add-comment):hover {
+    --sketch-wash-opacity: 0.85;
+    background-color: hsl(var(--card));
+    color: hsl(var(--foreground));
+  }
+
+  .reader-note.has-distillation .reader-note-tab {
+    --sketch-stroke: var(--lanmo-line-strong);
+  }
+
+  .floating-composer-submit:disabled {
+    --sketch-stroke: hsl(var(--input));
+    background-color: transparent;
+  }
+
+  [data-variant='destructive'] {
+    --sketch-stroke: hsl(var(--destructive));
+    --sketch-wash: var(--lanmo-danger-wash);
+    --sketch-wash-opacity: 0.6;
+    background-color: hsl(var(--card));
+    color: hsl(var(--foreground));
+  }
+
+  [data-variant='destructive']:hover {
+    --sketch-wash-opacity: 0.85;
+    background-color: hsl(var(--card));
+  }
+
+  :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger']) {
+    --sketch-width: 1.6;
+  }
+
+  :is([data-slot='input'], [data-slot='textarea']):focus-visible {
+    --sketch-stroke: hsl(var(--ring));
+    --sketch-width: 2.4;
+  }
+
+  :is(
+    [data-variant],
+    [data-slot='select-trigger']:not(.library-search-combo *, .library-search-typed *)
+  ) {
+    border-radius: calc(var(--radius) * 0.75);
+  }
+
+  [data-variant] {
+    &:hover {
+      translate: none;
+      box-shadow: none;
+    }
+
+    &:active {
+      translate: 0 1px;
+      rotate: -0.4deg;
+      scale: none;
+    }
+  }
+}

@@ -3,6 +3,7 @@ import {
   type CssVariableMap,
   type ReaderTheme,
 } from '@yomitomo/reader-ui/reader-theme';
+import { registerLanmoSketch } from './lanmo-sketch';
 import { createLanmoTheme, paperGrainImage } from './lanmo-theme';
 import { createShadLingoTheme } from './shadlingo-theme';
 
@@ -1201,6 +1202,7 @@ export function applyAppTheme(theme: AppTheme, root: HTMLElement = document.docu
   for (const [name, value] of Object.entries(variables)) {
     root.style.setProperty(name, value);
   }
+  if (theme.meta.id === lanmoThemeId) registerLanmoSketch(root);
 }
 
 export function resolveAppThemeId(value: unknown): AppThemeId {
