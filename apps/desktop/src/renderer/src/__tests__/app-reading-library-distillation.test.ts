@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   articleDistillationStateChanged,
+  articleReusingAnnotations,
   articleWithCommittedDistillation,
   articleWithDistillationAnimationStart,
   nextDistillationAnimationArticleUpdatedAt,
@@ -13,6 +14,26 @@ import {
 
 afterEach(() => {
   vi.useRealTimers();
+});
+
+describe('articleReusingAnnotations', () => {
+  it('keeps unchanged annotation objects so their cards skip rendering', () => {
+    const unchanged = annotation('note_1');
+    const current = article({ annotations: [unchanged, annotation('note_2')] });
+    const changed = annotationWithPublishedDistillation('note_2');
+    const reloaded = article({ annotations: [structuredClone(unchanged), changed] });
+
+    const result = articleReusingAnnotations(current, reloaded);
+
+    expect(result.annotations[0]).toBe(unchanged);
+    expect(result.annotations[1]).toBe(changed);
+  });
+
+  it('leaves an article alone when another article is open', () => {
+    const reloaded = article({ annotations: [annotation('note_1')] });
+
+    expect(articleReusingAnnotations(article({ id: 'article_2' }), reloaded)).toBe(reloaded);
+  });
 });
 
 describe('articleWithDistillationAnimationStart', () => {

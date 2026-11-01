@@ -765,7 +765,8 @@ export const notesDiscussionStyles = `.reader-notes-header {
   box-shadow:none
 }
 .reader-annotation-rail>.reader-note.is-distillation-dual-morph {
-  z-index:91!important
+  z-index:91!important;
+  transition:none
 }
 .reader-note-dual-morph-stage {
   position:relative;

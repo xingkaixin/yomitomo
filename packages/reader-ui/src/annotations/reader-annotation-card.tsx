@@ -107,6 +107,17 @@ type AnnotationCardProps = {
 
 const emptyAgents: PublicAgent[] = [];
 
+// The flip hides the note's own border and shadow, so fading them back in would blink once the faces unmount.
+function settleFlippedNote(note: HTMLElement) {
+  queueMicrotask(() => {
+    if (note.classList.contains('is-distillation-dual-morph')) return;
+    for (const animation of note.getAnimations?.() ?? []) {
+      const property = (animation as CSSTransition).transitionProperty;
+      if (property === 'box-shadow' || property?.startsWith('border-')) animation.finish();
+    }
+  });
+}
+
 type DualMorphMeasurement = { height: number; token: number };
 
 function dualMorphReducer(current: DualMorphMeasurement | null, next: DualMorphMeasurement) {
@@ -175,6 +186,8 @@ export const AnnotationCard = React.memo(function AnnotationCard({
         : dualMorphAnnotationRef.current;
     if (!targetElement) return;
     measureDualMorph({ height: targetElement.offsetHeight, token: dualMorphToken });
+    const note = stage.parentElement;
+    return note ? () => settleFlippedNote(note) : undefined;
   }
 
   function handleCardClick(event: React.MouseEvent<HTMLElement>) {

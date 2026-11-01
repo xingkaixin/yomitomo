@@ -10,6 +10,7 @@ import {
 } from '../shell/app-renderer-performance';
 import {
   articleDistillationStateChanged,
+  articleReusingAnnotations,
   articleWithCommittedDistillation,
   articleWithDistillationAnimationStart,
   distillationOverlayForAnimation,
@@ -140,7 +141,10 @@ export function useReadingLibraryDistillationSync(
         return;
       }
 
-      const pendingArticle = newerArticle(fullArticle, loadingLifecycle.pendingArticle);
+      const pendingArticle = articleReusingAnnotations(
+        readOptions().navigation.actions.getCurrentArticle(),
+        newerArticle(fullArticle, loadingLifecycle.pendingArticle),
+      );
       lifecycleRef.current = {
         status: 'waiting-for-focus',
         token,

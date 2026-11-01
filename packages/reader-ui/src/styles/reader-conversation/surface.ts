@@ -215,6 +215,9 @@ export const surfaceStyles = `.reader-article {
   box-shadow:var(--reader-soft-shadow);
   filter:brightness(.985)
 }
+.reader-annotation-rail>.reader-note.is-stacked:not(.is-stack-front)[data-rail-offscreen] {
+  visibility:hidden
+}
 .reader-annotation-rail>.reader-note.is-stacked:not(.is-stack-front) .reader-note-toolbar {
   pointer-events:none
 }
