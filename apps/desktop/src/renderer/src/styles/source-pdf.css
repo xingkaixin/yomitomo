@@ -288,7 +288,7 @@
   box-shadow: 0 18px 42px rgb(15 23 42 / 0.16);
 }
 
-.pdfium-spike-page :where(canvas, img) {
+.pdfium-spike-page canvas {
   display: block;
   background: white;
   mix-blend-mode: normal;
@@ -299,10 +299,7 @@
   background: var(--reader-content-bg, white);
 }
 
-.source-pdf-reader-shell
-  .reader-app.is-reader-background-light
-  .pdfium-spike-page
-  :where(canvas, img) {
+.source-pdf-reader-shell .reader-app.is-reader-background-light .pdfium-spike-page canvas {
   background: transparent;
   mix-blend-mode: multiply;
 }
