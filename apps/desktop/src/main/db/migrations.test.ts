@@ -109,6 +109,37 @@ describe('reading memory migrations', () => {
     expect(tableNames(database)).toContain('article_source_cleanup_tasks');
   });
 
+  it('strips inlined images from legacy ebook chapters without touching their text', () => {
+    const database = new DatabaseSync(':memory:');
+    const migration = migrations.find(
+      (item) => item.id === '0074_strip_legacy_ebook_chapter_images',
+    );
+    if (!migration?.apply) throw new Error('missing migration 0074');
+    database.exec('CREATE TABLE article_bodies (article_id TEXT PRIMARY KEY, ebook_chapters TEXT)');
+    const insert = database.prepare('INSERT INTO article_bodies VALUES (?, ?)');
+    const chapter = (html: string) => JSON.stringify([{ id: 'chapter-1', html, textLength: 4 }]);
+    const quotedInText = '<p>src="data:image/png;base64,AA"</p>';
+    insert.run(
+      'legacy',
+      chapter(
+        `<figure><img src="data:image/jpeg;base64,/9j/AA==" alt="Cover"></figure>${quotedInText}`,
+      ),
+    );
+    insert.run('current', chapter(`<img alt="Cover">${quotedInText}`));
+    insert.run('malformed', '[{"html":"<img src=\\"data:image/png;base64,AA');
+
+    migration.apply(database);
+
+    const rows = database
+      .prepare('SELECT article_id, ebook_chapters FROM article_bodies ORDER BY article_id')
+      .all();
+    expect(rows.map((row) => row.ebook_chapters)).toEqual([
+      chapter(`<img alt="Cover">${quotedInText}`),
+      chapter(`<figure><img alt="Cover"></figure>${quotedInText}`),
+      '[{"html":"<img src=\\"data:image/png;base64,AA',
+    ]);
+  });
+
   it('adds constrained reading memory projection jobs', () => {
     const database = new DatabaseSync(':memory:');
     database.exec('PRAGMA foreign_keys = ON');
