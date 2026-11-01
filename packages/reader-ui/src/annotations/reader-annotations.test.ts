@@ -444,7 +444,7 @@ describe('reader annotation filters', () => {
     ];
     const items = buildAnnotationRailItems(
       annotations,
-      [box('first', { top: 100 }), box('second', { top: 180 }), box('third', { top: 258 })],
+      [box('first', { top: 100 }), box('second', { top: 180 }), box('third', { top: 210 })],
       null,
       { first: 100, second: 100, third: 100 },
       {
@@ -465,8 +465,8 @@ describe('reader annotation filters', () => {
       ]),
     ).toEqual([
       ['first', 3, 90, '0deg'],
-      ['second', 3, 90, '9deg'],
-      ['third', 3, 90, '18deg'],
+      ['second', 3, 90, '2.69deg'],
+      ['third', 3, 90, '5.38deg'],
     ]);
   });
 
@@ -672,20 +672,20 @@ describe('reader annotation filters', () => {
     expect(depths('second')).toEqual([1, 0, 2]);
   });
 
-  it('keeps a short back card visible below a taller front card', () => {
+  it('clips a taller back card to the front card', () => {
     const annotations = [
       annotation('tall', { anchor: anchor('tall', 0, 10) }),
       annotation('short', { anchor: anchor('short', 20, 30) }),
     ];
     const boxes = [box('tall', { top: 100 }), box('short', { top: 120 })];
     const noteHeights = { tall: 286, short: 190 };
-    const peeks = (activeId: string) =>
+    const clips = (activeId: string) =>
       buildAnnotationRailItems(annotations, boxes, activeId, noteHeights).map(
-        (item) => (item.style as Record<string, string>)['--stack-peek'],
+        (item) => (item.style as Record<string, string>)['--stack-clip-bottom'],
       );
 
-    expect(peeks('tall')).toEqual(['0px', '138px']);
-    expect(peeks('short')).toEqual(['0px', '0px']);
+    expect(clips('tall')).toEqual(['-80px', '-80px']);
+    expect(clips('short')).toEqual(['96px', '-80px']);
   });
 
   it('keeps the active stacked rail card close to its highlight in the viewport', () => {

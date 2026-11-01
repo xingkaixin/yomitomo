@@ -187,7 +187,7 @@ export const surfaceStyles = `.reader-article {
   width:var(--reader-note-width,var(--reader-annotation-rail-width));
   margin:0;
   pointer-events:auto;
-  transition:opacity .18s ease,filter .2s ease,transform var(--reader-note-move-duration,.22s) cubic-bezier(.22,1,.36,1),box-shadow .22s ease,border-color .16s ease
+  transition:opacity .18s ease,filter .2s ease,transform var(--reader-note-move-duration,.22s) cubic-bezier(.22,1,.36,1),clip-path .24s cubic-bezier(.22,1,.36,1),box-shadow .22s ease,border-color .16s ease
 }
 .reader-annotation-rail>.reader-note.is-filtering-out {
   opacity:0;
@@ -195,12 +195,20 @@ export const surfaceStyles = `.reader-article {
   pointer-events:none
 }
 .reader-annotation-rail>.reader-note.is-stacked {
-  transform:translateY(var(--stack-peek,0px)) rotate(var(--stack-rotate,0deg)) translateX(var(--stack-offset,0px))
+  clip-path:inset(-36px -80px var(--stack-clip-bottom,-80px) -80px);
+  transform:rotate(var(--stack-rotate,0deg));
+  transform-origin:100% 0
+}
+.reader-annotation-rail>.reader-note.is-stacked .reader-note-tab {
+  translate:var(--stack-tab-x,0px) 0;
+  transition:translate .24s cubic-bezier(.22,1,.36,1)
 }
 .reader-annotation-rail>.reader-note[data-rail-side="left"].is-stacked {
-  transform:translateY(var(--stack-peek,0px)) rotate(calc(var(--stack-rotate,0deg) * -1)) translateX(calc(var(--stack-offset,0px) * -1))
+  transform:rotate(calc(var(--stack-rotate,0deg) * -1));
+  transform-origin:0 0
 }
 .reader-annotation-rail>.reader-note.is-stack-front {
+  --reader-note-move-duration:.28s;
   box-shadow:var(--reader-elevated-shadow)
 }
 .reader-annotation-rail>.reader-note.is-stacked:not(.is-stack-front) {
@@ -210,20 +218,11 @@ export const surfaceStyles = `.reader-article {
 .reader-annotation-rail>.reader-note.is-stacked:not(.is-stack-front) .reader-note-toolbar {
   pointer-events:none
 }
-.reader-annotation-rail>.reader-note.is-stack-rising {
-  --reader-note-move-duration:.3s;
-  animation:reader-note-stack-rise .3s cubic-bezier(.22,1,.36,1)
-}
-@keyframes reader-note-stack-rise {
-  40% {
-    scale:1.03
-  }
-}
 @media (prefers-reduced-motion:reduce) {
   .reader-annotation-rail>.reader-note.is-stacked {
     transition-property:opacity,filter,box-shadow,border-color
   }
-  .reader-annotation-rail>.reader-note.is-stack-rising {
-    animation:none
+  .reader-annotation-rail>.reader-note.is-stacked .reader-note-tab {
+    transition:none
   }
 }`;

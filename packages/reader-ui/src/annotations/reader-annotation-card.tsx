@@ -107,31 +107,10 @@ type AnnotationCardProps = {
 
 const emptyAgents: PublicAgent[] = [];
 
-type AnnotationCardState = {
-  dualMorph: { height: number; token: number } | null;
-  isStackFront: boolean;
-  rising: boolean;
-};
+type DualMorphMeasurement = { height: number; token: number };
 
-type AnnotationCardEvent =
-  | { type: 'dualMorphMeasured'; height: number; token: number }
-  | { type: 'riseEnded' }
-  | { type: 'stackFrontChanged'; isStackFront: boolean; rise: boolean };
-
-function annotationCardReducer(
-  state: AnnotationCardState,
-  event: AnnotationCardEvent,
-): AnnotationCardState {
-  switch (event.type) {
-    case 'dualMorphMeasured':
-      return state.dualMorph?.token === event.token && state.dualMorph.height === event.height
-        ? state
-        : { ...state, dualMorph: { height: event.height, token: event.token } };
-    case 'riseEnded':
-      return state.rising ? { ...state, rising: false } : state;
-    case 'stackFrontChanged':
-      return { ...state, isStackFront: event.isStackFront, rising: event.rise };
-  }
+function dualMorphReducer(current: DualMorphMeasurement | null, next: DualMorphMeasurement) {
+  return current?.token === next.token && current.height === next.height ? current : next;
 }
 
 export const AnnotationCard = React.memo(function AnnotationCard({
@@ -159,18 +138,7 @@ export const AnnotationCard = React.memo(function AnnotationCard({
     annotation.distillation?.updatedAt ||
     annotation.distillation?.publishedAt ||
     annotation.updatedAt;
-  const [cardState, dispatch] = useReducer(annotationCardReducer, {
-    dualMorph: null,
-    isStackFront,
-    rising: false,
-  });
-  if (cardState.isStackFront !== isStackFront) {
-    dispatch({
-      type: 'stackFrontChanged',
-      isStackFront,
-      rise: !exiting && stackCount > 1 && isStackFront,
-    });
-  }
+  const [dualMorph, measureDualMorph] = useReducer(dualMorphReducer, null);
 
   const noteClassName = [
     'reader-note',
@@ -183,7 +151,6 @@ export const AnnotationCard = React.memo(function AnnotationCard({
     exiting ? 'is-filtering-out' : '',
     stackCount > 1 ? 'is-stacked' : '',
     isStackFront ? 'is-stack-front' : '',
-    cardState.rising ? 'is-stack-rising' : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -197,9 +164,7 @@ export const AnnotationCard = React.memo(function AnnotationCard({
   const dualMorphDistillationRef = useRef<HTMLDivElement | null>(null);
   const dualMorphToken = isDualMorph ? distillationAnimation?.token : undefined;
   const dualMorphHeight =
-    dualMorphToken !== undefined && cardState.dualMorph?.token === dualMorphToken
-      ? cardState.dualMorph.height
-      : null;
+    dualMorphToken !== undefined && dualMorph?.token === dualMorphToken ? dualMorph.height : null;
 
   // Not memoized: either face can change height on any render, so the stage re-measures after every commit.
   function measureDualMorphStage(stage: HTMLDivElement | null) {
@@ -209,11 +174,7 @@ export const AnnotationCard = React.memo(function AnnotationCard({
         ? dualMorphDistillationRef.current
         : dualMorphAnnotationRef.current;
     if (!targetElement) return;
-    dispatch({
-      type: 'dualMorphMeasured',
-      height: targetElement.offsetHeight,
-      token: dualMorphToken,
-    });
+    measureDualMorph({ height: targetElement.offsetHeight, token: dualMorphToken });
   }
 
   function handleCardClick(event: React.MouseEvent<HTMLElement>) {
@@ -249,11 +210,6 @@ export const AnnotationCard = React.memo(function AnnotationCard({
       ref={noteRef}
       style={style}
       onClick={handleCardClick}
-      onAnimationEnd={(event) => {
-        if (event.animationName === 'reader-note-stack-rise') {
-          dispatch({ type: 'riseEnded' });
-        }
-      }}
     >
       {isDualMorph ? (
         <div
