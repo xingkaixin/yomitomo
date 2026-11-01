@@ -4,12 +4,14 @@ import { annotationPrimaryComment, type HighlightBox } from '@yomitomo/core';
 import { buildRectCollisionGroups, type CollisionRect } from './annotation-rail-collision-groups';
 
 export type AnnotationRailItem = {
+  anchorTop: number;
   annotation: Annotation;
   isStackFront: boolean;
   railSide: AnnotationRailSide;
   stackCount: number;
   stackIndex: number;
   style: React.CSSProperties;
+  top: number;
 };
 
 export type AnnotationRailSide = 'left' | 'right' | 'stacked';
@@ -177,12 +179,14 @@ export function buildAnnotationRailItems(
         style.width = railLayout.railWidth;
       }
       return {
+        anchorTop: item.rect?.top ?? item.top,
         annotation: item.annotation,
         isStackFront,
         railSide,
         stackCount,
         stackIndex: stackDepth,
         style,
+        top: groupTop,
       };
     });
   });

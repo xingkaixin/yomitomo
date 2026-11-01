@@ -7,6 +7,7 @@ import {
   type AnnotationRailItem,
   type AnnotationRailLayout,
 } from './annotation-rail-layout';
+import { animateRailChanges } from './annotation-rail-motion';
 import { useInterval } from '../hooks/use-interval';
 import { useMountEffect } from '../hooks/use-mount-effect';
 
@@ -314,12 +315,15 @@ export function useReaderAnnotationRail({
   const layoutChangeRef = React.useCallback(
     (element: HTMLElement | null) => {
       if (!element) return;
+      animateRailChanges(placedItemsRef.current, annotationRailItems, noteElementsRef.current, {
+        animateMoves: annotationRailLayout?.mode !== 'stacked',
+      });
       placedItemsRef.current = new Map(
         annotationRailItems.map((item) => [item.annotation.id, item]),
       );
       notifyAnnotationLayoutChange();
     },
-    [annotationRailItems, noteHeights],
+    [annotationRailItems, annotationRailLayout?.mode, noteHeights],
   );
 
   return {
