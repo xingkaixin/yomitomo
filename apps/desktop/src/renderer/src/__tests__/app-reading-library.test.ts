@@ -89,7 +89,7 @@ describe('buildAnnotationRailItems', () => {
       ]),
     ).toEqual([
       ['annotation_1', 210, '0deg'],
-      ['annotation_2', 210, '9deg'],
+      ['annotation_2', 210, '2.39deg'],
     ]);
     expect(items.map((item) => [item.annotation.id, item.stackCount])).toEqual([
       ['annotation_1', 2],

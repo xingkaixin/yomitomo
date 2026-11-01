@@ -107,31 +107,21 @@ type AnnotationCardProps = {
 
 const emptyAgents: PublicAgent[] = [];
 
-type AnnotationCardState = {
-  dualMorph: { height: number; token: number } | null;
-  isStackFront: boolean;
-  rising: boolean;
-};
+// The flip hides the note's own border and shadow, so fading them back in would blink once the faces unmount.
+function settleFlippedNote(note: HTMLElement) {
+  queueMicrotask(() => {
+    if (note.classList.contains('is-distillation-dual-morph')) return;
+    for (const animation of note.getAnimations?.() ?? []) {
+      const property = (animation as CSSTransition).transitionProperty;
+      if (property === 'box-shadow' || property?.startsWith('border-')) animation.finish();
+    }
+  });
+}
 
-type AnnotationCardEvent =
-  | { type: 'dualMorphMeasured'; height: number; token: number }
-  | { type: 'riseEnded' }
-  | { type: 'stackFrontChanged'; isStackFront: boolean; rise: boolean };
+type DualMorphMeasurement = { height: number; token: number };
 
-function annotationCardReducer(
-  state: AnnotationCardState,
-  event: AnnotationCardEvent,
-): AnnotationCardState {
-  switch (event.type) {
-    case 'dualMorphMeasured':
-      return state.dualMorph?.token === event.token && state.dualMorph.height === event.height
-        ? state
-        : { ...state, dualMorph: { height: event.height, token: event.token } };
-    case 'riseEnded':
-      return state.rising ? { ...state, rising: false } : state;
-    case 'stackFrontChanged':
-      return { ...state, isStackFront: event.isStackFront, rising: event.rise };
-  }
+function dualMorphReducer(current: DualMorphMeasurement | null, next: DualMorphMeasurement) {
+  return current?.token === next.token && current.height === next.height ? current : next;
 }
 
 export const AnnotationCard = React.memo(function AnnotationCard({
@@ -159,18 +149,7 @@ export const AnnotationCard = React.memo(function AnnotationCard({
     annotation.distillation?.updatedAt ||
     annotation.distillation?.publishedAt ||
     annotation.updatedAt;
-  const [cardState, dispatch] = useReducer(annotationCardReducer, {
-    dualMorph: null,
-    isStackFront,
-    rising: false,
-  });
-  if (cardState.isStackFront !== isStackFront) {
-    dispatch({
-      type: 'stackFrontChanged',
-      isStackFront,
-      rise: !exiting && stackCount > 1 && isStackFront,
-    });
-  }
+  const [dualMorph, measureDualMorph] = useReducer(dualMorphReducer, null);
 
   const noteClassName = [
     'reader-note',
@@ -179,16 +158,10 @@ export const AnnotationCard = React.memo(function AnnotationCard({
     isDualMorph ? 'is-distillation-dual-morph' : '',
     isDualMorph && annotation.distillation?.status === 'published' ? 'is-dual-show-dist' : '',
     isDualMorph && annotation.distillation?.status !== 'published' ? 'is-dual-show-anno' : '',
-    isDualMorph &&
-    distillationAnimation?.transition === 'publish' &&
-    annotation.distillation?.status === 'published'
-      ? 'is-dual-stamp-in'
-      : '',
     distillationAnimation ? `is-distillation-${distillationAnimation.phase}` : '',
     exiting ? 'is-filtering-out' : '',
     stackCount > 1 ? 'is-stacked' : '',
     isStackFront ? 'is-stack-front' : '',
-    cardState.rising ? 'is-stack-rising' : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -202,9 +175,7 @@ export const AnnotationCard = React.memo(function AnnotationCard({
   const dualMorphDistillationRef = useRef<HTMLDivElement | null>(null);
   const dualMorphToken = isDualMorph ? distillationAnimation?.token : undefined;
   const dualMorphHeight =
-    dualMorphToken !== undefined && cardState.dualMorph?.token === dualMorphToken
-      ? cardState.dualMorph.height
-      : null;
+    dualMorphToken !== undefined && dualMorph?.token === dualMorphToken ? dualMorph.height : null;
 
   // Not memoized: either face can change height on any render, so the stage re-measures after every commit.
   function measureDualMorphStage(stage: HTMLDivElement | null) {
@@ -214,11 +185,9 @@ export const AnnotationCard = React.memo(function AnnotationCard({
         ? dualMorphDistillationRef.current
         : dualMorphAnnotationRef.current;
     if (!targetElement) return;
-    dispatch({
-      type: 'dualMorphMeasured',
-      height: targetElement.offsetHeight,
-      token: dualMorphToken,
-    });
+    measureDualMorph({ height: targetElement.offsetHeight, token: dualMorphToken });
+    const note = stage.parentElement;
+    return note ? () => settleFlippedNote(note) : undefined;
   }
 
   function handleCardClick(event: React.MouseEvent<HTMLElement>) {
@@ -254,11 +223,6 @@ export const AnnotationCard = React.memo(function AnnotationCard({
       ref={noteRef}
       style={style}
       onClick={handleCardClick}
-      onAnimationEnd={(event) => {
-        if (event.animationName === 'reader-note-stack-rise') {
-          dispatch({ type: 'riseEnded' });
-        }
-      }}
     >
       {isDualMorph ? (
         <div
@@ -266,17 +230,19 @@ export const AnnotationCard = React.memo(function AnnotationCard({
           ref={measureDualMorphStage}
           style={dualMorphHeight === null ? undefined : { height: `${dualMorphHeight}px` }}
         >
-          <div
-            className="reader-note-dual-face reader-note-dual-face-annotation"
-            ref={dualMorphAnnotationRef}
-          >
-            {renderContent('annotation', annotation.anchor.exact)}
-          </div>
-          <div
-            className="reader-note-dual-face reader-note-dual-face-distillation"
-            ref={dualMorphDistillationRef}
-          >
-            {renderContent('distillation', dualMorphDistillationContent)}
+          <div className="reader-note-dual-flipper">
+            <div
+              className="reader-note-dual-face reader-note-dual-face-annotation"
+              ref={dualMorphAnnotationRef}
+            >
+              {renderContent('annotation', annotation.anchor.exact)}
+            </div>
+            <div
+              className="reader-note-dual-face reader-note-dual-face-distillation"
+              ref={dualMorphDistillationRef}
+            >
+              {renderContent('distillation', dualMorphDistillationContent)}
+            </div>
           </div>
         </div>
       ) : (

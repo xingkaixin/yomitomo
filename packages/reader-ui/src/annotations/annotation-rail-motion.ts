@@ -3,6 +3,11 @@ import type { AnnotationRailItem } from './annotation-rail-layout';
 // Matches the stack pose transition on .reader-note, so a card's pose and position settle together.
 const moveTiming = { duration: 220, easing: 'cubic-bezier(.22,1,.36,1)' };
 const enterTiming = { duration: 180, easing: 'ease' };
+const stackSwapDuration = 280;
+// The incoming card clears the old front at this point of the swap, so the z-order change stays hidden.
+const stackSwapCrossing = 0.45;
+const stackSwapMaxLift = 96;
+const stackSwapLiftRatio = 0.45;
 const minJump = 1;
 
 type RailPlacement = Pick<AnnotationRailItem, 'anchorTop' | 'top'>;
@@ -20,6 +25,36 @@ export function railCardJump(previous: RailPlacement, next: RailPlacement) {
 
 function prefersReducedMotion() {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+}
+
+function animateStackSwap(
+  element: HTMLElement,
+  previous: AnnotationRailItem,
+  item: AnnotationRailItem,
+) {
+  const crossing = [0, stackSwapCrossing, stackSwapCrossing, 1];
+  element.animate(
+    {
+      zIndex: [
+        previous.style.zIndex,
+        previous.style.zIndex,
+        item.style.zIndex,
+        item.style.zIndex,
+      ].map(String),
+      offset: crossing,
+    },
+    stackSwapDuration,
+  );
+  if (!item.isStackFront) return;
+  const lift = Math.min(stackSwapMaxLift, element.offsetHeight * stackSwapLiftRatio);
+  element.animate(
+    {
+      translate: ['0 0', `0 ${-lift}px`, '0 0'],
+      offset: [0, stackSwapCrossing, 1],
+      easing: [moveTiming.easing, 'cubic-bezier(.77,0,.175,1)'],
+    },
+    { duration: stackSwapDuration, composite: 'add' },
+  );
 }
 
 export function animateRailChanges(
@@ -40,8 +75,17 @@ export function animateRailChanges(
       continue;
     }
 
+    if (!animateMoves || prefersReducedMotion()) continue;
+    if (
+      previous.isStackFront !== item.isStackFront &&
+      previous.stackCount > 1 &&
+      item.stackCount > 1
+    ) {
+      animateStackSwap(element, previous, item);
+    }
+
     const jump = railCardJump(previous, item);
-    if (!animateMoves || Math.abs(jump) < minJump || prefersReducedMotion()) continue;
+    if (Math.abs(jump) < minJump) continue;
     // Additive, so a new jump during a running one keeps the card's on-screen position and speed.
     element.animate({ translate: [`0 ${-jump}px`, '0 0'] }, { ...moveTiming, composite: 'add' });
   }

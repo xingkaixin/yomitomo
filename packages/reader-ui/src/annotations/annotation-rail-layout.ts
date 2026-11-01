@@ -48,15 +48,22 @@ type AnnotationRailSpacing = {
 
 const defaultRailSpacing: AnnotationRailSpacing = {
   groupGap: 18,
-  stackTopOffset: 42,
+  stackTopOffset: 15,
   stackXOffset: 14,
 };
 const minRailSpacing: AnnotationRailSpacing = {
   groupGap: 8,
-  stackTopOffset: 24,
+  stackTopOffset: 8,
   stackXOffset: 8,
 };
 const railViewportOverscan = 96;
+const maxStackDepth = 4;
+const fallbackRailWidth = 360;
+const stackUnclippedBottom = '-80px';
+const stackTabStep = 66;
+// Fits the longest tab label, so a fanned tab stays inside the card in every language.
+const stackTabWidth = 138;
+const stackTabInset = 20;
 
 export function buildAnnotationRailItems(
   annotations: Annotation[],
@@ -130,15 +137,18 @@ export function buildAnnotationRailItems(
     railLayout?.viewportTop,
     railLayout?.viewportHeight,
   );
-  const compactedRailGroups = railGroups.map((railGroup, index) => ({
-    ...railGroup,
-    height: estimateRailGroupHeight(
-      railGroup.group,
-      activeId,
-      noteHeights,
-      groupSpacings[index]?.stackTopOffset ?? defaultRailSpacing.stackTopOffset,
-    ),
-  }));
+  const compactedRailGroups = railGroups.map((railGroup, index) => {
+    const stackTopOffset =
+      groupSpacings[index]?.stackTopOffset ?? defaultRailSpacing.stackTopOffset;
+    const stackRise = railStackRise(railGroup.group.length, stackTopOffset);
+    return {
+      ...railGroup,
+      // The group box starts at the top of the fan, which keeps the front card beside its highlight.
+      desiredTop: railGroup.desiredTop - stackRise,
+      height: estimateRailGroupHeight(railGroup.group, activeId, noteHeights, stackTopOffset),
+      stackRise,
+    };
+  });
   const groupTops = resolveRailGroupTops(
     compactedRailGroups,
     groupSides,
@@ -155,25 +165,25 @@ export function buildAnnotationRailItems(
     const railSide = groupSides[groupIndex] || 'right';
     const stackTopOffset =
       groupSpacings[groupIndex]?.stackTopOffset ?? defaultRailSpacing.stackTopOffset;
+    const cardTop = groupTop + railStackRise(stackCount, stackTopOffset);
+    const railWidth = railLayout?.railWidth || fallbackRailWidth;
     const frontIndex = railStackFrontIndex(group, activeId);
     const frontHeight = annotationCardHeight(group[frontIndex].annotation, noteHeights);
     return group.map((item, stackIndex) => {
       const stackDepth = railStackDepth(stackIndex, frontIndex);
       const isStackFront = stackDepth === 0;
       const isActive = item.annotation.id === activeId;
-      const cappedDepth = Math.min(stackDepth, 4);
-      const stackPeek = Math.max(
-        0,
-        frontHeight +
-          cappedDepth * stackTopOffset -
-          annotationCardHeight(item.annotation, noteHeights),
-      );
+      const cappedDepth = Math.min(stackDepth, maxStackDepth);
+      const cardHeight = annotationCardHeight(item.annotation, noteHeights);
       const style: React.CSSProperties = {
-        top: groupTop,
+        top: cardTop,
         zIndex: isActive ? 90 : isStackFront ? 40 : 10 + stackCount - stackDepth,
-        '--stack-rotate': `${cappedDepth * 9}deg`,
-        '--stack-offset': `${cappedDepth * 4}px`,
-        '--stack-peek': `${stackPeek}px`,
+        '--stack-rotate': `${railStackAngle(cappedDepth, stackTopOffset, railWidth)}deg`,
+        '--stack-tab-x': `${railStackTabX(cappedDepth, railSide, railWidth)}px`,
+        '--stack-clip-bottom':
+          cardHeight > frontHeight && !isStackFront
+            ? `${cardHeight - frontHeight}px`
+            : stackUnclippedBottom,
       } as React.CSSProperties;
       if (railLayout && railLayout.mode !== 'stacked') {
         style.left = railSide === 'left' ? railLayout.leftRailLeft : railLayout.rightRailLeft;
@@ -187,7 +197,7 @@ export function buildAnnotationRailItems(
         stackCount,
         stackIndex: stackDepth,
         style,
-        top: groupTop,
+        top: cardTop,
       };
     });
   });
@@ -270,6 +280,25 @@ function railStackFrontIndex(group: Array<{ annotation: Annotation }>, activeId:
 function railStackDepth(stackIndex: number, frontIndex: number) {
   if (stackIndex === frontIndex) return 0;
   return stackIndex < frontIndex ? stackIndex + 1 : stackIndex;
+}
+
+function railStackRise(stackCount: number, stackTopOffset: number) {
+  return Math.min(stackCount - 1, maxStackDepth) * stackTopOffset;
+}
+
+// Each layer lifts the far corner of the card by stackTopOffset around the outer top corner.
+function railStackAngle(depth: number, stackTopOffset: number, railWidth: number) {
+  const angle = Math.asin(Math.min(1, (depth * stackTopOffset) / railWidth));
+  return Math.round(((angle * 180) / Math.PI) * 100) / 100;
+}
+
+// Tabs near the pivot barely rise, so left-rail cards fan theirs out from the far end.
+function railStackTabX(depth: number, railSide: AnnotationRailSide, railWidth: number) {
+  if (depth === 0) return 0;
+  const step = Math.min(stackTabStep, (railWidth - stackTabWidth - stackTabInset * 2) / 4);
+  return railSide === 'left'
+    ? railWidth - stackTabWidth - stackTabInset * 2 - depth * step
+    : depth * step;
 }
 
 function railGroupHasAnnotation(
@@ -538,8 +567,15 @@ function resolveCompactStackTopOffset(
   return low;
 }
 
+type PlacedRailGroup = {
+  desiredTop: number;
+  group: PositionedAnnotationRailItem[];
+  height: number;
+  stackRise: number;
+};
+
 function resolveRailGroupTops(
-  railGroups: Array<{ desiredTop: number; group: PositionedAnnotationRailItem[]; height: number }>,
+  railGroups: PlacedRailGroup[],
   groupSides: AnnotationRailSide[],
   groupSpacings: AnnotationRailSpacing[],
   activeId: string | null,
@@ -571,7 +607,7 @@ function resolveRailGroupTops(
 
 function resolveRailGroupTopsForSide(
   groupTops: number[],
-  railGroups: Array<{ desiredTop: number; group: PositionedAnnotationRailItem[]; height: number }>,
+  railGroups: PlacedRailGroup[],
   indexes: number[],
   groupSpacings: AnnotationRailSpacing[],
   viewport: RailViewportBounds | null,
@@ -602,7 +638,7 @@ function resolveRailGroupTopsForSide(
 
 function anchorActiveRailGroup(
   groupTops: number[],
-  railGroups: Array<{ desiredTop: number; group: PositionedAnnotationRailItem[]; height: number }>,
+  railGroups: PlacedRailGroup[],
   indexes: number[],
   activeListIndex: number,
   groupSpacings: AnnotationRailSpacing[],
@@ -637,7 +673,7 @@ function anchorActiveRailGroup(
 }
 
 function activeRailGroupTop(
-  railGroup: { desiredTop: number; group: PositionedAnnotationRailItem[] },
+  railGroup: PlacedRailGroup,
   activeId: string,
   noteHeights: Record<string, number>,
 ) {
@@ -646,17 +682,21 @@ function activeRailGroupTop(
   // A stack holds still while the highlight sits beside the active card, so a front switch moves only that card pair.
   const highlightBesideCard =
     activeItem.top <
-    railGroup.desiredTop + annotationCardHeight(activeItem.annotation, noteHeights);
-  return highlightBesideCard ? railGroup.desiredTop : activeItem.top;
+    railGroup.desiredTop +
+      railGroup.stackRise +
+      annotationCardHeight(activeItem.annotation, noteHeights);
+  return highlightBesideCard ? railGroup.desiredTop : activeItem.top - railGroup.stackRise;
 }
 
 function activeRailGroupCardHeight(
-  railGroup: { group: PositionedAnnotationRailItem[]; height: number },
+  railGroup: PlacedRailGroup,
   activeId: string,
   noteHeights: Record<string, number>,
 ) {
   const activeItem = railGroup.group.find((item) => item.annotation.id === activeId);
-  return activeItem ? annotationCardHeight(activeItem.annotation, noteHeights) : railGroup.height;
+  return activeItem
+    ? railGroup.stackRise + annotationCardHeight(activeItem.annotation, noteHeights)
+    : railGroup.height;
 }
 
 function clampRailGroupTop(
@@ -764,14 +804,9 @@ function estimateRailGroupHeight(
   if (group.length === 0) return 176;
 
   const frontIndex = railStackFrontIndex(group, activeId);
-  const frontHeight = annotationCardHeight(group[frontIndex].annotation, noteHeights);
-  return Math.max(
-    ...group.map((item, stackIndex) => {
-      const cardHeight = annotationCardHeight(item.annotation, noteHeights);
-      return (
-        Math.max(cardHeight, frontHeight) + railStackDepth(stackIndex, frontIndex) * stackTopOffset
-      );
-    }),
+  return (
+    annotationCardHeight(group[frontIndex].annotation, noteHeights) +
+    railStackRise(group.length, stackTopOffset)
   );
 }
 

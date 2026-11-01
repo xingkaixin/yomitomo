@@ -10,6 +10,7 @@ import {
 } from '../shell/app-renderer-performance';
 import {
   articleDistillationStateChanged,
+  articleReusingAnnotations,
   articleWithCommittedDistillation,
   articleWithDistillationAnimationStart,
   distillationOverlayForAnimation,
@@ -23,7 +24,8 @@ import {
 
 const DISTILLATION_SYNC_EVENT_GRACE_MS = 320;
 const DISTILLATION_MORPH_PREPARE_MS = 16;
-const DISTILLATION_MORPH_MS = 620;
+// Outlasts the 420ms flip, so the faces unmount after the card has settled.
+const DISTILLATION_MORPH_MS = 440;
 const DISTILLATION_UPDATE_MS = 850;
 
 type DistillationSyncLifecycle =
@@ -139,7 +141,10 @@ export function useReadingLibraryDistillationSync(
         return;
       }
 
-      const pendingArticle = newerArticle(fullArticle, loadingLifecycle.pendingArticle);
+      const pendingArticle = articleReusingAnnotations(
+        readOptions().navigation.actions.getCurrentArticle(),
+        newerArticle(fullArticle, loadingLifecycle.pendingArticle),
+      );
       lifecycleRef.current = {
         status: 'waiting-for-focus',
         token,
@@ -194,11 +199,12 @@ export function useReadingLibraryDistillationSync(
       transition: event.transition,
       token,
     });
-    if (event.transition !== 'unpublish') {
-      playAppSoundEffect('reader.distillation_committed', settings || {});
+    if (event.transition === 'publish') {
+      playAppSoundEffect('reader.distillation_flipped', settings || {});
     }
 
     if (event.transition === 'update') {
+      playAppSoundEffect('reader.distillation_committed', settings || {});
       navigation.actions.updateArticle(event.articleId, (article) =>
         articleWithCommittedDistillation(
           article,

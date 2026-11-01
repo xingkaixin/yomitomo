@@ -12,6 +12,7 @@ import { animateRailChanges } from './annotation-rail-motion';
 import { useInterval } from '../hooks/use-interval';
 import { useMountEffect } from '../hooks/use-mount-effect';
 
+const RAIL_PAINT_OVERSCAN_PX = 1000;
 const FILTERED_NOTE_EXIT_MS = 190;
 
 function stringArraysEqual(left: string[], right: string[]): boolean {
@@ -108,6 +109,13 @@ function initialRailState({
   );
 }
 
+// Layerizing grows with every transformed card that paints, so back cards far from view stop painting.
+function markNotesOffscreen(entries: IntersectionObserverEntry[]) {
+  for (const entry of entries) {
+    entry.target.toggleAttribute('data-rail-offscreen', !entry.isIntersecting);
+  }
+}
+
 export type UseReaderAnnotationRailOptions = {
   activeId: string | null;
   annotationRailLayout?: AnnotationRailLayout;
@@ -177,6 +185,7 @@ export function useReaderAnnotationRail({
     new Map<string, (element: HTMLElement | null) => void>(),
   );
   const noteResizeObserverRef = React.useRef<ResizeObserver | null>(null);
+  const noteViewportObserverRef = React.useRef<IntersectionObserver | null>(null);
   const pendingNoteHeightsRef = React.useRef(new Map<string, number>());
   const noteHeightFrameRef = React.useRef(0);
   const placedItemsRef = React.useRef(new Map<string, AnnotationRailItem>());
@@ -241,6 +250,7 @@ export function useReaderAnnotationRail({
 
   useMountEffect(() => () => {
     noteResizeObserverRef.current?.disconnect();
+    noteViewportObserverRef.current?.disconnect();
     if (noteHeightFrameRef.current) window.cancelAnimationFrame(noteHeightFrameRef.current);
   });
 
@@ -267,10 +277,12 @@ export function useReaderAnnotationRail({
   const registerNoteElement = React.useCallback(
     (annotationId: string, element: HTMLElement | null) => {
       const existing = noteElementsRef.current.get(annotationId);
-      if (existing && existing !== element) noteResizeObserverRef.current?.unobserve(existing);
+      if (existing && existing !== element) {
+        noteResizeObserverRef.current?.unobserve(existing);
+        noteViewportObserverRef.current?.unobserve(existing);
+      }
 
       if (!element) {
-        if (existing) noteResizeObserverRef.current?.unobserve(existing);
         noteElementsRef.current.delete(annotationId);
         noteRefCallbacksRef.current.delete(annotationId);
         noteRefs.current.delete(annotationId);
@@ -280,6 +292,13 @@ export function useReaderAnnotationRail({
 
       noteElementsRef.current.set(annotationId, element);
       noteRefs.current.set(annotationId, element);
+
+      if (typeof IntersectionObserver !== 'undefined') {
+        noteViewportObserverRef.current ??= new IntersectionObserver(markNotesOffscreen, {
+          scrollMargin: `${RAIL_PAINT_OVERSCAN_PX}px 0px`,
+        });
+        noteViewportObserverRef.current.observe(element);
+      }
 
       if (typeof ResizeObserver === 'undefined') {
         const height = Math.ceil(element.getBoundingClientRect().height);

@@ -71,6 +71,24 @@ export function articleWithDistillationAnimationStart(
   };
 }
 
+// The committed article is read back whole, and fresh objects would re-render every card on the rail.
+export function articleReusingAnnotations(
+  current: ArticleRecord | null,
+  next: ArticleRecord,
+): ArticleRecord {
+  if (current?.id !== next.id) return next;
+  const currentAnnotations = new Map(
+    current.annotations.map((annotation) => [annotation.id, annotation]),
+  );
+  return {
+    ...next,
+    annotations: next.annotations.map((annotation) => {
+      const reused = currentAnnotations.get(annotation.id);
+      return reused && JSON.stringify(reused) === JSON.stringify(annotation) ? reused : annotation;
+    }),
+  };
+}
+
 export function nextDistillationAnimationArticleUpdatedAt(
   currentUpdatedAt: string | number | undefined,
   distillationUpdatedAt: string | undefined,

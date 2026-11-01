@@ -499,7 +499,11 @@ export const composerTooltipHighlightResponsiveStyles = `.reader-note-comments-p
   transform:none
 }
 .reader-app.is-annotation-stacked .reader-annotation-rail>.reader-note {
+  clip-path:none;
   transform:none
+}
+.reader-app.is-annotation-stacked .reader-annotation-rail>.reader-note .reader-note-tab {
+  translate:none
 }
 @media(max-width:940px) {
   .reader-surface {

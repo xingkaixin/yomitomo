@@ -223,7 +223,7 @@
     box-shadow: none;
   }
 
-  .reader-note.is-active {
+  :is(.reader-note.is-active, .reader-note.is-active .reader-note-dual-face) {
     --sketch-stroke: hsl(var(--ring));
     --sketch-width: 2;
   }
