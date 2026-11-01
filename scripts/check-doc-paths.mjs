@@ -35,5 +35,3 @@ if (violations.length > 0) {
 }
 
 console.log(`Documentation path check passed for ${documents.length} document(s).`);
-
-// probe
