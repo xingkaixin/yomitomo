@@ -221,3 +221,4 @@ manifest/feed 的成功响应缓存为 60 秒，4xx 缓存为 10 秒。不要把
 2. 与已有 milestone 草稿对比，补写 tag 之后新增的 PR（例如翻译、音效、安全、CI 签名等）。
 3. 条目末尾保留 `(#PR)` 便于追溯。
 4. 将精简版同步到 Starlight changelog 页面；索引页只保留 3–4 条 bullet。
+
