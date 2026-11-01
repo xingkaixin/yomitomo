@@ -232,12 +232,41 @@ describe('useReaderAnnotationRail', () => {
     expect(screen.getByTestId('exiting').textContent).toBe('agent-note');
 
     act(() => {
-      vi.advanceTimersByTime(200);
+      vi.advanceTimersByTime(400);
     });
 
     expect(screen.getByTestId('rail').textContent).toBe('user-note');
     expect(screen.getByTestId('exiting').textContent).toBe('');
     expect(Array.from(noteRefs.current.keys())).toEqual(['user-note']);
+  });
+
+  it('fades exiting notes where they sat without moving the remaining notes', async () => {
+    vi.useFakeTimers();
+    const first = annotation('first');
+    const second = annotation('second');
+    const noteRefs = createNoteRefs();
+    const { rerender } = render(
+      <HookProbe
+        annotations={[first, second]}
+        boxes={[box('first', 40), box('second', 600)]}
+        noteRefs={noteRefs}
+      />,
+    );
+    const placed = screen.getByTestId('rail-layout').textContent;
+
+    await act(async () => {
+      rerender(
+        <HookProbe
+          annotations={[first, second]}
+          boxes={[box('second', 600)]}
+          filteredAnnotations={[second]}
+          noteRefs={noteRefs}
+        />,
+      );
+    });
+
+    expect(screen.getByTestId('exiting').textContent).toBe('first');
+    expect(screen.getByTestId('rail-layout').textContent).toBe(placed);
   });
 
   it('does not notify layout again when only the callback is recreated', () => {

@@ -187,7 +187,6 @@ export const surfaceStyles = `.reader-article {
   width:var(--reader-note-width,var(--reader-annotation-rail-width));
   margin:0;
   pointer-events:auto;
-  transform-origin:top center;
   transition:opacity .18s ease,filter .2s ease,transform var(--reader-note-move-duration,.22s) cubic-bezier(.22,1,.36,1),box-shadow .22s ease,border-color .16s ease
 }
 .reader-annotation-rail>.reader-note.is-filtering-out {
@@ -196,7 +195,6 @@ export const surfaceStyles = `.reader-article {
   pointer-events:none
 }
 .reader-annotation-rail>.reader-note.is-stacked {
-  transform-origin:50% 50%;
   transform:translateY(var(--stack-peek,0px)) rotate(var(--stack-rotate,0deg)) translateX(var(--stack-offset,0px))
 }
 .reader-annotation-rail>.reader-note[data-rail-side="left"].is-stacked {

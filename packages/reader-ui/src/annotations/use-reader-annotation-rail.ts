@@ -2,7 +2,13 @@ import React from 'react';
 import { useStableCallback } from '../hooks/use-stable-callback';
 import type { HighlightBox } from '@yomitomo/core';
 import type { Annotation } from '@yomitomo/shared';
-import { buildAnnotationRailItems, type AnnotationRailLayout } from './annotation-rail-layout';
+import {
+  buildAnnotationRailItems,
+  type AnnotationRailItem,
+  type AnnotationRailLayout,
+  type AnnotationRailSide,
+} from './annotation-rail-layout';
+import { animateRailChanges } from './annotation-rail-motion';
 import { useInterval } from '../hooks/use-interval';
 import { useMountEffect } from '../hooks/use-mount-effect';
 
@@ -21,6 +27,7 @@ function stringSetsEqual(left: Set<string>, right: Set<string>): boolean {
 }
 
 type RailState = {
+  agedExitIds: Set<string>;
   exitingIds: Set<string>;
   ids: string[];
   noteHeights: Record<string, number>;
@@ -30,25 +37,23 @@ type RailState = {
 };
 
 type RailEvent =
-  | { type: 'exitFinished' }
-  | { type: 'noteDetached'; annotationId: string }
+  | { type: 'exitTicked' }
   | { type: 'noteHeightsMeasured'; heights: Iterable<[string, number]> }
   | { type: 'railAnnotationsChanged'; sourceIds: string[]; visibleIds: string[] }
   | { type: 'stackFrontChanged'; annotationId: string };
 
 function railReducer(state: RailState, event: RailEvent): RailState {
   switch (event.type) {
-    case 'exitFinished': {
-      const visibleIdSet = new Set(state.visibleIds);
-      const ids = state.sourceIds.filter((id) => visibleIdSet.has(id));
-      if (stringArraysEqual(state.ids, ids) && state.exitingIds.size === 0) return state;
-      return { ...state, exitingIds: new Set(), ids };
-    }
-    case 'noteDetached': {
-      if (!(event.annotationId in state.noteHeights)) return state;
-      const noteHeights = { ...state.noteHeights };
-      delete noteHeights[event.annotationId];
-      return { ...state, noteHeights };
+    case 'exitTicked': {
+      // A note survives one full interval, so one that starts exiting mid-interval still fades out.
+      const exitingIds = new Set([...state.exitingIds].filter((id) => !state.agedExitIds.has(id)));
+      const renderedIds = new Set([...state.visibleIds, ...exitingIds]);
+      return {
+        ...state,
+        agedExitIds: exitingIds,
+        exitingIds,
+        ids: state.sourceIds.filter((id) => renderedIds.has(id)),
+      };
     }
     case 'noteHeightsMeasured': {
       let noteHeights = state.noteHeights;
@@ -91,6 +96,7 @@ function initialRailState({
 }) {
   return railReducer(
     {
+      agedExitIds: new Set(),
       exitingIds: new Set(),
       ids: sourceIds,
       noteHeights: {},
@@ -173,6 +179,8 @@ export function useReaderAnnotationRail({
   const noteResizeObserverRef = React.useRef<ResizeObserver | null>(null);
   const pendingNoteHeightsRef = React.useRef(new Map<string, number>());
   const noteHeightFrameRef = React.useRef(0);
+  const placedItemsRef = React.useRef(new Map<string, AnnotationRailItem>());
+  const heldSidesRef = React.useRef(new Map<string, AnnotationRailSide>());
   const notifyAnnotationLayoutChange = useStableCallback(() => {
     onAnnotationLayoutChange?.();
   });
@@ -208,20 +216,26 @@ export function useReaderAnnotationRail({
     annotationRailLayout?.railWidth,
     annotationRailLayout?.rightRailLeft,
   ]);
-  const annotationRailItems = React.useMemo(
-    () =>
+  const annotationRailItems = React.useMemo(() => {
+    const laidOutItems = new Map(
       buildAnnotationRailItems(
-        railAnnotations,
+        railAnnotations.filter((annotation) => !exitingIds.has(annotation.id)),
         boxes,
         stackFrontId,
         noteHeights,
         documentAnnotationRailLayout,
-      ),
-    [stackFrontId, documentAnnotationRailLayout, boxes, noteHeights, railAnnotations],
-  );
+        heldSidesRef.current,
+      ).map((item) => [item.annotation.id, item]),
+    );
+    // Exiting notes fade where they last sat. Source order keeps React from moving notes in the
+    // DOM, which would cancel their running transitions.
+    return railAnnotations.flatMap(
+      ({ id }) => laidOutItems.get(id) ?? placedItemsRef.current.get(id) ?? [],
+    );
+  }, [stackFrontId, documentAnnotationRailLayout, boxes, exitingIds, noteHeights, railAnnotations]);
 
   useInterval(
-    () => dispatch({ type: 'exitFinished' }),
+    () => dispatch({ type: 'exitTicked' }),
     exitingIds.size > 0 ? FILTERED_NOTE_EXIT_MS : null,
   );
 
@@ -261,7 +275,6 @@ export function useReaderAnnotationRail({
         noteRefCallbacksRef.current.delete(annotationId);
         noteRefs.current.delete(annotationId);
         pendingNoteHeightsRef.current.delete(annotationId);
-        dispatch({ type: 'noteDetached', annotationId });
         return;
       }
 
@@ -304,9 +317,25 @@ export function useReaderAnnotationRail({
   // Recreated when rail items or note heights change, so the layout is reported after that commit.
   const layoutChangeRef = React.useCallback(
     (element: HTMLElement | null) => {
-      if (element) notifyAnnotationLayoutChange();
+      if (!element) return;
+      animateRailChanges(placedItemsRef.current, annotationRailItems, noteElementsRef.current, {
+        animateMoves: annotationRailLayout?.mode !== 'stacked',
+      });
+      placedItemsRef.current = new Map(
+        annotationRailItems.map((item) => [item.annotation.id, item]),
+      );
+      // Cards on screen keep their rail so neighbors entering above them cannot send them across
+      // the article. Sides picked from estimated heights stay provisional until the card is measured.
+      heldSidesRef.current = new Map(
+        annotationRailLayout?.mode === 'both'
+          ? annotationRailItems
+              .filter((item) => noteHeights[item.annotation.id])
+              .map((item) => [item.annotation.id, item.railSide])
+          : [],
+      );
+      notifyAnnotationLayoutChange();
     },
-    [annotationRailItems, noteHeights],
+    [annotationRailItems, annotationRailLayout?.mode, noteHeights],
   );
 
   return {
