@@ -20,11 +20,8 @@ export const sourceReaderTocStyles = `
     margin:0 auto;
   }
 }
-.reader-app.has-toc.is-toc-open .reader-toc{
+.source-reader-shell .reader-app.has-toc .reader-toc{
   padding:14px;
-  border:1px solid var(--app-reader-selection-menu-border);
-  border-radius:8px;
-  background:var(--app-reader-toc-bg);
 }
 .reader-toc-title{
   margin:0 0 10px;

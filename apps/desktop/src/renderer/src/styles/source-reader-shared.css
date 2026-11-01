@@ -234,18 +234,16 @@
   display: none;
 }
 
-.source-reader-shell .reader-toc,
 .source-reader-shell .reader-notes,
-.source-ebook-reader-shell .reader-toc,
-.source-ebook-reader-shell .reader-notes,
-.source-pdf-reader-shell .reader-toc {
+.source-ebook-reader-shell .reader-notes {
   border-color: hsl(var(--border) / 0.72);
   background: hsl(var(--card));
 }
 
-.source-reader-shell .reader-app.has-toc.is-toc-open .reader-toc,
-.source-ebook-reader-shell .reader-app.has-toc.is-toc-open .reader-toc,
-.source-pdf-reader-shell .reader-app.has-toc.is-toc-open .reader-toc {
+/* Not scoped to .is-toc-open: these must hold while the closing clip-path runs. */
+.source-reader-shell .reader-app.has-toc .reader-toc,
+.source-ebook-reader-shell .reader-app.has-toc .reader-toc,
+.source-pdf-reader-shell .reader-app.has-toc .reader-toc {
   z-index: var(--app-z-panel);
   border-color: hsl(var(--border) / 0.82);
   border-radius: 0;
