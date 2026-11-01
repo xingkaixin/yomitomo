@@ -155,9 +155,11 @@ describe('WeReadSettingsPanel', () => {
         await saving.promise;
       });
 
-      expect(
-        screen.getByRole<HTMLButtonElement>('button', { name: '删除已保存 Key' }).disabled,
-      ).toBe(false);
+      await waitFor(() =>
+        expect(
+          screen.getByRole<HTMLButtonElement>('button', { name: '删除已保存 Key' }).disabled,
+        ).toBe(false),
+      );
       expect(input.value).toBe(draft === 'edited' ? 'test-key-b' : '');
       expect(
         screen.getByRole('button', { name: draft === 'edited' ? '保存' : '已保存' }),
