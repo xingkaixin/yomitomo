@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - '.gitattributes'
+      - '.github/actions/setup-workspace/**'
       - '.github/workflows/reading-memory-model.yml'
       - 'apps/desktop/electron-builder.config.cjs'
       - 'apps/desktop/electron.vite.config.ts'
@@ -45,6 +46,11 @@ on:
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
 
+# Manual runs get their own group so a later dispatch never cancels them.
+concurrency:
+  group: reading-memory-model-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -54,25 +60,23 @@ defaults:
 
 jobs:
   selected-model:
-    name: Formal package and selected model (${{ matrix.name }})
+    name: Selected model (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: macOS arm64 package smoke
+          - name: macOS arm64 smoke
             os: macos-15
             expectedPlatform: darwin-arm64
             mode: smoke
-            packageArguments: --mac --arm64
             minimumCpuThreads: 1
             minimumMemoryBytes: 1
-          - name: Windows x64 benchmark and package smoke
+          - name: Windows x64 benchmark
             os: windows-latest
             expectedPlatform: win32-x64
             mode: benchmark
-            packageArguments: --win --x64
             minimumCpuThreads: 4
             minimumMemoryBytes: 16000000000
 
@@ -87,17 +91,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-
-      - name: Setup Node
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24.22.2
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Setup workspace
+        uses: ./.github/actions/setup-workspace
 
       - name: Build desktop application
         run: pnpm --filter @yomitomo/desktop build
@@ -106,7 +101,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/reading-memory-model-cache
-          key: reading-memory-model-${{ matrix.expectedPlatform }}-${{ hashFiles('packages/ai/evaluation/semantic-retrieval/candidates-v1.json', 'packages/ai/evaluation/semantic-retrieval/selection-v1.json', 'pnpm-lock.yaml') }}
+          key: reading-memory-model-${{ matrix.expectedPlatform }}-${{ hashFiles('packages/ai/evaluation/semantic-retrieval/candidates-v1.json', 'packages/ai/evaluation/semantic-retrieval/selection-v1.json') }}
 
       - name: Assert runner architecture
         run: node -e "const os = require('node:os'); const actual = process.platform + '-' + process.arch; const cpuThreads = os.availableParallelism(); const memoryBytes = os.totalmem(); console.log(JSON.stringify({ actual, cpuThreads, memoryBytes })); if (actual !== process.env.EXPECTED_PLATFORM) throw new Error('Expected ' + process.env.EXPECTED_PLATFORM + ', received ' + actual); if (cpuThreads < Number(process.env.MINIMUM_CPU_THREADS)) throw new Error('Runner has too few CPU threads'); if (memoryBytes < Number(process.env.MINIMUM_MEMORY_BYTES)) throw new Error('Runner has too little memory')"
@@ -124,14 +119,6 @@ jobs:
         continue-on-error: ${{ matrix.expectedPlatform == 'win32-x64' }}
         run: node apps/desktop/scripts/evaluate-reading-memory-quality.mjs --model-cache="${{ runner.temp }}/reading-memory-model-cache" --output="${{ runner.temp }}/reading-memory-production-quality-${{ matrix.expectedPlatform }}.json"
 
-      - name: Make isolated release package
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false
-        run: pnpm --filter @yomitomo/desktop exec electron-builder --config electron-builder.config.cjs --config.directories.output="${{ runner.temp }}/reading-memory-package" ${{ matrix.packageArguments }} --publish never
-
-      - name: Smoke original formal package with real model
-        run: pnpm --filter @yomitomo/desktop embedding:smoke:packaged --package-output="${{ runner.temp }}/reading-memory-package" --model-cache="${{ runner.temp }}/reading-memory-model-cache" --output="${{ runner.temp }}/reading-memory-package-${{ matrix.expectedPlatform }}.json"
-
       - name: Upload validation report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -140,7 +127,6 @@ jobs:
           path: |
             ${{ runner.temp }}/reading-memory-model-${{ matrix.expectedPlatform }}.json
             ${{ runner.temp }}/reading-memory-hybrid-search-${{ matrix.expectedPlatform }}.json
-            ${{ runner.temp }}/reading-memory-package-${{ matrix.expectedPlatform }}.json
           if-no-files-found: error
 
       - name: Upload strict synthetic engineering quality report
@@ -149,6 +135,65 @@ jobs:
         with:
           name: reading-memory-production-quality-${{ matrix.expectedPlatform }}
           path: ${{ runner.temp }}/reading-memory-production-quality-${{ matrix.expectedPlatform }}.json
+          if-no-files-found: error
+
+  formal-package:
+    name: Formal package (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            platform: darwin-arm64
+            packageArguments: --mac --arm64
+          - os: windows-latest
+            platform: win32-x64
+            packageArguments: --win --x64
+
+    env:
+      CI: true
+      TZ: Asia/Shanghai
+      EXPECTED_PLATFORM: ${{ matrix.platform }}
+      CSC_IDENTITY_AUTO_DISCOVERY: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup workspace
+        uses: ./.github/actions/setup-workspace
+
+      - name: Assert package runner architecture
+        run: node -e "const actual = process.platform + '-' + process.arch; if (actual !== process.env.EXPECTED_PLATFORM) throw new Error('Expected ' + process.env.EXPECTED_PLATFORM + ', received ' + actual)"
+
+      - name: Restore selected model cache
+        id: model-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/reading-memory-model-cache
+          key: reading-memory-model-${{ matrix.platform }}-${{ hashFiles('packages/ai/evaluation/semantic-retrieval/candidates-v1.json', 'packages/ai/evaluation/semantic-retrieval/selection-v1.json') }}
+
+      - name: Download selected model
+        if: steps.model-cache.outputs.cache-hit != 'true'
+        run: pnpm --filter @yomitomo/ai evaluate:semantic --prepare --candidate=selected --cache-dir="${{ runner.temp }}/reading-memory-model-cache"
+
+      - name: Build desktop application
+        run: pnpm --filter @yomitomo/desktop build
+
+      - name: Make isolated release package
+        run: pnpm --filter @yomitomo/desktop exec electron-builder --config electron-builder.config.cjs --config.directories.output="${{ runner.temp }}/reading-memory-package" ${{ matrix.packageArguments }} --publish never
+
+      - name: Smoke original formal package with real model
+        run: pnpm --filter @yomitomo/desktop embedding:smoke:packaged --package-output="${{ runner.temp }}/reading-memory-package" --model-cache="${{ runner.temp }}/reading-memory-model-cache" --output="${{ runner.temp }}/reading-memory-package-${{ matrix.platform }}.json"
+
+      - name: Upload package report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: reading-memory-package-${{ matrix.platform }}
+          path: ${{ runner.temp }}/reading-memory-package-${{ matrix.platform }}.json
           if-no-files-found: error
 
   fixture-gui:
@@ -172,17 +217,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-
-      - name: Setup Node
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24.22.2
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Setup workspace
+        uses: ./.github/actions/setup-workspace
 
       - name: Assert fixture runner architecture
         run: node -e "const actual = process.platform + '-' + process.arch; if (actual !== process.env.EXPECTED_PLATFORM) throw new Error('Expected ' + process.env.EXPECTED_PLATFORM + ', received ' + actual)"

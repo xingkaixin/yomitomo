@@ -1,0 +1,53 @@
+name: Reading Memory Model Cache
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/reading-memory-model-cache.yml'
+      - 'packages/ai/evaluation/semantic-retrieval/candidates-v1.json'
+      - 'packages/ai/evaluation/semantic-retrieval/selection-v1.json'
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # Pull requests can only reuse caches saved from main; without this each one stores its own copy.
+  warm:
+    name: Warm model cache (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            platform: darwin-arm64
+          - os: windows-latest
+            platform: win32-x64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Look up selected model cache
+        id: model-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/reading-memory-model-cache
+          key: reading-memory-model-${{ matrix.platform }}-${{ hashFiles('packages/ai/evaluation/semantic-retrieval/candidates-v1.json', 'packages/ai/evaluation/semantic-retrieval/selection-v1.json') }}
+          lookup-only: true
+
+      - name: Setup workspace
+        if: steps.model-cache.outputs.cache-hit != 'true'
+        uses: ./.github/actions/setup-workspace
+        with:
+          install-args: --ignore-scripts
+
+      - name: Download selected model
+        if: steps.model-cache.outputs.cache-hit != 'true'
+        run: pnpm --filter @yomitomo/ai evaluate:semantic --prepare --candidate=selected --cache-dir="${{ runner.temp }}/reading-memory-model-cache"

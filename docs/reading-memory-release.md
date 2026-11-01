@@ -136,7 +136,7 @@ keyring、签名安装器或人工质量的验证。普通 UI 测试配置不重
 
 核对同一 PR 最新提交的所有未豁免检查、实际质量报告和冲突状态。需要保留的 CI 产物分别是
 `reading-memory-model-<platform>`、`reading-memory-production-quality-<platform>`、
-`reading-memory-fixture-gui-<platform>`。不要用前一提交的绿色结果代替当前提交。
+`reading-memory-package-<platform>`、`reading-memory-fixture-gui-<platform>`。不要用前一提交的绿色结果代替当前提交。
 
 ## 升级、回滚与重建
 
