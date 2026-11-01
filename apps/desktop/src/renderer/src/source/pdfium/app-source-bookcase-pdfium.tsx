@@ -438,7 +438,11 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     notesRef,
     pageMetrics,
     pdfBaseWidth,
-    requestZoom: zoomControls ? (scale) => zoomControls.requestZoom(scale) : undefined,
+    // EmbedPDF zooms around the viewport center by default, which scrolls a just-opened document
+    // down and pushes the top of the first page out of view.
+    requestZoom: zoomControls
+      ? (scale) => zoomControls.requestZoom(scale, { vx: 0, vy: 0 })
+      : undefined,
     schedulePageMetricsUpdate,
     surfaceRef,
     viewportHeight: annotationRailViewportHeight,
