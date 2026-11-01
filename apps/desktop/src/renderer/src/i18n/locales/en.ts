@@ -55,28 +55,22 @@ export const enResources = {
     onboarding: {
       ariaLabel: 'Start your first reading',
       title: 'Read a passage. Save a thought.',
-      description: 'Choose something you want to read and leave your first note.',
+      description:
+        'Highlight the text, write down a thought, and talk it over with a reading assistant.',
       enter: 'Enter Yomitomo',
       entering: 'Entering',
       enterFailed: 'Failed to enter the app.',
-      importEbook: 'Import EPUB',
-      importPdf: 'Import PDF',
-      importWeb: 'Import web article',
-      localReading: 'Reading, highlighting, and saving thoughts do not require an AI model.',
-      steps: {
-        import: {
-          title: 'Import something to read',
-          description: 'Choose a local EPUB or PDF, or paste an article URL.',
-        },
-        read: {
-          title: 'Open it and read',
-          description: 'Open the imported content and find a passage worth pausing over.',
-        },
-        save: {
-          title: 'Save a highlight or thought',
-          description:
-            'Select text, choose “Record thought”, then save a highlight or write your thought.',
-        },
+      languageFailed: 'Failed to change the language.',
+      aiNote:
+        'Reading and highlighting work without AI. Connect your own model in Settings when you want to talk with an assistant.',
+      demo: {
+        before: 'The best moment in a book is often not when you understand something. ',
+        highlight: 'It is when one sentence makes you stop and remember something of your own.',
+        after:
+          ' The page stays open while your mind wanders off, and it takes a while to come back.',
+        thought: 'Last time this happened, I was reading about a father repairing a watch.',
+        reply:
+          'That pause sounds a lot like the watch scene: one small thing pulling you back into the past.',
       },
     },
     theme: {
