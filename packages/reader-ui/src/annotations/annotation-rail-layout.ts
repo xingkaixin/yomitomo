@@ -64,6 +64,7 @@ export function buildAnnotationRailItems(
   activeId: string | null,
   noteHeights: Record<string, number> = {},
   railLayout?: AnnotationRailLayout,
+  heldSides?: ReadonlyMap<string, AnnotationRailSide>,
 ): AnnotationRailItem[] {
   const boxesByAnnotation = new Map<string, HighlightBoxGroup>();
   for (const box of boxes) {
@@ -109,7 +110,7 @@ export function buildAnnotationRailItems(
     }))
     .toSorted((left, right) => left.desiredTop - right.desiredTop);
 
-  const initialGroupSides = resolveRailGroupSides(initialRailGroups, railLayout);
+  const initialGroupSides = resolveRailGroupSides(initialRailGroups, railLayout, heldSides);
   const railViewport = railViewportBounds(
     railLayout?.viewportTop ?? 0,
     railLayout?.viewportHeight ?? 0,
@@ -286,6 +287,7 @@ function resolveRailGroupSides(
     side: AnnotationRailSide;
   }>,
   railLayout: AnnotationRailLayout | undefined,
+  heldSides?: ReadonlyMap<string, AnnotationRailSide>,
 ): AnnotationRailSide[] {
   if (!railLayout || railLayout.mode === 'stacked') {
     return railGroups.map(() => 'right');
@@ -302,16 +304,30 @@ function resolveRailGroupSides(
   };
   for (const group of railGroups) {
     const preferredSide = group.side === 'left' ? 'left' : 'right';
-    const side = (['left', 'right'] as const).toSorted((left, right) => {
-      const leftCost = railSidePlacementCost(group, left, preferredSide, sideBottoms[left]);
-      const rightCost = railSidePlacementCost(group, right, preferredSide, sideBottoms[right]);
-      return leftCost - rightCost;
-    })[0];
+    const heldSide = railGroupHeldSide(group.group, heldSides);
+    const side =
+      heldSide ??
+      (['left', 'right'] as const).toSorted((left, right) => {
+        const leftCost = railSidePlacementCost(group, left, preferredSide, sideBottoms[left]);
+        const rightCost = railSidePlacementCost(group, right, preferredSide, sideBottoms[right]);
+        return leftCost - rightCost;
+      })[0];
     sideBottoms[side] =
       Math.max(group.desiredTop, sideBottoms[side] + defaultRailSpacing.groupGap) + group.height;
     sides.push(side);
   }
   return sides;
+}
+
+function railGroupHeldSide(
+  group: PositionedAnnotationRailItem[],
+  heldSides: ReadonlyMap<string, AnnotationRailSide> | undefined,
+) {
+  for (const item of group) {
+    const side = heldSides?.get(item.annotation.id);
+    if (side === 'left' || side === 'right') return side;
+  }
+  return null;
 }
 
 function railSidePlacementCost(

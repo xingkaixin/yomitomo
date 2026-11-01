@@ -6,6 +6,7 @@ import {
   buildAnnotationRailItems,
   type AnnotationRailItem,
   type AnnotationRailLayout,
+  type AnnotationRailSide,
 } from './annotation-rail-layout';
 import { animateRailChanges } from './annotation-rail-motion';
 import { useInterval } from '../hooks/use-interval';
@@ -179,6 +180,7 @@ export function useReaderAnnotationRail({
   const pendingNoteHeightsRef = React.useRef(new Map<string, number>());
   const noteHeightFrameRef = React.useRef(0);
   const placedItemsRef = React.useRef(new Map<string, AnnotationRailItem>());
+  const heldSidesRef = React.useRef(new Map<string, AnnotationRailSide>());
   const notifyAnnotationLayoutChange = useStableCallback(() => {
     onAnnotationLayoutChange?.();
   });
@@ -222,6 +224,7 @@ export function useReaderAnnotationRail({
         stackFrontId,
         noteHeights,
         documentAnnotationRailLayout,
+        heldSidesRef.current,
       ).map((item) => [item.annotation.id, item]),
     );
     // Exiting notes fade where they last sat. Source order keeps React from moving notes in the
@@ -320,6 +323,15 @@ export function useReaderAnnotationRail({
       });
       placedItemsRef.current = new Map(
         annotationRailItems.map((item) => [item.annotation.id, item]),
+      );
+      // Cards on screen keep their rail so neighbors entering above them cannot send them across
+      // the article. Sides picked from estimated heights stay provisional until the card is measured.
+      heldSidesRef.current = new Map(
+        annotationRailLayout?.mode === 'both'
+          ? annotationRailItems
+              .filter((item) => noteHeights[item.annotation.id])
+              .map((item) => [item.annotation.id, item.railSide])
+          : [],
       );
       notifyAnnotationLayoutChange();
     },

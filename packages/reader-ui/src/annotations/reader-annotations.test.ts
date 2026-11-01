@@ -313,6 +313,29 @@ describe('reader annotation filters', () => {
     ]);
   });
 
+  it('keeps a held rail side when a note entering above would displace it', () => {
+    const railLayout = {
+      articleCenterX: 500,
+      leftRailLeft: 24,
+      mode: 'both' as const,
+      railWidth: 320,
+      rightRailLeft: 980,
+    };
+    const items = buildAnnotationRailItems(
+      [
+        annotation('entering', { anchor: anchor('entering', 0, 10) }),
+        annotation('held', { anchor: anchor('held', 20, 30) }),
+      ],
+      [box('entering', { left: 120, top: 120 }), box('held', { left: 140, top: 170 })],
+      null,
+      {},
+      railLayout,
+      new Map([['held', 'left']]),
+    );
+
+    expect(items.find((item) => item.annotation.id === 'held')?.railSide).toBe('left');
+  });
+
   it('alternates nearby rail groups across both sides', () => {
     const items = buildAnnotationRailItems(
       [
