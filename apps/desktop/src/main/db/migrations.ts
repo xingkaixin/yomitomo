@@ -1384,6 +1384,24 @@ ALTER TABLE app_settings DROP COLUMN allow_local_network_article_import;
     sql: '',
     apply: stripLegacyEbookChapterImages,
   },
+  // 0017 copied the default provider into every task route, so those tasks ignored later changes
+  // to the default. A deliberate override with the same value can't be told apart from that copy.
+  {
+    id: '0075_inherit_default_provider_routes',
+    sql: `
+UPDATE app_settings
+SET reading_assistant_provider_id = NULL
+WHERE reading_assistant_provider_id = default_provider_id;
+
+UPDATE app_settings
+SET review_assistant_provider_id = NULL
+WHERE review_assistant_provider_id = default_provider_id;
+
+UPDATE app_settings
+SET bilingual_translation_provider_id = NULL
+WHERE bilingual_translation_provider_id = default_provider_id;
+`,
+  },
 ];
 
 type MigrationDatabase = {

@@ -140,6 +140,32 @@ describe('reading memory migrations', () => {
     ]);
   });
 
+  it('turns task routes that copy the default provider into inherited routes', () => {
+    const database = new DatabaseSync(':memory:');
+    const migration = migrations.find((item) => item.id === '0075_inherit_default_provider_routes');
+    if (!migration) throw new Error('missing migration 0075');
+    database.exec(`
+      CREATE TABLE app_settings (
+        default_provider_id TEXT,
+        reading_assistant_provider_id TEXT,
+        review_assistant_provider_id TEXT,
+        bilingual_translation_provider_id TEXT
+      )
+    `);
+    database
+      .prepare('INSERT INTO app_settings VALUES (?, ?, ?, ?)')
+      .run('provider_default', 'provider_default', 'provider_review', null);
+
+    database.exec(migration.sql);
+
+    expect(database.prepare('SELECT * FROM app_settings').get()).toEqual({
+      default_provider_id: 'provider_default',
+      reading_assistant_provider_id: null,
+      review_assistant_provider_id: 'provider_review',
+      bilingual_translation_provider_id: null,
+    });
+  });
+
   it('adds constrained reading memory projection jobs', () => {
     const database = new DatabaseSync(':memory:');
     database.exec('PRAGMA foreign_keys = ON');
