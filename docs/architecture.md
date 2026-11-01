@@ -59,8 +59,8 @@ telemetry → shared
 ## 数据与事实来源
 
 - **SQLite 是唯一持久化事实来源。** schema 在 `apps/desktop/src/main/db/schema.ts`，迁移是
-  `apps/desktop/src/main/db/migrations.ts` 中手写的有序 SQL。renderer state、pending 评论和
-  临时高亮都不是事实来源。
+  `apps/desktop/src/main/db/migrations.ts` 中手写的有序 SQL；SQL 表达不了的数据修复用同一迁移的
+  `apply`，在同一事务里执行。renderer state、pending 评论和临时高亮都不是事实来源。
 - **数据库只升不降。** 旧版本无法读取的迁移必须提升 `minReaderLevel`；数据库要求的级别高于当前
   客户端时拒绝打开，见 `apps/desktop/src/main/db/compatibility.ts`。不通过删除迁移记录或降低
   级别来降级。

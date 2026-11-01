@@ -431,6 +431,7 @@ CREATE TABLE IF NOT EXISTS __yomitomo_migrations (
     if (applied.has(migration.id)) continue;
     database.transaction(() => {
       database.exec(migration.sql);
+      migration.apply?.(database);
       database
         .prepare('INSERT INTO __yomitomo_migrations (id, applied_at) VALUES (?, ?)')
         .run(migration.id, new Date().toISOString());

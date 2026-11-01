@@ -1,8 +1,9 @@
-import { recordField } from '@yomitomo/shared';
+import { recordField, stringField } from '@yomitomo/shared';
 
 export type DatabaseMigration = {
   id: string;
   sql: string;
+  apply?: (database: DataMigrationDatabase) => void;
   minReaderLevel?: number;
 };
 
@@ -1378,12 +1379,47 @@ ALTER TABLE articles DROP COLUMN focus_co_reading_plan;
 ALTER TABLE app_settings DROP COLUMN allow_local_network_article_import;
 `,
   },
+  {
+    id: '0074_strip_legacy_ebook_chapter_images',
+    sql: '',
+    apply: stripLegacyEbookChapterImages,
+  },
 ];
 
 type MigrationDatabase = {
   exec(sql: string): unknown;
   prepare(sql: string): { all(): unknown[] };
 };
+
+type DataMigrationDatabase = {
+  prepare(sql: string): {
+    all(...params: string[]): unknown[];
+    get(...params: string[]): unknown;
+    run(...params: string[]): unknown;
+  };
+};
+
+// Early EPUB imports inlined chapter images as data URIs. The reader shows images from the source
+// file, so these only slow every full article read. Quotes are JSON-escaped because the column is
+// edited as raw text: a malformed row stays untouched instead of failing startup on JSON.parse.
+const LEGACY_CHAPTER_IMAGE_SOURCE = /(<(?:img|image)\b[^>]*?)\s+(?:src|href)=\\"data:[^"\\]*\\"/gi;
+
+function stripLegacyEbookChapterImages(database: DataMigrationDatabase) {
+  const readChapters = database.prepare(
+    'SELECT ebook_chapters FROM article_bodies WHERE article_id = ?',
+  );
+  const writeChapters = database.prepare(
+    'UPDATE article_bodies SET ebook_chapters = ? WHERE article_id = ?',
+  );
+  const rows = database
+    .prepare("SELECT article_id FROM article_bodies WHERE ebook_chapters LIKE '%data:image/%'")
+    .all();
+  for (const row of rows) {
+    const articleId = stringField(recordField(row, 'article_id'));
+    const chapters = stringField(recordField(readChapters.get(articleId), 'ebook_chapters'));
+    writeChapters.run(chapters.replace(LEGACY_CHAPTER_IMAGE_SOURCE, '$1'), articleId);
+  }
+}
 
 export function ensureAdditiveSchemaColumns(database: MigrationDatabase) {
   const added: string[] = [];
