@@ -758,32 +758,42 @@ export const notesDiscussionStyles = `.reader-notes-header {
   background:var(--reader-paper-hover);
   color:var(--reader-ink)
 }
-.reader-note.is-distillation-dual-morph {
+.reader-note.is-distillation-dual-morph,.reader-note.is-distillation-dual-morph.is-active {
   overflow:visible;
-  padding:0;
-  border:0;
+  border-color:transparent;
   background:transparent;
-  box-shadow:none;
-  transition:height .55s cubic-bezier(.22,1,.36,1),opacity .18s ease,filter .2s ease,transform .22s cubic-bezier(.22,1,.36,1)
+  box-shadow:none
+}
+.reader-annotation-rail>.reader-note.is-distillation-dual-morph {
+  z-index:91!important
 }
 .reader-note-dual-morph-stage {
   position:relative;
-  width:100%;
+  margin:-12px;
+  perspective:1500px;
+  perspective-origin:50% 110px
+}
+.reader-note.has-distillation>.reader-note-dual-morph-stage {
+  margin-bottom:-1px
+}
+.reader-note-dual-flipper {
+  position:absolute;
+  inset:0;
   transform-style:preserve-3d;
-  transition:height .55s cubic-bezier(.22,1,.36,1)
+  transition:transform .42s cubic-bezier(.77,0,.175,1)
+}
+.reader-note.is-dual-show-dist .reader-note-dual-flipper {
+  transform:rotateY(180deg)
 }
 .reader-note-dual-face {
   position:absolute;
   top:0;
   left:0;
   right:0;
-  opacity:0;
   pointer-events:none;
-  will-change:opacity,clip-path,transform;
-  transition:opacity .3s ease
+  backface-visibility:hidden
 }
 .reader-note-dual-face-annotation {
-  z-index:1;
   padding:11px;
   border:1px solid var(--app-reader-note-annotation-border);
   border-radius:14px 0 14px 0;
@@ -791,43 +801,25 @@ export const notesDiscussionStyles = `.reader-notes-header {
   box-shadow:var(--app-reader-note-shadow);
   --reader-note-accent:var(--app-reader-note-annotation-accent);
   --reader-note-border:var(--app-reader-note-annotation-border);
-  --reader-note-surface:var(--app-reader-note-annotation-surface);
-  transition:opacity .12s ease
+  --reader-note-surface:var(--app-reader-note-annotation-surface)
 }
 .reader-note-dual-face-distillation {
-  z-index:3;
   padding:11px 11px 0;
   border:1px solid var(--app-reader-note-distillation-border);
   border-radius:14px 0 14px 0;
   background:var(--app-reader-note-distillation-mat);
   box-shadow:var(--app-reader-note-shadow);
-  clip-path:circle(0% at 13% 0%);
+  transform:rotateY(180deg);
   --reader-note-accent:var(--app-reader-note-distillation-accent);
   --reader-note-border:var(--app-reader-note-distillation-border);
-  --reader-note-surface:var(--app-reader-note-distillation-surface);
-  transition:clip-path .62s cubic-bezier(.22,1,.36,1),opacity .62s step-end
+  --reader-note-surface:var(--app-reader-note-distillation-surface)
 }
-.reader-note.is-dual-show-anno .reader-note-dual-face-annotation {
-  opacity:1;
+.reader-note.is-active .reader-note-dual-face {
+  border-color:var(--reader-note-accent);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--reader-note-accent) 18%,transparent),var(--app-reader-note-shadow)
+}
+.reader-note.is-dual-show-anno .reader-note-dual-face-annotation,.reader-note.is-dual-show-dist .reader-note-dual-face-distillation {
   pointer-events:auto
-}
-.reader-note.is-dual-show-dist .reader-note-dual-face-distillation {
-  opacity:1;
-  pointer-events:auto;
-  clip-path:circle(160% at 13% 0%)
-}
-.reader-note.is-dual-stamp-in .reader-note-dual-face-distillation {
-  animation:reader-distillation-stamp-in .62s cubic-bezier(.22,1,.36,1) both
-}
-.reader-note.is-dual-stamp-in .reader-note-dual-face-distillation::after {
-  content:"";
-  position:absolute;
-  inset:0;
-  z-index:6;
-  border-radius:14px 0 14px 0;
-  background:linear-gradient(105deg,transparent 42%,color-mix(in srgb,var(--reader-note-surface,var(--reader-paper)) 60%,transparent) 50%,transparent 58%);
-  pointer-events:none;
-  animation:reader-distillation-shimmer .6s cubic-bezier(.22,1,.36,1) .12s both
 }
 .reader-note-dual-face-annotation .reader-note-tab {
   border:1px solid var(--app-reader-note-annotation-border);
@@ -930,23 +922,6 @@ export const notesDiscussionStyles = `.reader-notes-header {
   pointer-events:none;
   animation:reader-distillation-shimmer 800ms cubic-bezier(.22,1,.36,1) both
 }
-@keyframes reader-distillation-stamp-in {
-  0% {
-    transform:scale(1.45) rotate(-7deg);
-    opacity:0
-  }
-  55% {
-    transform:scale(.93) rotate(1.5deg);
-    opacity:1
-  }
-  75% {
-    transform:scale(1.03) rotate(-.6deg)
-  }
-  100% {
-    transform:scale(1) rotate(0);
-    opacity:1
-  }
-}
 @keyframes reader-distillation-update-breathe {
   0% {
     transform:scale(1)
@@ -988,17 +963,24 @@ export const notesDiscussionStyles = `.reader-notes-header {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .reader-note-dual-morph-stage,
-  .reader-note-dual-face,
-  .reader-note.is-dual-stamp-in .reader-note-dual-face-distillation,
-  .reader-note.is-dual-stamp-in .reader-note-dual-face-distillation::after,
   .reader-note.is-distillation-update .reader-note-body,
   .reader-note.is-distillation-update .reader-note-quote-text,
   .reader-note.is-distillation-update::after {
     animation:none;
-    clip-path:none;
     filter:none;
     transition:none;
     will-change:auto
+  }
+  .reader-note .reader-note-dual-flipper,.reader-note.is-dual-show-dist .reader-note-dual-flipper {
+    transform:none;
+    transition:none
+  }
+  .reader-note-dual-face {
+    opacity:0;
+    backface-visibility:visible;
+    transform:none
+  }
+  .reader-note.is-dual-show-anno .reader-note-dual-face-annotation,.reader-note.is-dual-show-dist .reader-note-dual-face-distillation {
+    opacity:1
   }
 }`;

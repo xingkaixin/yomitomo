@@ -23,7 +23,8 @@ import {
 
 const DISTILLATION_SYNC_EVENT_GRACE_MS = 320;
 const DISTILLATION_MORPH_PREPARE_MS = 16;
-const DISTILLATION_MORPH_MS = 620;
+// Outlasts the 420ms flip, so the faces unmount after the card has settled.
+const DISTILLATION_MORPH_MS = 440;
 const DISTILLATION_UPDATE_MS = 850;
 
 type DistillationSyncLifecycle =

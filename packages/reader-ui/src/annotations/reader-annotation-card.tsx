@@ -179,11 +179,6 @@ export const AnnotationCard = React.memo(function AnnotationCard({
     isDualMorph ? 'is-distillation-dual-morph' : '',
     isDualMorph && annotation.distillation?.status === 'published' ? 'is-dual-show-dist' : '',
     isDualMorph && annotation.distillation?.status !== 'published' ? 'is-dual-show-anno' : '',
-    isDualMorph &&
-    distillationAnimation?.transition === 'publish' &&
-    annotation.distillation?.status === 'published'
-      ? 'is-dual-stamp-in'
-      : '',
     distillationAnimation ? `is-distillation-${distillationAnimation.phase}` : '',
     exiting ? 'is-filtering-out' : '',
     stackCount > 1 ? 'is-stacked' : '',
@@ -266,17 +261,19 @@ export const AnnotationCard = React.memo(function AnnotationCard({
           ref={measureDualMorphStage}
           style={dualMorphHeight === null ? undefined : { height: `${dualMorphHeight}px` }}
         >
-          <div
-            className="reader-note-dual-face reader-note-dual-face-annotation"
-            ref={dualMorphAnnotationRef}
-          >
-            {renderContent('annotation', annotation.anchor.exact)}
-          </div>
-          <div
-            className="reader-note-dual-face reader-note-dual-face-distillation"
-            ref={dualMorphDistillationRef}
-          >
-            {renderContent('distillation', dualMorphDistillationContent)}
+          <div className="reader-note-dual-flipper">
+            <div
+              className="reader-note-dual-face reader-note-dual-face-annotation"
+              ref={dualMorphAnnotationRef}
+            >
+              {renderContent('annotation', annotation.anchor.exact)}
+            </div>
+            <div
+              className="reader-note-dual-face reader-note-dual-face-distillation"
+              ref={dualMorphDistillationRef}
+            >
+              {renderContent('distillation', dualMorphDistillationContent)}
+            </div>
           </div>
         </div>
       ) : (

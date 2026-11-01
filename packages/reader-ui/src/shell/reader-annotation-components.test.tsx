@@ -330,7 +330,6 @@ describe('AnnotationCard', () => {
 
     expect(container.querySelector('.reader-note.is-distillation-dual-morph')).toBeTruthy();
     expect(container.querySelector('.reader-note.is-dual-show-anno')).toBeTruthy();
-    expect(container.querySelector('.reader-note.is-dual-stamp-in')).toBeNull();
     expect(container.querySelector('.reader-note-dual-face-annotation')?.textContent).toContain(
       '需要批注的原文',
     );
@@ -379,41 +378,6 @@ describe('AnnotationCard', () => {
     expect(container.querySelector('.reader-note-dual-face-distillation')?.textContent).toContain(
       '准备进入的沉淀内容',
     );
-  });
-
-  it('only stamps the distillation face when publish morph enters the distillation state', () => {
-    const { container } = render(
-      <AnnotationCard
-        active
-        agents={[]}
-        annotation={annotation({
-          distillation: {
-            status: 'published',
-            content: '刚进入的沉淀内容',
-            publishedAt: now,
-            updatedAt: now,
-          },
-        })}
-        distillationAnimation={{
-          annotationId: 'annotation-1',
-          transition: 'publish',
-          phase: 'morph-in',
-          overlayDistillation: {
-            content: '刚进入的沉淀内容',
-            publishedAt: now,
-            updatedAt: now,
-          },
-          token: 1,
-        }}
-        noteRef={vi.fn()}
-        userProfile={userProfile}
-        onDelete={vi.fn()}
-        onFocus={vi.fn()}
-      />,
-    );
-
-    expect(container.querySelector('.reader-note.is-dual-show-dist')).toBeTruthy();
-    expect(container.querySelector('.reader-note.is-dual-stamp-in')).toBeTruthy();
   });
 
   it('deletes the annotation only after confirming in the dialog', () => {
