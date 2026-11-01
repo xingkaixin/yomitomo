@@ -19,12 +19,17 @@ type UseReaderActiveConnectionInput = {
 const noteConnectionTargetOffset = 34;
 
 function connectionTargetForNote(noteElement: HTMLElement, readerRect: DOMRect) {
-  const noteRect = noteElement.getBoundingClientRect();
+  // This runs right after a front switch while the card is still easing out of its fanned pose,
+  // so the target comes from the layout box, which transforms do not affect.
+  const parentRect = noteElement.offsetParent?.getBoundingClientRect();
+  const noteLeft = (parentRect?.left ?? 0) + noteElement.offsetLeft;
+  const noteTop = (parentRect?.top ?? 0) + noteElement.offsetTop;
   const side = noteElement.dataset.railSide === 'left' ? 'left' : 'right';
   return {
     side,
-    x: (side === 'left' ? noteRect.right : noteRect.left) - readerRect.left,
-    y: noteRect.top - readerRect.top + Math.min(noteConnectionTargetOffset, noteRect.height / 2),
+    x: (side === 'left' ? noteLeft + noteElement.offsetWidth : noteLeft) - readerRect.left,
+    y:
+      noteTop - readerRect.top + Math.min(noteConnectionTargetOffset, noteElement.offsetHeight / 2),
   };
 }
 

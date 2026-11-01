@@ -41,6 +41,16 @@ function mockRect(element: Element, value: DOMRect) {
   });
 }
 
+function mockLayoutBox(
+  element: HTMLElement,
+  offsetParent: Element | null,
+  layoutBox: Pick<HTMLElement, 'offsetHeight' | 'offsetLeft' | 'offsetTop' | 'offsetWidth'>,
+) {
+  for (const [key, value] of Object.entries({ ...layoutBox, offsetParent })) {
+    Object.defineProperty(element, key, { configurable: true, value });
+  }
+}
+
 function annotation(id: string): Annotation {
   return {
     id,
@@ -121,7 +131,14 @@ function HookProbe() {
             ref={(element) => {
               if (element) {
                 noteRefs.current.set('note-1', element);
-                mockRect(element, rect(418, 322, 320, 140));
+                // The bounding rect is the fanned card; the layout box is where it settles.
+                mockRect(element, rect(392, 296, 372, 192));
+                mockLayoutBox(element, element.parentElement, {
+                  offsetHeight: 140,
+                  offsetLeft: 388,
+                  offsetTop: 272,
+                  offsetWidth: 320,
+                });
               } else {
                 noteRefs.current.delete('note-1');
               }
@@ -137,7 +154,7 @@ function HookProbe() {
 afterEach(cleanup);
 
 describe('useReaderActiveConnection', () => {
-  it('targets the visible upper edge of an active note', async () => {
+  it('targets the settled upper edge of an active note that is still leaving its fanned pose', async () => {
     render(<HookProbe />);
 
     await waitFor(() => {
