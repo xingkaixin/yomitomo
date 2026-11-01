@@ -16,7 +16,6 @@ import {
   GlobalPointerProvider,
   PagePointerProvider,
 } from '@embedpdf/plugin-interaction-manager/react';
-import { RenderLayer } from '@embedpdf/plugin-render/react';
 import { Scroller } from '@embedpdf/plugin-scroll/react';
 import { SelectionLayer } from '@embedpdf/plugin-selection/react';
 import { Viewport } from '@embedpdf/plugin-viewport/react';
@@ -53,6 +52,7 @@ import {
   pdfiumTemporaryBoxes,
 } from './pdfium-annotation-layout';
 import { pdfiumRectsForTextRange } from './pdfium-geometry';
+import { PdfiumPageCanvas } from './pdfium-page-canvas';
 import {
   pageProgress,
   pdfPageProgressPercent,
@@ -698,11 +698,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
                       documentId={documentId}
                       pageIndex={pageIndex}
                     >
-                      <RenderLayer
-                        documentId={documentId}
-                        pageIndex={pageIndex}
-                        style={{ pointerEvents: 'none' }}
-                      />
+                      <PdfiumPageCanvas documentId={documentId} pageIndex={pageIndex} />
                       <SelectionLayer
                         documentId={documentId}
                         pageIndex={pageIndex}
