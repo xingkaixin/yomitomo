@@ -105,6 +105,7 @@ export const jaResources = {
         'ink-paper': 'インク紙',
         shadlingo: '若葉',
         'shadlingo-dark': '若葉・夜',
+        lanmo: '藍墨',
       },
       descriptions: {
         default: '暖かな白い用紙、細かな格子柄、テラコッタ色のアクセント。',
@@ -115,6 +116,7 @@ export const jaResources = {
           '繊細なドットとインクブルーのアクセントを備えた、落ち着いた温かみのある紙の読書環境。',
         shadlingo: '白い紙面、深い青の文字、若葉色のアクセントの ShadLingo テーマ。',
         'shadlingo-dark': '深い青の背景、淡い青の文字、若葉色のアクセントの ShadLingo テーマ。',
+        lanmo: '冷たい白の紙面、万年筆の青、鉛筆の手描き線の読書環境。',
       },
       readerPaperNames: {
         纸白: '紙白',
