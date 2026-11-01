@@ -105,6 +105,7 @@ function createNoteRefs(): React.MutableRefObject<Map<string, HTMLElement>> {
 }
 
 function HookProbe({
+  activeId = null,
   annotations,
   annotationRailLayout,
   boxes = [],
@@ -112,6 +113,7 @@ function HookProbe({
   noteRefs,
   onAnnotationLayoutChange,
 }: {
+  activeId?: string | null;
   annotations: Annotation[];
   annotationRailLayout?: AnnotationRailLayout;
   boxes?: HighlightBox[];
@@ -120,7 +122,7 @@ function HookProbe({
   onAnnotationLayoutChange?: () => void;
 }) {
   const rail = useReaderAnnotationRail({
-    activeId: null,
+    activeId,
     annotationRailLayout,
     annotations,
     boxes,
@@ -141,6 +143,9 @@ function HookProbe({
         {rail.annotationRailItems
           .map((item) => `${item.annotation.id}:${String(item.style.top)}:${item.stackCount}`)
           .join('|')}
+      </output>
+      <output data-testid="stack-front">
+        {rail.annotationRailItems.find((item) => item.isStackFront)?.annotation.id}
       </output>
       <output data-testid="exiting">{Array.from(rail.exitingAnnotationIds).join(',')}</output>
       {rail.annotationRailItems.map((item) => (
@@ -325,6 +330,24 @@ describe('useReaderAnnotationRail', () => {
     });
 
     expect(onAnnotationLayoutChange).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the stack front while the active annotation is cleared', () => {
+    const annotations = [
+      annotation('first', { anchor: anchor('first', 0, 10) }),
+      annotation('second', { anchor: anchor('second', 20, 30) }),
+    ];
+    const boxes = [box('first', 100), box('second', 110)];
+    const noteRefs = createNoteRefs();
+    const { rerender } = render(
+      <HookProbe activeId="second" annotations={annotations} boxes={boxes} noteRefs={noteRefs} />,
+    );
+
+    rerender(
+      <HookProbe activeId={null} annotations={annotations} boxes={boxes} noteRefs={noteRefs} />,
+    );
+
+    expect(screen.getByTestId('stack-front').textContent).toBe('second');
   });
 
   it('keeps rail layout stable when only the scroll viewport top changes', () => {
