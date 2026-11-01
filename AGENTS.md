@@ -22,7 +22,7 @@
 
 本地快速循环使用 `mise run check:fast`。推送 PR 分支前至少运行 `pnpm format:check`；会触发完整 CI 的改动在推送前运行 `mise run check`。
 
-`mise run check` 是 canonical 门禁，CI 按同一顺序执行。未安装 mise 时运行下面的等价命令，`pnpm gate:check` 会校验它与 `mise.toml`、CI 一致：
+`mise run check` 是 canonical 门禁，CI 把同一组命令拆到并行 job 执行。未安装 mise 时运行下面的等价命令，`pnpm gate:check` 会校验它与 `mise.toml`、CI 一致：
 
 <!-- gate:check -->
 ```bash
@@ -39,6 +39,8 @@ pnpm test:app:e2e:from-dist
 ```
 
 无图形环境的 Linux 通过 `xvfb-run -a mise run check` 运行完整门禁。
+
+CI 用 `Repository checks` job 判断改动范围：只改文档的 PR 跳过构建和测试，Sparkle 烟测只在其输入变化时运行，main 的每个提交都全量运行。分支保护只要求 `CI OK`；不要要求其他 job 或 `Reading Memory Model`，它们被跳过时检查会一直挂起。
 
 ## 测试取舍
 

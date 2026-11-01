@@ -19,7 +19,6 @@
       "outputLogs": "new-only"
     },
     "test": {
-      "dependsOn": ["^build"],
       "outputLogs": "new-only"
     },
     "lint": {

@@ -17,7 +17,7 @@
 mise run check
 ```
 
-该命令覆盖与 CI 同序的完整门禁；无 mise 时使用根目录 `AGENTS.md` 中列出的等价命令。
+该命令覆盖与 CI 相同的完整门禁；无 mise 时使用根目录 `AGENTS.md` 中列出的等价命令。
 阅读记忆的人工质量验收见 [发布质量门禁](reading-memory-release.md)：固定夹具、打包烟测和
 CI 通过不替代真实阅读样本及人工质量复核。
 
