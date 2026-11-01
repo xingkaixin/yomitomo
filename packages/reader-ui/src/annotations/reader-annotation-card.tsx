@@ -110,13 +110,13 @@ const emptyAgents: PublicAgent[] = [];
 type AnnotationCardState = {
   dualMorph: { height: number; token: number } | null;
   isStackFront: boolean;
-  shuffling: boolean;
+  rising: boolean;
 };
 
 type AnnotationCardEvent =
   | { type: 'dualMorphMeasured'; height: number; token: number }
-  | { type: 'shuffleEnded' }
-  | { type: 'stackFrontChanged'; isStackFront: boolean; shuffle: boolean };
+  | { type: 'riseEnded' }
+  | { type: 'stackFrontChanged'; isStackFront: boolean; rise: boolean };
 
 function annotationCardReducer(
   state: AnnotationCardState,
@@ -127,14 +127,10 @@ function annotationCardReducer(
       return state.dualMorph?.token === event.token && state.dualMorph.height === event.height
         ? state
         : { ...state, dualMorph: { height: event.height, token: event.token } };
-    case 'shuffleEnded':
-      return state.shuffling ? { ...state, shuffling: false } : state;
+    case 'riseEnded':
+      return state.rising ? { ...state, rising: false } : state;
     case 'stackFrontChanged':
-      return {
-        ...state,
-        isStackFront: event.isStackFront,
-        shuffling: state.shuffling || event.shuffle,
-      };
+      return { ...state, isStackFront: event.isStackFront, rising: event.rise };
   }
 }
 
@@ -166,16 +162,15 @@ export const AnnotationCard = React.memo(function AnnotationCard({
   const [cardState, dispatch] = useReducer(annotationCardReducer, {
     dualMorph: null,
     isStackFront,
-    shuffling: false,
+    rising: false,
   });
   if (cardState.isStackFront !== isStackFront) {
     dispatch({
       type: 'stackFrontChanged',
       isStackFront,
-      shuffle: !exiting && stackCount > 1 && !isStackFront,
+      rise: !exiting && stackCount > 1 && isStackFront,
     });
   }
-  const { shuffling } = cardState;
 
   const noteClassName = [
     'reader-note',
@@ -193,7 +188,7 @@ export const AnnotationCard = React.memo(function AnnotationCard({
     exiting ? 'is-filtering-out' : '',
     stackCount > 1 ? 'is-stacked' : '',
     isStackFront ? 'is-stack-front' : '',
-    shuffling ? 'is-shuffle-out' : '',
+    cardState.rising ? 'is-stack-rising' : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -257,11 +252,11 @@ export const AnnotationCard = React.memo(function AnnotationCard({
       data-distillation-animation={distillationAnimation?.token}
       data-distillation-transition={distillationAnimation?.transition}
       ref={noteRef}
-      style={shuffling ? { ...style, zIndex: 70 } : style}
+      style={style}
       onClick={handleCardClick}
       onAnimationEnd={(event) => {
-        if (event.animationName.startsWith('reader-note-shuffle')) {
-          dispatch({ type: 'shuffleEnded' });
+        if (event.animationName === 'reader-note-stack-rise') {
+          dispatch({ type: 'riseEnded' });
         }
       }}
     >

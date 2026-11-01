@@ -188,7 +188,7 @@ export const surfaceStyles = `.reader-article {
   margin:0;
   pointer-events:auto;
   transform-origin:top center;
-  transition:opacity .18s ease,filter .2s ease,transform .22s cubic-bezier(.22,1,.36,1),box-shadow .22s ease,border-color .16s ease
+  transition:opacity .18s ease,filter .2s ease,transform var(--reader-note-move-duration,.22s) cubic-bezier(.22,1,.36,1),box-shadow .22s ease,border-color .16s ease
 }
 .reader-annotation-rail>.reader-note.is-filtering-out {
   opacity:0;
@@ -197,10 +197,10 @@ export const surfaceStyles = `.reader-article {
 }
 .reader-annotation-rail>.reader-note.is-stacked {
   transform-origin:50% 50%;
-  transform:rotate(var(--stack-rotate,0deg)) translateX(var(--stack-offset,0px))
+  transform:translateY(var(--stack-peek,0px)) rotate(var(--stack-rotate,0deg)) translateX(var(--stack-offset,0px))
 }
 .reader-annotation-rail>.reader-note[data-rail-side="left"].is-stacked {
-  transform:rotate(calc(var(--stack-rotate,0deg) * -1)) translateX(calc(var(--stack-offset,0px) * -1))
+  transform:translateY(var(--stack-peek,0px)) rotate(calc(var(--stack-rotate,0deg) * -1)) translateX(calc(var(--stack-offset,0px) * -1))
 }
 .reader-annotation-rail>.reader-note.is-stack-front {
   box-shadow:var(--reader-elevated-shadow)
@@ -212,37 +212,20 @@ export const surfaceStyles = `.reader-article {
 .reader-annotation-rail>.reader-note.is-stacked:not(.is-stack-front) .reader-note-toolbar {
   pointer-events:none
 }
-.reader-annotation-rail>.reader-note.is-shuffle-out {
-  z-index:70;
-  animation:reader-note-shuffle-out .5s cubic-bezier(.4,.1,.3,1)
+.reader-annotation-rail>.reader-note.is-stack-rising {
+  --reader-note-move-duration:.3s;
+  animation:reader-note-stack-rise .3s cubic-bezier(.22,1,.36,1)
 }
-.reader-annotation-rail>.reader-note[data-rail-side="left"].is-shuffle-out {
-  animation-name:reader-note-shuffle-out-left
-}
-@keyframes reader-note-shuffle-out {
-  0% {
-    transform:rotate(0deg) translate(0,0) scale(1)
-  }
-  38% {
-    transform:rotate(-7deg) translate(30px,-28px) scale(1.02)
-  }
-  100% {
-    transform:rotate(var(--stack-rotate,0deg)) translateX(var(--stack-offset,0px))
-  }
-}
-@keyframes reader-note-shuffle-out-left {
-  0% {
-    transform:rotate(0deg) translate(0,0) scale(1)
-  }
-  38% {
-    transform:rotate(7deg) translate(-30px,-28px) scale(1.02)
-  }
-  100% {
-    transform:rotate(calc(var(--stack-rotate,0deg) * -1)) translateX(calc(var(--stack-offset,0px) * -1))
+@keyframes reader-note-stack-rise {
+  40% {
+    scale:1.03
   }
 }
 @media (prefers-reduced-motion:reduce) {
-  .reader-annotation-rail>.reader-note.is-shuffle-out {
+  .reader-annotation-rail>.reader-note.is-stacked {
+    transition-property:opacity,filter,box-shadow,border-color
+  }
+  .reader-annotation-rail>.reader-note.is-stack-rising {
     animation:none
   }
 }`;

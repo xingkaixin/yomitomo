@@ -20,7 +20,7 @@ type UseFoliateInputBridgeInput = {
   onFoliateClick: (event: MouseEvent, doc: Document) => boolean | void;
   onFoliatePageTurnClick: (direction: EbookClickPagingDirection) => void;
   onFoliatePageTurnKey: (direction: ReaderPageTurnDirection) => void;
-  onFoliatePointerDown: () => void;
+  onFoliatePointerDown: (event?: PointerEvent, doc?: Document) => void;
   onFoliateSelection: (doc: Document) => void;
   onFoliateSelectionShortcut: (event: KeyboardEvent) => void;
 };
@@ -213,7 +213,7 @@ export function useFoliateInputBridge({
           setClickPagingHoverDirection(foliateClickPagingDirection(event, doc));
         };
         const handleMouseLeave = () => setClickPagingHoverDirection(null);
-        const handlePointerDown = () => foliatePointerDown();
+        const handlePointerDown = (event: PointerEvent) => foliatePointerDown(event, doc);
         const handleKeyDown = (event: KeyboardEvent) => {
           foliateSelectionShortcutPressed(event);
           const direction = readerPageTurnDirectionFromKeyboardEvent(event);

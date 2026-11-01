@@ -599,7 +599,7 @@ describe('reader annotation filters', () => {
         box('active-right', { left: 520, top: 1850, width: 220 }),
       ],
       'active-right',
-      { 'right-above': 300, 'active-right': 250 },
+      { 'right-above': 300, 'active-right': 200 },
       {
         articleCenterX: 500,
         leftRailLeft: 24,
@@ -615,6 +615,54 @@ describe('reader annotation filters', () => {
     expect(byId.get('active-right')?.stackCount).toBe(2);
     expect(byId.get('active-right')?.stackIndex).toBe(0);
     expect(byId.get('active-right')?.style.top).toBe(1840);
+  });
+
+  it('holds a stack in place while the active highlight sits beside its card', () => {
+    const annotations = [
+      annotation('upper', { anchor: anchor('upper', 0, 10) }),
+      annotation('lower', { anchor: anchor('lower', 20, 30) }),
+    ];
+    const boxes = [box('upper', { top: 100 }), box('lower', { top: 153 })];
+    const noteHeights = { upper: 143, lower: 95 };
+    const tops = (activeId: string | null) =>
+      buildAnnotationRailItems(annotations, boxes, activeId, noteHeights).map(
+        (item) => item.style.top,
+      );
+
+    expect(tops('upper')).toEqual([90, 90]);
+    expect(tops('lower')).toEqual([90, 90]);
+  });
+
+  it('leaves cards outside the swapped pair at their stack depth', () => {
+    const annotations = ['first', 'second', 'third'].map((id, index) =>
+      annotation(id, { anchor: anchor(id, index * 20, index * 20 + 10) }),
+    );
+    const boxes = [
+      box('first', { top: 100 }),
+      box('second', { top: 110 }),
+      box('third', { top: 120 }),
+    ];
+    const depths = (activeId: string) =>
+      buildAnnotationRailItems(annotations, boxes, activeId).map((item) => item.stackIndex);
+
+    expect(depths('first')).toEqual([0, 1, 2]);
+    expect(depths('second')).toEqual([1, 0, 2]);
+  });
+
+  it('keeps a short back card visible below a taller front card', () => {
+    const annotations = [
+      annotation('tall', { anchor: anchor('tall', 0, 10) }),
+      annotation('short', { anchor: anchor('short', 20, 30) }),
+    ];
+    const boxes = [box('tall', { top: 100 }), box('short', { top: 120 })];
+    const noteHeights = { tall: 286, short: 190 };
+    const peeks = (activeId: string) =>
+      buildAnnotationRailItems(annotations, boxes, activeId, noteHeights).map(
+        (item) => (item.style as Record<string, string>)['--stack-peek'],
+      );
+
+    expect(peeks('tall')).toEqual(['0px', '138px']);
+    expect(peeks('short')).toEqual(['0px', '0px']);
   });
 
   it('keeps the active stacked rail card close to its highlight in the viewport', () => {

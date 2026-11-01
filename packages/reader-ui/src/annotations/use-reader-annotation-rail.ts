@@ -25,6 +25,7 @@ type RailState = {
   ids: string[];
   noteHeights: Record<string, number>;
   sourceIds: string[];
+  stackFrontId: string | null;
   visibleIds: string[];
 };
 
@@ -32,7 +33,8 @@ type RailEvent =
   | { type: 'exitFinished' }
   | { type: 'noteDetached'; annotationId: string }
   | { type: 'noteHeightsMeasured'; heights: Iterable<[string, number]> }
-  | { type: 'railAnnotationsChanged'; sourceIds: string[]; visibleIds: string[] };
+  | { type: 'railAnnotationsChanged'; sourceIds: string[]; visibleIds: string[] }
+  | { type: 'stackFrontChanged'; annotationId: string };
 
 function railReducer(state: RailState, event: RailEvent): RailState {
   switch (event.type) {
@@ -75,6 +77,8 @@ function railReducer(state: RailState, event: RailEvent): RailState {
         visibleIds: event.visibleIds,
       };
     }
+    case 'stackFrontChanged':
+      return { ...state, stackFrontId: event.annotationId };
   }
 }
 
@@ -86,7 +90,14 @@ function initialRailState({
   visibleIds: string[];
 }) {
   return railReducer(
-    { exitingIds: new Set(), ids: sourceIds, noteHeights: {}, sourceIds, visibleIds },
+    {
+      exitingIds: new Set(),
+      ids: sourceIds,
+      noteHeights: {},
+      sourceIds,
+      stackFrontId: null,
+      visibleIds,
+    },
     { type: 'railAnnotationsChanged', sourceIds, visibleIds },
   );
 }
@@ -149,7 +160,12 @@ export function useReaderAnnotationRail({
   ) {
     dispatch({ type: 'railAnnotationsChanged', sourceIds, visibleIds });
   }
+  if (activeId && rail.stackFrontId !== activeId) {
+    dispatch({ type: 'stackFrontChanged', annotationId: activeId });
+  }
   const { exitingIds, ids: railIds, noteHeights } = rail;
+  // Clearing the selection releases the highlight only; the stack keeps its order instead of reshuffling.
+  const stackFrontId = activeId ?? rail.stackFrontId;
   const noteElementsRef = React.useRef(new Map<string, HTMLElement>());
   const noteRefCallbacksRef = React.useRef(
     new Map<string, (element: HTMLElement | null) => void>(),
@@ -197,11 +213,11 @@ export function useReaderAnnotationRail({
       buildAnnotationRailItems(
         railAnnotations,
         boxes,
-        activeId,
+        stackFrontId,
         noteHeights,
         documentAnnotationRailLayout,
       ),
-    [activeId, documentAnnotationRailLayout, boxes, noteHeights, railAnnotations],
+    [stackFrontId, documentAnnotationRailLayout, boxes, noteHeights, railAnnotations],
   );
 
   useInterval(
