@@ -46,7 +46,7 @@ jobs:
         if: steps.model-cache.outputs.cache-hit != 'true'
         uses: ./.github/actions/setup-workspace
         with:
-          install-args: --ignore-scripts --filter '@yomitomo/ai...'
+          install-args: --ignore-scripts
 
       - name: Download selected model
         if: steps.model-cache.outputs.cache-hit != 'true'

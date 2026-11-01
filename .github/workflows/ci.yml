@@ -111,23 +111,18 @@ jobs:
           - name: packages
             cache: packages
             args: --filter=!@yomitomo/desktop
-            install: --ignore-scripts
           - name: desktop 1/4
             cache: desktop-1
             args: --filter=@yomitomo/desktop -- --shard=1/4
-            install: --ignore-scripts --filter . --filter '@yomitomo/desktop...'
           - name: desktop 2/4
             cache: desktop-2
             args: --filter=@yomitomo/desktop -- --shard=2/4
-            install: --ignore-scripts --filter . --filter '@yomitomo/desktop...'
           - name: desktop 3/4
             cache: desktop-3
             args: --filter=@yomitomo/desktop -- --shard=3/4
-            install: --ignore-scripts --filter . --filter '@yomitomo/desktop...'
           - name: desktop 4/4
             cache: desktop-4
             args: --filter=@yomitomo/desktop -- --shard=4/4
-            install: --ignore-scripts --filter . --filter '@yomitomo/desktop...'
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -135,7 +130,7 @@ jobs:
       - name: Setup workspace
         uses: ./.github/actions/setup-workspace
         with:
-          install-args: ${{ matrix.install }}
+          install-args: --ignore-scripts
 
       - name: Restore Turbo cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

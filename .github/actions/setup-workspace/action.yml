@@ -12,7 +12,7 @@ inputs:
 runs:
   using: composite
   steps:
-    # pnpm would otherwise install everything before a script when a job needs no or filtered deps.
+    # pnpm would otherwise run a full install before the first script of a job that skips it.
     - name: Keep scripts from reinstalling dependencies
       shell: bash
       run: echo 'pnpm_config_verify_deps_before_run=false' >>"$GITHUB_ENV"

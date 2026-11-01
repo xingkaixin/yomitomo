@@ -93,8 +93,6 @@ jobs:
 
       - name: Setup workspace
         uses: ./.github/actions/setup-workspace
-        with:
-          install-args: --filter '@yomitomo/desktop...'
 
       - name: Build desktop application
         run: pnpm --filter @yomitomo/desktop build
@@ -166,8 +164,6 @@ jobs:
 
       - name: Setup workspace
         uses: ./.github/actions/setup-workspace
-        with:
-          install-args: --filter '@yomitomo/desktop...'
 
       - name: Assert package runner architecture
         run: node -e "const actual = process.platform + '-' + process.arch; if (actual !== process.env.EXPECTED_PLATFORM) throw new Error('Expected ' + process.env.EXPECTED_PLATFORM + ', received ' + actual)"
@@ -223,8 +219,6 @@ jobs:
 
       - name: Setup workspace
         uses: ./.github/actions/setup-workspace
-        with:
-          install-args: --filter '@yomitomo/desktop...'
 
       - name: Assert fixture runner architecture
         run: node -e "const actual = process.platform + '-' + process.arch; if (actual !== process.env.EXPECTED_PLATFORM) throw new Error('Expected ' + process.env.EXPECTED_PLATFORM + ', received ' + actual)"
