@@ -3,6 +3,8 @@ import {
   type CssVariableMap,
   type ReaderTheme,
 } from '@yomitomo/reader-ui/reader-theme';
+import { registerLanmoSketch } from './lanmo-sketch';
+import { createLanmoTheme, paperGrainImage } from './lanmo-theme';
 import { createShadLingoTheme } from './shadlingo-theme';
 
 export type AppTheme = {
@@ -93,7 +95,7 @@ export type ThemeControlState = {
   disabledForeground: string;
 };
 
-export type PaperPatternKind = 'plain' | 'grid' | 'dot' | 'ruled' | 'dash-grid';
+export type PaperPatternKind = 'plain' | 'grid' | 'dot' | 'ruled' | 'dash-grid' | 'grain';
 
 export type PaperPatternTheme = {
   kind: PaperPatternKind;
@@ -123,6 +125,7 @@ export const duskIndigoThemeId = 'dusk-indigo';
 export const inkPaperThemeId = 'ink-paper';
 export const shadLingoThemeId = 'shadlingo';
 export const shadLingoDarkThemeId = 'shadlingo-dark';
+export const lanmoThemeId = 'lanmo';
 const cachedThemeStorageKey = 'yomitomo.themeId';
 const cachedThemeIdsByToneStorageKey = 'yomitomo.themeIdsByTone';
 
@@ -1071,6 +1074,7 @@ export const inkPaperTheme: AppTheme = {
 
 export const shadLingoTheme = createShadLingoTheme(defaultTheme, 'light');
 export const shadLingoDarkTheme = createShadLingoTheme(defaultTheme, 'dark');
+export const lanmoTheme = createLanmoTheme(defaultTheme);
 
 export const themeRegistry = {
   [defaultThemeId]: defaultTheme,
@@ -1080,6 +1084,7 @@ export const themeRegistry = {
   [beigePaperThemeId]: beigePaperTheme,
   [shadLingoThemeId]: shadLingoTheme,
   [shadLingoDarkThemeId]: shadLingoDarkTheme,
+  [lanmoThemeId]: lanmoTheme,
 } as const satisfies Record<string, AppTheme>;
 
 export type AppThemeId = keyof typeof themeRegistry;
@@ -1197,6 +1202,7 @@ export function applyAppTheme(theme: AppTheme, root: HTMLElement = document.docu
   for (const [name, value] of Object.entries(variables)) {
     root.style.setProperty(name, value);
   }
+  if (theme.meta.id === lanmoThemeId) registerLanmoSketch(root);
 }
 
 export function resolveAppThemeId(value: unknown): AppThemeId {
@@ -1289,6 +1295,8 @@ function paperPatternImage(pattern: PaperPatternTheme) {
   switch (pattern.kind) {
     case 'plain':
       return 'none';
+    case 'grain':
+      return paperGrainImage;
     case 'dot':
       return `radial-gradient(circle, ${color} 0 1px, transparent 1.35px)`;
     case 'ruled':

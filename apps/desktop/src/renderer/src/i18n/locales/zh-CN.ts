@@ -101,6 +101,7 @@ export const zhCNResources = {
         'ink-paper': '墨纸',
         shadlingo: '青芽',
         'shadlingo-dark': '青芽·夜',
+        lanmo: '蓝墨',
       },
       descriptions: {
         default: '暖白纸面、细格纹理和赤陶强调。',
@@ -110,6 +111,7 @@ export const zhCNResources = {
         'ink-paper': '暖纸底、淡点阵和墨蓝强调的沉静阅读环境。',
         shadlingo: '白色纸面、深蓝文字和青绿强调的 ShadLingo 阅读主题。',
         'shadlingo-dark': '深蓝夜色、浅蓝正文和青绿强调的 ShadLingo 阅读主题。',
+        lanmo: '冷白纸面、钢笔蓝墨和铅笔手绘线条的阅读环境。',
       },
       readerPaperNames: {
         纸白: '纸白',

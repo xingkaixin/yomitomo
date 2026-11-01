@@ -107,6 +107,7 @@ export const enResources = {
         'ink-paper': 'Ink Paper',
         shadlingo: 'ShadLingo',
         'shadlingo-dark': 'ShadLingo Dark',
+        lanmo: 'Blue Ink',
       },
       descriptions: {
         default: 'Warm white pages, a fine grid, and terracotta accents.',
@@ -116,6 +117,7 @@ export const enResources = {
         'ink-paper': 'A calm warm-paper reading environment with subtle dots and ink-blue accents.',
         shadlingo: 'White paper, deep blue text, and fresh green ShadLingo accents.',
         'shadlingo-dark': 'Deep blue surfaces, pale blue text, and fresh green ShadLingo accents.',
+        lanmo: 'Cool white paper, fountain-pen blue, and hand-drawn pencil lines.',
       },
       readerPaperNames: {
         纸白: 'Paper white',
