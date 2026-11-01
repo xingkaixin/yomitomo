@@ -363,9 +363,12 @@ function EbookReader({
     }
   }
 
-  function handleFoliatePointerDown() {
+  function handleFoliatePointerDown(event?: PointerEvent, doc?: Document) {
     clearAnnotationUiState();
     closeSettings();
+    const point = event && doc ? foliateClientPoint(event, doc) : null;
+    // The click that follows opens the highlight; clearing here would blink the card and its connection.
+    if (point && annotationIdsAtClientPoint(point.x, point.y).length > 0) return;
     if (selectedAnnotationId) onOpenAnnotation(null);
   }
 
@@ -407,13 +410,30 @@ function EbookReader({
     const docSelection = doc.getSelection();
     if (docSelection && docSelection.rangeCount > 0 && !docSelection.isCollapsed) return false;
 
+    const point = foliateClientPoint(event, doc);
+    return point ? openHighlightAtClientPoint(point.x, point.y) : false;
+  }
+
+  function foliateClientPoint(event: MouseEvent, doc: Document) {
     const frame = doc.defaultView?.frameElement;
-    if (!(frame instanceof HTMLIFrameElement)) return false;
+    if (!(frame instanceof HTMLIFrameElement)) return null;
 
     const frameRect = frame.getBoundingClientRect();
-    return openHighlightAtClientPoint(
-      frameRect.left + event.clientX,
-      frameRect.top + event.clientY,
+    return { x: frameRect.left + event.clientX, y: frameRect.top + event.clientY };
+  }
+
+  function annotationIdsAtClientPoint(clientX: number, clientY: number) {
+    const canvasElement = canvasRef.current;
+    if (!canvasElement) return [];
+
+    const canvasRect = canvasElement.getBoundingClientRect();
+    return annotationIdsAtHighlightPoint(
+      boxes,
+      {
+        x: clientX - canvasRect.left,
+        y: clientY - canvasRect.top,
+      },
+      1,
     );
   }
 
@@ -433,14 +453,7 @@ function EbookReader({
     const annotationIds =
       preferredAnnotationIds.length > 0
         ? preferredAnnotationIds
-        : annotationIdsAtHighlightPoint(
-            boxes,
-            {
-              x: clientX - canvasRect.left,
-              y: clientY - canvasRect.top,
-            },
-            1,
-          );
+        : annotationIdsAtClientPoint(clientX, clientY);
     if (annotationIds.length === 0) return false;
 
     if (annotationIds.length <= 1) {

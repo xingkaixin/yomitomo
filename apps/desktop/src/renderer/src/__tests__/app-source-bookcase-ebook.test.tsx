@@ -41,6 +41,12 @@ const mocks = vi.hoisted(() => ({
   foliateViewInput: undefined as
     | { onBeforePageTurn: (trace: EbookPageTurnTrace) => void }
     | undefined,
+  foliateInputBridgeInput: undefined as
+    | {
+        canvasRef: { current: HTMLDivElement | null };
+        onFoliatePointerDown: (event?: PointerEvent, doc?: Document) => void;
+      }
+    | undefined,
 }));
 
 vi.mock('../source/ebook/app-source-ebook-reader-shell', () => ({
@@ -101,11 +107,14 @@ vi.mock('../source/ebook/use-ebook-reader-boxes', () => ({
 }));
 
 vi.mock('../source/ebook/use-foliate-input-bridge', () => ({
-  useFoliateInputBridge: () => ({
-    attachFoliateDocumentListeners: mocks.attachFoliateDocumentListeners,
-    cleanupFoliateDocumentListeners: mocks.cleanupFoliateDocumentListeners,
-    marker: null,
-  }),
+  useFoliateInputBridge: (input: typeof mocks.foliateInputBridgeInput) => {
+    mocks.foliateInputBridgeInput = input;
+    return {
+      attachFoliateDocumentListeners: mocks.attachFoliateDocumentListeners,
+      cleanupFoliateDocumentListeners: mocks.cleanupFoliateDocumentListeners,
+      marker: null,
+    };
+  },
 }));
 
 const now = '2026-05-16T08:00:00.000Z';
@@ -130,6 +139,7 @@ afterEach(() => {
   mocks.pageInfo = null;
   mocks.sectionPageCounts = [];
   mocks.foliateViewInput = undefined;
+  mocks.foliateInputBridgeInput = undefined;
 });
 
 function annotation(id: string): Annotation {
@@ -330,6 +340,44 @@ describe('EbookBookcase', () => {
     expect(goToFraction).not.toHaveBeenCalled();
   });
 
+  it('keeps the active annotation while pressing a highlight inside the EPUB document', () => {
+    const annotations = [annotation('note-1')];
+    mocks.boxes = [
+      {
+        id: 'box-1',
+        annotationId: 'note-1',
+        color: '#f4c95d',
+        top: 10,
+        left: 10,
+        width: 40,
+        height: 12,
+      },
+    ];
+    const onOpenAnnotation = vi.fn();
+    render(
+      <EbookBookcase
+        {...ebookBookcaseProps(ebookArticle({ annotations }), annotations, {
+          onOpenAnnotation,
+          selectedAnnotationId: 'note-1',
+        })}
+      />,
+    );
+    const frame = document.body.appendChild(document.createElement('iframe'));
+    const input = mocks.foliateInputBridgeInput!;
+    Object.defineProperty(input.canvasRef, 'current', { value: document.createElement('div') });
+    const press = (clientX: number, clientY: number) =>
+      input.onFoliatePointerDown(
+        new MouseEvent('pointerdown', { clientX, clientY }) as PointerEvent,
+        frame.contentDocument!,
+      );
+
+    press(20, 15);
+    expect(onOpenAnnotation).not.toHaveBeenCalled();
+
+    press(200, 200);
+    expect(onOpenAnnotation).toHaveBeenCalledWith(null);
+  });
+
   it('consumes focused annotations once when the reader rerenders during navigation', async () => {
     const note = annotation('note-1');
     const doc = document.implementation.createHTMLDocument('ebook');
@@ -498,6 +546,7 @@ function ebookBookcaseProps(
     focusAnnotationId?: string | null;
     onFocusedAnnotation?: (located: boolean) => void;
     onOpenAnnotation?: (annotationId: string | null) => void;
+    selectedAnnotationId?: string | null;
   } = {},
 ): EbookBookcaseProps {
   return {
@@ -520,7 +569,7 @@ function ebookBookcaseProps(
     readerControl: {
       focusAnnotationId: overrides.focusAnnotationId ?? null,
       onClose: vi.fn(),
-      selectedAnnotationId: null,
+      selectedAnnotationId: overrides.selectedAnnotationId ?? null,
     },
   };
 }
