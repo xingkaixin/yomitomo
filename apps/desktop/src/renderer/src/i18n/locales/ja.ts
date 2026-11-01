@@ -55,27 +55,20 @@ export const jaResources = {
     onboarding: {
       ariaLabel: '最初の読書を始める',
       title: '少し読んで、考えを残す',
-      description: '読みたいものを選び、最初の読書と記録を始めましょう。',
+      description: '本文に線を引き、考えを書き、読書アシスタントと語り合いましょう。',
       enter: 'Yomitomo に入る',
       entering: '開いています',
       enterFailed: 'アプリを開けませんでした。',
-      importEbook: 'EPUB を取り込む',
-      importPdf: 'PDF を取り込む',
-      importWeb: 'ウェブ記事を取り込む',
-      localReading: '読書、ハイライト、考えの記録に AI モデルの設定は不要です。',
-      steps: {
-        import: {
-          title: '読むものを取り込む',
-          description: 'ローカルの EPUB・PDF を選ぶか、記事の URL を貼り付けます。',
-        },
-        read: {
-          title: '開いて読む',
-          description: '取り込んだ内容を開き、気になる一節を見つけます。',
-        },
-        save: {
-          title: 'ハイライトや考えを残す',
-          description: '文章を選び「考えを記録する」から、ハイライトを保存するか考えを書きます。',
-        },
+      languageFailed: '言語を切り替えられませんでした。',
+      aiNote:
+        '読書とハイライトに AI は不要です。アシスタントと話したくなったら、設定でご自身のモデルを接続してください。',
+      demo: {
+        before: '読書でいちばんいいのは、何かを理解した瞬間とは限りません。',
+        highlight: 'ある一文で手が止まり、自分のことを思い出す瞬間です。',
+        after: 'ページは開いたまま、心は少し遠くへ行き、しばらくしてまた戻ってきます。',
+        thought: '前にこうなったのは、父親が時計を直す場面を読んだときでした。',
+        reply:
+          'ここで立ち止まった感覚は、その時計の場面に似ています。小さな出来事が、人を過去へ連れ戻すのですね。',
       },
     },
     theme: {

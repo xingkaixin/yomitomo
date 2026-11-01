@@ -149,10 +149,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .agent-list-line-bubble,
-  .activity-stamp.status-today,
-  .onboarding-screen::after,
-  .onboarding-background,
-  .onboarding-enter-button {
+  .activity-stamp.status-today {
     animation: none;
   }
 
@@ -163,21 +160,6 @@
   .settings-toggle-switch::after {
     transition-duration: 1ms;
     transition-timing-function: linear;
-  }
-
-  .onboarding-line {
-    opacity: 1;
-    filter: blur(0);
-    transform: none;
-    transition-duration: 0ms;
-  }
-
-  .onboarding-screen::after {
-    opacity: 0;
-  }
-
-  .onboarding-background {
-    filter: brightness(1) saturate(1.04) contrast(1.02);
   }
 }
 

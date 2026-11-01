@@ -53,21 +53,18 @@ export const zhCNResources = {
     onboarding: {
       ariaLabel: '开始第一次阅读',
       title: '读一段，留下一点想法',
-      description: '选择你想读的内容，完成一次阅读和记录。',
+      description: '在原文上划线、写下想法，再和阅读助手接着聊。',
       enter: '先进入阅读库',
       entering: '正在进入',
       enterFailed: '进入应用失败。',
-      importEbook: '导入 EPUB',
-      importPdf: '导入 PDF',
-      importWeb: '导入网页',
-      localReading: '阅读、划线和记录想法无需配置 AI 模型。',
-      steps: {
-        import: { title: '导入内容', description: '选择本地 EPUB、PDF，或粘贴一篇文章的网址。' },
-        read: { title: '打开并阅读', description: '导入后打开内容，读到一句值得停下来的话。' },
-        save: {
-          title: '保存划线或想法',
-          description: '选中文字，点击“记录想法”，再保存划线或写下你的想法。',
-        },
+      languageFailed: '切换语言失败。',
+      aiNote: '阅读和划线不需要 AI。想和助手讨论时，再到设置里连接你自己的模型。',
+      demo: {
+        before: '读书最好的时刻，常常不是读懂了什么。',
+        highlight: '而是读到某一句时，忽然停下来，想起了自己的事。',
+        after: '书还摊开着，心思已经走远，过一会儿才回到这一页。',
+        thought: '上次这样停下来，是读到写父亲修表的那一页。',
+        reply: '这句话里的“停下来”，和你说的修表那一页很像：都是一件小事把人拉回了过去。',
       },
     },
     theme: {
