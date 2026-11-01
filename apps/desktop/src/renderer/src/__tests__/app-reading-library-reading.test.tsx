@@ -595,7 +595,7 @@ describe('ReadingLibrary reading', () => {
     await waitFor(() => expect(playAppSoundEffect).toHaveBeenCalledTimes(1));
     expect(playAppSoundEffect).toHaveBeenNthCalledWith(
       1,
-      'reader.distillation_committed',
+      'reader.distillation_flipped',
       expect.objectContaining(settings),
     );
 

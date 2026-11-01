@@ -4,6 +4,7 @@ import highlightOnPaperSoundUrl1 from '../assets/audio/highlight-on-paper-01.mp3
 import highlightOnPaperSoundUrl2 from '../assets/audio/highlight-on-paper-02.mp3';
 import highlightOnPaperSoundUrl3 from '../assets/audio/highlight-on-paper-03.mp3';
 import brandPronunciationUrl from '../assets/audio/yomitomo.m4a';
+import distillationCardFlipUrl from '../assets/audio/distillation-card-flip.mp3';
 import distillationCommitStampUrl from '../assets/audio/distillation-commit-stamp.mp3';
 import importSuccessMultipleSoundUrl from '../assets/audio/import-success-multiple.mp3';
 import importSuccessSingleSoundUrl from '../assets/audio/import-success-single.mp3';
@@ -25,6 +26,7 @@ export type AppSoundEffectId =
   | 'app_lock.unlocked'
   | 'reader.annotation_created'
   | 'reader.distillation_committed'
+  | 'reader.distillation_flipped'
   | 'settings.sound_preview'
   | 'theme.appearance_switch';
 
@@ -81,6 +83,10 @@ const soundEffects: Record<AppSoundEffectId, SoundEffectDefinition> = {
   'reader.distillation_committed': {
     baseVolume: 0.8,
     urls: [distillationCommitStampUrl],
+  },
+  'reader.distillation_flipped': {
+    baseVolume: 0.65,
+    urls: [distillationCardFlipUrl],
   },
   'settings.sound_preview': {
     baseVolume: 1,

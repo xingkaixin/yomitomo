@@ -195,11 +195,12 @@ export function useReadingLibraryDistillationSync(
       transition: event.transition,
       token,
     });
-    if (event.transition !== 'unpublish') {
-      playAppSoundEffect('reader.distillation_committed', settings || {});
+    if (event.transition === 'publish') {
+      playAppSoundEffect('reader.distillation_flipped', settings || {});
     }
 
     if (event.transition === 'update') {
+      playAppSoundEffect('reader.distillation_committed', settings || {});
       navigation.actions.updateArticle(event.articleId, (article) =>
         articleWithCommittedDistillation(
           article,
