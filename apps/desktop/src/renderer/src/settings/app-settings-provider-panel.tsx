@@ -664,9 +664,7 @@ function ProviderRouteRow({
   const title = t(option.titleKey);
   const isTaskRoute = option.key !== 'defaultProviderId';
   const inherited = isTaskRoute && !settings[option.key];
-  const selectedProvider = providers.find(
-    (provider) => provider.id === (inherited ? settings.defaultProviderId : settings[option.key]),
-  );
+  const selectedProvider = providers.find((provider) => provider.id === settings[option.key]);
   return (
     <SettingsRow
       leading={option.icon}
@@ -685,24 +683,20 @@ function ProviderRouteRow({
           className="task-route-select-trigger"
         >
           <SelectValue placeholder={t('settings.models.chooseProvider')}>
-            {selectedProvider ? (
+            {inherited ? (
+              t('settings.models.inheritDefaultModel')
+            ) : selectedProvider ? (
               <span className="provider-select-item-copy">
-                <strong>
-                  {inherited
-                    ? t('settings.models.useDefaultModel')
-                    : providerDisplayName(selectedProvider)}
-                </strong>
+                <strong>{providerDisplayName(selectedProvider)}</strong>
                 <span>{selectedProvider.modelName}</span>
               </span>
-            ) : inherited ? (
-              t('settings.models.useDefaultModel')
             ) : undefined}
           </SelectValue>
         </SelectTrigger>
         <SelectContent className="theme-select-content provider-select-content">
           <SelectGroup>
             {isTaskRoute ? (
-              <SelectItem value="">{t('settings.models.useDefaultModel')}</SelectItem>
+              <SelectItem value="">{t('settings.models.inheritDefaultModel')}</SelectItem>
             ) : null}
             {providers.map((provider) => (
               <SelectItem className="provider-select-item" key={provider.id} value={provider.id}>

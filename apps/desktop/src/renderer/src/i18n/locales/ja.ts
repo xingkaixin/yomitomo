@@ -2021,7 +2021,7 @@ export const jaResources = {
         defaultRouteDescription:
           '読解、詳しいレビュー、対訳に使用します。必要に応じてタスクごとに選べます。',
         taskOverrides: 'タスクごとに設定',
-        useDefaultModel: '既定のモデルを使用',
+        inheritDefaultModel: '既定のモデルを継承',
         routePrivacyNotice:
           'これらのルートが使用されると、関連するコンテンツ (選択内容、コンテキスト、およびバイリンガル翻訳の記事全文) が、構成したエンドポイントにアップロードされます。',
         noProvidersNote:

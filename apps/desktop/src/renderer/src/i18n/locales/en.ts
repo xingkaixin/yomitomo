@@ -1993,7 +1993,7 @@ export const enResources = {
         defaultRouteDescription:
           'Used for reading, review, and bilingual translation. You can choose separate models per task when needed.',
         taskOverrides: 'Customize by task',
-        useDefaultModel: 'Use default model',
+        inheritDefaultModel: 'Inherit default model',
         routePrivacyNotice:
           'When these routes are used, the relevant content (selection, context, and the full article for bilingual translation) is uploaded to the endpoint you configured.',
         noProvidersNote:

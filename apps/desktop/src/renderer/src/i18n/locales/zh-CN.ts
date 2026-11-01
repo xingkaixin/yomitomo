@@ -1901,7 +1901,7 @@ export const zhCNResources = {
         defaultRouteTitle: '默认模型',
         defaultRouteDescription: '用于阅读理解、深度审阅和双语翻译。需要时可为不同任务单独选择。',
         taskOverrides: '按任务单独设置',
-        useDefaultModel: '使用默认模型',
+        inheritDefaultModel: '继承默认模型',
         routePrivacyNotice:
           '使用这些路由时，相应内容（选区、上下文，双语翻译为整篇文章全文）会上传到你所配置的端点。',
         noProvidersNote: '当前还没有可选供应商。新增并保存供应商后，这里会开放选择。',

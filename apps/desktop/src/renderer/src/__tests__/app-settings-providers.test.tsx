@@ -528,7 +528,7 @@ describe('ProviderSettings', () => {
       />,
     );
     fireEvent.click(screen.getByRole('combobox', { name: '深度审阅助手供应商' }));
-    const option = await screen.findByRole('option', { name: '使用默认模型' });
+    const option = await screen.findByRole('option', { name: '继承默认模型' });
     fireEvent.pointerDown(option, { pointerType: 'mouse' });
     fireEvent.click(option);
     expect(onRouteSave).toHaveBeenCalledWith(
@@ -537,6 +537,21 @@ describe('ProviderSettings', () => {
         reviewAssistantProviderId: undefined,
       }),
     );
+  });
+
+  it('shows inherited task routes without naming the default model', () => {
+    const provider = makeProvider('provider_1', 'Anthropic');
+    renderWithQueryClient(
+      <ProviderSettings
+        {...makeProviderSettingsProps({
+          providerValue: provider,
+          providers: [provider],
+          routesValue: { defaultProviderId: provider.id },
+        })}
+      />,
+    );
+
+    expect(screen.getByLabelText('阅读理解助手供应商').textContent).toBe('继承默认模型');
   });
 
   it('opens provider editing from the provider card menu', () => {
