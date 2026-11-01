@@ -17,7 +17,7 @@ Remote AI features send the reading content and conversation needed for the task
 
 ## Getting Started
 
-1. Launch Yomitomo and import an EPUB, PDF, or web article directly from the first-reading guide, or enter the Library first.
+1. Launch Yomitomo, choose your interface language, and import an ebook, PDF, or web article from the first screen, or enter the Library first.
 2. In the **Library**, import a web article, EPUB/AZW3/MOBI ebook, PDF document, or Markdown text.
 3. Open the material, highlight text, and record a thought. Reading and manual annotations do not require an API key.
 
