@@ -66,6 +66,10 @@ import {
 import { libraryEntityPinTarget } from './app-reading-library-entities';
 import { useLibrarySearchClearDissolve } from './app-reading-library-search-clear-dissolve';
 import type { LibraryTypeFilter } from './library-filter-types';
+import {
+  LibraryImportEntryGrid,
+  type LibraryImportEntryHandlers,
+} from './app-reading-library-import-entries';
 import { libraryEmptyReason, type LibraryEmptyMessageKey } from './library-empty-reason';
 import { LIBRARY_PAGE_SIZE_OPTIONS } from './library-query-session';
 import type { LibraryQuerySession } from './use-library-query-session';
@@ -845,77 +849,6 @@ function LibraryMessageEmpty({
     <LibraryEmptyState icon={message.icon} title={message.title}>
       {message.description}
     </LibraryEmptyState>
-  );
-}
-
-type LibraryImportEntryHandlers = {
-  weReadConfigured: boolean;
-  weReadSyncing: boolean;
-  onAddWebArticle: () => void;
-  onAddEbook: () => void;
-  onAddPdf: () => void;
-  onSyncWeRead: () => void;
-  onConnectWeRead?: () => void;
-};
-
-function LibraryImportEntryGrid({
-  weReadConfigured,
-  weReadSyncing,
-  onAddWebArticle,
-  onAddEbook,
-  onAddPdf,
-  onSyncWeRead,
-  onConnectWeRead,
-}: LibraryImportEntryHandlers) {
-  const { t } = useTranslation();
-  return (
-    <div className="library-empty-entries">
-      <button className="library-empty-entry" type="button" onClick={onAddWebArticle}>
-        <span className="library-empty-entry-icon">
-          <HugeiconsIcon icon={Globe02Icon} size={18} />
-        </span>
-        <span className="library-empty-entry-copy">
-          <strong>{t('library.empty.entry.webTitle')}</strong>
-          <em>{t('library.empty.entry.webHint')}</em>
-        </span>
-      </button>
-      <button className="library-empty-entry" type="button" onClick={onAddEbook}>
-        <span className="library-empty-entry-icon">
-          <HugeiconsIcon icon={Book02Icon} size={18} />
-        </span>
-        <span className="library-empty-entry-copy">
-          <strong>{t('library.empty.entry.ebookTitle')}</strong>
-          <em>{t('library.empty.entry.ebookHint')}</em>
-        </span>
-      </button>
-      <button className="library-empty-entry" type="button" onClick={onAddPdf}>
-        <span className="library-empty-entry-icon">
-          <HugeiconsIcon icon={Pdf01Icon} size={18} />
-        </span>
-        <span className="library-empty-entry-copy">
-          <strong>{t('library.empty.entry.pdfTitle')}</strong>
-          <em>{t('library.empty.entry.pdfHint')}</em>
-        </span>
-      </button>
-      <button
-        className="library-empty-entry"
-        type="button"
-        disabled={weReadConfigured && weReadSyncing}
-        onClick={weReadConfigured ? onSyncWeRead : onConnectWeRead}
-      >
-        <span className="library-empty-entry-icon">
-          <HugeiconsIcon icon={SmartPhone01Icon} size={18} />
-        </span>
-        <span className="library-empty-entry-copy">
-          <strong>{t('library.empty.entry.wereadTitle')}</strong>
-          <em>
-            {weReadConfigured
-              ? t('library.empty.entry.wereadHintReady')
-              : t('library.empty.entry.wereadHint')}
-          </em>
-        </span>
-      </button>
-    </div>
   );
 }
 
