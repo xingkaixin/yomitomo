@@ -638,7 +638,7 @@ export const composerTooltipHighlightResponsiveStyles = `.reader-note-comments-p
   clip-path:inset(0 100% 0 0 round 8px);
   transform:translateX(-1px);
   transform-origin:left center;
-  transition:clip-path .28s cubic-bezier(.4,0,.2,1),transform .28s cubic-bezier(.4,0,.2,1),opacity .12s ease .16s,visibility .28s
+  transition:clip-path .28s cubic-bezier(.22,1,.36,1),transform .28s cubic-bezier(.22,1,.36,1),opacity 0s .28s,visibility 0s .28s
 }
 .reader-app.has-toc.is-toc-open .reader-toc {
   opacity:1;
