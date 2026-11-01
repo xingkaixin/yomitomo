@@ -1,15 +1,16 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs';
 
-// mise.toml owns the canonical gate: the CI workflow and every document that spells the
-// gate out must expand to the same commands in the same order.
+// mise.toml owns the canonical gate: every document that spells the gate out must expand to
+// the same commands in the same order. CI splits them across parallel jobs, so its commands
+// only have to match as a set.
 const MISE_CHECK_TASK = /\[tasks\."check"\]\s*\nrun = \[(.*?)\]/s;
 const GATE_BLOCK = /<!-- gate:check -->\s*\n```bash\n(.*?)```/s;
 const documents = ['README.md', 'README_zh.md', 'AGENTS.md'];
 const violations = [];
 
 const canonical = miseCheckTasks();
-compare('.github/workflows/ci.yml', workflowGateCommands());
+compare('.github/workflows/ci.yml', workflowGateCommands().sort(), [...canonical].sort());
 for (const document of documents) compare(document, documentGateCommands(document));
 
 function miseCheckTasks() {
@@ -20,7 +21,7 @@ function miseCheckTasks() {
 
 function workflowGateCommands() {
   const source = readFileSync('.github/workflows/ci.yml', 'utf8');
-  return [...source.matchAll(/^\s+run: (?:xvfb-run -a )?(pnpm [\w:-]+)$/gm)].map(
+  return [...source.matchAll(/^\s+run: (?:xvfb-run -a )?(pnpm [\w:-]+)(?: .*)?$/gm)].map(
     (match) => match[1],
   );
 }
@@ -34,11 +35,11 @@ function documentGateCommands(document) {
   return block.trim().split('\n');
 }
 
-function compare(source, commands) {
+function compare(source, commands, expected = canonical) {
   if (!commands) return;
-  if (commands.join('\n') === canonical.join('\n')) return;
+  if (commands.join('\n') === expected.join('\n')) return;
   violations.push(
-    `${source}: gate sequence differs from mise.toml\n  expected: ${canonical.join(', ')}\n  found:    ${commands.join(', ')}`,
+    `${source}: gate sequence differs from mise.toml\n  expected: ${expected.join(', ')}\n  found:    ${commands.join(', ')}`,
   );
 }
 

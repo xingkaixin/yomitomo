@@ -175,7 +175,7 @@ pnpm build
 
 ## 提交前检查
 
-`mise run check` 是 canonical 门禁，CI 调用同一顺序：
+`mise run check` 是 canonical 门禁，CI 把同一组命令拆到并行 job 执行：
 
 ```bash
 mise run check
