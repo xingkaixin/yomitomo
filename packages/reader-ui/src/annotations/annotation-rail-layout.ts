@@ -150,18 +150,27 @@ export function buildAnnotationRailItems(
     const stackCount = group.length;
     const groupTop = groupTops[groupIndex] || 0;
     const railSide = groupSides[groupIndex] || 'right';
-    const activeIndex = group.findIndex((item) => item.annotation.id === activeId);
-    const frontIndex = activeIndex >= 0 ? activeIndex : 0;
+    const stackTopOffset =
+      groupSpacings[groupIndex]?.stackTopOffset ?? defaultRailSpacing.stackTopOffset;
+    const frontIndex = railStackFrontIndex(group, activeId);
+    const frontHeight = annotationCardHeight(group[frontIndex].annotation, noteHeights);
     return group.map((item, stackIndex) => {
-      const stackDepth = stackCount > 1 ? (stackIndex - frontIndex + stackCount) % stackCount : 0;
+      const stackDepth = railStackDepth(stackIndex, frontIndex);
       const isStackFront = stackDepth === 0;
       const isActive = item.annotation.id === activeId;
       const cappedDepth = Math.min(stackDepth, 4);
+      const stackPeek = Math.max(
+        0,
+        frontHeight +
+          cappedDepth * stackTopOffset -
+          annotationCardHeight(item.annotation, noteHeights),
+      );
       const style: React.CSSProperties = {
         top: groupTop,
         zIndex: isActive ? 90 : isStackFront ? 40 : 10 + stackCount - stackDepth,
         '--stack-rotate': `${cappedDepth * 9}deg`,
         '--stack-offset': `${cappedDepth * 4}px`,
+        '--stack-peek': `${stackPeek}px`,
       } as React.CSSProperties;
       if (railLayout && railLayout.mode !== 'stacked') {
         style.left = railSide === 'left' ? railLayout.leftRailLeft : railLayout.rightRailLeft;
@@ -243,6 +252,19 @@ function railGroupPreferredSide(group: PositionedAnnotationRailItem[]): Annotati
   }
   if (leftCount === rightCount) return group[0]?.preferredSide || 'right';
   return leftCount > rightCount ? 'left' : 'right';
+}
+
+function railStackFrontIndex(group: Array<{ annotation: Annotation }>, activeId: string | null) {
+  return Math.max(
+    0,
+    group.findIndex((item) => item.annotation.id === activeId),
+  );
+}
+
+// Depth follows card order instead of rotating around the front, so cards outside the swap keep their pose.
+function railStackDepth(stackIndex: number, frontIndex: number) {
+  if (stackIndex === frontIndex) return 0;
+  return stackIndex < frontIndex ? stackIndex + 1 : stackIndex;
 }
 
 function railGroupHasAnnotation(
@@ -570,7 +592,7 @@ function anchorActiveRailGroup(
 ) {
   const activeIndex = indexes[activeListIndex];
   const activeTop = activeId
-    ? activeRailGroupTop(railGroups[activeIndex], activeId)
+    ? activeRailGroupTop(railGroups[activeIndex], activeId, noteHeights)
     : railGroups[activeIndex].desiredTop;
   const activeHeight = activeId
     ? activeRailGroupCardHeight(railGroups[activeIndex], activeId, noteHeights)
@@ -597,10 +619,15 @@ function anchorActiveRailGroup(
 function activeRailGroupTop(
   railGroup: { desiredTop: number; group: PositionedAnnotationRailItem[] },
   activeId: string,
+  noteHeights: Record<string, number>,
 ) {
-  return (
-    railGroup.group.find((item) => item.annotation.id === activeId)?.top ?? railGroup.desiredTop
-  );
+  const activeItem = railGroup.group.find((item) => item.annotation.id === activeId);
+  if (!activeItem) return railGroup.desiredTop;
+  // A stack holds still while the highlight sits beside the active card, so a front switch moves only that card pair.
+  const highlightBesideCard =
+    activeItem.top <
+    railGroup.desiredTop + annotationCardHeight(activeItem.annotation, noteHeights);
+  return highlightBesideCard ? railGroup.desiredTop : activeItem.top;
 }
 
 function activeRailGroupCardHeight(
@@ -716,13 +743,14 @@ function estimateRailGroupHeight(
 ) {
   if (group.length === 0) return 176;
 
-  const activeIndex = group.findIndex((item) => item.annotation.id === activeId);
-  const frontIndex = activeIndex >= 0 ? activeIndex : 0;
+  const frontIndex = railStackFrontIndex(group, activeId);
+  const frontHeight = annotationCardHeight(group[frontIndex].annotation, noteHeights);
   return Math.max(
     ...group.map((item, stackIndex) => {
-      const stackDepth =
-        group.length > 1 ? (stackIndex - frontIndex + group.length) % group.length : 0;
-      return annotationCardHeight(item.annotation, noteHeights) + stackDepth * stackTopOffset;
+      const cardHeight = annotationCardHeight(item.annotation, noteHeights);
+      return (
+        Math.max(cardHeight, frontHeight) + railStackDepth(stackIndex, frontIndex) * stackTopOffset
+      );
     }),
   );
 }

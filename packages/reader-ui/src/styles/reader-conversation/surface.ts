@@ -197,10 +197,10 @@ export const surfaceStyles = `.reader-article {
 }
 .reader-annotation-rail>.reader-note.is-stacked {
   transform-origin:50% 50%;
-  transform:rotate(var(--stack-rotate,0deg)) translateX(var(--stack-offset,0px))
+  transform:translateY(var(--stack-peek,0px)) rotate(var(--stack-rotate,0deg)) translateX(var(--stack-offset,0px))
 }
 .reader-annotation-rail>.reader-note[data-rail-side="left"].is-stacked {
-  transform:rotate(calc(var(--stack-rotate,0deg) * -1)) translateX(calc(var(--stack-offset,0px) * -1))
+  transform:translateY(var(--stack-peek,0px)) rotate(calc(var(--stack-rotate,0deg) * -1)) translateX(calc(var(--stack-offset,0px) * -1))
 }
 .reader-annotation-rail>.reader-note.is-stack-front {
   box-shadow:var(--reader-elevated-shadow)
