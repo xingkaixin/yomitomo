@@ -1,4 +1,4 @@
-import { copyFile, readFile } from 'node:fs/promises';
+import { copyFile, readFile, rename, rmdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 
@@ -20,3 +20,9 @@ for (const url of requiredUrls) {
 }
 
 await copyFile(sitemapSource, sitemapTarget);
+
+// Workers serves the nearest `404.html`, but Astro only emits that file name for the root page.
+for (const locale of ['en', 'ja']) {
+  await rename(join(distDir, locale, '404/index.html'), join(distDir, locale, '404.html'));
+  await rmdir(join(distDir, locale, '404'));
+}

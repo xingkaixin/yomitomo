@@ -64,6 +64,7 @@ export default defineConfig({
         ThemeProvider: './src/components/starlight/ThemeProvider.astro',
         ThemeSelect: './src/components/starlight/ThemeSelect.astro',
       },
+      disable404Route: true,
       routeMiddleware: './src/starlight-route.ts',
       tableOfContents: { minHeadingLevel: 2, maxHeadingLevel: 3 },
       pagefind: false,
