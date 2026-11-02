@@ -1,5 +1,6 @@
 ---
 import Analytics from './Analytics.astro';
+import FontPreloads from './FontPreloads.astro';
 import HomeNav from './landing/HomeNav.astro';
 import LandingFooter from './landing/LandingFooter.astro';
 import type { Lang } from './landing/home-copy';
@@ -46,6 +47,7 @@ const copy = {
     <title>{copy.pageTitle}</title>
     <link rel="icon" type="image/png" sizes="64x64" href="/assets/favicon.png" />
     <meta name="theme-color" content="#f54b3f" />
+    <FontPreloads />
     <Analytics />
   </head>
   <body>

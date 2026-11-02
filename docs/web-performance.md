@@ -36,13 +36,29 @@ Workers 静态资源由 Cloudflare 缓存，无需另加 R2 或全站 Cache Ever
 
 ## 字体
 
-保留现有 Source Serif 4、JetBrains Mono、Noto Serif SC 和 Noto Sans SC，不改变字形、字重和字体回退顺序。原始 WOFF2 文件保存在 `apps/web/public/assets/fonts`，同时保留原有许可证。
+保留现有 Source Serif 4、JetBrains Mono、Noto Serif SC 和 Noto Sans SC，不改变字形、字重和字体回退顺序。`font-display: swap` 保持不变。原始 WOFF2 文件保存在 `apps/web/font-sources`，不随站点部署，同时保留原有许可证。
 
-`apps/web/scripts/prepare-web-fonts.mjs` 在 Astro 配置加载时扫描官网源码与 Markdown 内容，通过 `subset-font` 生成仅包含网站用字的字体。额外保留通用标点，覆盖 Markdown 智能引号等渲染时生成的字符。生成结果写入 Astro 临时目录，不加入 Git；Vite 从 CSS 引用这些文件，为生产资源添加内容哈希。字体工具只在构建端运行，不增加客户端 JavaScript。
+构建不处理字体。子集由手动脚本生成，输出提交到 Git：
 
-正常执行 `pnpm --filter @yomitomo/web dev` 或 `pnpm --filter @yomitomo/web build` 即可生成字体，不需要额外命令。开发期间添加此前没有使用过的字符后，重启开发服务；每次生产构建都会重新扫描完整内容。保留 `font-display: swap`，字体加载失败或未覆盖的字符仍使用系统回退字体。
+```bash
+pnpm --filter @yomitomo/web fonts
+```
 
-子集化把两份 Noto 字体从 9,884,916 字节降到 644,872 字节，减少约 93.5%。这是全站共用字集，访问其他文章可以复用缓存。没有按当前单篇页面硬编码字符，也不再预加载旧的完整字体。
+命令先构建站点，再用 Chromium 打开 `dist` 的全部页面，按 computed style 和字体回退顺序判断每个字符实际由哪个字体绘制，然后重写 `apps/web/src/fonts` 下的 12 个 WOFF2 和 `web-fonts.css`。首次运行需要 `pnpm --filter @yomitomo/web exec playwright-core install chromium`。
+
+出现以下情况时重新运行并提交结果：
+
+- 文档、博客、更新日志或首页文案出现此前没有的字符。CJK 新字尤其要注意：字体里没有的字符会静默回退到系统字体，标题里能看出字形不一致。
+- 修改 `font-family`、`font-weight`、`font-style`，或新增 `font-feature-settings`、`font-variant-*`、`hyphens: auto`。
+- 替换 `font-sources` 里的字体。
+
+运行时注意两条警告：斜体文字用到 Source Serif 4，说明需要恢复已移除的 Italic；页面出现脚本不保留的 OpenType 特性，需要先把特性加进脚本。
+
+每个字体拆成两个文件。`.core` 含 ASCII、卷曲引号、破折号、省略号、全站用到的非 CJK 字符和英文页面用到的字符，所以英文页面只下载 `.core`。`.ext` 含其余用到的字符和 Latin-1、Latin Extended-A，放在 `unicode-range` 后面按需下载。`unicode-range` 由生成文件的 cmap 反推，只列出文件真实包含的字符。字距和标点压缩都不跨文件生效，Noto 给假名和 `、。` 配了字距，所以 CJK 标点必须和 CJK 文字一起留在 `.ext`。
+
+Source Serif 4 Bold、Noto Sans SC 和 JetBrains Mono Regular 的 `.core` 是全部页面都用到的文件，由 `apps/web/src/components/FontPreloads.astro` 预加载。其他文件只在部分页面使用，不预加载。
+
+字体裁剪去掉了提示、竖排度量和未使用的 OpenType 特性。`calt`、`clig`、`liga` 只在站点文字经 HarfBuzz 塑形后确实有变化时保留，例如 JetBrains Mono Regular 的 `://`。Source Serif 4 的保留字体名是 `Source`，脚本把嵌入的字体名改为 Yomitomo Serif，CSS 的 `font-family` 名不变。Source Serif 4 Italic 没有绘制过任何字符，只因空的 `<i>` 被下载，已经移除；这些空元素不受影响。
 
 ## 图片
 

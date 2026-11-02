@@ -1,8 +1,5 @@
 import starlight from '@astrojs/starlight';
 import { defineConfig } from 'astro/config';
-import { prepareWebFonts } from './scripts/prepare-web-fonts.mjs';
-
-await prepareWebFonts();
 
 export default defineConfig({
   site: 'https://yomitomo.app',

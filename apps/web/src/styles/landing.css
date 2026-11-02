@@ -1,56 +1,6 @@
 /* Shared by the home page and the docs shell: fonts, tokens, masthead, footer. */
 
-@font-face {
-  font-family: 'Source Serif 4';
-  src: url('../../.astro/web-fonts/SourceSerif4-Regular.woff2') format('woff2');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Source Serif 4';
-  src: url('../../.astro/web-fonts/SourceSerif4-Bold.woff2') format('woff2');
-  font-weight: 700 900;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Source Serif 4';
-  src: url('../../.astro/web-fonts/SourceSerif4-Italic.woff2') format('woff2');
-  font-weight: 400;
-  font-style: italic;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'JetBrains Mono';
-  src: url('../../.astro/web-fonts/JetBrainsMono-Regular.woff2') format('woff2');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'JetBrains Mono';
-  src: url('../../.astro/web-fonts/JetBrainsMono-Bold.woff2') format('woff2');
-  font-weight: 600 800;
-  font-style: normal;
-  font-display: swap;
-}
-/* Single static weight, matching the desktop renderer: the browser synthesizes
- * bold for 700/900 headings so CJK weight stays consistent with the Latin Bold. */
-@font-face {
-  font-family: 'Noto Serif SC';
-  src: url('../../.astro/web-fonts/NotoSerifSC-Regular.woff2') format('woff2');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Noto Sans SC';
-  src: url('../../.astro/web-fonts/NotoSansSC-Regular.woff2') format('woff2');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
+@import '../fonts/web-fonts.css';
 
 :root {
   /* ---------- Color: page + ink ---------- */
