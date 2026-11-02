@@ -1,0 +1,24 @@
+---
+import { getOutline } from './docs-nav';
+
+const { toc } = Astro.locals.starlightRoute;
+const items = getOutline(toc);
+const title = Astro.locals.t('tableOfContents.onThisPage');
+---
+
+{
+  items.length > 0 && (
+    <nav class="docs-toc" aria-label={title}>
+      <h2>{title}</h2>
+      <ul>
+        {items.map((item) => (
+          <li>
+            <a class:list={[item.depth > 2 && 'is-sub']} href={`#${item.slug}`} data-head={item.slug}>
+              {item.text}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )
+}

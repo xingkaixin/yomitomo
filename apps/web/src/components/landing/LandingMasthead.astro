@@ -1,4 +1,5 @@
 ---
+import LanguageSwitch from './LanguageSwitch.astro';
 import {
   changelogsUrl,
   englishChangelogsUrl,
@@ -13,22 +14,9 @@ type Props = {
 const { lang = 'zh-CN', active = 'home' } = Astro.props;
 const isEnglish = lang === 'en';
 const isJapanese = lang === 'ja';
-const showMobileMenu = active !== 'home';
-const menuLabel = isEnglish ? 'Contents' : isJapanese ? '目次' : '目录';
-
 const prefix = isEnglish ? '/en' : isJapanese ? '/ja' : '';
+const navLabel = isEnglish ? 'Main navigation' : isJapanese ? 'メインナビゲーション' : '主导航';
 const homeUrl = prefix ? `${prefix}/` : '/';
-const currentPath = Astro.url.pathname;
-const currentSearch = Astro.url.search;
-const pathWithoutLocalePrefix = currentPath.replace(/^\/(?:en|ja)(?=\/|$)/, '') || '/';
-const zhLocaleUrl = `${pathWithoutLocalePrefix}${currentSearch}`;
-const enLocalePath = pathWithoutLocalePrefix === '/' ? '/en/' : `/en${pathWithoutLocalePrefix}`;
-const enLocaleUrl = `${enLocalePath}${currentSearch}`;
-const jaLocalePath = pathWithoutLocalePrefix === '/' ? '/ja/' : `/ja${pathWithoutLocalePrefix}`;
-const jaLocaleUrl = `${jaLocalePath}${currentSearch}`;
-
-const languageLabel = isEnglish ? 'EN' : isJapanese ? '日' : '中';
-
 const navLinks = [
   { key: 'home', label: isEnglish ? 'Home' : isJapanese ? 'ホーム' : '首页', href: homeUrl },
   {
@@ -52,22 +40,11 @@ const navLinks = [
 <header class="mh">
   <div class="lp-container">
     <div class="mh-bar">
-      {
-        active === 'home' ? (
-          <a class="mh-wordmark" href={homeUrl}>
-            <span class="mh-title">Yomitomo</span>
-          </a>
-        ) : (
-          <span class="mh-wordmark">
-            <span class="mh-title">Yomitomo</span>
-          </span>
-        )
-      }
+      <a class="mh-wordmark" href={homeUrl}>
+        <span class="mh-title">Yomitomo</span>
+      </a>
     </div>
-    <nav
-      class="mh-nav"
-      aria-label={isEnglish ? 'Main navigation' : isJapanese ? 'メインナビゲーション' : '主导航'}
-    >
+    <nav class="mh-nav" aria-label={navLabel}>
       {
         navLinks.map((link) => (
           <a class:list={['nav-item', active === link.key && 'is-active']} href={link.href}>
@@ -76,287 +53,23 @@ const navLinks = [
         ))
       }
       <span class="nav-spacer"></span>
-      {
-        showMobileMenu && (
-          <button
-            class="mh-pill toc-toggle"
-            type="button"
-            aria-expanded="false"
-            aria-controls="starlight__sidebar"
-            popovertarget="starlight__sidebar"
-            aria-label={menuLabel}
-            data-toc-toggle
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <line x1="4" y1="6" x2="20" y2="6" />
-              <line x1="8" y1="12" x2="20" y2="12" />
-              <line x1="8" y1="18" x2="20" y2="18" />
-            </svg>
-            <span class="toc-label">{menuLabel}</span>
-          </button>
-        )
-      }
-      <div class="lang-switch" data-lang-switch>
-        <button
-          class="mh-pill lang-trigger"
-          type="button"
-          aria-haspopup="menu"
-          aria-expanded="false"
-          aria-controls="masthead-language-menu"
-          aria-label={isEnglish ? 'Select language' : isJapanese ? '言語を選択' : '选择语言'}
-          data-lang-trigger
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="m5 8 6 6"></path>
-            <path d="m4 14 6-6 2-3"></path>
-            <path d="M2 5h12"></path>
-            <path d="M7 2h1"></path>
-            <path d="m22 22-5-10-5 10"></path>
-            <path d="M14 18h6"></path>
-          </svg>
-          <span class="lang-cur">{languageLabel}</span>
-        </button>
-        <div
-          id="masthead-language-menu"
-          class="lang-menu"
-          role="menu"
-          aria-hidden="true"
-          data-origin="top-right"
-          data-lang-menu
-        >
-          <a
-            class:list={['lang-opt', lang === 'zh-CN' && 'sel']}
-            href={zhLocaleUrl}
-            role="menuitem"
-            aria-current={lang === 'zh-CN' ? 'true' : undefined}
-            tabindex="-1"
-          >
-            <span>简体中文</span>
-            {
-              lang === 'zh-CN' && (
-                <span class="lang-opt-check">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </span>
-              )
-            }
-          </a>
-          <a
-            class:list={['lang-opt', isEnglish && 'sel']}
-            href={enLocaleUrl}
-            role="menuitem"
-            aria-current={isEnglish ? 'true' : undefined}
-            tabindex="-1"
-          >
-            <span>English</span>
-            {
-              isEnglish && (
-                <span class="lang-opt-check">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </span>
-              )
-            }
-          </a>
-          <a
-            class:list={['lang-opt', isJapanese && 'sel']}
-            href={jaLocaleUrl}
-            role="menuitem"
-            aria-current={isJapanese ? 'true' : undefined}
-            tabindex="-1"
-          >
-            <span>日本語</span>
-            {
-              isJapanese && (
-                <span class="lang-opt-check">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </span>
-              )
-            }
-          </a>
-        </div>
-      </div>
+      <LanguageSwitch lang={lang} menuId="masthead-language-menu" />
     </nav>
   </div>
 </header>
-{
-  showMobileMenu && (
-    <div class="drawer-overlay" aria-hidden="true" />
-  )
-}
-
-<script is:inline>
-  for (const root of document.querySelectorAll('[data-lang-switch]')) {
-    const trigger = root.querySelector('[data-lang-trigger]');
-    const menu = root.querySelector('[data-lang-menu]');
-    if (!trigger || !menu) continue;
-    const menuItems = Array.from(menu.querySelectorAll('[role="menuitem"]'));
-    let closeTimer = 0;
-
-    const dropdownCloseMs = getMotionMs('--dropdown-close-dur', 150);
-    const isOpen = () => menu.classList.contains('is-open');
-    const currentMenuItem = () =>
-      menu.querySelector('[aria-current="true"]') || menuItems[0];
-    const focusMenuItem = (index) => {
-      if (!menuItems.length) return;
-      const nextIndex = (index + menuItems.length) % menuItems.length;
-      menuItems[nextIndex].focus();
-    };
-    const focusCurrentMenuItem = () => {
-      requestAnimationFrame(() => {
-        if (!isOpen()) return;
-        const item = currentMenuItem();
-        if (item instanceof HTMLElement) item.focus();
-      });
-    };
-    const openMenu = ({ focusCurrent = false } = {}) => {
-      window.clearTimeout(closeTimer);
-      trigger.classList.add('open');
-      menu.classList.remove('is-closing');
-      menu.classList.add('is-open');
-      menu.setAttribute('aria-hidden', 'false');
-      trigger.setAttribute('aria-expanded', 'true');
-      if (focusCurrent) focusCurrentMenuItem();
-    };
-    const closeMenu = ({ restoreFocus = false } = {}) => {
-      if (!isOpen() && !menu.classList.contains('is-closing')) return;
-      window.clearTimeout(closeTimer);
-      trigger.classList.remove('open');
-      menu.classList.remove('is-open');
-      menu.classList.add('is-closing');
-      menu.setAttribute('aria-hidden', 'true');
-      trigger.setAttribute('aria-expanded', 'false');
-      if (restoreFocus) trigger.focus();
-      closeTimer = window.setTimeout(() => {
-        menu.classList.remove('is-closing');
-      }, prefersReducedMotion() ? 0 : dropdownCloseMs);
-    };
-    trigger.addEventListener('click', (event) => {
-      event.stopPropagation();
-      if (isOpen()) {
-        closeMenu({ restoreFocus: true });
-      } else {
-        openMenu({ focusCurrent: true });
-      }
-    });
-    trigger.addEventListener('keydown', (event) => {
-      if (!['Enter', ' ', 'ArrowDown', 'ArrowUp'].includes(event.key)) return;
-      event.preventDefault();
-      openMenu({ focusCurrent: true });
-    });
-    menu.addEventListener('keydown', (event) => {
-      const activeIndex = menuItems.indexOf(document.activeElement);
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        closeMenu({ restoreFocus: true });
-        return;
-      }
-      if (event.key === 'Tab') {
-        closeMenu();
-        return;
-      }
-      if (event.key === 'ArrowDown') {
-        event.preventDefault();
-        focusMenuItem(activeIndex + 1);
-        return;
-      }
-      if (event.key === 'ArrowUp') {
-        event.preventDefault();
-        focusMenuItem(activeIndex - 1);
-        return;
-      }
-      if (event.key === 'Home') {
-        event.preventDefault();
-        focusMenuItem(0);
-        return;
-      }
-      if (event.key === 'End') {
-        event.preventDefault();
-        focusMenuItem(menuItems.length - 1);
-        return;
-      }
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        if (document.activeElement instanceof HTMLElement) document.activeElement.click();
-      }
-    });
-    document.addEventListener('pointerdown', (event) => {
-      if (event.target instanceof Node && !root.contains(event.target)) closeMenu();
-    });
-    document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape') closeMenu({ restoreFocus: isOpen() });
-    });
-  }
-
-  const tocToggle = document.querySelector('[data-toc-toggle]');
-  if (tocToggle) {
-    const drawerCloseMs = getMotionMs('--panel-close-dur', 350);
-    const focusableDrawerSelector = [
-      'a[href]',
-      'button:not([disabled])',
-      'summary',
-      'textarea:not([disabled])',
-      'input:not([disabled])',
-      'select:not([disabled])',
-      '[tabindex]:not([tabindex="-1"])',
-    ].join(',');
-    let drawerCloseTimer = 0;
-
-    const isTocOpen = () => tocToggle.getAttribute('aria-expanded') === 'true';
-    const focusFirstDrawerControl = (sidebar) => {
-      requestAnimationFrame(() => {
-        if (!isTocOpen()) return;
-        const firstControl = sidebar.querySelector(focusableDrawerSelector);
-        if (firstControl instanceof HTMLElement) {
-          firstControl.focus();
-          return;
-        }
-        sidebar.setAttribute('tabindex', '-1');
-        sidebar.focus();
-      });
-    };
-    const setTocOpen = (sidebar, open) => {
-      window.clearTimeout(drawerCloseTimer);
-      tocToggle.setAttribute('aria-expanded', String(open));
-      document.body.toggleAttribute('data-mobile-menu-expanded', open);
-      if (open) {
-        document.body.toggleAttribute('data-mobile-menu-visible', true);
-        document.body.toggleAttribute('data-mobile-menu-closing', false);
-        focusFirstDrawerControl(sidebar);
-        return;
-      }
-      if (!document.body.hasAttribute('data-mobile-menu-visible')) return;
-      document.body.toggleAttribute('data-mobile-menu-closing', true);
-      drawerCloseTimer = window.setTimeout(() => {
-        document.body.toggleAttribute('data-mobile-menu-visible', false);
-        document.body.toggleAttribute('data-mobile-menu-closing', false);
-      }, prefersReducedMotion() ? 0 : drawerCloseMs);
-    };
-    // The sidebar popover is parsed after this script and its toggle event does not bubble.
-    document.addEventListener(
-      'toggle',
-      (event) => {
-        const sidebar = event.target;
-        if (!(sidebar instanceof HTMLElement)) return;
-        if (sidebar.id !== tocToggle.getAttribute('popovertarget')) return;
-        setTocOpen(sidebar, event.newState === 'open');
-      },
-      true,
-    );
-  }
-
-  function prefersReducedMotion() {
-    return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-  }
-
-  function getMotionMs(token, fallback) {
-    const raw = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
-    const value = Number.parseFloat(raw);
-    if (!Number.isFinite(value)) return fallback;
-    return raw.endsWith('ms') ? value : value * 1000;
-  }
-</script>
+<header class="mh-float" data-float-bar>
+  <a class="mh-float-brand" href={homeUrl}>
+    <img src="/assets/yomitomo-logo-96.png" alt="" width="28" height="28" />
+    <span>Yomitomo</span>
+  </a>
+  <nav class="mh-float-nav" aria-label={navLabel}>
+    {
+      navLinks.map((link) => (
+        <a class:list={['nav-item', active === link.key && 'is-active']} href={link.href}>
+          {link.label}
+        </a>
+      ))
+    }
+  </nav>
+  <LanguageSwitch lang={lang} menuId="float-language-menu" />
+</header>

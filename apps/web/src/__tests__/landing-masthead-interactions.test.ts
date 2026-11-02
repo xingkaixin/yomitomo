@@ -9,26 +9,23 @@ beforeAll(async () => {
   container = await AstroContainer.create();
 });
 
-async function renderMasthead(active: 'home' | 'docs' = 'home') {
+async function renderMasthead() {
   const html = await container.renderToString(LandingMasthead, {
-    props: { active, lang: 'zh-CN' },
+    props: { lang: 'zh-CN' },
     request: new Request('https://yomitomo.app/docs/'),
   });
-  return new JSDOM(
-    `<!doctype html><html><body><header class="header">${html}</header><nav class="sidebar"><sl-sidebar-pane popover id="starlight__sidebar" class="sidebar-pane"><a href="/docs/start">开始</a></sl-sidebar-pane></nav></body></html>`,
-    {
-      pretendToBeVisual: true,
-      runScripts: 'dangerously',
-      url: 'https://yomitomo.app/docs/',
-      beforeParse(window) {
-        window.matchMedia = () => ({ matches: true }) as MediaQueryList;
-        window.requestAnimationFrame = (callback) => {
-          callback(0);
-          return 1;
-        };
-      },
+  return new JSDOM(`<!doctype html><html><body>${html}</body></html>`, {
+    pretendToBeVisual: true,
+    runScripts: 'dangerously',
+    url: 'https://yomitomo.app/docs/',
+    beforeParse(window) {
+      window.matchMedia = () => ({ matches: true }) as MediaQueryList;
+      window.requestAnimationFrame = (callback) => {
+        callback(0);
+        return 1;
+      };
     },
-  );
+  });
 }
 
 describe('landing masthead interactions', () => {
@@ -55,36 +52,6 @@ describe('landing masthead interactions', () => {
     expect(trigger.getAttribute('aria-expanded')).toBe('false');
     expect(menu.getAttribute('aria-hidden')).toBe('true');
     expect(document.activeElement).toBe(trigger);
-    dom.window.close();
-  });
-
-  it('opens the sidebar popover and follows its toggle state', async () => {
-    const dom = await renderMasthead('docs');
-    const { document, Event } = dom.window;
-    const trigger = document.querySelector<HTMLButtonElement>('[data-toc-toggle]')!;
-    const sidebar = document.getElementById('starlight__sidebar')!;
-    const firstControl = sidebar.querySelector<HTMLAnchorElement>('a')!;
-    const toggle = (newState: 'open' | 'closed') => {
-      // jsdom hides closed popovers but does not implement showPopover/hidePopover.
-      sidebar.style.display = newState === 'open' ? 'block' : 'none';
-      sidebar.dispatchEvent(Object.assign(new Event('toggle'), { newState }));
-    };
-
-    expect(trigger.getAttribute('popovertarget')).toBe(sidebar.id);
-
-    toggle('open');
-
-    expect(trigger.getAttribute('aria-expanded')).toBe('true');
-    expect(document.body.hasAttribute('data-mobile-menu-visible')).toBe(true);
-    expect(document.activeElement).toBe(firstControl);
-
-    toggle('closed');
-
-    expect(trigger.getAttribute('aria-expanded')).toBe('false');
-    expect(document.body.hasAttribute('data-mobile-menu-closing')).toBe(true);
-    await new Promise((resolve) => dom.window.setTimeout(resolve, 0));
-    expect(document.body.hasAttribute('data-mobile-menu-visible')).toBe(false);
-    expect(document.body.hasAttribute('data-mobile-menu-closing')).toBe(false);
     dom.window.close();
   });
 });

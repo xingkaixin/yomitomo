@@ -1,15 +1,10 @@
 import starlight from '@astrojs/starlight';
-import react from '@astrojs/react';
 import { defineConfig } from 'astro/config';
-import { prepareWebFonts } from './scripts/prepare-web-fonts.mjs';
-
-await prepareWebFonts();
 
 export default defineConfig({
   site: 'https://yomitomo.app',
   output: 'static',
   integrations: [
-    react(),
     starlight({
       title: {
         'zh-CN': 'Yomitomo 文档',
@@ -58,13 +53,17 @@ export default defineConfig({
         Head: './src/components/starlight/Head.astro',
         Header: './src/components/starlight/Header.astro',
         PageFrame: './src/components/starlight/PageFrame.astro',
+        PageSidebar: './src/components/starlight/PageSidebar.astro',
+        PageTitle: './src/components/starlight/PageTitle.astro',
+        Sidebar: './src/components/starlight/Sidebar.astro',
+        TwoColumnContent: './src/components/starlight/TwoColumnContent.astro',
         Footer: './src/components/starlight/Footer.astro',
-        MobileMenuFooter: './src/components/starlight/MobileMenuFooter.astro',
         ThemeProvider: './src/components/starlight/ThemeProvider.astro',
         ThemeSelect: './src/components/starlight/ThemeSelect.astro',
       },
+      disable404Route: true,
       routeMiddleware: './src/starlight-route.ts',
-      tableOfContents: false,
+      tableOfContents: { minHeadingLevel: 2, maxHeadingLevel: 3 },
       pagefind: false,
       lastUpdated: true,
     }),

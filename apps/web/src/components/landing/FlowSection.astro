@@ -1,0 +1,15 @@
+---
+import { getHomeCopy, type Lang } from './home-copy';
+
+type Props = {
+  lang?: Lang;
+};
+
+const { lang = 'zh-CN' } = Astro.props;
+const { flow } = getHomeCopy(lang);
+---
+
+<section class="wrap flow">
+  <h2 class="sec-title">{flow.title}</h2>
+  <p class="sec-lead">{flow.lead}</p>
+</section>

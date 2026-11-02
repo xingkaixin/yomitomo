@@ -1,0 +1,237 @@
+---
+type Props = {
+  lang?: 'zh-CN' | 'en' | 'ja';
+  menuId: string;
+  variant?: 'pill' | 'text';
+};
+
+const { lang = 'zh-CN', menuId, variant = 'pill' } = Astro.props;
+const isEnglish = lang === 'en';
+const isJapanese = lang === 'ja';
+
+const currentPath = Astro.url.pathname;
+const currentSearch = Astro.url.search;
+const pathWithoutLocalePrefix = currentPath.replace(/^\/(?:en|ja)(?=\/|$)/, '') || '/';
+const zhLocaleUrl = `${pathWithoutLocalePrefix}${currentSearch}`;
+const enLocalePath = pathWithoutLocalePrefix === '/' ? '/en/' : `/en${pathWithoutLocalePrefix}`;
+const enLocaleUrl = `${enLocalePath}${currentSearch}`;
+const jaLocalePath = pathWithoutLocalePrefix === '/' ? '/ja/' : `/ja${pathWithoutLocalePrefix}`;
+const jaLocaleUrl = `${jaLocalePath}${currentSearch}`;
+
+const languageLabel = isEnglish ? 'EN' : isJapanese ? '日' : '中';
+const languageName = isEnglish ? 'English' : isJapanese ? '日本語' : '简体中文';
+---
+
+<div class="lang-switch" data-lang-switch>
+  <button
+    class:list={[variant === 'pill' ? 'mh-pill lang-trigger' : 'nav-icon lang-trigger-text']}
+    type="button"
+    aria-haspopup="menu"
+    aria-expanded="false"
+    aria-controls={menuId}
+    aria-label={isEnglish ? 'Select language' : isJapanese ? '言語を選択' : '选择语言'}
+    data-lang-trigger
+  >
+    {
+      variant === 'pill' ? (
+        <>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m5 8 6 6" />
+            <path d="m4 14 6-6 2-3" />
+            <path d="M2 5h12" />
+            <path d="M7 2h1" />
+            <path d="m22 22-5-10-5 10" />
+            <path d="M14 18h6" />
+          </svg>
+          <span class="lang-cur">{languageLabel}</span>
+        </>
+      ) : (
+        <>
+          {languageName}
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <path d="M2.5 4.5 6 8l3.5-3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </>
+      )
+  }
+  </button>
+  <div
+    id={menuId}
+    class="lang-menu"
+    role="menu"
+    aria-hidden="true"
+    data-origin="top-right"
+    data-lang-menu
+  >
+    <a
+      class:list={['lang-opt', lang === 'zh-CN' && 'sel']}
+      href={zhLocaleUrl}
+      role="menuitem"
+      aria-current={lang === 'zh-CN' ? 'true' : undefined}
+      tabindex="-1"
+    >
+      <span>简体中文</span>
+      {
+        lang === 'zh-CN' && (
+          <span class="lang-opt-check">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </span>
+        )
+      }
+    </a>
+    <a
+      class:list={['lang-opt', isEnglish && 'sel']}
+      href={enLocaleUrl}
+      role="menuitem"
+      aria-current={isEnglish ? 'true' : undefined}
+      tabindex="-1"
+    >
+      <span>English</span>
+      {
+        isEnglish && (
+          <span class="lang-opt-check">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </span>
+        )
+      }
+    </a>
+    <a
+      class:list={['lang-opt', isJapanese && 'sel']}
+      href={jaLocaleUrl}
+      role="menuitem"
+      aria-current={isJapanese ? 'true' : undefined}
+      tabindex="-1"
+    >
+      <span>日本語</span>
+      {
+        isJapanese && (
+          <span class="lang-opt-check">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </span>
+        )
+      }
+    </a>
+  </div>
+</div>
+
+<script is:inline>
+  for (const root of document.querySelectorAll('[data-lang-switch]:not([data-bound])')) {
+    root.dataset.bound = '';
+    const trigger = root.querySelector('[data-lang-trigger]');
+    const menu = root.querySelector('[data-lang-menu]');
+    if (!trigger || !menu) continue;
+    const menuItems = Array.from(menu.querySelectorAll('[role="menuitem"]'));
+    let closeTimer = 0;
+
+    const dropdownCloseMs = getMotionMs('--dropdown-close-dur', 150);
+    const isOpen = () => menu.classList.contains('is-open');
+    const currentMenuItem = () =>
+      menu.querySelector('[aria-current="true"]') || menuItems[0];
+    const focusMenuItem = (index) => {
+      if (!menuItems.length) return;
+      const nextIndex = (index + menuItems.length) % menuItems.length;
+      menuItems[nextIndex].focus();
+    };
+    const focusCurrentMenuItem = () => {
+      requestAnimationFrame(() => {
+        if (!isOpen()) return;
+        const item = currentMenuItem();
+        if (item instanceof HTMLElement) item.focus();
+      });
+    };
+    const openMenu = ({ focusCurrent = false } = {}) => {
+      window.clearTimeout(closeTimer);
+      trigger.classList.add('open');
+      menu.classList.remove('is-closing');
+      menu.classList.add('is-open');
+      menu.setAttribute('aria-hidden', 'false');
+      trigger.setAttribute('aria-expanded', 'true');
+      if (focusCurrent) focusCurrentMenuItem();
+    };
+    const closeMenu = ({ restoreFocus = false } = {}) => {
+      if (!isOpen() && !menu.classList.contains('is-closing')) return;
+      window.clearTimeout(closeTimer);
+      trigger.classList.remove('open');
+      menu.classList.remove('is-open');
+      menu.classList.add('is-closing');
+      menu.setAttribute('aria-hidden', 'true');
+      trigger.setAttribute('aria-expanded', 'false');
+      if (restoreFocus) trigger.focus();
+      closeTimer = window.setTimeout(() => {
+        menu.classList.remove('is-closing');
+      }, prefersReducedMotion() ? 0 : dropdownCloseMs);
+    };
+    trigger.addEventListener('click', (event) => {
+      event.stopPropagation();
+      if (isOpen()) {
+        closeMenu({ restoreFocus: true });
+      } else {
+        openMenu({ focusCurrent: true });
+      }
+    });
+    trigger.addEventListener('keydown', (event) => {
+      if (!['Enter', ' ', 'ArrowDown', 'ArrowUp'].includes(event.key)) return;
+      event.preventDefault();
+      openMenu({ focusCurrent: true });
+    });
+    menu.addEventListener('keydown', (event) => {
+      const activeIndex = menuItems.indexOf(document.activeElement);
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeMenu({ restoreFocus: true });
+        return;
+      }
+      if (event.key === 'Tab') {
+        closeMenu();
+        return;
+      }
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        focusMenuItem(activeIndex + 1);
+        return;
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        focusMenuItem(activeIndex - 1);
+        return;
+      }
+      if (event.key === 'Home') {
+        event.preventDefault();
+        focusMenuItem(0);
+        return;
+      }
+      if (event.key === 'End') {
+        event.preventDefault();
+        focusMenuItem(menuItems.length - 1);
+        return;
+      }
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        if (document.activeElement instanceof HTMLElement) document.activeElement.click();
+      }
+    });
+    document.addEventListener('pointerdown', (event) => {
+      if (event.target instanceof Node && !root.contains(event.target)) closeMenu();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeMenu({ restoreFocus: isOpen() });
+    });
+  }
+
+  function prefersReducedMotion() {
+    return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+  }
+
+  function getMotionMs(token, fallback) {
+    const raw = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
+    const value = Number.parseFloat(raw);
+    if (!Number.isFinite(value)) return fallback;
+    return raw.endsWith('ms') ? value : value * 1000;
+  }
+</script>

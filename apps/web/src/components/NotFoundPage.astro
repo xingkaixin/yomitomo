@@ -1,0 +1,72 @@
+---
+import Analytics from './Analytics.astro';
+import FontPreloads from './FontPreloads.astro';
+import HomeNav from './landing/HomeNav.astro';
+import LandingFooter from './landing/LandingFooter.astro';
+import type { Lang } from './landing/home-copy';
+import '../styles/landing.css';
+import '../styles/home.css';
+
+type Props = {
+  lang?: Lang;
+};
+
+const { lang = 'zh-CN' } = Astro.props;
+const prefix = lang === 'en' ? '/en' : lang === 'ja' ? '/ja' : '';
+const copy = {
+  'zh-CN': {
+    pageTitle: '页面未找到 · Yomitomo',
+    title: '这一页不在书架上。',
+    sub: '链接可能已经失效，或者页面换了位置。',
+    home: '回到首页',
+    docs: '查看文档',
+  },
+  en: {
+    pageTitle: 'Page not found · Yomitomo',
+    title: "This page isn't on the shelf.",
+    sub: 'The link may be out of date, or the page has moved.',
+    home: 'Back to home',
+    docs: 'Read the docs',
+  },
+  ja: {
+    pageTitle: 'ページが見つかりません · Yomitomo',
+    title: 'このページは本棚にありません。',
+    sub: 'リンクが古いか、ページが移動した可能性があります。',
+    home: 'ホームへ戻る',
+    docs: 'ドキュメントを見る',
+  },
+}[lang];
+---
+
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>{copy.pageTitle}</title>
+    <link rel="icon" type="image/png" sizes="64x64" href="/assets/favicon.png" />
+    <meta name="theme-color" content="#f54b3f" />
+    <FontPreloads />
+    <Analytics />
+  </head>
+  <body>
+    <div class="lp lp-root">
+      <main class="nf">
+        <div class="nf-book"></div>
+        <img class="nf-rabbit" src="/assets/rabbit.webp" alt="" width="1000" height="673" />
+        <HomeNav lang={lang} downloadHref={`${prefix}/#download`} />
+        <div class="wrap nf-copy">
+          <p class="nf-code">404</p>
+          <h1>{copy.title}</h1>
+          <p class="nf-sub">{copy.sub}</p>
+          <div class="hero-cta">
+            <a class="btn-main" href={`${prefix}/`}>{copy.home}</a>
+            <a href={`${prefix}/docs/`}>{copy.docs}</a>
+          </div>
+        </div>
+      </main>
+      <LandingFooter lang={lang} />
+    </div>
+  </body>
+</html>

@@ -142,6 +142,7 @@ pnpm deploy:download
 | 官网 changelog 详情 | `apps/web/src/content/docs/changelogs/v0-X-Y-Z.md` | 可从根 CHANGELOG 精简 |
 | 官网 changelog 详情（英） | `apps/web/src/content/docs/en/changelogs/v0-X-Y-Z.md` | 同上 |
 | 官网 changelog 详情（日） | `apps/web/src/content/docs/ja/changelogs/v0-X-Y-Z.md` | 同上 |
+| 官网字体 | `apps/web/src/fonts` | 运行 `pnpm --filter @yomitomo/web fonts` 并提交变化，新文案的字符才会进入字体子集 |
 | 帮助文档（中） | `apps/web/src/content/docs/docs/*.md` | 按功能变更按需改 `index`、`reader`、`settings`、`library`、`stats-and-faq` 等 |
 | 帮助文档（英） | `apps/web/src/content/docs/en/docs/*.md` | 与中文页面对齐 |
 | 帮助文档（日） | `apps/web/src/content/docs/ja/docs/*.md` | 与中文页面对齐 |

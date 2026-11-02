@@ -1,0 +1,53 @@
+---
+import { getDocsLabels, getPageLinks } from './docs-nav';
+
+const { sidebar, lang } = Astro.locals.starlightRoute;
+const labels = getDocsLabels(lang);
+const links = getPageLinks(sidebar);
+const scrollKey = Astro.url.pathname.match(/^(?:\/(?:en|ja))?\/[^/]+/)?.[0] ?? '/';
+---
+
+<aside class="docs-side" aria-label={labels.pages}>
+  <div class="pages-wrap" data-pages-wrap>
+    <ul class="pages" data-pages data-scroll-key={scrollKey}>
+      {
+        links.map((link) => (
+          <li>
+            <a href={link.href} aria-current={link.isCurrent ? 'page' : undefined}>
+              {link.label}
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+    <button class="arrow arrow-up" type="button" tabindex="-1" aria-hidden="true" data-pages-up>
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2.5 7.5 6 4l3.5 3.5"></path>
+      </svg>
+    </button>
+    <button class="arrow arrow-down" type="button" tabindex="-1" aria-hidden="true" data-pages-down>
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2.5 4.5 6 8l3.5-3.5"></path>
+      </svg>
+    </button>
+  </div>
+</aside>
+
+<script is:inline>
+  // Runs before first paint so the list never visibly jumps to the current page.
+  (() => {
+    const pages = document.querySelector('[data-pages]');
+    if (!pages) return;
+    try {
+      const saved = sessionStorage.getItem(`docs-pages:${pages.dataset.scrollKey}`);
+      if (saved !== null) pages.scrollTop = Number(saved);
+    } catch {}
+    const current = pages.querySelector('[aria-current="page"]');
+    if (!current) return;
+    const top = current.offsetTop - pages.offsetTop;
+    const bottom = top + current.offsetHeight;
+    if (top < pages.scrollTop || bottom > pages.scrollTop + pages.clientHeight) {
+      pages.scrollTop = top - (pages.clientHeight - current.offsetHeight) / 2;
+    }
+  })();
+</script>

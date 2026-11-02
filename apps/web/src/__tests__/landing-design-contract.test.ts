@@ -15,15 +15,6 @@ function contrastBetweenGrays(foreground: number, background: number) {
   return (backgroundLuminance + 0.05) / (foregroundLuminance + 0.05);
 }
 
-function mediaBlocks(query: string) {
-  const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return Array.from(
-    landingStyles.matchAll(
-      new RegExp(`@media ${escapedQuery} \\{(?<body>(?:[^{}]|\\{[^{}]*\\})*)\\}`, 'g'),
-    ),
-  ).map((match) => match.groups?.body || '');
-}
-
 describe('landing accessibility styles', () => {
   it('reveals the skip link only when keyboard focus reaches it', () => {
     expect(landingStyles).toMatch(/\.lp-skip-link \{[^}]*position: fixed;/s);
@@ -41,28 +32,15 @@ describe('landing accessibility styles', () => {
     expect(contrastBetweenGrays(gray, 245)).toBeGreaterThanOrEqual(4.5);
   });
 
-  it('stops the download pulse for reduced motion', () => {
-    const reducedMotionBlocks = mediaBlocks('(prefers-reduced-motion: reduce)');
-
-    expect(
-      reducedMotionBlocks.some((block) =>
-        /\.dl-version \.pulse::after\s*\{[^}]*animation: none;/.test(block),
-      ),
-    ).toBe(true);
-  });
-
-  it('disables modal scale motion for reduced motion users', () => {
+  it('disables menu, floating header and sheet motion for reduced motion', () => {
     expect(landingStyles).toMatch(
-      /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.dm-overlay,[\s\S]*\.dm-panel \{[\s\S]*transition: none !important;[\s\S]*\.dm-panel,[\s\S]*\.dm-overlay\[data-state='closing'\] \.dm-panel \{[\s\S]*transform: none;/,
+      /@media \(prefers-reduced-motion: reduce\) \{\s*\.lang-menu \{\s*transition: none !important;/,
     );
-  });
-
-  it('disables menu and drawer transitions for reduced motion', () => {
     expect(landingStyles).toMatch(
-      /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.lang-menu,[\s\S]*\.drawer-overlay \{[\s\S]*transition: none !important;/,
+      /@media \(prefers-reduced-motion: reduce\) \{\s*\.mh-float,\s*\.mh-float\[data-show\] \{\s*transition: none;/,
     );
     expect(starlightStyles).toMatch(
-      /@media \(max-width: 50rem\) and \(prefers-reduced-motion: reduce\) \{[\s\S]*\.sidebar-pane \{[\s\S]*transition: none !important;/,
+      /@media \(prefers-reduced-motion: reduce\) \{\s*\.docs-sheet\[open\] \{\s*animation: none;/,
     );
   });
 });

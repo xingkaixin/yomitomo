@@ -1,4 +1,4 @@
-import reactRenderer from '@astrojs/react/server.js';
+import { existsSync } from 'node:fs';
 import { experimental_AstroContainer as AstroContainer } from 'astro/container';
 import { JSDOM } from 'jsdom';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -8,8 +8,6 @@ let container: AstroContainer;
 
 beforeAll(async () => {
   container = await AstroContainer.create();
-  container.addServerRenderer({ renderer: reactRenderer });
-  container.addClientRenderer({ name: '@astrojs/react', entrypoint: '@astrojs/react/client.js' });
 });
 
 afterEach(() => {
@@ -66,14 +64,50 @@ describe('landing page rendering', () => {
     expect(page.querySelectorAll('main')).toHaveLength(1);
   });
 
-  it('renders dimensioned reader demo avatars', async () => {
+  it('renders dimensioned product window avatars', async () => {
     const page = await renderLandingPage('zh-CN');
-    const avatars = page.querySelectorAll<HTMLImageElement>('.reader-rail img');
+    const avatars = page.querySelectorAll<HTMLImageElement>('.win img');
 
     expect(avatars.length).toBeGreaterThan(0);
     for (const avatar of avatars) {
       expect(avatar.width).toBe(96);
       expect(avatar.height).toBe(96);
+    }
+  });
+
+  it.each(['zh-CN', 'en', 'ja'] as const)(
+    'only references images that exist on the %s landing page',
+    async (lang) => {
+      const page = await renderLandingPage(lang);
+      const images = page.querySelectorAll<HTMLImageElement>('img[src^="/assets/"]');
+
+      expect(images.length).toBeGreaterThan(0);
+      for (const image of images) {
+        const path = image.getAttribute('src')!;
+        expect(existsSync(new URL(`../../public${path}`, import.meta.url)), path).toBe(true);
+      }
+    },
+  );
+
+  it('keeps the Umami events on every download entry point', async () => {
+    const page = await renderLandingPage('en');
+    const placements = Array.from(
+      page.querySelectorAll<HTMLElement>('[data-umami-event="download_section_click"]'),
+      (link) => link.dataset.umamiEventPlacement,
+    );
+    const downloads = Array.from(
+      page.querySelectorAll<HTMLAnchorElement>('[data-umami-event="download_click"]'),
+    );
+
+    expect(placements).toEqual(['nav', 'hero', 'hero-alternative', 'footer']);
+    expect(downloads.map((link) => link.dataset.umamiEventPlatform)).toEqual([
+      'macos-arm64',
+      'windows-x64',
+    ]);
+    for (const link of downloads) {
+      expect(link.dataset.umamiEventLanguage).toBe('en');
+      expect(link.dataset.umamiEventVersion).toBeTruthy();
+      expect(link.getAttribute('href')).toContain(link.dataset.umamiEventVersion);
     }
   });
 
@@ -99,39 +133,5 @@ describe('landing page rendering', () => {
       expect(item.getAttribute('tabindex')).toBe('-1');
     }
     expect(currentItem?.textContent).toContain(currentLabel);
-  });
-
-  it('renders the static mobile preview before the visibility-hydrated demo', async () => {
-    const page = await renderLandingPage('en');
-    const preview = page.querySelector<HTMLElement>('.mobile-product-preview');
-    const image = preview?.querySelector<HTMLImageElement>('.mobile-preview-image');
-    const demo = page.querySelector<HTMLElement>('.demo-section');
-    const hydratedDemo = demo?.querySelector('astro-island[client="visible"]');
-
-    expect(preview).toBeTruthy();
-    expect(demo).toBeTruthy();
-    expect(
-      preview && demo
-        ? Boolean(preview.compareDocumentPosition(demo) & preview.DOCUMENT_POSITION_FOLLOWING)
-        : false,
-    ).toBe(true);
-    expect(image?.getAttribute('src')).toBe('/assets/en-reader-1600.webp');
-    expect(image?.width).toBe(1600);
-    expect(image?.height).toBe(1032);
-    expect(image?.getAttribute('loading')).toBe('lazy');
-    expect(hydratedDemo).toBeTruthy();
-  });
-
-  it('renders the evidence-led landing structure without obsolete decorations', async () => {
-    const page = await renderLandingPage('zh-CN');
-
-    expect(page.querySelector('.hand-ul')).toBeTruthy();
-    expect(page.querySelector('.mobile-preview-image')).toBeTruthy();
-    expect(page.querySelector('.step-anchor')).toBeTruthy();
-    expect(page.querySelector('.concept-layout')).toBeTruthy();
-    expect(page.querySelector('.concept-title-line')).toBeTruthy();
-    expect(page.querySelector('.mh-kicker')).toBeNull();
-    expect(page.querySelector('[data-masthead-date]')).toBeNull();
-    expect(page.querySelector('.step-no')).toBeNull();
   });
 });

@@ -1,3 +1,36 @@
 ---
-// PageFrame renders the site footer outside the reading column.
+import { getDocsLabels, helpLinks } from './docs-nav';
+
+const { hasSidebar, lang, pagination } = Astro.locals.starlightRoute;
+const labels = getDocsLabels(lang);
+const { prev, next } = pagination;
 ---
+
+{
+  hasSidebar && (
+    <>
+      <section class="docs-help">
+        <h2>{labels.help}</h2>
+        {helpLinks.map((link) => (
+          <a href={link.href} target="_blank" rel="noopener">
+            {link.label}
+          </a>
+        ))}
+      </section>
+      <nav class="docs-pager" aria-label={labels.pager}>
+        {prev && (
+          <a href={prev.href} rel="prev">
+            <span>{labels.prev}</span>
+            <b>{prev.label}</b>
+          </a>
+        )}
+        {next && (
+          <a class="is-next" href={next.href} rel="next">
+            <span>{labels.next}</span>
+            <b>{next.label}</b>
+          </a>
+        )}
+      </nav>
+    </>
+  )
+}
