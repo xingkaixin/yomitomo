@@ -12,6 +12,21 @@ const flattenSidebarGroup = (sidebar: StarlightRouteData['sidebar'], label: stri
 const flattenNestedGroups = (sidebar: StarlightRouteData['sidebar']) =>
   sidebar.flatMap((item) => (item.type === 'group' ? item.entries : [item]));
 
+const paginateFlatSidebar = (route: StarlightRouteData, homeHref: string, homeLabel: string) => {
+  const links = route.sidebar.filter((entry) => entry.type === 'link');
+  const index = links.findIndex((link) => link.isCurrent);
+  if (index < 0) return;
+  const home = {
+    type: 'link' as const,
+    label: homeLabel,
+    href: homeHref,
+    isCurrent: false,
+    badge: undefined,
+    attrs: {},
+  };
+  route.pagination = { prev: links[index - 1] ?? home, next: links[index + 1] };
+};
+
 export const onRequest = defineRouteMiddleware((context) => {
   const { pathname } = context.url;
   const route = context.locals.starlightRoute;
@@ -43,17 +58,21 @@ export const onRequest = defineRouteMiddleware((context) => {
     context.locals.starlightRoute.sidebar = flattenSidebarGroup(sidebar, '版本记录').toSorted(
       (a, b) => compareVersionLabelsDesc(a.label, b.label),
     );
-    return;
-  }
-
-  if (pathname.startsWith(docsPrefix)) {
-    context.locals.starlightRoute.sidebar = flattenSidebarGroup(sidebar, '产品文档');
-    return;
-  }
-
-  if (pathname.startsWith(blogPrefix)) {
+  } else if (pathname.startsWith(docsPrefix)) {
+    context.locals.starlightRoute.sidebar = flattenNestedGroups(
+      flattenSidebarGroup(sidebar, '产品文档'),
+    );
+  } else if (pathname.startsWith(blogPrefix)) {
     context.locals.starlightRoute.sidebar = flattenNestedGroups(
       flattenSidebarGroup(sidebar, '博客'),
     );
+  } else {
+    return;
   }
+
+  paginateFlatSidebar(
+    route,
+    `${localePrefix}/`,
+    isEnglish ? 'Home' : isJapanese ? 'ホーム' : '首页',
+  );
 });

@@ -1,14 +1,30 @@
 ---
-import StarlightPageFrame from '@astrojs/starlight/components/PageFrame.astro';
 import LandingFooter from '../landing/LandingFooter.astro';
+import DocsDock from './DocsDock.astro';
 
-const { lang } = Astro.locals.starlightRoute;
+const { entry, hasSidebar, lang } = Astro.locals.starlightRoute;
 const footerLang = lang === 'en' || lang === 'ja' ? lang : 'zh-CN';
+const { title, description, hero } = entry.data;
 ---
 
-<StarlightPageFrame>
-  <slot name="header" slot="header" />
-  <slot name="sidebar" slot="sidebar" />
-  <slot />
-</StarlightPageFrame>
+<div class="docs-page">
+  <div class="docs-banner" data-docs-banner>
+    <slot name="header" />
+    {
+      !hero && (
+        <div class="lp-container docs-head">
+          <h1 id="_top">{title}</h1>
+          {description && <p>{description}</p>}
+        </div>
+      )
+    }
+  </div>
+  <div class:list={['lp-container', hasSidebar ? 'docs-layout' : 'docs-single']}>
+    <slot name="sidebar" />
+    <slot />
+  </div>
+</div>
+{hasSidebar && <DocsDock />}
 <LandingFooter lang={footerLang} />
+
+<script src="../../scripts/docs-shell.ts"></script>

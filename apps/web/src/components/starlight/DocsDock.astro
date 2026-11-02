@@ -1,0 +1,68 @@
+---
+import { getDocsLabels, getOutline, getPageLinks } from './docs-nav';
+
+const { sidebar, toc, lang } = Astro.locals.starlightRoute;
+const labels = getDocsLabels(lang);
+const links = getPageLinks(sidebar);
+const outline = getOutline(toc);
+const outlineTitle = Astro.locals.t('tableOfContents.onThisPage');
+---
+
+<div class="docs-dock">
+  <button type="button" aria-haspopup="dialog" data-sheet-open="pages">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M3 3h10v10H3zM6 3v10"></path>
+    </svg>
+    <span>{labels.pages}</span>
+  </button>
+  <button type="button" aria-haspopup="dialog" data-sheet-open="toc" disabled={outline.length === 0}>
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+      <path d="M3 4h10M6 8h7M6 12h7"></path>
+    </svg>
+    <span data-dock-label>{outlineTitle}</span>
+  </button>
+</div>
+
+<dialog class="docs-sheet" data-sheet="pages" aria-label={labels.pages} tabindex="-1">
+  <div class="sheet-head">
+    {labels.pages}
+    <button class="sheet-close" type="button" aria-label={labels.close}>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+        <path d="m3.5 3.5 9 9M12.5 3.5l-9 9"></path>
+      </svg>
+    </button>
+  </div>
+  <ul>
+    {
+      links.map((link) => (
+        <li>
+          <a href={link.href} aria-current={link.isCurrent ? 'page' : undefined}>
+            {link.label}
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+</dialog>
+
+<dialog class="docs-sheet" data-sheet="toc" aria-label={outlineTitle} tabindex="-1">
+  <div class="sheet-head">
+    {outlineTitle}
+    <button class="sheet-close" type="button" aria-label={labels.close}>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+        <path d="m3.5 3.5 9 9M12.5 3.5l-9 9"></path>
+      </svg>
+    </button>
+  </div>
+  <ul>
+    {
+      outline.map((item) => (
+        <li>
+          <a class:list={[item.depth > 2 && 'is-sub']} href={`#${item.slug}`} data-head={item.slug}>
+            {item.text}
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+</dialog>
