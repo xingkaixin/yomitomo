@@ -1,5 +1,4 @@
 import starlight from '@astrojs/starlight';
-import react from '@astrojs/react';
 import { defineConfig } from 'astro/config';
 import { prepareWebFonts } from './scripts/prepare-web-fonts.mjs';
 
@@ -9,7 +8,6 @@ export default defineConfig({
   site: 'https://yomitomo.app',
   output: 'static',
   integrations: [
-    react(),
     starlight({
       title: {
         'zh-CN': 'Yomitomo 文档',

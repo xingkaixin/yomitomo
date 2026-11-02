@@ -1,0 +1,45 @@
+---
+import { getFaqItems } from './faq-data';
+import { getHomeCopy, type Lang } from './home-copy';
+
+type Props = {
+  lang?: Lang;
+};
+
+const { lang = 'zh-CN' } = Astro.props;
+const { help } = getHomeCopy(lang);
+const faqItems = getFaqItems(lang);
+---
+
+<section class="wrap help-sec">
+  <div>
+    <h2 class="sec-title">{help.title}</h2>
+    <ul class="guides">
+      {
+        help.links.map((link) => (
+          <li>
+            <a href={link.href}>
+              {link.title}
+              <span aria-hidden="true">→</span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+  <div class="faq">
+    {
+      faqItems.map((item) => (
+        <details>
+          <summary>
+            {item.question}
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M8 2.5v11M2.5 8h11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            </svg>
+          </summary>
+          <p>{item.answer}</p>
+        </details>
+      ))
+    }
+  </div>
+</section>

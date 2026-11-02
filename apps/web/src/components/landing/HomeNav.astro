@@ -1,0 +1,53 @@
+---
+import {
+  changelogsUrl,
+  englishChangelogsUrl,
+  githubUrl,
+  japaneseChangelogsUrl,
+} from '../../site-links';
+import LanguageSwitch from './LanguageSwitch.astro';
+import { getHomeCopy, type Lang } from './home-copy';
+
+type Props = {
+  lang?: Lang;
+  downloadHref?: string;
+};
+
+const { lang = 'zh-CN', downloadHref = '#download' } = Astro.props;
+const { nav } = getHomeCopy(lang);
+const prefix = lang === 'en' ? '/en' : lang === 'ja' ? '/ja' : '';
+const changelogsHref =
+  lang === 'en' ? englishChangelogsUrl : lang === 'ja' ? japaneseChangelogsUrl : changelogsUrl;
+---
+
+<div class="nav-slot">
+  <header class="nav" data-home-nav>
+    <a class="brand" href={`${prefix}/`}>
+      <img src="/assets/yomitomo-logo-96.png" alt="" width="32" height="32" />
+      Yomitomo
+    </a>
+    <nav class="nav-links" aria-label={nav.label}>
+      <a href={`${prefix}/docs/`}>{nav.docs}</a>
+      <a href={`${prefix}/blog/`}>{nav.blog}</a>
+      <a href={changelogsHref}>{nav.changelogs}</a>
+    </nav>
+    <div class="nav-right">
+      <LanguageSwitch lang={lang} menuId="home-language-menu" variant="text" />
+      <a class="nav-icon nav-gh" href={githubUrl} aria-label="GitHub">
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="M12 .5C5.37.5 0 5.78 0 12.29c0 5.2 3.44 9.61 8.21 11.17.6.11.82-.25.82-.56 0-.28-.01-1.02-.02-2-3.34.71-4.04-1.58-4.04-1.58-.55-1.37-1.33-1.74-1.33-1.74-1.09-.73.08-.72.08-.72 1.2.08 1.84 1.21 1.84 1.21 1.07 1.8 2.81 1.28 3.5.98.11-.76.42-1.28.76-1.57-2.67-.3-5.47-1.31-5.47-5.84 0-1.29.47-2.35 1.24-3.18-.12-.3-.54-1.51.12-3.15 0 0 1.01-.32 3.3 1.21a11.6 11.6 0 0 1 3-.4c1.02 0 2.05.13 3 .4 2.29-1.53 3.3-1.21 3.3-1.21.66 1.64.24 2.85.12 3.15.77.83 1.24 1.89 1.24 3.18 0 4.54-2.81 5.54-5.49 5.83.43.37.81 1.1.81 2.22 0 1.6-.01 2.89-.01 3.28 0 .31.21.68.83.56A12.02 12.02 0 0 0 24 12.29C24 5.78 18.63.5 12 .5z"
+          ></path>
+        </svg>
+      </a>
+      <a
+        class="nav-cta"
+        href={downloadHref}
+        data-umami-event="download_section_click"
+        data-umami-event-language={lang}
+        data-umami-event-placement="nav"
+      >{nav.download}</a>
+    </div>
+  </header>
+</div>

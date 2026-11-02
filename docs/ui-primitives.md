@@ -30,9 +30,9 @@ subpath imports so each wrapper imports only the primitive it needs.
 - `packages/reader-ui/src/components/ui`: reader-ui wrappers. These wrappers
   must not depend on desktop renderer modules, Tailwind config, Electron, or
   desktop-only theme helpers.
-- `apps/web`: website interactions may use Base UI when a real interactive
-  primitive needs it, such as the landing discussion dialog. Static landing
-  content should not add primitive dependencies or desktop-only wrappers.
+- `apps/web`: the website has no client framework. Interactions use native
+  elements and small scripts, such as `<dialog>` for the docs sheets. Do not add
+  primitive dependencies or desktop-only wrappers to it.
 
 ## Base UI rules
 

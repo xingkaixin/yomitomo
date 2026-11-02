@@ -1,0 +1,69 @@
+---
+import { companionIds, getHomeCopy, type Lang } from './home-copy';
+
+type Props = {
+  lang?: Lang;
+};
+
+const { lang = 'zh-CN' } = Astro.props;
+const { band } = getHomeCopy(lang);
+const defaultId = 'question-mentor';
+const avatarBase = `/assets/landing-avatars/${lang}`;
+---
+
+<section class="band">
+  <div class="wrap band-in">
+    <div>
+      <h2 class="sec-title">{band.title[0]}<br />{band.title[1]}</h2>
+      <p class="sec-lead">{band.lead}</p>
+      <p class="band-quote"><span>{band.quote}</span></p>
+    </div>
+    <div>
+      <div class="say">
+        {
+          companionIds.map((id) => (
+            <section class="note is-active" data-k={id} hidden={id !== defaultId}>
+              <span class="note-tab">{band.noteTab}</span>
+              <div class="note-body">
+                <p class="note-text">{band.companions[id].say}</p>
+                <div class="note-meta">
+                  <span class="av">
+                    <img src={`${avatarBase}/${id}-96.webp`} alt="" width="96" height="96" loading="lazy" />
+                  </span>
+                  {band.companions[id].name}
+                  <time>{band.companions[id].role}</time>
+                </div>
+              </div>
+            </section>
+          ))
+        }
+      </div>
+      <div class="people">
+        {
+          companionIds.map((id) => (
+            <button
+              class:list={['person', id === defaultId && 'is-on']}
+              type="button"
+              aria-pressed={id === defaultId ? 'true' : 'false'}
+              data-person={id}
+            >
+              <span>
+                <img
+                  src={`${avatarBase}/${id}-192.webp`}
+                  srcset={`${avatarBase}/${id}-192.webp 192w, ${avatarBase}/${id}-320.webp 320w`}
+                  sizes="(max-width: 640px) 28vw, 120px"
+                  alt=""
+                  width="320"
+                  height="320"
+                  loading="lazy"
+                />
+              </span>
+              <b>{band.companions[id].name}</b>
+              <small>{band.companions[id].role}</small>
+            </button>
+          ))
+        }
+      </div>
+    </div>
+  </div>
+</section>

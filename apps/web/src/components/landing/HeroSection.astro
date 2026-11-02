@@ -1,101 +1,88 @@
 ---
+import HomeNav from './HomeNav.astro';
+import ProductWindow from './ProductWindow.astro';
+import { getHomeCopy, type Lang } from './home-copy';
+
 type Props = {
-  lang?: 'zh-CN' | 'en' | 'ja';
+  lang?: Lang;
   version: string;
 };
 
 const { lang = 'zh-CN', version } = Astro.props;
-const isEnglish = lang === 'en';
-const isJapanese = lang === 'ja';
-
-const copy = isJapanese
-  ? {
-      eyebrow: '無料・オープンソースのAI読書アプリ',
-      headPre: 'PDF・EPUBを読み、',
-      headEm: 'AIと考える',
-      headTail: '。',
-      subLines: [
-        'PDF・EPUB・Web記事の原文に線を引き、メモを書き、AIと対話。',
-        '読書データは端末内に保存。AIには自分のAPIキーやローカルモデルを使えます。',
-      ],
-      ctaMac: 'macOS版をダウンロード',
-      ctaWin: 'Windows版をダウンロード',
-      altMac: 'macOS版もあります →',
-      altWin: 'Windows版もあります →',
-      version: `v${version}`,
-    }
-  : isEnglish
-    ? {
-      eyebrow: 'FREE, OPEN-SOURCE AI READER',
-      headPre: 'Read PDFs and EPUBs.',
-      headEm: 'Think with AI',
-      headTail: '.',
-      subLines: [
-        'Highlight PDF, EPUB and web passages, take notes, and discuss them with AI.',
-        'Keep your reading data on your computer. Bring your own API key or local model.',
-      ],
-      ctaMac: 'Download for macOS',
-      ctaWin: 'Download for Windows',
-      altMac: 'Also on macOS →',
-      altWin: 'Also on Windows →',
-      version: `v${version}`,
-      }
-    : {
-      eyebrow: '免费开源的 AI 阅读器',
-      headPre: '读 PDF、EPUB，和',
-      headEm: 'AI 一起思考',
-      headTail: '。',
-      subLines: [
-        '在 PDF、EPUB 和网页原文中划线、记笔记、与 AI 讨论，也能同步微信读书笔记。',
-        '阅读数据保存在本机，AI 可使用自备 API Key 或本地模型。',
-      ],
-      ctaMac: '下载 macOS 版',
-      ctaWin: '下载 Windows 版',
-      altMac: '也支持 macOS →',
-      altWin: '也支持 Windows →',
-      version: `v${version}`,
-      };
+const { hero, flow } = getHomeCopy(lang);
 ---
 
-<section class="hero-c">
-  <div class="lp-container hero-c-inner">
-    <p class="hero-c-eyebrow">{copy.eyebrow}</p>
-    <h1 class="hero-c-title">{copy.headPre}{isEnglish ? ' ' : ''}<em class="hand-ul">{copy.headEm}<svg class="hand-ul-svg" viewBox="0 0 170 26" preserveAspectRatio="none" aria-hidden="true"><path d="M5 16 C 34 7, 58 21, 86 13 S 138 6, 165 15"></path></svg></em>{copy.headTail}</h1>
-    <p class="hero-c-sub">
-      {copy.subLines[0]}<br />{copy.subLines[1]}
-    </p>
-    <div class="hero-c-cta">
+<section class="hero">
+  <div class="hero-book"></div>
+  <div class="hero-ground"></div>
+  <HomeNav lang={lang} />
+
+  <div class="wrap hero-copy">
+    <h1>
+      {hero.titleLead}<br />{hero.titleBefore}<em>
+        {hero.titleEm}<svg class="stripe" viewBox="0 0 400 30" preserveAspectRatio="none" aria-hidden="true">
+          <path pathLength="1" d="M8 22 C 110 12, 280 10, 392 6" vector-effect="non-scaling-stroke"></path>
+        </svg>
+      </em>{hero.titleAfter}
+    </h1>
+    <p class="hero-sub">{hero.sub}</p>
+    <div class="hero-cta">
       <a
-        class="btn-primary"
+        class="btn-main"
         href="#download"
         data-umami-event="download_section_click"
         data-umami-event-language={lang}
         data-umami-event-placement="hero"
       >
-        <svg class="mark-apple" viewBox="0 0 24 24" aria-hidden="true">
+        <svg class="mark-apple" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
           <path
             fill="currentColor"
             d="M16.7 12.7c0-2.7 2.2-4 2.3-4.1-1.2-1.8-3.2-2.1-3.9-2.1-1.7-.2-3.2 1-4.1 1-.8 0-2.1-1-3.5-1-1.8 0-3.5 1.1-4.4 2.7-1.9 3.4-.5 8.4 1.4 11.1.9 1.3 2 2.8 3.5 2.8 1.4-.1 1.9-.9 3.5-.9s2.1.9 3.6.9c1.5 0 2.4-1.4 3.3-2.7 1-1.5 1.5-3 1.5-3.1 0-.1-3.1-1.3-3.2-4.6ZM14 4.7c.8-1 1.3-2.3 1.1-3.7-1.1 0-2.5.8-3.3 1.7-.7.9-1.3 2.2-1.2 3.5 1.3.1 2.6-.6 3.4-1.5Z"
           ></path>
         </svg>
-        <svg class="mark-win" viewBox="0 0 24 24" aria-hidden="true" style="display:none">
+        <svg class="mark-win" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style="display:none">
           <path
             fill="currentColor"
             d="M1.8 4.2 10.8 3v8.5h-9V4.2Zm10.4-1.4 10-1.4v10.1h-10V2.8ZM1.8 12.5h9V21l-9-1.2v-7.3Zm10.4 0h10v10.1l-10-1.4v-8.7Z"
           ></path>
         </svg>
-        <span data-cta-mac={copy.ctaMac} data-cta-win={copy.ctaWin}>{copy.ctaMac}</span>
+        <span data-cta-mac={hero.ctaMac} data-cta-win={hero.ctaWin}>{hero.ctaMac}</span>
       </a>
-      <div class="cta-alt">
-        <a
-          href="#download"
-          data-alt-mac={copy.altMac}
-          data-alt-win={copy.altWin}
-          data-umami-event="download_section_click"
-          data-umami-event-language={lang}
-          data-umami-event-placement="hero-alternative"
-        >{copy.altWin}</a>
-        <span class="v">{copy.version}</span>
+      <a
+        href="#download"
+        data-alt-mac={hero.altMac}
+        data-alt-win={hero.altWin}
+        data-umami-event="download_section_click"
+        data-umami-event-language={lang}
+        data-umami-event-placement="hero-alternative"
+      >{hero.altWin}</a>
+      <span>{hero.note} · v{version}</span>
+    </div>
+  </div>
+
+  <div class="wrap stage" data-hero-stage>
+    <img class="rabbit" src="/assets/rabbit.webp" alt="" width="1000" height="673" fetchpriority="high" />
+    <div class="flow-pin" data-flow-pin>
+      <div class="flow-sticky" data-flow-sticky>
+        <ProductWindow lang={lang} />
+        <div class="flow-bar">
+          <div class="flow-tabs">
+            {
+              flow.views.map((view, index) => (
+                <button
+                  class:list={['flow-tab', index === 0 && 'is-on']}
+                  type="button"
+                  aria-pressed={index === 0 ? 'true' : 'false'}
+                  data-flow-tab={view.id}
+                  data-desc={view.desc}
+                >
+                  {view.label}
+                </button>
+              ))
+            }
+          </div>
+          <p class="flow-desc" data-flow-desc>{flow.views[0]?.desc}</p>
+        </div>
       </div>
     </div>
   </div>
@@ -108,10 +95,10 @@ const copy = isJapanese
   for (const el of document.querySelectorAll('[data-cta-mac][data-cta-win]')) {
     el.textContent = isWin ? el.dataset.ctaWin : el.dataset.ctaMac;
   }
-  for (const el of document.querySelectorAll('.btn-primary .mark-apple')) {
+  for (const el of document.querySelectorAll('.btn-main .mark-apple')) {
     el.style.display = isWin ? 'none' : '';
   }
-  for (const el of document.querySelectorAll('.btn-primary .mark-win')) {
+  for (const el of document.querySelectorAll('.btn-main .mark-win')) {
     el.style.display = isWin ? '' : 'none';
   }
   for (const el of document.querySelectorAll('[data-alt-mac][data-alt-win]')) {
