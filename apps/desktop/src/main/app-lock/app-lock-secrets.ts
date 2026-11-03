@@ -40,7 +40,7 @@ export async function saveAppLockPin(pin: string, accountId = 'default') {
   };
   const ref = appLockPinRef(accountId);
   const entry = await createEntry(ref);
-  entry.setPassword(JSON.stringify(record));
+  await entry.setPassword(JSON.stringify(record));
   return ref;
 }
 
@@ -56,7 +56,7 @@ export async function verifyAppLockPin(pin: string, accountId = 'default') {
 export async function deleteAppLockPin(accountId = 'default') {
   const entry = await createEntry(appLockPinRef(accountId));
   try {
-    entry.deletePassword();
+    await entry.deletePassword();
   } catch (error) {
     if (!isNoEntryError(error)) throw error;
   }
@@ -65,7 +65,7 @@ export async function deleteAppLockPin(accountId = 'default') {
 async function readAppLockPinRecord(accountId: string) {
   const entry = await createEntry(appLockPinRef(accountId));
   try {
-    return parseAppLockPinRecord(entry.getPassword());
+    return parseAppLockPinRecord(await entry.getPassword());
   } catch (error) {
     if (isNoEntryError(error)) return null;
     throw error;
@@ -95,8 +95,8 @@ function parseAppLockPinRecord(value: string | null | undefined) {
 }
 
 async function createEntry(account: string) {
-  const { Entry } = await loadKeyring();
-  return new Entry(getDesktopAppProfile().keychainService, account);
+  const { AsyncEntry } = await loadKeyring();
+  return new AsyncEntry(getDesktopAppProfile().keychainService, account);
 }
 
 function loadKeyring() {

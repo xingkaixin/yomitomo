@@ -41,7 +41,7 @@ describe('provider secrets keyring', () => {
     }));
     vi.doMock('@napi-rs/keyring', () => {
       state.moduleLoads += 1;
-      return { Entry: FakeEntry };
+      return { AsyncEntry: FakeAsyncEntry };
     });
   });
 
@@ -130,7 +130,7 @@ describe('provider secrets keyring', () => {
   });
 });
 
-class FakeEntry {
+class FakeAsyncEntry {
   private readonly account: string;
 
   constructor(service: string, account: string) {
@@ -138,16 +138,16 @@ class FakeEntry {
     state.entryCalls.push({ service, account });
   }
 
-  setPassword(password: string) {
+  async setPassword(password: string) {
     state.passwords.set(this.account, password);
   }
 
-  getPassword() {
+  async getPassword() {
     if (state.getPasswordError) throw state.getPasswordError;
     return state.passwords.get(this.account);
   }
 
-  deletePassword() {
+  async deletePassword() {
     if (state.deletePasswordError) throw state.deletePasswordError;
     state.passwords.delete(this.account);
   }
