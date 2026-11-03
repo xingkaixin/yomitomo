@@ -1,6 +1,6 @@
 # Effect v4 runtime boundary
 
-Pinned Effect version: `4.1.0`
+Pinned Effect version: `4.1.1`
 
 Production Effect modules: `16`
 
@@ -35,7 +35,7 @@ earliest persisted retry time. Orphan cleanup and backfill scan whole tables, so
 startup, after a database restore, and on manual rebuild. Shutdown interrupts waits, joins in-flight
 database leases, and closes the queue. Persisted projection jobs, retry timestamps, and
 database-generation checks remain authoritative. Schedule tests use TestClock via
-the matching `@effect/vitest@4.1.0`; existing Promise-boundary tests retain their timer fixtures.
+the matching `@effect/vitest@4.1.1`; existing Promise-boundary tests retain their timer fixtures.
 
 Embedding requests use Deferred responses and Effect timeouts. A single exit finalizer recycles
 failed or interrupted workers and waits for the operating system's exit event before releasing
@@ -57,6 +57,12 @@ matching Node's previous zero-delay timer behavior.
 The inventory includes both root and subpath imports.
 
 ## Runtime semantics
+
+The `4.1.0` to `4.1.1` source comparison covers every production namespace above and the
+internal runtime implementations. The API inventory and signatures remain compatible. A finished
+fiber now drops its cached span, so ended spans can be collected. `Equal` and `Hash` only honor a
+function under their symbols; parsed JSON carrying those keys is hashed as data. The BigDecimal
+scale limit affects a Schema outside the production inventory.
 
 The `4.0.3` to `4.1.0` source comparison covers every production namespace above and the
 internal runtime implementations. The API inventory remains compatible; `Effect.fn` only gains
