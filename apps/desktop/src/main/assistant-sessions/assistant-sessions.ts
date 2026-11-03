@@ -96,6 +96,7 @@ function createAssistantSessions(host: AssistantSessionHost) {
     models,
     articleText: (articleId) => assistantArticleTexts.load(articleId),
     resolveAgent,
+    resolveAgentIdentity,
     ...createAssistantChannelSources(host.publishArticlePatch),
     articleMeta: runtimeArticleMeta,
     publishRun: host.publishRun,
@@ -135,11 +136,24 @@ function runtimeArticleMeta(articleId: string) {
     : undefined;
 }
 
-async function resolveAgent(agentId: string, allowDisabled: boolean) {
+async function readChannelAgent(agentId: string, allowDisabled: boolean) {
   const { agents, providers, settings: appSettings } = await readAgentRuntimeContext();
   const agent = findCommentAgent(agents, agentId, '', allowDisabled);
   if (!agent) throw agentNotFoundError(agentId);
-  const task = providerTaskForAgent(agent);
+  return { agent, providers, appSettings, task: providerTaskForAgent(agent) };
+}
+
+async function resolveAgentIdentity(agentId: string) {
+  const { agent, providers, appSettings, task } = await readChannelAgent(agentId, true);
+  return {
+    agent,
+    provider: taskProviderRoute(providers, appSettings, task),
+    uiLanguage: normalizeUiLanguage(appSettings.uiLanguage),
+  };
+}
+
+async function resolveAgent(agentId: string, allowDisabled: boolean) {
+  const { agent, providers, appSettings, task } = await readChannelAgent(agentId, allowDisabled);
   const route = taskProviderRoute(providers, appSettings, task);
   const fake = process.env.YOMITOMO_E2E === '1' && route?.baseUrl === E2E_FAKE_PROVIDER_BASE_URL;
   const provider =
