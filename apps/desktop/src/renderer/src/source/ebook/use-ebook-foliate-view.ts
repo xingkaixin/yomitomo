@@ -361,8 +361,10 @@ export function useEbookFoliateView({
 
       async function openEbook() {
         try {
-          await import('../../vendor/foliate-js/view.js');
-          const data = await getDesktopApi().article.ebook.readFile(openedArticle.id);
+          const [, data] = await Promise.all([
+            import('../../vendor/foliate-js/view.js'),
+            getDesktopApi().article.ebook.readFile(openedArticle.id),
+          ]);
           if (cancelled) return;
 
           const file = ebookSourceFile(openedArticle, data);
