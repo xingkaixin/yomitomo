@@ -34,12 +34,14 @@ export async function inlineArticleFavicon(
 function inlineArticleImagesEffect(article: ExtractedArticle, options: ArticleImageInlineOptions) {
   return Effect.gen(function* () {
     const inliner = yield* imageInlinerEffect(article.canonicalUrl || article.url, options.fetcher);
-    const siteIconUrl = yield* inliner.inlineUrl(article.siteIconUrl);
-    const leadImageUrl = yield* inliner.inlineUrl(article.leadImageUrl);
-    const content = yield* inlineHtmlImagesEffect(
-      article.content,
-      options.articleDocument,
-      inliner,
+    // Effect.all 按数组顺序同步启动 fiber，提交顺序和预算优先级因此保持 favicon、头图、正文图。
+    const [siteIconUrl, leadImageUrl, content] = yield* Effect.all(
+      [
+        inliner.inlineUrl(article.siteIconUrl),
+        inliner.inlineUrl(article.leadImageUrl),
+        inlineHtmlImagesEffect(article.content, options.articleDocument, inliner),
+      ],
+      { concurrency: 'unbounded' },
     );
 
     return {
@@ -73,7 +75,7 @@ function inlineHtmlImagesEffect(html: string, articleDocument: Document, inliner
             .forEach((source) => source.remove());
         }),
       ),
-      { concurrency: INLINE_IMAGE_CONCURRENCY, discard: true },
+      { concurrency: MAX_INLINE_IMAGES, discard: true },
     );
 
     return container.innerHTML;
@@ -111,15 +113,14 @@ function imageInlinerEffect(baseUrl: string, fetcher: ImageFetcher) {
           yield* Deferred.await(turn.previous);
           if (committedByUrl.has(url)) return committedByUrl.get(url) || null;
 
-          const dataUrl = yield* Fiber.join(dataUrlFiber);
-          if (!dataUrl) {
+          // 数量已满时不等下载：返回后 fiber 结束，未完成的子 fiber 随之中断。
+          if (imageCount >= MAX_INLINE_IMAGES) {
             committedByUrl.set(url, null);
             return null;
           }
-          if (
-            imageCount >= MAX_INLINE_IMAGES ||
-            dataChars + dataUrl.length > MAX_INLINE_IMAGE_DATA_CHARS
-          ) {
+
+          const dataUrl = yield* Fiber.join(dataUrlFiber);
+          if (!dataUrl || dataChars + dataUrl.length > MAX_INLINE_IMAGE_DATA_CHARS) {
             committedByUrl.set(url, null);
             return null;
           }
