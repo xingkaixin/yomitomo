@@ -135,23 +135,15 @@ export async function runPendingChromiumCacheCleanup(
 
   const startedAt = performance.now();
   const session = options.session ?? electronSession.defaultSession;
-  const before = await chromiumCacheFootprint(userDataPath);
   logger?.info?.('chromium_cache.cleanup_start', {
     attemptCount: marker.attemptCount,
     markerTotalBytes: marker.totalBytes,
-    totalBytesBefore: before.totalBytes,
   });
 
   const result = await clearChromiumCaches(userDataPath, session);
-  const after = await chromiumCacheFootprint(userDataPath);
-  const details = {
-    ...result,
-    durationMs: elapsedMs(startedAt),
-    failedDirectoryCount: result.failedDirectoryCount + after.failedDirectoryCount,
-    recoveredBytes: Math.max(0, before.totalBytes - after.totalBytes),
-    totalBytesAfter: after.totalBytes,
-    totalBytesBefore: before.totalBytes,
-  };
+  const details = { ...result, durationMs: elapsedMs(startedAt) };
+  // 首个窗口不等这次遍历；窗口打开后 Chromium 会重新写入缓存，所以 totalBytesAfter 只是近似值。
+  void logCleanupFootprint(userDataPath, marker.totalBytes, logger);
 
   if (result.failed) {
     logger?.error?.('chromium_cache.cleanup_failed', result.error, details);
@@ -164,47 +156,63 @@ export async function runPendingChromiumCacheCleanup(
   return { status: 'cleaned' as const, ...details };
 }
 
+async function logCleanupFootprint(
+  userDataPath: string,
+  totalBytesBefore: number,
+  logger: ChromiumCacheLogger | undefined,
+) {
+  try {
+    const after = await chromiumCacheFootprint(userDataPath);
+    logger?.info?.('chromium_cache.cleanup_footprint', {
+      failedDirectoryCount: after.failedDirectoryCount,
+      recoveredBytes: Math.max(0, totalBytesBefore - after.totalBytes),
+      totalBytesAfter: after.totalBytes,
+      totalBytesBefore,
+    });
+  } catch (error) {
+    logger?.error?.('chromium_cache.cleanup_footprint_failed', error);
+  }
+}
+
 async function clearChromiumCaches(userDataPath: string, session: ChromiumCacheSession) {
-  let clearedSessionCache = false;
-  let clearedCodeCache = false;
   let removedDirectoryCount = 0;
   let failedDirectoryCount = 0;
   const errors: unknown[] = [];
 
-  try {
-    await session.clearCache();
-    clearedSessionCache = true;
-  } catch (error) {
-    errors.push(error);
-  }
-
-  try {
-    await session.clearCodeCaches({ urls: [] });
-    clearedCodeCache = true;
-  } catch (error) {
-    errors.push(error);
-  }
+  const [sessionCache, codeCache] = await Promise.allSettled([
+    session.clearCache(),
+    session.clearCodeCaches({ urls: [] }),
+  ]);
+  if (sessionCache.status === 'rejected') errors.push(sessionCache.reason);
+  if (codeCache.status === 'rejected') errors.push(codeCache.reason);
 
   const specs = await chromiumCacheDirectorySpecs(userDataPath);
-  for (const spec of specs) {
-    if (!spec.removeOnCleanup || !(await pathExists(spec.path))) continue;
-    try {
-      await rm(spec.path, { force: true, recursive: true });
-      removedDirectoryCount += 1;
-    } catch (error) {
-      failedDirectoryCount += 1;
-      errors.push(error);
+  const removals = await Promise.allSettled(
+    specs.filter((spec) => spec.removeOnCleanup).map((spec) => removeCacheDirectory(spec.path)),
+  );
+  for (const removal of removals) {
+    if (removal.status === 'fulfilled') {
+      if (removal.value) removedDirectoryCount += 1;
+      continue;
     }
+    failedDirectoryCount += 1;
+    errors.push(removal.reason);
   }
 
   return {
-    clearedCodeCache,
-    clearedSessionCache,
+    clearedCodeCache: codeCache.status === 'fulfilled',
+    clearedSessionCache: sessionCache.status === 'fulfilled',
     error: errors[0],
     failed: errors.length > 0,
     failedDirectoryCount,
     removedDirectoryCount,
   };
+}
+
+async function removeCacheDirectory(path: string) {
+  if (!(await pathExists(path))) return false;
+  await rm(path, { force: true, recursive: true });
+  return true;
 }
 
 async function chromiumCacheFootprint(userDataPath: string): Promise<CacheFootprint> {

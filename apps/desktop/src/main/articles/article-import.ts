@@ -319,12 +319,14 @@ function denyArticleImportPageCapabilities(webContents: WebContents) {
 }
 
 async function clearArticleImportSession(importSession: Session, importId: string) {
-  try {
-    await importSession.clearStorageData();
-    await importSession.clearCache();
-  } catch (error) {
+  const results = await Promise.allSettled([
+    importSession.clearStorageData(),
+    importSession.clearCache(),
+  ]);
+  for (const result of results) {
+    if (result.status === 'fulfilled') continue;
     console.warn('[article-import] failed to clear temporary session', {
-      error,
+      error: result.reason,
       importId,
     });
   }

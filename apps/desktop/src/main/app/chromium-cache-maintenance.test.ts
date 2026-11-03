@@ -140,6 +140,52 @@ describe('chromium cache maintenance', () => {
     );
   });
 
+  it('still removes cache directories and reports the first error when both Electron clears fail', async () => {
+    const logger = testLogger();
+    await writeBytes(join(testState.userData, 'Cache', 'entry.bin'), 64);
+    await inspectChromiumCache({ thresholdBytes: 1, userDataPath: testState.userData });
+    const sessionError = new Error('session cache failed');
+    testState.defaultSession.clearCache.mockRejectedValueOnce(sessionError);
+    testState.defaultSession.clearCodeCaches.mockRejectedValueOnce(new Error('code cache failed'));
+
+    const result = await runPendingChromiumCacheCleanup({
+      logger,
+      userDataPath: testState.userData,
+    });
+
+    expect(result).toMatchObject({
+      clearedCodeCache: false,
+      clearedSessionCache: false,
+      failedDirectoryCount: 0,
+      removedDirectoryCount: 1,
+      status: 'failed',
+    });
+    expect(logger.error).toHaveBeenCalledWith(
+      'chromium_cache.cleanup_failed',
+      sessionError,
+      expect.anything(),
+    );
+    expect(await pathExists(join(testState.userData, 'Cache'))).toBe(false);
+  });
+
+  it('logs recovered bytes against the marker total after cleanup returns', async () => {
+    const logger = testLogger();
+    await writeBytes(join(testState.userData, 'Cache', 'entry.bin'), 64);
+    await inspectChromiumCache({ thresholdBytes: 1, userDataPath: testState.userData });
+    await writeBytes(join(testState.userData, 'Cache', 'written-later.bin'), 64);
+
+    await runPendingChromiumCacheCleanup({ logger, userDataPath: testState.userData });
+
+    await vi.waitFor(() => {
+      expect(logger.info).toHaveBeenCalledWith('chromium_cache.cleanup_footprint', {
+        failedDirectoryCount: 0,
+        recoveredBytes: 64,
+        totalBytesAfter: 0,
+        totalBytesBefore: 64,
+      });
+    });
+  });
+
   it('does not block startup when the pending marker is corrupted', async () => {
     const logger = testLogger();
     await mkdir(dirname(chromiumCacheMaintenanceMarkerPath(testState.userData)), {
