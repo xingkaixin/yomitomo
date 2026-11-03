@@ -7,7 +7,6 @@ export type AssistantRunRecord = {
   forkId: number;
   delivery: string;
   deliveredIds: string[];
-  readingIntent: string | null;
 };
 
 export function channelKey(channel: AssistantChannel) {

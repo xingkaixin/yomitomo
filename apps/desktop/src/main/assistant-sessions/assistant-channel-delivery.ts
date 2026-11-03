@@ -1,5 +1,4 @@
-import type { AgentReadingIntent, AssistantChannel, Comment } from '@yomitomo/shared';
-import { agentReadingIntentOptions } from '@yomitomo/shared';
+import type { AssistantChannel, Comment } from '@yomitomo/shared';
 import { formatChannelMessage } from './assistant-channel-format';
 
 export type AssistantDeliveryInput = {
@@ -9,12 +8,10 @@ export type AssistantDeliveryInput = {
   messages: Comment[];
   anchorBlockId?: string;
   instruction?: string;
-  readingIntent?: AgentReadingIntent;
   reviewTargetCommentId?: string;
 };
 
 export function formatDelivery(input: AssistantDeliveryInput) {
-  const intent = agentReadingIntentOptions.find((option) => option.value === input.readingIntent);
   return [
     deliveryHeader(input),
     input.messages.length > 0
@@ -24,7 +21,6 @@ export function formatDelivery(input: AssistantDeliveryInput) {
       ? `请复核想法 [${input.reviewTargetCommentId}]：先判断它有没有原文依据、推理缺口、表达风险或可保留价值，再给出可执行的观点，不要改写读者的想法。`
       : '',
     input.instruction ? `读者的具体要求：${input.instruction}` : '',
-    intent ? `阅读意图：${intent.label}。${intent.prompt}` : '',
     replyRequest(input.channel),
   ]
     .filter(Boolean)

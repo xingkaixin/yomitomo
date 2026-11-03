@@ -471,9 +471,6 @@ export const assistantDomainIpcInvokeSchemas = {
         agentId: idSchema,
         triggerId: idSchema,
         instruction: z.string().max(8_192).optional(),
-        readingIntent: z
-          .enum(['explain', 'decompose', 'challenge', 'question', 'connect'])
-          .optional(),
         reviewTargetCommentId: idSchema.optional(),
         allowDisabledAgentForRule: z.boolean().optional(),
       }),
