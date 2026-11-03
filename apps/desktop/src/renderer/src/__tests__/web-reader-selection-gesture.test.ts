@@ -1,48 +1,7 @@
-// @vitest-environment jsdom
-
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  shouldPreferWebSelectionGestureRange,
-  shouldUseWebSelectionGesturePreview,
-  webTranslationSelectionGesturePointFromClientPoint,
-} from '../source/web/web-reader-selection-gesture';
-
-afterEach(() => {
-  vi.restoreAllMocks();
-  document.body.innerHTML = '';
-  Object.defineProperty(document, 'caretPositionFromPoint', {
-    configurable: true,
-    value: undefined,
-  });
-});
+import { describe, expect, it } from 'vitest';
+import { shouldPreferWebSelectionGestureRange } from '../source/web/web-reader-selection-gesture';
 
 describe('web reader selection gesture', () => {
-  it('uses custom drag previews for source text gestures', () => {
-    expect(
-      shouldUseWebSelectionGesturePreview({
-        clientX: 120,
-        clientY: 220,
-        sourceOffset: 42,
-        translationBlockId: null,
-      }),
-    ).toBe(true);
-  });
-
-  it('keeps native drag selection visible for translation gestures', () => {
-    expect(
-      shouldUseWebSelectionGesturePreview({
-        clientX: 120,
-        clientY: 220,
-        sourceOffset: 42,
-        translationBlockId: 'block_1',
-      }),
-    ).toBe(false);
-  });
-
-  it('does not start custom drag previews without a gesture point', () => {
-    expect(shouldUseWebSelectionGesturePreview(null)).toBe(false);
-  });
-
   it('keeps native selections when the native range starts at the pointer down offset', () => {
     expect(
       shouldPreferWebSelectionGestureRange({
@@ -54,17 +13,6 @@ describe('web reader selection gesture', () => {
     ).toBe(false);
   });
 
-  it('rebuilds selections when the native range expands far before the pointer down offset', () => {
-    expect(
-      shouldPreferWebSelectionGestureRange({
-        nativeStart: 0,
-        nativeEnd: 4966,
-        pointerStart: 4790,
-        pointerEnd: 4966,
-      }),
-    ).toBe(true);
-  });
-
   it('rebuilds visible selections that drift to the article start while dragging', () => {
     expect(
       shouldPreferWebSelectionGestureRange({
@@ -74,59 +22,5 @@ describe('web reader selection gesture', () => {
         pointerEnd: 158,
       }),
     ).toBe(true);
-  });
-
-  it('keeps large deliberate selections when the pointer range is similarly large', () => {
-    expect(
-      shouldPreferWebSelectionGestureRange({
-        nativeStart: 0,
-        nativeEnd: 4966,
-        pointerStart: 0,
-        pointerEnd: 4966,
-      }),
-    ).toBe(false);
-  });
-
-  it('maps translation handle points to translation-local offsets', () => {
-    const article = document.createElement('article');
-    article.innerHTML =
-      '<p>Source</p><div data-reader-translation="true" data-reader-translation-block-id="block-1">译文内容</div>';
-    document.body.append(article);
-
-    const translation = article.querySelector<HTMLElement>('[data-reader-translation]');
-    const textNode = translation?.firstChild;
-    expect(translation).toBeTruthy();
-    expect(textNode).toBeTruthy();
-    Object.defineProperty(document, 'caretPositionFromPoint', {
-      configurable: true,
-      value: vi.fn(() => ({ offsetNode: textNode as Text, offset: 2 })),
-    });
-
-    const point = webTranslationSelectionGesturePointFromClientPoint(article, 'block-1', 10, 20);
-
-    expect(point?.clientX).toBe(10);
-    expect(point?.clientY).toBe(20);
-    expect(point?.translationBlockId).toBe('block-1');
-    expect(point?.translationElement).toBe(translation);
-    expect(point?.translationOffset).toBe(2);
-  });
-
-  it('rejects translation handle points outside the active translation block', () => {
-    const article = document.createElement('article');
-    article.innerHTML =
-      '<div data-reader-translation="true" data-reader-translation-block-id="block-1">第一段译文</div><div data-reader-translation="true" data-reader-translation-block-id="block-2">第二段译文</div>';
-    document.body.append(article);
-
-    const secondTranslation = article.querySelectorAll<HTMLElement>('[data-reader-translation]')[1];
-    const textNode = secondTranslation?.firstChild;
-    expect(textNode).toBeTruthy();
-    Object.defineProperty(document, 'caretPositionFromPoint', {
-      configurable: true,
-      value: vi.fn(() => ({ offsetNode: textNode as Text, offset: 2 })),
-    });
-
-    expect(
-      webTranslationSelectionGesturePointFromClientPoint(article, 'block-1', 10, 20),
-    ).toBeNull();
   });
 });

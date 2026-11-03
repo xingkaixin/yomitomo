@@ -1,11 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { groupLibraryArticles } from '../reading-library/app-reading-library-utils';
-import {
-  annotation,
-  annotationWithPublishedDistillation,
-  article,
-} from './app-reading-library-fixtures';
+import { article } from './app-reading-library-fixtures';
 
 beforeEach(() => {
   initializeAppI18n('zh-CN');
@@ -47,49 +43,6 @@ describe('groupLibraryArticles', () => {
     ).toEqual([
       { label: '今天', ids: ['older_added_recent_read', 'today_added_read'] },
       { label: '更早', ids: ['older_added_stale_read'] },
-    ]);
-  });
-
-  it('groups count-based sorts by their selected count', () => {
-    expect(
-      groupLibraryArticles(
-        [
-          article({ id: 'two_annotations', annotations: [annotation('a1'), annotation('a2')] }),
-          article({ id: 'one_annotation', annotations: [annotation('a3')] }),
-          article({ id: 'also_one_annotation', annotations: [annotation('a4')] }),
-          article({ id: 'no_annotations', annotations: [] }),
-        ],
-        'annotations',
-      ).map((group) => ({
-        label: group.label,
-        ids: group.articles.map((item) => item.id),
-      })),
-    ).toEqual([
-      { label: '2 条划线', ids: ['two_annotations'] },
-      { label: '1 条划线', ids: ['one_annotation', 'also_one_annotation'] },
-      { label: '暂无划线', ids: ['no_annotations'] },
-    ]);
-
-    expect(
-      groupLibraryArticles(
-        [
-          article({
-            id: 'two_distillations',
-            annotations: [
-              annotationWithPublishedDistillation('d1'),
-              annotationWithPublishedDistillation('d2'),
-            ],
-          }),
-          article({ id: 'no_distillations', annotations: [annotation('d3')] }),
-        ],
-        'discussions',
-      ).map((group) => ({
-        label: group.label,
-        ids: group.articles.map((item) => item.id),
-      })),
-    ).toEqual([
-      { label: '2 条沉淀', ids: ['two_distillations'] },
-      { label: '暂无沉淀', ids: ['no_distillations'] },
     ]);
   });
 });

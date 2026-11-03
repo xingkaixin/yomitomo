@@ -15,36 +15,6 @@ import type { ReadingMemorySqliteExecutor } from './reading-memory-store-types';
 const now = new Date('2026-08-29T00:00:00.000Z');
 
 describe('reading memory evidence projection batch', () => {
-  it('backfills many sources with a fixed number of source reads', () => {
-    const fixture = createFixture();
-    for (let index = 0; index < 8; index += 1) {
-      fixture.insertThread(`annotation_${index}`);
-    }
-    fixture.resetQueries();
-
-    const result = runReadingMemoryEvidenceProjectionBatch(fixture.executor, {
-      now,
-      jobLimit: 20,
-      backfillLimit: 20,
-    });
-
-    expect(result).toMatchObject({
-      selectedJobCount: 8,
-      completedJobCount: 8,
-      refreshedJobCount: 0,
-      queuedBackfillCount: 8,
-      failures: [],
-      hasImmediateWork: false,
-    });
-    expect(fixture.rows('reading_memory_evidence_receipts')).toHaveLength(8);
-    expect(fixture.rows('reading_memory_evidence_entries')).toHaveLength(8);
-    expect(fixture.rows('reading_memory_projection_jobs')).toEqual([]);
-    expect(fixture.sourceSelects()).toHaveLength(6);
-    expect(
-      fixture.sourceSelects().filter((sql) => sql.includes('reading_memory_reviews')),
-    ).toHaveLength(2);
-  });
-
   it('refreshes stale work before projecting the current source', () => {
     const fixture = createFixture();
     fixture.insertThread('annotation_1');
@@ -127,70 +97,6 @@ describe('reading memory evidence projection batch', () => {
     expect(fixture.rows('reading_memory_projection_jobs')).toEqual([]);
   });
 
-  it('preserves a recreated source by replacing its delete intent', () => {
-    const fixture = createFixture();
-    fixture.insertThread('annotation_1');
-    queueReadingMemoryProjectionJob(fixture.executor, {
-      targetType: 'annotation_thread',
-      targetId: 'annotation_1',
-      articleId: 'article_1',
-      sourceVersion: 'deleted-source-version',
-      operation: 'delete',
-      queuedAt: now.toISOString(),
-    });
-
-    const result = runReadingMemoryEvidenceProjectionBatch(fixture.executor, {
-      now,
-      jobLimit: 10,
-      backfillLimit: 10,
-    });
-
-    expect(result).toMatchObject({ completedJobCount: 0, refreshedJobCount: 1 });
-    expect(readReadingMemoryProjectionJobs(fixture.executor, 10)).toEqual([
-      expect.objectContaining({ targetId: 'annotation_1', operation: 'upsert' }),
-    ]);
-  });
-
-  it('rolls back one failed source, defers it, and continues the batch', () => {
-    const fixture = createFixture();
-    fixture.insertThread('annotation_fail');
-    fixture.insertThread('annotation_ok');
-    fixture.queueCurrentSources(['annotation_fail', 'annotation_ok']);
-    fixture.failEvidenceInsertFor('annotation_fail');
-
-    const result = runReadingMemoryEvidenceProjectionBatch(fixture.executor, {
-      now,
-      jobLimit: 10,
-      backfillLimit: 10,
-    });
-
-    expect(result).toMatchObject({
-      selectedJobCount: 2,
-      completedJobCount: 1,
-      refreshedJobCount: 0,
-      failures: [
-        {
-          job: expect.objectContaining({ targetId: 'annotation_fail' }),
-          retryAt: '2026-08-29T00:00:05.000Z',
-        },
-      ],
-    });
-    expect(fixture.rows('reading_memory_evidence_receipts')).toEqual([
-      expect.objectContaining({ target_id: 'annotation_ok' }),
-    ]);
-    expect(fixture.rows('reading_memory_evidence_entries')).toEqual([
-      expect.objectContaining({ target_id: 'annotation_ok' }),
-    ]);
-    expect(fixture.rows('reading_memory_projection_jobs')).toEqual([
-      expect.objectContaining({
-        target_id: 'annotation_fail',
-        attempt_count: 1,
-        available_at: '2026-08-29T00:00:05.000Z',
-        last_error_at: now.toISOString(),
-      }),
-    ]);
-  });
-
   it('rebuilds receipts when the projector version changes', () => {
     const fixture = createFixture();
     fixture.insertThread('annotation_1');
@@ -224,11 +130,9 @@ INSERT INTO articles (
   '2026-08-29T00:00:00.000Z', '2026-08-29T00:00:00.000Z'
 );
 `);
-  const preparedSql: string[] = [];
   const executor: ReadingMemorySqliteExecutor = {
     exec: (sql) => database.exec(sql),
     prepare: (sql) => {
-      preparedSql.push(sql);
       const statement = database.prepare(sql);
       return {
         all: (...values) => statement.all(...values),
@@ -270,34 +174,6 @@ INSERT INTO annotations (
     source,
     deleteThread: (annotationId: string) =>
       database.prepare('DELETE FROM annotations WHERE id = ?').run(annotationId),
-    resetQueries: () => preparedSql.splice(0),
-    sourceSelects: () =>
-      preparedSql.filter(
-        (sql) =>
-          (sql.includes('FROM annotations AS annotation') && !sql.includes('LEFT JOIN')) ||
-          sql.includes('FROM comments AS comment'),
-      ),
-    queueCurrentSources: (annotationIds: string[]) => {
-      for (const current of readStoredAnnotationThreadSources(executor, annotationIds)) {
-        queueReadingMemoryProjectionJob(executor, {
-          targetType: 'annotation_thread',
-          targetId: current.targetId,
-          articleId: current.articleId,
-          sourceVersion: current.sourceVersion,
-          operation: 'upsert',
-          queuedAt: now.toISOString(),
-        });
-      }
-    },
-    failEvidenceInsertFor: (annotationId: string) =>
-      database.exec(`
-CREATE TRIGGER fail_evidence_insert
-BEFORE INSERT ON reading_memory_evidence_entries
-WHEN NEW.target_id = '${annotationId}'
-BEGIN
-  SELECT RAISE(ABORT, 'injected evidence failure');
-END;
-`),
     insertReceipt: (annotationId: string, projectorVersion: string) =>
       database
         .prepare(

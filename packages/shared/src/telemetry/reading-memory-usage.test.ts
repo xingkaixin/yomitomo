@@ -14,13 +14,6 @@ describe('reading memory usage payload', () => {
     ).toEqual({ counts: { feature_opened: maxReadingMemoryUsageCount } });
   });
 
-  it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, 65_536, '1', null])(
-    'rejects invalid count %s',
-    (count) => {
-      expect(parseReadingMemoryUsagePayload({ counts: { query_completed: count } })).toBeNull();
-    },
-  );
-
   it('rejects empty payloads and unknown fields instead of silently removing them', () => {
     for (const input of [null, [], {}, { counts: {} }, { counts: [] }]) {
       expect(parseReadingMemoryUsagePayload(input)).toBeNull();

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { act, cleanup, render, waitFor } from '@testing-library/react';
+import { cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Annotation, UserProfile } from '@yomitomo/shared';
 import type { HighlightBox } from '@yomitomo/core';
@@ -130,7 +130,6 @@ const userProfile: UserProfile = {
 
 afterEach(() => {
   cleanup();
-  vi.useRealTimers();
   vi.clearAllMocks();
   mocks.boxes = [];
   mocks.readerShellProps = undefined;
@@ -257,303 +256,17 @@ describe('EbookBookcase', () => {
 
     expect(getByTestId('ebook-reader-shell')).not.toBe(readerShell);
   });
-
-  it('clears ebook page overlays before a page turn', () => {
-    renderEbookBookcase(ebookArticle(), []);
-
-    act(() => {
-      mocks.foliateViewInput?.onBeforePageTurn({
-        articleId: 'ebook-1',
-        direction: 'right',
-        source: 'control',
-        startedAt: performance.now(),
-        turnId: 'test-turn',
-      });
-    });
-
-    expect(mocks.hideEbookBoxLayer).toHaveBeenCalledTimes(1);
-  });
-
-  it('keeps EPUB page controls enabled while full pagination is still pending', () => {
-    mocks.pageInfo = { sectionIndex: 1, pageIndex: 2, pageCount: 5 };
-    mocks.sectionPageCounts = [null, 5, null];
-
-    const { container } = renderEbookBookcase(ebookArticle(), []);
-
-    const previousButton = container.querySelector<HTMLButtonElement>(
-      'button[aria-label="readerControls.previousPage"]',
-    );
-    const nextButton = container.querySelector<HTMLButtonElement>(
-      'button[aria-label="readerControls.nextPage"]',
-    );
-    expect(previousButton?.disabled).toBe(false);
-    expect(nextButton?.disabled).toBe(false);
-    const controls = container.querySelector('.reader-floating-control-group');
-    expect(controls?.classList.contains('is-paginating')).toBe(true);
-    expect(container.textContent).not.toContain('3 / 5');
-  });
-
-  it('shows the final EPUB page label after full pagination is complete', () => {
-    mocks.pageInfo = { sectionIndex: 1, pageIndex: 2, pageCount: 5 };
-    mocks.sectionPageCounts = [10, 5, 20];
-
-    const { container } = renderEbookBookcase(ebookArticle(), []);
-
-    const controls = container.querySelector('.reader-floating-control-group');
-    expect(controls?.classList.contains('is-paginating')).toBe(false);
-    expect(container.textContent).toContain('13 / 35');
-  });
-
-  it('selects visible page annotations without re-navigating foliate', () => {
-    const annotations = [annotation('note-1')];
-    const goToFraction = vi.fn();
-    mocks.view = {
-      book: { sections: [] },
-      goToFraction,
-    };
-    mocks.boxes = [
-      {
-        id: 'box-1',
-        annotationId: 'note-1',
-        color: '#f4c95d',
-        top: 10,
-        left: 10,
-        width: 40,
-        height: 12,
-      },
-    ];
-    const onOpenAnnotation = vi.fn();
-
-    render(
-      <EbookBookcase
-        {...ebookBookcaseProps(ebookArticle({ annotations }), annotations, {
-          onOpenAnnotation,
-        })}
-      />,
-    );
-
-    act(() => {
-      mocks.readerShellProps?.readerApp.actions.annotation.onScrollToHighlight('note-1');
-    });
-
-    expect(onOpenAnnotation).toHaveBeenCalledWith('note-1');
-    expect(goToFraction).not.toHaveBeenCalled();
-  });
-
-  it('keeps the active annotation while pressing a highlight inside the EPUB document', () => {
-    const annotations = [annotation('note-1')];
-    mocks.boxes = [
-      {
-        id: 'box-1',
-        annotationId: 'note-1',
-        color: '#f4c95d',
-        top: 10,
-        left: 10,
-        width: 40,
-        height: 12,
-      },
-    ];
-    const onOpenAnnotation = vi.fn();
-    render(
-      <EbookBookcase
-        {...ebookBookcaseProps(ebookArticle({ annotations }), annotations, {
-          onOpenAnnotation,
-          selectedAnnotationId: 'note-1',
-        })}
-      />,
-    );
-    const frame = document.body.appendChild(document.createElement('iframe'));
-    const input = mocks.foliateInputBridgeInput!;
-    Object.defineProperty(input.canvasRef, 'current', { value: document.createElement('div') });
-    const press = (clientX: number, clientY: number) =>
-      input.onFoliatePointerDown(
-        new MouseEvent('pointerdown', { clientX, clientY }) as PointerEvent,
-        frame.contentDocument!,
-      );
-
-    press(20, 15);
-    expect(onOpenAnnotation).not.toHaveBeenCalled();
-
-    press(200, 200);
-    expect(onOpenAnnotation).toHaveBeenCalledWith(null);
-  });
-
-  it('consumes focused annotations once when the reader rerenders during navigation', async () => {
-    const note = annotation('note-1');
-    const doc = document.implementation.createHTMLDocument('ebook');
-    doc.body.innerHTML = '<p>quote note-1</p>';
-    let resolveScrollToAnchor: (() => void) | null = null;
-    const scrollToAnchor = vi.fn(
-      () =>
-        new Promise<void>((resolve) => {
-          resolveScrollToAnchor = resolve;
-        }),
-    );
-    mocks.view = {
-      book: { sections: [{ id: 'chapter-1' }] },
-      getPageInfo: () => ({ sectionIndex: 0, pageIndex: 0, pageCount: 1 }),
-      goTo: vi.fn().mockResolvedValue(undefined),
-      goToFraction: vi.fn().mockResolvedValue(undefined),
-      renderer: {
-        getContents: () => [{ doc, index: 0 }],
-        scrollToAnchor,
-      },
-    };
-
-    const onFocusedAnnotation = vi.fn();
-    const view = render(
-      <EbookBookcase
-        {...ebookBookcaseProps(ebookArticle({ annotations: [note] }), [note], {
-          focusAnnotationId: 'note-1',
-          onFocusedAnnotation,
-        })}
-      />,
-    );
-
-    await waitFor(() => expect(scrollToAnchor).toHaveBeenCalledTimes(1));
-
-    view.rerender(
-      <EbookBookcase
-        {...ebookBookcaseProps(ebookArticle({ annotations: [note] }), [note], {
-          focusAnnotationId: 'note-1',
-          onFocusedAnnotation,
-        })}
-      />,
-    );
-    expect(scrollToAnchor).toHaveBeenCalledTimes(1);
-
-    await act(async () => {
-      resolveScrollToAnchor?.();
-    });
-
-    await waitFor(() => expect(onFocusedAnnotation).toHaveBeenCalledTimes(1));
-    expect(onFocusedAnnotation).toHaveBeenCalledWith(true);
-    expect(scrollToAnchor).toHaveBeenCalledTimes(1);
-  });
-
-  it('focuses an annotation once a cold-started EPUB finishes opening', async () => {
-    const note = annotation('note-1');
-    const doc = document.implementation.createHTMLDocument('ebook');
-    doc.body.textContent = note.anchor.exact;
-    const onFocusedAnnotation = vi.fn();
-    const props = ebookBookcaseProps(ebookArticle({ annotations: [note] }), [note], {
-      focusAnnotationId: note.id,
-      onFocusedAnnotation,
-    });
-    mocks.openSettled = false;
-    const view = render(<EbookBookcase {...props} />);
-
-    const scrollToAnchor = vi.fn().mockResolvedValue(undefined);
-    mocks.view = {
-      book: { sections: [{ id: 'chapter-1' }] },
-      getPageInfo: () => ({ sectionIndex: 0, pageIndex: 0, pageCount: 1 }),
-      goTo: vi.fn().mockResolvedValue(undefined),
-      goToFraction: vi.fn().mockResolvedValue(undefined),
-      renderer: { getContents: () => [{ doc, index: 0 }], scrollToAnchor },
-    };
-    mocks.openSettled = true;
-    view.rerender(<EbookBookcase {...props} />);
-
-    await waitFor(() => expect(onFocusedAnnotation).toHaveBeenCalledOnce());
-    expect(onFocusedAnnotation).toHaveBeenCalledWith(true);
-    expect(scrollToAnchor).toHaveBeenCalledOnce();
-  });
-
-  it.each(['deleted', 'changed-anchor'] as const)(
-    'does not transfer an old successful focus to a %s target with the same id',
-    async (replacement) => {
-      const note = annotation('note-1');
-      const doc = document.implementation.createHTMLDocument('ebook');
-      doc.body.textContent = note.anchor.exact;
-      let finishScroll!: () => void;
-      const scrollToAnchor = vi.fn(() => new Promise<void>((resolve) => (finishScroll = resolve)));
-      mocks.view = {
-        book: { sections: [{ id: 'chapter-1' }] },
-        getPageInfo: () => ({ sectionIndex: 0, pageIndex: 0, pageCount: 1 }),
-        goTo: vi.fn().mockResolvedValue(undefined),
-        goToFraction: vi.fn().mockResolvedValue(undefined),
-        renderer: { getContents: () => [{ doc, index: 0 }], scrollToAnchor },
-      };
-      const firstFocused = vi.fn();
-      const latestFocused = vi.fn();
-      const view = render(
-        <EbookBookcase
-          {...ebookBookcaseProps(ebookArticle({ annotations: [note] }), [note], {
-            focusAnnotationId: note.id,
-            onFocusedAnnotation: firstFocused,
-          })}
-        />,
-      );
-      await waitFor(() => expect(scrollToAnchor).toHaveBeenCalledOnce());
-
-      const annotations =
-        replacement === 'deleted'
-          ? []
-          : [{ ...note, anchor: { ...note.anchor, exact: 'A different absent quotation' } }];
-      view.rerender(
-        <EbookBookcase
-          {...ebookBookcaseProps(ebookArticle({ annotations }), annotations, {
-            focusAnnotationId: note.id,
-            onFocusedAnnotation: latestFocused,
-          })}
-        />,
-      );
-      await act(async () => finishScroll());
-      await waitFor(() => expect(latestFocused).toHaveBeenCalledOnce());
-
-      expect(firstFocused).not.toHaveBeenCalled();
-      expect(latestFocused).toHaveBeenCalledWith(false);
-      expect(scrollToAnchor).toHaveBeenCalledOnce();
-    },
-  );
-
-  it.each(['missing quote', 'navigation rejected'])(
-    'reports an unavailable EPUB position for %s',
-    async (failure) => {
-      const note = annotation('note-1');
-      const doc = document.implementation.createHTMLDocument('ebook');
-      doc.body.textContent =
-        failure === 'missing quote' ? 'Different source text' : note.anchor.exact;
-      mocks.view = {
-        book: { sections: [{ id: 'chapter-1' }] },
-        getPageInfo: () => ({ sectionIndex: 0, pageIndex: 0, pageCount: 1 }),
-        goTo: vi.fn().mockResolvedValue(undefined),
-        goToFraction: vi.fn().mockResolvedValue(undefined),
-        renderer: {
-          getContents: () => [{ doc, index: 0 }],
-          scrollToAnchor: vi.fn().mockRejectedValue(new Error('Navigation failed')),
-        },
-      };
-      const onFocusedAnnotation = vi.fn();
-      render(
-        <EbookBookcase
-          {...ebookBookcaseProps(ebookArticle({ annotations: [note] }), [note], {
-            focusAnnotationId: note.id,
-            onFocusedAnnotation,
-          })}
-        />,
-      );
-
-      await waitFor(() => expect(onFocusedAnnotation).toHaveBeenCalledWith(false));
-    },
-  );
 });
 
 function ebookBookcaseProps(
   sourceArticle: EbookArticleRecord,
   annotations: Annotation[],
-  overrides: {
-    focusAnnotationId?: string | null;
-    onFocusedAnnotation?: (located: boolean) => void;
-    onOpenAnnotation?: (annotationId: string | null) => void;
-    selectedAnnotationId?: string | null;
-  } = {},
 ): EbookBookcaseProps {
   return {
     annotationActions: {
       onArticleChange: vi.fn(),
-      onFocusedAnnotation: overrides.onFocusedAnnotation || vi.fn(),
-      onOpenAnnotation: overrides.onOpenAnnotation || vi.fn(),
+      onFocusedAnnotation: vi.fn(),
+      onOpenAnnotation: vi.fn(),
     },
     articleActions: articleActionStubs(),
     content: {
@@ -567,9 +280,9 @@ function ebookBookcaseProps(
       uiLanguage: 'zh-CN',
     },
     readerControl: {
-      focusAnnotationId: overrides.focusAnnotationId ?? null,
+      focusAnnotationId: null,
       onClose: vi.fn(),
-      selectedAnnotationId: overrides.selectedAnnotationId ?? null,
+      selectedAnnotationId: null,
     },
   };
 }

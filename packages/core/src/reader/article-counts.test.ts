@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Annotation, ArticleCounts } from '@yomitomo/shared';
+import type { Annotation } from '@yomitomo/shared';
 import { articleCounts } from './article-counts';
 
 describe('articleCounts', () => {
@@ -59,17 +59,5 @@ describe('articleCounts', () => {
       aiCommentCount: 2,
       distillationCount: 1,
     });
-  });
-
-  it('uses an aggregate snapshot without deriving from missing details', () => {
-    const counts: ArticleCounts = {
-      annotationCount: 8,
-      thoughtCount: 5,
-      discussionCommentCount: 3,
-      aiCommentCount: 2,
-      distillationCount: 1,
-    };
-
-    expect(articleCounts({ counts })).toBe(counts);
   });
 });

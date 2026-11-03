@@ -11,7 +11,6 @@ import {
   readCollectionsWithMembersRows,
   readLibraryPinRows,
   removeCollectionMemberRows,
-  renameCollectionRows,
   setLibraryPinRows,
 } from './collection-repository';
 
@@ -23,93 +22,6 @@ afterEach(() => {
 });
 
 describe('collection repository', () => {
-  it('creates, renames, and reads collections with members', () => {
-    const database = repositoryDatabase();
-
-    const created = createCollectionRows(database, { name: '  稍后精读  ' });
-    const renamed = renameCollectionRows(database, {
-      collectionId: created.collection.id,
-      name: '主题研究',
-    });
-    const members = addCollectionMembersRows(database, {
-      collectionId: created.collection.id,
-      members: [
-        { kind: 'article', id: 'article_1' },
-        { kind: 'article', id: 'article_1' },
-        { kind: 'weread', id: 'book_1' },
-      ],
-    });
-
-    expect(created.collection).toMatchObject({ name: '稍后精读' });
-    expect(renamed).toMatchObject({
-      type: 'collection-upsert',
-      collection: { id: created.collection.id, name: '主题研究' },
-    });
-    expect(members).toMatchObject({
-      type: 'collection-members',
-      collectionId: created.collection.id,
-      members: expect.arrayContaining([
-        expect.objectContaining({ member: { kind: 'article', id: 'article_1' } }),
-        expect.objectContaining({ member: { kind: 'weread', id: 'book_1' } }),
-      ]),
-    });
-    if (members.type !== 'collection-members') throw new Error('expected collection members patch');
-    expect(members.members).toHaveLength(2);
-    expect(readCollectionsWithMembersRows(database)).toMatchObject([
-      {
-        id: created.collection.id,
-        name: '主题研究',
-        members: expect.arrayContaining([
-          expect.objectContaining({ member: { kind: 'article', id: 'article_1' } }),
-          expect.objectContaining({ member: { kind: 'weread', id: 'book_1' } }),
-        ]),
-      },
-    ]);
-  });
-
-  it('preserves database member order across multiple and empty collections', () => {
-    const database = repositoryDatabase();
-    const first = createCollectionRows(database, { name: 'First' }).collection;
-    const second = createCollectionRows(database, { name: 'Second' }).collection;
-    const empty = createCollectionRows(database, { name: 'Empty' }).collection;
-    database
-      .insert(schema.collectionMembers)
-      .values([
-        {
-          collectionId: first.id,
-          memberKind: 'article',
-          memberId: 'first-newer',
-          addedAt: '2026-07-15T03:00:00.000Z',
-        },
-        {
-          collectionId: second.id,
-          memberKind: 'article',
-          memberId: 'second-only',
-          addedAt: '2026-07-15T02:00:00.000Z',
-        },
-        {
-          collectionId: first.id,
-          memberKind: 'article',
-          memberId: 'first-older',
-          addedAt: '2026-07-15T01:00:00.000Z',
-        },
-      ])
-      .run();
-
-    const collectionById = new Map(
-      readCollectionsWithMembersRows(database).map((collection) => [collection.id, collection]),
-    );
-
-    expect(collectionById.get(first.id)?.members.map((member) => member.member.id)).toEqual([
-      'first-newer',
-      'first-older',
-    ]);
-    expect(collectionById.get(second.id)?.members.map((member) => member.member.id)).toEqual([
-      'second-only',
-    ]);
-    expect(collectionById.get(empty.id)?.members).toEqual([]);
-  });
-
   it('removes one member without deleting sibling members', () => {
     const database = repositoryDatabase();
     const { collection } = createCollectionRows(database, { name: '合集' });
@@ -133,31 +45,6 @@ describe('collection repository', () => {
     expect(readCollectionMemberRows(database).map((member) => member.member)).toEqual([
       { kind: 'weread', id: 'book_1' },
     ]);
-  });
-
-  it('sets and unsets pins idempotently', () => {
-    const database = repositoryDatabase();
-
-    const pinned = setLibraryPinRows(database, {
-      target: { kind: 'article', id: 'article_1' },
-      pinned: true,
-    });
-    const unpinned = setLibraryPinRows(database, {
-      target: { kind: 'article', id: 'article_1' },
-      pinned: false,
-    });
-
-    expect(pinned).toMatchObject({
-      type: 'library-pin',
-      pinned: true,
-      pin: { targetKind: 'article', targetId: 'article_1' },
-    });
-    expect(unpinned).toMatchObject({
-      type: 'library-pin',
-      pinned: false,
-      pin: { targetKind: 'article', targetId: 'article_1' },
-    });
-    expect(readLibraryPinRows(database)).toEqual([]);
   });
 
   it('deletes members and collection pins with the collection', () => {

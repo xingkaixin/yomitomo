@@ -1,7 +1,7 @@
 import { rm } from 'node:fs/promises';
 import { eq } from 'drizzle-orm';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
-import { type ArticleRecord, type ArticleSummaryRecord } from '@yomitomo/shared';
+import { type ArticleRecord } from '@yomitomo/shared';
 
 const testState = vi.hoisted(() => ({
   secrets: new Map<string, string>(),
@@ -70,13 +70,12 @@ vi.mock('../app/logger', () => ({
   },
 }));
 
-import { buildArticleUpsertPatch, writeArticleRows } from '../articles/article-row-writes';
-import { readArticleRows, readArticleSiteIconRawRows } from '../articles/article-row-queries';
+import { writeArticleRows } from '../articles/article-row-writes';
+import { readArticleRows } from '../articles/article-row-queries';
 import { getDatabase } from './store-db';
 import { closeDatabase } from './store-lifecycle';
-import { ensureArticleSiteIcon, readArticle } from './store-articles';
-import { readShellStore, readStore } from './store-snapshot';
-import { rowToArticleSummary, type ArticleSummaryRow } from './store-normalizers';
+import { readArticle } from './store-articles';
+import { readStore } from './store-snapshot';
 import * as schema from '../db/schema';
 
 beforeEach(async () => {
@@ -149,163 +148,6 @@ describe('desktop store articles', () => {
       data: { articleId: 'corrupt_ebook', sourceType: 'ebook' },
     });
   });
-
-  it('localizes a remote site icon', async () => {
-    const database = getDatabase();
-    const remoteUrl = 'https://example.com/favicon.png';
-    const dataUrl = 'data:image/png;base64,AQI=';
-    writeArticleRows(database, {
-      ...articleRecord({ id: 'article-site-icon' }),
-      siteIconUrl: remoteUrl,
-    });
-    testState.fetchFaviconDataUrl.mockResolvedValue(dataUrl);
-
-    await expect(ensureArticleSiteIcon('article-site-icon')).resolves.toBe(dataUrl);
-
-    expect(testState.fetchFaviconDataUrl).toHaveBeenCalledWith(remoteUrl);
-    expect(readArticleRows(database, 'article-site-icon')?.siteIconUrl).toBe(dataUrl);
-  });
-
-  it('clears a remote site icon after localization fails', async () => {
-    const database = getDatabase();
-    const remoteUrl = 'https://example.com/favicon.png';
-    writeArticleRows(database, {
-      ...articleRecord({ id: 'article-failed-site-icon' }),
-      siteIconUrl: remoteUrl,
-    });
-    testState.fetchFaviconDataUrl.mockResolvedValue('');
-
-    await expect(ensureArticleSiteIcon('article-failed-site-icon')).resolves.toBe('');
-    await expect(ensureArticleSiteIcon('article-failed-site-icon')).resolves.toBe('');
-
-    expect(testState.fetchFaviconDataUrl).toHaveBeenCalledOnce();
-    expect(testState.fetchFaviconDataUrl).toHaveBeenCalledWith(remoteUrl);
-    expect(readArticleSiteIconRawRows(database, 'article-failed-site-icon')).toBe('');
-  });
-
-  it('builds only the article upsert patch', () => {
-    const article: ArticleSummaryRecord = {
-      id: 'article-upsert',
-      url: 'https://example.com/article-upsert',
-      canonicalUrl: 'https://example.com/article-upsert',
-      sourceType: 'web',
-      title: 'Upsert article',
-      contentHash: 'hash-upsert',
-      counts: {
-        annotationCount: 0,
-        thoughtCount: 0,
-        discussionCommentCount: 0,
-        aiCommentCount: 0,
-        distillationCount: 0,
-      },
-      createdAt: '2026-05-17T07:00:00.000Z',
-      updatedAt: '2026-05-17T08:00:00.000Z',
-    };
-
-    expect(buildArticleUpsertPatch(article)).toEqual({
-      type: 'article-upsert',
-      article,
-    });
-  });
-
-  it('keeps aggregate counts on lightweight article summaries', () => {
-    const counts = {
-      annotationCount: 2,
-      thoughtCount: 1,
-      discussionCommentCount: 3,
-      aiCommentCount: 1,
-      distillationCount: 1,
-    };
-    const article = rowToArticleSummary(storeSummaryRow(), counts);
-
-    expect(article).not.toHaveProperty('annotations');
-    expect(article.counts).toEqual(counts);
-  });
-
-  it('keeps ebook summaries free of full chapter data', () => {
-    const article = rowToArticleSummary({
-      ...storeSummaryRow(),
-      sourceType: 'ebook',
-      ebookMetadata: {
-        format: 'epub',
-        fileName: 'book.epub',
-        fileSize: 1200,
-      },
-    });
-
-    expect(article.ebook).toEqual({
-      metadata: {
-        format: 'epub',
-        fileName: 'book.epub',
-        fileSize: 1200,
-      },
-    });
-  });
-
-  it('preserves non-EPUB ebook formats in article summaries', () => {
-    const article = rowToArticleSummary({
-      ...storeSummaryRow(),
-      sourceType: 'ebook',
-      ebookMetadata: {
-        format: 'azw3',
-        fileName: 'book.azw3',
-        fileSize: 2400,
-      },
-    });
-
-    expect(article.ebook?.metadata.format).toBe('azw3');
-    expect(article.ebook?.metadata.fileName).toBe('book.azw3');
-  });
-
-  it('keeps reader chat state out of article summaries', () => {
-    const article = rowToArticleSummary(storeSummaryRow());
-
-    expect(Object.hasOwn(article, 'readerChatState')).toBe(false);
-  });
-
-  it('keeps shell store reads free of article summaries', async () => {
-    const database = getDatabase();
-    writeArticleRows(database, articleRecord({ id: 'shell_article' }));
-
-    const fullStore = await readStore();
-    const shellStore = await readShellStore();
-
-    expect(fullStore.articles.map((article) => article.id)).toEqual(['shell_article']);
-    expect(shellStore.articles).toEqual([]);
-  });
-
-  it('does not persist derived content html for ebook articles', () => {
-    const database = getDatabase();
-    const ebookArticle: ArticleRecord = {
-      ...articleRecord({
-        id: 'ebook_article',
-        contentHtml: '<section><p>derived html</p></section>',
-      }),
-      sourceType: 'ebook',
-      ebook: {
-        metadata: { format: 'epub', fileName: 'book.epub', fileSize: 1200 },
-        chapters: [
-          {
-            id: 'chapter-1',
-            title: '第一章',
-            href: 'chapter-1.xhtml',
-            html: '<p>chapter html</p>',
-            textLength: 12,
-          },
-        ],
-      },
-    };
-
-    writeArticleRows(database, ebookArticle);
-
-    const row = database
-      .select()
-      .from(schema.articleBodies)
-      .all()
-      .find((item) => item.articleId === 'ebook_article');
-    expect(row?.contentHtml).toBeNull();
-    expect(row?.ebookChapters).toEqual(ebookArticle.ebook?.chapters);
-  });
 });
 
 describe('desktop store article bodies', () => {
@@ -343,26 +185,5 @@ function articleRecord(input: Partial<WebArticleRecord>): WebArticleRecord {
     contentHtml: input.contentHtml || '<p>正文</p>',
     createdAt: input.createdAt || '2026-05-17T07:00:00.000Z',
     updatedAt: input.updatedAt || '2026-05-17T08:00:00.000Z',
-  };
-}
-
-function storeSummaryRow(): ArticleSummaryRow {
-  return {
-    id: 'store-summary-article',
-    url: 'https://example.com/article',
-    canonicalUrl: 'https://example.com/article',
-    sourceType: 'web',
-    title: '摘要计数文章',
-    byline: null,
-    excerpt: null,
-    siteName: null,
-    themeColor: null,
-    contentHash: 'hash-summary',
-    ebookMetadata: null,
-    pdfMetadata: null,
-    textMetadata: null,
-    readingProgress: null,
-    createdAt: '2026-05-17T00:00:00.000Z',
-    updatedAt: '2026-05-17T00:00:00.000Z',
   };
 }

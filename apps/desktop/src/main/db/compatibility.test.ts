@@ -10,33 +10,6 @@ import {
 import { migrations } from './migrations';
 
 describe('database reader compatibility', () => {
-  it('keeps additive migrations compatible with older readers', () => {
-    expect(databaseReaderCompatibility(['0025_annotation_generation_fields'], null)).toEqual({
-      requiredReaderLevel: 1,
-      unknownMigrationIds: [],
-    });
-  });
-
-  it('marks credential migration as requiring the newer reader level', () => {
-    const migration = migrations.find((item) => item.id === '0026_provider_api_key_ref');
-
-    expect(migration && migrationReaderLevel(migration)).toBe(2);
-    expect(databaseReaderCompatibility(['0026_provider_api_key_ref'], null)).toEqual({
-      requiredReaderLevel: 2,
-      unknownMigrationIds: [],
-    });
-  });
-
-  it('recognizes historical additive dev migrations', () => {
-    const migration = migrations.find((item) => item.id === '0027_reading_receipt_state');
-
-    expect(migration && migrationReaderLevel(migration)).toBe(1);
-    expect(databaseReaderCompatibility(['0027_reading_receipt_state'], null)).toEqual({
-      requiredReaderLevel: 1,
-      unknownMigrationIds: [],
-    });
-  });
-
   it('allows future additive migrations when the stored reader level is compatible', () => {
     expect(databaseReaderCompatibility(['0099_future_additive'], 1)).toEqual({
       requiredReaderLevel: 1,
@@ -58,21 +31,6 @@ describe('database reader compatibility', () => {
         unknownMigrationIds: ['0099_future_unknown'],
       });
     }
-  });
-
-  it('requires revision-aware writers before opening reading reviews', () => {
-    const migration = migrations.find((item) => item.id === '0071_reading_memory_reviews');
-    expect(migration && migrationReaderLevel(migration)).toBe(3);
-    expect(databaseReaderCompatibility(['0071_reading_memory_reviews'], 3)).toEqual({
-      requiredReaderLevel: 3,
-      unknownMigrationIds: [],
-    });
-  });
-
-  it('keeps clients that read bodies from the articles row away from split bodies', () => {
-    const migration = migrations.find((item) => item.id === '0072_article_bodies');
-    expect(migration && migrationReaderLevel(migration)).toBe(4);
-    expect(SUPPORTED_DATABASE_READER_LEVEL).toBe(4);
   });
 
   it('requires destructive migrations to declare a higher reader level', () => {

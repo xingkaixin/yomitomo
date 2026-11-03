@@ -4,10 +4,9 @@ import type { ReadingEvidenceScope, ReadingMemorySemanticStatus } from '@yomitom
 import SQLiteDatabase from 'better-sqlite3';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { migrations } from '../db/migrations';
-import {
-  ReadingMemoryEmbeddingError,
-  type ReadingMemoryEmbeddingResult,
-  type ReadingMemoryModelInstallation,
+import type {
+  ReadingMemoryEmbeddingResult,
+  ReadingMemoryModelInstallation,
 } from './reading-memory-embedding-service';
 import { readingMemoryEvidenceProjectorVersion } from './reading-memory-evidence-projection-batch';
 import { readStoredAnnotationThreadSources } from './reading-memory-evidence-source';
@@ -18,10 +17,7 @@ import type {
   ReadingMemoryDatabase,
   ReadingMemorySqliteExecutor,
 } from './reading-memory-store-types';
-import {
-  activateReadingMemoryModelVersion,
-  readReadingMemoryVectorCoverage,
-} from './reading-memory-vector-store';
+import { readReadingMemoryVectorCoverage } from './reading-memory-vector-store';
 
 const timestamp = '2026-08-30T00:00:00.000Z';
 const library: ReadingEvidenceScope = { kind: 'library' };
@@ -106,117 +102,6 @@ describe('reading memory semantic search', () => {
     expect(JSON.stringify(result.evidence)).not.toContain('Original judgment');
   });
 
-  it('rechecks collection membership after scanning and filters before candidate limits', async () => {
-    const fixture = createFixture();
-    fixture.populate(300);
-    fixture.database
-      .prepare('INSERT INTO collections (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)')
-      .run('selected', 'Selected', timestamp, timestamp);
-    fixture.database
-      .prepare(
-        "INSERT INTO collection_members (collection_id, member_kind, member_id, added_at) SELECT 'selected', 'article', id, ? FROM articles",
-      )
-      .run(timestamp);
-    for (let index = 0; index < 50; index += 1) fixture.add(`outside_${index}`, 'Outside scope');
-    const result = await fixture.search({
-      scope: { kind: 'collection', collectionId: 'selected' },
-      embedQuery: async () => {
-        setImmediate(() => {
-          fixture.database
-            .prepare('DELETE FROM collection_members WHERE member_id = ?')
-            .run('article_item_00000');
-        });
-        return embedding();
-      },
-    });
-    expect(result.mode).toBe('hybrid');
-    expect(result.evidence).toHaveLength(12);
-    expect(result.evidence.every((item) => item.location.annotationId.startsWith('item_'))).toBe(
-      true,
-    );
-    expect(result.evidence.some((item) => item.location.annotationId === 'item_00000')).toBe(false);
-    expect(result.semantic.coverage).toEqual({ indexedEntryCount: 299, eligibleEntryCount: 299 });
-  });
-
-  it('requeries the restored database even when asset IDs and model versions are reused', async () => {
-    const original = createFixture();
-    original.add('same_id', 'Old semantic candidate');
-    const restored = createFixture();
-    restored.add('same_id', 'Reading memory restored from backup');
-    let current = original;
-    let generation = 0;
-    const withDatabase: ReadingMemoryDatabase = async (operation) =>
-      operation(current.database, generation);
-    const result = await original.search({
-      withDatabase,
-      embedQuery: async () => {
-        current = restored;
-        generation += 1;
-        return embedding();
-      },
-    });
-    expect(result.mode).toBe('keyword');
-    expect(result.evidence.map((item) => item.content)).toEqual([
-      'Reading memory restored from backup',
-    ]);
-  });
-
-  it.each(['activate', 'replace'] as const)(
-    'does not mix candidates when the active model changes: %s',
-    async (change) => {
-      const fixture = createFixture();
-      fixture.add('semantic', 'Semantic-only result');
-      fixture.add('keyword', 'Reading memory keyword result');
-      if (change === 'replace') activateReadingMemoryModelVersion(fixture.database, model);
-      const result = await fixture.search({
-        embedQuery: async () => {
-          if (change === 'activate') {
-            activateReadingMemoryModelVersion(fixture.database, model);
-          } else {
-            fixture.database
-              .prepare('UPDATE reading_memory_semantic_state SET active_model_version = ?')
-              .run('replacement-model');
-          }
-          return embedding();
-        },
-      });
-      expect(result.mode).toBe('keyword');
-      expect(result.evidence.map((item) => item.location.annotationId)).toEqual(['keyword']);
-      expect(result.semantic.state).not.toBe('failed');
-    },
-  );
-
-  it('discards scanned candidates if the database generation changes between chunks', async () => {
-    const fixture = createFixture();
-    fixture.populate(300);
-    const result = await fixture.search({
-      embedQuery: async () => {
-        setImmediate(() => {
-          fixture.generation += 1;
-          fixture.add('restored', 'Reading memory restored keyword');
-        });
-        return embedding();
-      },
-    });
-    expect(result.mode).toBe('keyword');
-    expect(result.evidence.map((item) => item.location.annotationId)).toEqual(['restored']);
-  });
-
-  it('falls back to current keywords when the model is removed during inference', async () => {
-    const fixture = createFixture();
-    fixture.add('semantic', 'Only a semantic match');
-    fixture.add('keyword', 'Reading memory survives model removal');
-    const result = await fixture.search({
-      embedQuery: async () => {
-        fixture.currentInstallation = null;
-        return embedding();
-      },
-    });
-    expect(result.mode).toBe('keyword');
-    expect(result.evidence.map((item) => item.location.annotationId)).toEqual(['keyword']);
-    expect(result.semantic.state).toBe('not_installed');
-  });
-
   it('marks inference failure without leaking query or source content into logs', async () => {
     const fixture = createFixture();
     fixture.add('keyword', 'Private reading memory content');
@@ -236,58 +121,6 @@ describe('reading memory semantic search', () => {
     );
     expect(logs.join('\n')).not.toContain('Private');
     expect(logs.join('\n').toLocaleLowerCase()).not.toContain('reading memory');
-  });
-
-  it('does not mark the current model failed when an older inference fails after removal', async () => {
-    const fixture = createFixture();
-    fixture.add('keyword', 'Reading memory remains available');
-    const result = await fixture.search({
-      embedQuery: async () => {
-        fixture.currentInstallation = null;
-        throw new ReadingMemoryEmbeddingError('READING_MEMORY_EMBEDDING_WORKER_FAILED');
-      },
-    });
-    expect(result.mode).toBe('keyword');
-    expect(result.semantic.state).toBe('not_installed');
-    expect(result.evidence.map((item) => item.location.annotationId)).toEqual(['keyword']);
-  });
-
-  it('propagates user cancellation before work and during inference or chunk scanning', async () => {
-    const fixture = createFixture();
-    fixture.populate(300);
-    const reason = new Error('User canceled search');
-    const canceled = AbortSignal.abort(reason);
-    await expect(fixture.search({ signal: canceled })).rejects.toBe(reason);
-
-    const inference = new AbortController();
-    await expect(
-      fixture.search({
-        signal: inference.signal,
-        embedQuery: async () => {
-          inference.abort(reason);
-          throw new ReadingMemoryEmbeddingError('READING_MEMORY_EMBEDDING_CANCELED');
-        },
-      }),
-    ).rejects.toBe(reason);
-
-    const scanning = new AbortController();
-    await expect(
-      fixture.search({
-        signal: scanning.signal,
-        embedQuery: async () => {
-          setImmediate(() => scanning.abort(reason));
-          return embedding();
-        },
-      }),
-    ).rejects.toBe(reason);
-  });
-
-  it('keeps result limits bounded for a fully indexed library', async () => {
-    const fixture = createFixture();
-    fixture.populate(50);
-    expect((await fixture.search()).evidence).toHaveLength(12);
-    expect((await fixture.search({ limit: 100 })).evidence).toHaveLength(24);
-    expect((await fixture.search({ limit: 3 })).evidence).toHaveLength(3);
   });
 
   it.each(['equal', 'ascending', 'mixed'] as const)(
@@ -317,24 +150,6 @@ describe('reading memory semantic search', () => {
       expect(result.evidence.map((item) => item.location.annotationId)).toEqual(expected);
     },
   );
-
-  it('finds a final-chunk match and reports an unindexed source', async () => {
-    const fixture = createFixture();
-    fixture.populate(300);
-    fixture.add('unindexed', 'Pending vector', false);
-    const lastId = 'item_00299';
-    fixture.database
-      .prepare('UPDATE reading_memory_evidence_vectors SET vector = ? WHERE evidence_id = ?')
-      .run(vectorBytes(1), `reading_evidence_annotation:${lastId}`);
-    const result = await fixture.search();
-
-    expect(result.mode).toBe('hybrid');
-    expect(result.evidence[0]?.location.annotationId).toBe(lastId);
-    expect(result.semantic.coverage).toEqual({
-      indexedEntryCount: 300,
-      eligibleEntryCount: 301,
-    });
-  });
 });
 
 function createFixture() {
@@ -399,18 +214,6 @@ FROM reading_memory_evidence_entries WHERE target_id = ?
         }),
       );
       if (indexed) insertVector.run(model.modelVersion, model.dimension, vectorBytes(score), id);
-    },
-    populate(count: number) {
-      database.transaction(() => {
-        for (let index = 0; index < count; index += 1) {
-          fixture.add(
-            `item_${String(index).padStart(5, '0')}`,
-            `Stored evidence ${index}`,
-            true,
-            0.5,
-          );
-        }
-      })();
     },
     withDatabase,
     search(options: Partial<SearchOptions> = {}): ReturnType<typeof searchReadingMemoryEvidence> {

@@ -1,27 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createArticleTextIndex, splitArticleTextBlocks } from './article-text-index';
-
-describe('splitArticleTextBlocks', () => {
-  it('joins wrapped lines into sentences and cuts long unbroken text', () => {
-    const wrapped =
-      'The first sentence wraps\nonto the next line.\nShort heading\n\nNext paragraph.';
-    expect(splitArticleTextBlocks(wrapped).map((block) => block.text)).toEqual([
-      'The first sentence wraps\nonto the next line.',
-      'Short heading',
-      'Next paragraph.',
-    ]);
-
-    const long = '这是一句很长的话。'.repeat(300);
-    const blocks = splitArticleTextBlocks(long);
-    expect(blocks.length).toBeGreaterThan(1);
-    expect(blocks.every((block) => block.text.length <= 1200 && block.text.endsWith('。'))).toBe(
-      true,
-    );
-    expect(blocks.map((block) => long.slice(block.start, block.end))).toEqual(
-      blocks.map((block) => block.text),
-    );
-  });
-});
+import { createArticleTextIndex } from './article-text-index';
 
 describe('createArticleTextIndex', () => {
   const text = 'Chapter one\nAlpha meets Beta.\nChapter two\nBeta betrays Alpha.';

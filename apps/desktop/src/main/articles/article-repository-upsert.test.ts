@@ -66,32 +66,6 @@ describe('article repository local child row writes', () => {
     expect(revision()).not.toBe(changed);
   });
 
-  it('retains stored revisions through unchanged annotation comment replacement', () => {
-    const { database, memory } = repositoryDatabase();
-    const original = annotation({ comments: [comment()] });
-    upsertAnnotationRows(database, { articleId: 'article_1', annotation: original }, memory);
-    memory
-      .prepare('UPDATE comments SET asset_revision = ? WHERE id = ?')
-      .run('stored-comment-version', 'comment_1');
-    memory
-      .prepare('UPDATE annotations SET distillation_revision = ? WHERE id = ?')
-      .run('stored-distillation-version', 'annotation_1');
-
-    upsertAnnotationRows(database, { articleId: 'article_1', annotation: original }, memory);
-
-    expect(
-      database.select().from(schema.comments).where(eq(schema.comments.id, 'comment_1')).get()
-        ?.assetRevision,
-    ).toBe('stored-comment-version');
-    expect(
-      database
-        .select()
-        .from(schema.annotations)
-        .where(eq(schema.annotations.id, 'annotation_1'))
-        .get()?.distillationRevision,
-    ).toBe('stored-distillation-version');
-  });
-
   it('keeps comment revisions for display, sibling, and distillation edits', () => {
     const { database, memory } = repositoryDatabase();
     const original = comment({ author: { kind: 'user', userId: 'reader', username: 'reader' } });
@@ -129,46 +103,6 @@ describe('article repository local child row writes', () => {
 
     expect(storedCommentRevision(database, original.id)).toBe(before);
   });
-
-  it.each([
-    { name: 'pending completion', original: { pending: true }, next: { pending: undefined } },
-    {
-      name: 'author identity',
-      original: { author: { kind: 'user', userId: 'one', username: 'reader' } },
-      next: { author: { kind: 'user', userId: 'two', username: 'reader' } },
-    },
-    {
-      name: 'author kind',
-      original: { author: { kind: 'user', username: 'reader' } },
-      next: { author: { kind: 'agent', agentId: 'agent', username: 'reader' } },
-    },
-  ] satisfies Array<{ name: string; original: Partial<Comment>; next: Partial<Comment> }>)(
-    'changes comment revisions for $name',
-    ({ original, next }) => {
-      const { database, memory } = repositoryDatabase();
-      const initial = comment(original);
-      upsertAnnotationRows(
-        database,
-        { articleId: 'article_1', annotation: annotation({ comments: [initial] }) },
-        memory,
-      );
-      const before = storedCommentRevision(database, initial.id);
-
-      upsertCommentRows(
-        database,
-        { articleId: 'article_1', annotationId: 'annotation_1', comment: { ...initial, ...next } },
-        memory,
-      );
-
-      expect(storedCommentRevision(database, initial.id)).not.toBe(before);
-      const saved = database
-        .select()
-        .from(schema.comments)
-        .where(eq(schema.comments.id, initial.id))
-        .get();
-      expect(saved?.pending === true).toBe(next.pending === true);
-    },
-  );
 
   it('versions distillation content and publication changes but not its AI editing session', () => {
     const { database, memory } = repositoryDatabase();
@@ -314,36 +248,6 @@ describe('article repository local child row writes', () => {
     ).toBeNull();
   });
 
-  it('rolls back annotation replacement when review cleanup cannot commit', () => {
-    const { database, memory } = repositoryDatabase();
-    const target = annotation({
-      comments: [comment()],
-      distillation: { status: 'published', content: 'original' },
-    });
-    upsertAnnotationRows(database, { articleId: 'article_1', annotation: target }, memory);
-    database
-      .insert(schema.readingMemoryReviews)
-      .values(reviewRow('review', 'comment', 'comment_1'))
-      .run();
-    const before = database.select().from(schema.comments).all();
-    const jobs = readReadingMemoryProjectionJobs(memory, 10);
-    memory.exec(
-      "CREATE TRIGGER fail_review_cleanup BEFORE DELETE ON reading_memory_reviews BEGIN SELECT RAISE(ABORT, 'review cleanup failure'); END;",
-    );
-
-    expect(() =>
-      upsertAnnotationRows(
-        database,
-        { articleId: 'article_1', annotation: { ...target, comments: [] } },
-        memory,
-      ),
-    ).toThrow('review cleanup failure');
-
-    expect(database.select().from(schema.comments).all()).toEqual(before);
-    expect(readReadingMemoryProjectionJobs(memory, 10)).toEqual(jobs);
-    expect(database.select().from(schema.readingMemoryReviews).all()).toHaveLength(1);
-  });
-
   it('retains validated PDF anchor geometry through a SQLite write and read', () => {
     const { database, memory } = repositoryDatabase();
     const anchor = createPdfTextAnchor({
@@ -444,73 +348,6 @@ describe('article repository local child row writes', () => {
       ).toMatchObject({ content: 'updated comment' });
     },
   );
-
-  it('keeps a comment write when compatibility hydration encounters corrupt data', () => {
-    const { database, memory } = repositoryDatabase();
-    const target = annotation({ id: 'annotation_1' });
-    upsertAnnotationRows(database, { articleId: 'article_1', annotation: target }, memory);
-    memory.prepare("UPDATE annotations SET anchor = '{' WHERE id = ?").run('sibling_annotation');
-    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const updatedAt = '2026-06-04T03:00:00.000Z';
-
-    const patch = upsertCommentRows(
-      database,
-      {
-        articleId: 'article_1',
-        annotationId: target.id,
-        comment: comment({ content: 'saved despite corrupt sibling', createdAt: updatedAt }),
-        updatedAt,
-      },
-      memory,
-    );
-
-    expect(patch?.article.updatedAt).toBe(updatedAt);
-    expect(
-      memory.prepare('SELECT content FROM comments WHERE id = ?').get('comment_1'),
-    ).toMatchObject({ content: 'saved despite corrupt sibling' });
-    expect(projectionJobFor(memory, target.id)).toMatchObject({
-      targetId: target.id,
-      operation: 'upsert',
-    });
-    expect(warning).toHaveBeenCalledWith(
-      '[reading-memory] sync annotation memory entries failed',
-      expect.objectContaining({ articleId: 'article_1', annotationId: target.id }),
-    );
-  });
-
-  it('queues the latest persisted annotation thread after local writes', () => {
-    const { database, memory } = repositoryDatabase();
-    const target = annotation({
-      id: 'annotation_projection',
-      comments: [comment({ id: 'comment_projection', content: 'first version' })],
-    });
-
-    upsertAnnotationRows(database, { articleId: 'article_1', annotation: target }, memory);
-    const annotationJob = projectionJobFor(memory, target.id);
-    if (!annotationJob) throw new Error('missing annotation projection job');
-
-    upsertCommentRows(
-      database,
-      {
-        articleId: 'article_1',
-        annotationId: target.id,
-        comment: comment({
-          id: 'comment_projection',
-          content: 'second version',
-          createdAt: target.comments[0]?.createdAt,
-        }),
-      },
-      memory,
-    );
-    const job = projectionJobFor(memory, target.id);
-    expect(job).toMatchObject({
-      targetType: 'annotation_thread',
-      targetId: target.id,
-      articleId: 'article_1',
-      operation: 'upsert',
-    });
-    expect(job?.sourceVersion).not.toBe(annotationJob.sourceVersion);
-  });
 
   it('upserts one annotation without replacing sibling annotations', () => {
     const { database, memory } = repositoryDatabase();

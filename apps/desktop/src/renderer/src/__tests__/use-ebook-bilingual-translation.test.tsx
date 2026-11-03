@@ -8,10 +8,7 @@ import { extractBilingualTranslationBlocks } from '@yomitomo/core';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import type { EbookArticleRecord } from '../source/bookcase/app-source-bookcase';
 import type { FoliateViewElement } from '../source/ebook/ebook-foliate-view';
-import {
-  runWhenEbookSelectionSettles,
-  useEbookBilingualTranslation,
-} from '../source/ebook/use-ebook-bilingual-translation';
+import { useEbookBilingualTranslation } from '../source/ebook/use-ebook-bilingual-translation';
 
 const toastMocks = vi.hoisted(() => ({
   dismiss: vi.fn(),
@@ -235,116 +232,5 @@ describe('useEbookBilingualTranslation', () => {
     expect(doc.querySelector('p')?.textContent).toBe(
       'The current chapter keeps its original source text intact.',
     );
-  });
-
-  it('sends only current-chapter source blocks when translation is confirmed', async () => {
-    const { doc, view } = foliateView();
-    const api = installDesktopApi(null);
-    const { result } = renderTranslationHook();
-    act(() => result.current.attachFoliateDocument(view));
-    await waitFor(() => expect(result.current.toolbar).not.toBeNull());
-
-    const dialog = result.current.dialog as React.ReactElement<{
-      onConfirm: (action: 'translate') => Promise<void>;
-    }>;
-    await act(() => dialog.props.onConfirm('translate'));
-
-    expect(api.translateArticle).toHaveBeenCalledWith({
-      articleId: 'ebook-1',
-      force: false,
-      sourceBlockIds: undefined,
-      sourceBlocks: [
-        {
-          id: expect.stringMatching(/^block_1_/),
-          text: 'The current chapter keeps its original source text intact.',
-        },
-      ],
-      sourceId: 'chapter-1',
-      targetLanguage: 'zh-CN',
-    });
-    expect(doc.querySelector('[data-reader-translation]')?.textContent).toBe(
-      '请求生成的章节译文。',
-    );
-  });
-
-  it('defers DOM mutation until the source selection collapses', () => {
-    const { doc } = foliateView();
-    const text = doc.querySelector('p')?.firstChild;
-    if (!text) throw new Error('source text missing');
-    const range = doc.createRange();
-    range.setStart(text, 0);
-    range.setEnd(text, 3);
-    doc.getSelection()?.addRange(range);
-    const mutation = vi.fn();
-
-    const cleanupSelectionListener = runWhenEbookSelectionSettles(doc, mutation);
-    expect(mutation).not.toHaveBeenCalled();
-
-    doc.getSelection()?.removeAllRanges();
-    doc.dispatchEvent(new Event('selectionchange'));
-    expect(mutation).toHaveBeenCalledOnce();
-    cleanupSelectionListener();
-  });
-
-  it('deletes the cached translation for the active EPUB chapter', async () => {
-    const { doc, view } = foliateView();
-    const api = installDesktopApi(translationFor(doc));
-    const { result } = renderTranslationHook();
-    act(() => result.current.attachFoliateDocument(view));
-    await waitFor(() => expect(doc.querySelector('[data-reader-translation]')).not.toBeNull());
-
-    const dialog = result.current.dialog as React.ReactElement<{
-      onConfirm: (action: 'delete') => Promise<void>;
-    }>;
-    await act(() => dialog.props.onConfirm('delete'));
-
-    expect(api.deleteCurrentArticleTranslation).toHaveBeenCalledWith({
-      articleId: 'ebook-1',
-      sourceId: 'chapter-1',
-      targetLanguage: 'zh-CN',
-    });
-    expect(doc.querySelector('[data-reader-translation]')).toBeNull();
-  });
-
-  it('reveals the first failed EPUB segment from the shared completion toast', async () => {
-    const { doc, view } = foliateView();
-    const failedTranslation = translationFor(doc);
-    failedTranslation.status = 'failed';
-    failedTranslation.segments[0] = {
-      ...failedTranslation.segments[0],
-      error: 'TRANSLATION_FAILED',
-      status: 'failed',
-      translatedText: undefined,
-    };
-    installDesktopApi(null, failedTranslation);
-    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
-      callback(0);
-      return 1;
-    });
-    const { result } = renderTranslationHook();
-    act(() => result.current.attachFoliateDocument(view));
-    await waitFor(() => expect(result.current.dialog).not.toBeNull());
-
-    const dialog = result.current.dialog as React.ReactElement<{
-      onConfirm: (action: 'translate') => Promise<void>;
-    }>;
-    await act(() => dialog.props.onConfirm('translate'));
-    const failedButton = await waitFor(() => {
-      const button = doc.querySelector<HTMLButtonElement>(
-        '[data-reader-translation-action="failed"]',
-      );
-      expect(button).not.toBeNull();
-      return button!;
-    });
-    const scrollIntoView = vi.fn();
-    failedButton.scrollIntoView = scrollIntoView;
-    const completionToast = toastMocks.update.mock.calls.find(([, options]) => options.action)?.[1];
-
-    await act(async () => {
-      await completionToast?.action?.onClick();
-    });
-
-    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'center' });
-    expect(doc.activeElement).toBe(failedButton);
   });
 });

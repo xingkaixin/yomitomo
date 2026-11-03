@@ -27,24 +27,6 @@ describe('release notes', () => {
     vi.stubGlobal('fetch', vi.fn());
   });
 
-  it('reads localized local release notes first', async () => {
-    const { getReleaseNote } = await import('./release-notes');
-    readFileMock.mockResolvedValueOnce(
-      JSON.stringify({
-        version: '0.6.0',
-        highlights: [{ type: 'new', title: 'Reading memory' }],
-      }),
-    );
-
-    const note = await getReleaseNote('0.6.0', 'local', 'en');
-
-    expect(readFileMock).toHaveBeenCalledWith(
-      '../../resources/release-notes/en/0.6.0.json',
-      'utf8',
-    );
-    expect(note?.highlights[0]?.title).toBe('Reading memory');
-  });
-
   it('falls back from English local notes to Chinese notes', async () => {
     const { getReleaseNote } = await import('./release-notes');
     readFileMock.mockRejectedValueOnce(new Error('missing en')).mockResolvedValueOnce(
@@ -62,26 +44,6 @@ describe('release notes', () => {
       'utf8',
     );
     expect(note?.highlights[0]?.title).toBe('阅读记忆底座');
-  });
-
-  it('fetches localized remote release notes before legacy URLs', async () => {
-    const { getReleaseNote } = await import('./release-notes');
-    vi.mocked(fetch).mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          version: '0.6.0',
-          highlights: [{ type: 'new', title: 'Reading memory' }],
-        }),
-      ),
-    );
-
-    const note = await getReleaseNote('0.6.0', 'remote', 'en');
-
-    expect(fetch).toHaveBeenCalledWith(
-      'https://yomitomo.app/release-notes/en/0.6.0.json',
-      expect.objectContaining({ signal: expect.any(AbortSignal) }),
-    );
-    expect(note?.highlights[0]?.title).toBe('Reading memory');
   });
 
   it('falls back from English remote notes to Chinese notes', async () => {

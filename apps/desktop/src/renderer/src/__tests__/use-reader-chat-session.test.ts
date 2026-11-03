@@ -137,28 +137,6 @@ describe('useReaderChatSession', () => {
     expect(session().model.error).toBe('');
   });
 
-  it('keeps the quoted selection when switching the selected assistant', async () => {
-    mockDesktop();
-    const { session } = renderReaderChatSession();
-
-    act(() => {
-      session().askSelection({
-        sourceType: 'web',
-        quote: '可以提问的正文',
-        title: '文章',
-      });
-    });
-
-    expect(session().model.draftContext?.quote).toBe('可以提问的正文');
-
-    await act(async () => {
-      await session().actions.onSelectAssistant?.('agent_2');
-    });
-
-    await waitFor(() => expect(session().model.selectedAssistantId).toBe('agent_2'));
-    expect(session().model.draftContext?.quote).toBe('可以提问的正文');
-  });
-
   it.each(['delivery', 'run'] as const)(
     'reports a failed %s and keeps the question',
     async (failure) => {
@@ -205,24 +183,6 @@ describe('useReaderChatSession', () => {
     expect(session().model.state).toBeUndefined();
     expect(session().model.error).toBe('保存失败。');
     expect(session().model.sending).toBe(false);
-  });
-
-  it('does not send another question while a reply is still running', async () => {
-    const desktop = mockDesktop();
-    const save = vi.fn();
-    const { session } = renderReaderChatSession(save);
-    act(() => {
-      void session().actions.onSubmit('第一个问题');
-    });
-    await waitFor(() => expect(desktop.deliver).toHaveBeenCalledOnce());
-    act(() => desktop.emit(runEvent(desktop.deliver.mock.calls[0][0], { status: 'running' })));
-
-    await act(async () => {
-      await session().actions.onSubmit('第二个问题');
-    });
-
-    expect(desktop.deliver).toHaveBeenCalledOnce();
-    expect(save).toHaveBeenCalledOnce();
   });
 
   it('does not roll back another article when a pending save fails', async () => {

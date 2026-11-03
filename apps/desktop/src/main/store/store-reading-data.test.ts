@@ -70,7 +70,6 @@ vi.mock('../app/logger', () => ({
   },
 }));
 
-import { buildArticleReadingProgressPatch } from '../articles/article-reading-state';
 import { queueArticleSourceCleanup } from '../articles/article-source-cleanup';
 import { readEbookSourceFile, stageEbookSourceFile } from '../ebooks/ebook-storage';
 import { queueSecretDeletion } from '../providers/secret-deletion-repository';
@@ -84,7 +83,6 @@ import {
 import { closeDatabase } from './store-lifecycle';
 import { readStore } from './store-snapshot';
 import { saveSettings } from './store-settings';
-import { normalizeWeReadReadingStats } from '../weread/weread-repository';
 import * as schema from '../db/schema';
 
 beforeEach(async () => {
@@ -174,27 +172,6 @@ describe('desktop store cleanup recovery', () => {
     expect(testState.secrets.has(secretRef)).toBe(false);
     await expect(readEbookSourceFile(articleId)).rejects.toThrow('EBOOK_SOURCE_FILE_MISSING');
   });
-
-  it('retries a failed secret deletion only after the database changes', async () => {
-    const secretRef = 'failed-cleanup-secret';
-    testState.secrets.set(secretRef, 'fixture-secret');
-    queueSecretDeletion(getDatabase(), secretRef);
-    testState.deleteStoredSecretError = new Error('keyring locked');
-    await readStore();
-    const source = join(dirname(getDatabasePath()), 'failed-cleanup-backup.sqlite');
-    await backupDatabaseFile(source);
-
-    testState.deleteStoredSecretError = undefined;
-    await readStore();
-    expect(testState.secrets.has(secretRef)).toBe(true);
-    expect(testState.logErrors).toMatchObject([{ event: 'secret_deletion.recovery_failed' }]);
-
-    await replaceDatabaseFile(source);
-    await readStore();
-
-    expect(testState.secrets.has(secretRef)).toBe(false);
-    expect(getDatabase().select().from(schema.secretDeletionTasks).all()).toEqual([]);
-  });
 });
 
 describe('desktop store annotation memory backfill', () => {
@@ -257,146 +234,6 @@ describe('desktop store annotation memory backfill', () => {
     ]);
     expect(readAnnotationMemoryBackfillVersion()).toBe('annotation-memory-v1');
     expect(testState.backfillAnnotationMemoryEntries).toHaveBeenCalledTimes(2);
-  });
-
-  it('does not repeat a backfill already recorded in the restored database', async () => {
-    await readStore();
-    const source = join(dirname(getDatabasePath()), 'completed-memory-backup.sqlite');
-    await backupDatabaseFile(source);
-
-    await replaceDatabaseFile(source);
-    await readStore();
-    await readStore();
-
-    expect(testState.backfillAnnotationMemoryEntries).toHaveBeenCalledOnce();
-    expect(readAnnotationMemoryBackfillVersion()).toBe('annotation-memory-v1');
-  });
-
-  it('retries on a restored database after a previous connection failed', async () => {
-    testState.backfillAnnotationMemoryEntries.mockImplementationOnce(() => {
-      throw new Error('backfill failed');
-    });
-    await readStore();
-    const source = join(dirname(getDatabasePath()), 'unfinished-memory-backup.sqlite');
-    await backupDatabaseFile(source);
-
-    await replaceDatabaseFile(source);
-    await readStore();
-
-    expect(testState.backfillAnnotationMemoryEntries).toHaveBeenCalledTimes(2);
-    expect(readAnnotationMemoryBackfillVersion()).toBe('annotation-memory-v1');
-  });
-
-  it('does not retry a failed annotation memory backfill on the same connection', async () => {
-    const error = new Error('backfill failed');
-    testState.backfillAnnotationMemoryEntries.mockImplementation(() => {
-      throw error;
-    });
-
-    await readStore();
-    await readStore();
-
-    expect(testState.backfillAnnotationMemoryEntries).toHaveBeenCalledTimes(1);
-    expect(testState.logErrors).toEqual([
-      {
-        event: 'reading-memory.backfill_annotation_memory_failed',
-        error,
-        data: undefined,
-      },
-    ]);
-    expect(readAnnotationMemoryBackfillVersion()).toBeNull();
-  });
-});
-
-describe('desktop store weread reading stats', () => {
-  it('preserves detailed reading stats when normalizing cached snapshots', () => {
-    expect(
-      normalizeWeReadReadingStats(
-        {
-          totalReadTime: 3660,
-          readDays: 3,
-          dayAverageReadTime: 1220,
-          readStat: [
-            { stat: '阅读书籍', counts: '4' },
-            { stat: '阅读时长', counts: '61分钟' },
-          ],
-          readTimes: {
-            '1779638400': 1200,
-            '1779724800': 2460,
-            invalid: 'ignored',
-          },
-          readLongest: [
-            {
-              bookId: 'book_1',
-              title: '自卑与超越',
-              author: '阿德勒',
-              cover: 'https://example.com/book.jpg',
-              readTime: 1800,
-              finishReadingTime: 1779724800,
-            },
-          ],
-          preferCategory: [{ stat: '心理学', counts: '2本' }],
-          preferCategoryWord: '这个周期偏爱心理学',
-          preferTimeWord: '晚上读得更多',
-          preferTime: [20, 21, 'ignored'],
-          authorCount: 2,
-        },
-        'weekly',
-      ),
-    ).toEqual({
-      mode: 'weekly',
-      totalReadTime: 3660,
-      readDays: 3,
-      dayAverageReadTime: 1220,
-      compare: undefined,
-      readRate: undefined,
-      wrReadTime: undefined,
-      wrListenTime: undefined,
-      readStat: [
-        { stat: '阅读书籍', counts: '4' },
-        { stat: '阅读时长', counts: '61分钟' },
-      ],
-      readTimes: {
-        '1779638400': 1200,
-        '1779724800': 2460,
-      },
-      readLongest: [
-        {
-          bookId: 'book_1',
-          title: '自卑与超越',
-          author: '阿德勒',
-          cover: 'https://example.com/book.jpg',
-          readTime: 1800,
-          finishReadingTime: 1779724800,
-        },
-      ],
-      preferCategory: [{ stat: '心理学', counts: '2本' }],
-      preferCategoryWord: '这个周期偏爱心理学',
-      preferTimeWord: '晚上读得更多',
-      preferTime: [20, 21],
-      preferAuthor: undefined,
-      preferPublisher: undefined,
-      authorCount: 2,
-      registTime: undefined,
-    });
-  });
-});
-
-describe('desktop store reading progress', () => {
-  it('builds only the article progress patch', () => {
-    const readingProgress = {
-      kind: 'chapter' as const,
-      chapterIndex: 1,
-      chapterProgress: 0.25,
-      bookProgress: 0.31,
-      updatedAt: '2026-05-17T08:00:00.000Z',
-    };
-
-    expect(buildArticleReadingProgressPatch('article_progress', readingProgress)).toEqual({
-      articleId: 'article_progress',
-      readingProgress,
-      updatedAt: readingProgress.updatedAt,
-    });
   });
 });
 

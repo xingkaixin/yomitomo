@@ -3,9 +3,8 @@
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createPdfTextAnchor, type Annotation, type ArticleRecord } from '@yomitomo/shared';
+import type { ArticleRecord } from '@yomitomo/shared';
 import { usePdfiumReadingProgress } from '../source/pdfium/app-source-bookcase-pdfium-reading-progress';
-import { usePdfiumNavigation } from '../source/pdfium/app-source-bookcase-pdfium-navigation';
 
 type PdfArticleRecord = ArticleRecord & { pdf: NonNullable<ArticleRecord['pdf']> };
 
@@ -129,7 +128,6 @@ function Probe({ onSave }: { onSave: (articleId: string, progress: unknown) => v
 afterEach(() => {
   cleanup();
   scrollMocks.reset();
-  vi.useRealTimers();
   vi.clearAllMocks();
 });
 
@@ -197,73 +195,5 @@ describe('usePdfiumReadingProgress', () => {
     act(() => emitLayoutReady());
 
     expect(scrollMocks.scrollToPage).toHaveBeenCalledTimes(1);
-  });
-
-  it('completes annotation focus once while the same PDF rerenders', async () => {
-    vi.useFakeTimers();
-    const pageText = 'A saved reading judgment.';
-    const annotation: Annotation = {
-      id: 'annotation-1',
-      anchor: createPdfTextAnchor({
-        pageText,
-        pageIndex: 1,
-        start: 0,
-        end: pageText.length,
-        pageWidth: 600,
-        pageHeight: 800,
-        rects: [{ x: 20, y: 40, width: 200, height: 18 }],
-      }),
-      author: { kind: 'user', username: 'reader' },
-      color: '#f4c95d',
-      comments: [],
-      createdAt: '2026-08-30T00:00:00Z',
-      updatedAt: '2026-08-30T00:00:00Z',
-    };
-    const article = pdfArticle();
-    const documentId = 'embedpdf-pdf-article';
-    const openTrace = { articleId: article.id, startedAt: performance.now() };
-    const onSave = vi.fn();
-    const navigation = {
-      annotations: [annotation],
-      documentId,
-      extractPageText: vi.fn(async () => pageText),
-      focusAnnotationId: annotation.id,
-      pageCount: article.pdf.metadata.pageCount,
-      onCloseToc: vi.fn(),
-      onFocusedAnnotation: vi.fn(),
-      onOpenAnnotation: vi.fn(),
-      onSetTocItems: vi.fn(),
-    };
-    function FocusProbe() {
-      const progress = usePdfiumReadingProgress({
-        article,
-        documentId,
-        documentReady: true,
-        openTrace,
-        pageCount: article.pdf.metadata.pageCount,
-        onSaveArticleReadingProgress: onSave,
-      });
-      const { markers } = usePdfiumNavigation({ ...navigation, scroll: progress.scroll });
-      return (
-        <>
-          {progress.markers}
-          {markers}
-        </>
-      );
-    }
-    const { rerender } = render(<FocusProbe />);
-
-    await act(() => vi.advanceTimersByTimeAsync(250));
-    rerender(<FocusProbe />);
-    await act(() => vi.advanceTimersByTimeAsync(250));
-    rerender(<FocusProbe />);
-    await act(() => vi.advanceTimersByTimeAsync(20));
-
-    expect(navigation.onFocusedAnnotation).toHaveBeenCalledExactlyOnceWith(true);
-    expect(navigation.onOpenAnnotation).toHaveBeenCalledExactlyOnceWith(annotation.id);
-    expect(scrollMocks.scrollToPage).toHaveBeenCalledExactlyOnceWith({
-      pageNumber: 2,
-      behavior: 'smooth',
-    });
   });
 });

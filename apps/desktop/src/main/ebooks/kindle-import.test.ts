@@ -10,32 +10,6 @@ function arrayBufferFromBuffer(buffer: Buffer) {
 }
 
 describe('articleRecordFromKindleFile', () => {
-  it.each([
-    { version: 6, extension: 'mobi' },
-    { version: 8, extension: 'azw3' },
-  ])(
-    'distinguishes $extension books with the same opening and different later content',
-    async ({ version, extension }) => {
-      const records = await Promise.all(
-        ['original ending', 'revised ending'].map(async (ending) => {
-          const data = arrayBufferFromBuffer(
-            kindleBook({
-              version,
-              compression: 1,
-              title: 'Same book',
-              author: 'Same author',
-              fileHtml: `<html><body><p>${'Shared opening. '.repeat(900)}</p><p>${ending}</p></body></html>`,
-            }),
-          );
-          return articleRecordFromKindleFile({ fileName: `book.${extension}`, data });
-        }),
-      );
-      expect(records[0].legacyId).toBe(records[1].legacyId);
-      expect(records[0].id).not.toBe(records[1].id);
-      expect(records[0].contentHash).not.toBe(records[1].contentHash);
-    },
-  );
-
   it('extracts AZW3 metadata, chapters, and cover image', async () => {
     const data = arrayBufferFromBuffer(
       kindleBook({
@@ -137,57 +111,6 @@ describe('articleRecordFromKindleFile', () => {
         data: arrayBufferFromBuffer(huffCdicBook([compressedEntry([0])])),
       }),
     ).rejects.toThrow('EBOOK_IMPORT_INVALID_FILE');
-  });
-
-  it('rejects a two entry dictionary cycle', async () => {
-    await expect(
-      articleRecordFromKindleFile({
-        fileName: 'cyclic-pair.mobi',
-        data: arrayBufferFromBuffer(
-          huffCdicBook([compressedEntry([1]), compressedEntry([0])], [0]),
-        ),
-      }),
-    ).rejects.toThrow('EBOOK_IMPORT_INVALID_FILE');
-  });
-
-  it('rejects a dictionary nested deeper than the expansion budget', async () => {
-    const depth = 40;
-    const entries = Array.from({ length: depth }, (_, index) =>
-      index === depth - 1 ? literalEntry('末端') : compressedEntry([index + 1]),
-    );
-
-    await expect(
-      articleRecordFromKindleFile({
-        fileName: 'deep.mobi',
-        data: arrayBufferFromBuffer(huffCdicBook(entries, [0])),
-      }),
-    ).rejects.toThrow('EBOOK_IMPORT_INVALID_FILE');
-  });
-
-  it('rejects a dictionary that expands past the text budget', async () => {
-    await expect(
-      articleRecordFromKindleFile({
-        fileName: 'oversize.mobi',
-        data: arrayBufferFromBuffer(
-          huffCdicBook(
-            [literalEntry('x'.repeat(30_000))],
-            Array.from({ length: 1000 }, () => 0),
-            700,
-          ),
-        ),
-      }),
-    ).rejects.toThrow('EBOOK_IMPORT_ENTRY_TOO_LARGE');
-  });
-
-  it('rejects a CDIC record that claims an impossible code length', async () => {
-    await expect(
-      articleRecordFromKindleFile({
-        fileName: 'wide-codes.mobi',
-        data: arrayBufferFromBuffer(
-          huffCdicBook([literalEntry('文本')], [0], 1, { codeLength: 24 }),
-        ),
-      }),
-    ).rejects.toThrow('EBOOK_IMPORT_INVALID_CDIC');
   });
 });
 

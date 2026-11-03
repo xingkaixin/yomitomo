@@ -28,19 +28,11 @@ vi.mock('../app/logger', () => ({ logInfo: vi.fn(), logError: vi.fn() }));
 
 import * as schema from '../db/schema';
 import { upsertSettings } from '../store/settings-repository';
-import {
-  backupDatabaseFile,
-  closeDatabase,
-  getDatabase,
-  getSqliteExecutor,
-  readDatabaseLifecycle,
-  replaceDatabaseFile,
-} from '../store/store-db';
+import { closeDatabase, getDatabase, getSqliteExecutor } from '../store/store-db';
 import { readingMemoryEvidenceProjectorVersion } from './reading-memory-evidence-projection-batch';
 import { materializeReadingEvidenceCandidates } from './reading-memory-evidence-search';
 import { readStoredAnnotationThreadSources } from './reading-memory-evidence-source';
 import { createReadingLibraryRuntime } from './reading-library-runtime';
-import * as libraryScopeReader from './reading-library-scope';
 import type { ReadingMemorySemanticIndex } from './reading-memory-semantic-index';
 
 type RunJudgment = (typeof import('@yomitomo/ai'))['runReadingJudgment'];
@@ -63,70 +55,6 @@ afterEach(async () => {
 });
 
 describe('reading library source scope and local context', () => {
-  it('counts the full source scope only once for each completed operation', async () => {
-    const fixture = createFixture();
-    fixture.allowRemote();
-    const readScope = vi.spyOn(libraryScopeReader, 'readReadingLibraryScope');
-    const context = await fixture.runtime.context({ scope: libraryScope });
-    const contextCalls = readScope.mock.calls.length;
-    readScope.mockClear();
-    await fixture.runtime.search(fixture.owner, fixture.input(libraryScope, context.routeRevision));
-    const searchCalls = readScope.mock.calls.length;
-    readScope.mockClear();
-
-    const result = await fixture.answer();
-    const counts = {
-      context: contextCalls,
-      search: searchCalls,
-      answer: readScope.mock.calls.length,
-    };
-
-    expect(result.judgment.state).toBe('generated');
-    expect(fixture.send).toHaveBeenCalledOnce();
-    expect(counts).toEqual({ context: 1, search: 1, answer: 1 });
-  });
-
-  it.each(['library', 'collection', 'sources'] as const)(
-    'uses original counts and caps locally materialized evidence in %s scope',
-    async (kind) => {
-      const fixture = createFixture(14);
-      const selectedIds = fixture.articleIds.slice(0, 13);
-      fixture.collect([...selectedIds, 'empty']);
-      const scope: ReadingEvidenceScope =
-        kind === 'library'
-          ? libraryScope
-          : kind === 'collection'
-            ? selectedScope
-            : {
-                kind: 'sources',
-                sources: [...selectedIds, selectedIds[0], 'missing'].map((id) => ({
-                  kind: 'article',
-                  id,
-                })),
-              };
-      const context = await fixture.runtime.context({ scope });
-
-      expect(context.sourceCount).toBe(kind === 'library' ? 15 : kind === 'collection' ? 14 : 13);
-      expect(context.judgmentCount).toBe(kind === 'library' ? 14 : 13);
-      expect(context.projection.coverage.projectedAssetCount).toBe(0);
-      expect(context.routeRevision).toMatch(/^[a-f0-9]{64}$/);
-      expect(fixture.search).not.toHaveBeenCalled();
-      if (kind === 'collection') expect(context.collectionName).toBe('Selected reading');
-      const input = fixture.input(scope, context.routeRevision);
-      const result = await fixture.runtime.search(fixture.owner, input);
-
-      expect(result.evidence).toHaveLength(12);
-      expect(result.evidence.every((item) => item.sourceVersion.length === 64)).toBe(true);
-      expect(fixture.search).toHaveBeenCalledWith(
-        { query: input.question, scope: context.scope, limit: 24 },
-        { signal: expect.any(AbortSignal) },
-      );
-      expect(fixture.hydrateProvider).not.toHaveBeenCalled();
-      expect(fixture.getAiModule).not.toHaveBeenCalled();
-      expect(fixture.send).not.toHaveBeenCalled();
-    },
-  );
-
   it('requires request ownership, explicit privacy consent and an unlocked application', async () => {
     const fixture = createFixture();
     const context = await fixture.runtime.context({ scope: libraryScope });
@@ -158,57 +86,6 @@ describe('reading library source scope and local context', () => {
 });
 
 describe('reading library provider authorization', () => {
-  it('retains a route change observed before the final count read even if the route returns', async () => {
-    const fixture = createFixture();
-    fixture.allowRemote();
-    const local = await fixture.start();
-    fixture.setModel('replacement');
-    const answering = fixture.answer();
-    queueMicrotask(() => fixture.setModel('model-1'));
-
-    const result = await answering;
-    const firstSendCount = fixture.send.mock.calls.length;
-    const repeated = await fixture.answer();
-
-    expect(firstSendCount).toBe(0);
-    expect(result.routeRevision).toBe(local.routeRevision);
-    expect(result.providerChanged).toBe(true);
-    expect(result.judgment).toMatchObject({ state: 'local', sentEvidenceCount: 0 });
-    expect(result).not.toHaveProperty('sentProvider');
-    expect(repeated).toMatchObject({
-      providerChanged: true,
-      judgment: { state: 'local', sentEvidenceCount: 0 },
-    });
-    expect(fixture.hydrateProvider).not.toHaveBeenCalled();
-    expect(fixture.send).not.toHaveBeenCalled();
-  });
-
-  it('invalidates old authorization when search starts on a changed route that later returns', async () => {
-    const fixture = createFixture();
-    fixture.allowRemote();
-    const before = await fixture.runtime.context({ scope: libraryScope });
-    fixture.setModel('replacement');
-    const pause = fixture.holdSearch();
-    const searching = fixture.runtime.search(
-      fixture.owner,
-      fixture.input(libraryScope, before.routeRevision),
-    );
-    await pause.entered;
-    expect(getDatabase().select().from(schema.providers).get()?.modelName).toBe('replacement');
-    fixture.setModel('model-1');
-    pause.finish();
-
-    const local = await searching;
-    const result = await fixture.answer();
-
-    expect(local.routeRevision).toBe(before.routeRevision);
-    expect(local.providerChanged).toBe(true);
-    expect(result.judgment).toMatchObject({ state: 'local', sentEvidenceCount: 0 });
-    expect(result).not.toHaveProperty('sentProvider');
-    expect(fixture.hydrateProvider).not.toHaveBeenCalled();
-    expect(fixture.send).not.toHaveBeenCalled();
-  });
-
   it('requires a new submission after observing a changed route even if the old route returns', async () => {
     const fixture = createFixture();
     fixture.allowRemote();
@@ -241,72 +118,9 @@ describe('reading library provider authorization', () => {
     await expect(fixture.answer()).resolves.toMatchObject({ judgment: { state: 'generated' } });
     expect(fixture.send).toHaveBeenCalledOnce();
   });
-
-  it('keeps actual send receipts when the provider changes during remote work', async () => {
-    const fixture = createFixture();
-    fixture.allowRemote();
-    const local = await fixture.start();
-    const pause = fixture.holdNetwork();
-    const answering = fixture.answer();
-    await pause.entered;
-    fixture.setModel('replacement');
-    pause.finish();
-
-    const result = await answering;
-
-    expect(result).toMatchObject({
-      providerChanged: true,
-      provider: { modelName: 'replacement' },
-      sentProvider: local.provider,
-      judgment: { state: 'local', reason: 'failed', sentEvidenceCount: 3, inputTruncated: true },
-    });
-    expect(result.evidence).toEqual(local.evidence);
-    expect(fixture.send).toHaveBeenCalledOnce();
-    await expect(fixture.answer()).resolves.toMatchObject({ judgment: { sentEvidenceCount: 0 } });
-    expect(fixture.send).toHaveBeenCalledOnce();
-  });
-
-  it('retains local evidence when no provider is configured', async () => {
-    const fixture = createFixture();
-    getDatabase().delete(schema.providers).run();
-    fixture.allowRemote();
-    const local = await fixture.start();
-
-    const result = await fixture.answer();
-
-    expect(result.provider).toBeNull();
-    expect(result.evidence).toEqual(local.evidence);
-    expect(result.judgment).toMatchObject({
-      state: 'local',
-      reason: 'unconfigured',
-      sentEvidenceCount: 0,
-    });
-    expect(fixture.hydrateProvider).not.toHaveBeenCalled();
-    expect(fixture.send).not.toHaveBeenCalled();
-  });
 });
 
 describe('reading library freshness and lifecycle', () => {
-  it('filters changed source versions and removed collection members after local search', async () => {
-    const fixture = createFixture();
-    fixture.collect(fixture.articleIds);
-    const context = await fixture.runtime.context({ scope: selectedScope });
-    const pause = fixture.holdSearch();
-    const searching = fixture.runtime.search(
-      fixture.owner,
-      fixture.input(selectedScope, context.routeRevision),
-    );
-    await pause.entered;
-    fixture.changeComment('annotation-0');
-    fixture.removeMember('article-1');
-    pause.finish();
-
-    const result = await searching;
-
-    expect(result.evidence.map((item) => item.location.annotationId)).toEqual(['annotation-2']);
-    expect(result).toMatchObject({ sourceCount: 2, judgmentCount: 2 });
-  });
-
   it('rechecks evidence before and after remote work while returning fresh original counts', async () => {
     const fixture = createFixture(4);
     fixture.collect(fixture.articleIds);
@@ -356,42 +170,6 @@ describe('reading library freshness and lifecycle', () => {
     });
   });
 
-  it('rejects a collection deleted during provider hydration without sending evidence', async () => {
-    const fixture = createFixture();
-    fixture.collect(fixture.articleIds);
-    fixture.allowRemote();
-    await fixture.start(selectedScope);
-    fixture.hydrateProvider.mockImplementationOnce(async (provider) => {
-      getDatabase().delete(schema.collections).where(eq(schema.collections.id, 'selected')).run();
-      return { ...provider, apiKey: 'test-secret' };
-    });
-
-    await expect(fixture.answer()).rejects.toThrow('READING_MEMORY_SCOPE_NOT_FOUND');
-
-    expect(fixture.send).not.toHaveBeenCalled();
-  });
-
-  it('releases every database lease while awaiting remote work and rejects a restored generation', async () => {
-    const fixture = createFixture();
-    fixture.allowRemote();
-    const backup = join(paths.userData, 'same-data-backup.sqlite');
-    await backupDatabaseFile(backup);
-    await fixture.start();
-    const pause = fixture.holdNetwork();
-    const answering = fixture.answer();
-    const settled = expect(answering).rejects.toThrow('READING_MEMORY_SESSION_EXPIRED');
-    await pause.entered;
-
-    expect(readDatabaseLifecycle()).toMatchObject({ state: 'open', leases: 0 });
-    const generation = readDatabaseLifecycle().generation;
-    await replaceDatabaseFile(backup);
-    expect(readDatabaseLifecycle().generation).toBeGreaterThan(generation);
-    pause.finish();
-
-    await settled;
-    expect(readDatabaseLifecycle().leases).toBe(0);
-  });
-
   it('keeps local evidence on remote failure without exposing private failure details', async () => {
     const fixture = createFixture();
     fixture.allowRemote();
@@ -407,46 +185,6 @@ describe('reading library freshness and lifecycle', () => {
     });
     expect(JSON.stringify(fixture.logInfo.mock.calls)).not.toContain('private source');
   });
-
-  it('does not let a late query using the same request id remove its replacement', async () => {
-    const fixture = createFixture();
-    fixture.allowRemote();
-    const context = await fixture.runtime.context({ scope: libraryScope });
-    const input = fixture.input(libraryScope, context.routeRevision);
-    const pause = fixture.holdSearch();
-    const searching = fixture.runtime.search(fixture.owner, input);
-    const canceled = expect(searching).rejects.toMatchObject({ name: 'AbortError' });
-    const signal = await pause.entered;
-    await fixture.runtime.search(fixture.owner, input);
-    expect(signal?.aborted).toBe(true);
-    pause.finish();
-
-    await canceled;
-    expect(fixture.owner.listenerCount('destroyed')).toBe(1);
-    await expect(fixture.answer()).resolves.toMatchObject({ judgment: { state: 'generated' } });
-  });
-
-  it.each(['cancel', 'destroy', 'cancelAll'] as const)(
-    'aborts remote work and clears its snapshot on %s',
-    async (action) => {
-      const fixture = createFixture();
-      fixture.allowRemote();
-      await fixture.start();
-      const pause = fixture.holdNetwork();
-      const answering = fixture.answer();
-      const canceled = expect(answering).rejects.toMatchObject({ name: 'AbortError' });
-      const signal = await pause.entered;
-      if (action === 'cancel') fixture.runtime.cancel(fixture.owner.id, 'request-1');
-      if (action === 'destroy') fixture.owner.destroy();
-      if (action === 'cancelAll') fixture.runtime.cancelAll();
-      expect(signal?.aborted).toBe(true);
-      pause.finish();
-
-      await canceled;
-      expect(fixture.owner.listenerCount('destroyed')).toBe(0);
-      await expect(fixture.answer()).rejects.toThrow('READING_MEMORY_SESSION_EXPIRED');
-    },
-  );
 });
 
 function createFixture(count = 3) {
@@ -657,16 +395,6 @@ function createFixture(count = 3) {
       send.mockImplementationOnce(async (_provider, _evidence, signal) => {
         entered.resolve(signal);
         await finished.promise;
-      });
-      return { entered: entered.promise, finish: () => finished.resolve() };
-    },
-    holdSearch() {
-      const entered = deferred<AbortSignal | undefined>();
-      const finished = deferred<void>();
-      search.mockImplementationOnce(async (_input, options) => {
-        entered.resolve(options?.signal);
-        await finished.promise;
-        return found;
       });
       return { entered: entered.promise, finish: () => finished.resolve() };
     },

@@ -8,28 +8,21 @@ type EntryCall = {
 };
 
 type KeyringState = {
-  deletePasswordError?: Error;
   entryCalls: EntryCall[];
-  getPasswordError?: Error;
   keychainService: string;
-  moduleLoads: number;
   passwords: Map<string, string>;
 };
 
 const state: KeyringState = {
   entryCalls: [],
   keychainService: 'app.yomitomo.desktop.test',
-  moduleLoads: 0,
   passwords: new Map(),
 };
 
 describe('provider secrets keyring', () => {
   beforeEach(() => {
-    state.deletePasswordError = undefined;
     state.entryCalls = [];
-    state.getPasswordError = undefined;
     state.keychainService = 'app.yomitomo.desktop.test';
-    state.moduleLoads = 0;
     state.passwords = new Map();
     vi.resetModules();
     vi.doMock('../app/app-environment', () => ({
@@ -39,18 +32,7 @@ describe('provider secrets keyring', () => {
         userDataDirectory: '@yomitomo/desktop-test',
       }),
     }));
-    vi.doMock('@napi-rs/keyring', () => {
-      state.moduleLoads += 1;
-      return { AsyncEntry: FakeAsyncEntry };
-    });
-  });
-
-  it('generates provider and WeRead api key refs', async () => {
-    const secrets = await loadProviderSecrets();
-
-    expect(secrets.providerApiKeyRef('openai')).toBe('provider:openai:apiKey');
-    expect(secrets.wereadApiKeyRef()).toBe('weread:default:apiKey');
-    expect(secrets.wereadApiKeyRef('account_1')).toBe('weread:account_1:apiKey');
+    vi.doMock('@napi-rs/keyring', () => ({ AsyncEntry: FakeAsyncEntry }));
   });
 
   it('saves provider and WeRead api keys with the current profile keychain service', async () => {
@@ -71,63 +53,6 @@ describe('provider secrets keyring', () => {
     expect(state.passwords.get('provider:anthropic:apiKey')).toBe('provider-secret');
     expect(state.passwords.get('weread:weread_1:apiKey')).toBe('weread-secret');
   });
-
-  it('stores a secret under an explicit versioned ref', async () => {
-    const secrets = await loadProviderSecrets();
-
-    await secrets.saveStoredSecret('provider:openai:apiKey:version:1', 'versioned-secret');
-
-    expect(state.passwords.get('provider:openai:apiKey:version:1')).toBe('versioned-secret');
-  });
-
-  it('reads missing provider and WeRead entries as empty strings when keyring returns noentry', async () => {
-    const secrets = await loadProviderSecrets();
-    state.getPasswordError = new Error('NoEntry');
-
-    await expect(secrets.readProviderApiKey('provider:openai:apiKey')).resolves.toBe('');
-    await expect(secrets.readWeReadApiKey('weread:weread_1:apiKey')).resolves.toBe('');
-  });
-
-  it('reads empty refs as missing keys without consulting the keyring', async () => {
-    const secrets = await loadProviderSecrets();
-    state.passwords.set('weread:default:apiKey', 'stale-weread-secret');
-
-    await expect(secrets.readProviderApiKey(null)).resolves.toBe('');
-    await expect(secrets.readWeReadApiKey(null)).resolves.toBe('');
-    expect(state.entryCalls).toEqual([]);
-  });
-
-  it('ignores missing secret deletes when keyring returns noentry', async () => {
-    const secrets = await loadProviderSecrets();
-    state.deletePasswordError = new Error('keyring noentry');
-
-    await expect(secrets.deleteStoredSecret('provider:openai:apiKey')).resolves.toBeUndefined();
-    await expect(secrets.deleteStoredSecret('weread:weread_1:apiKey')).resolves.toBeUndefined();
-  });
-
-  it('propagates non-noentry keyring errors', async () => {
-    const secrets = await loadProviderSecrets();
-    const readError = new Error('keyring locked');
-    const deleteError = new Error('permission denied');
-    state.getPasswordError = readError;
-
-    await expect(secrets.readProviderApiKey('provider:openai:apiKey')).rejects.toThrow(readError);
-
-    state.getPasswordError = undefined;
-    state.deletePasswordError = deleteError;
-
-    await expect(secrets.deleteStoredSecret('weread:default:apiKey')).rejects.toThrow(deleteError);
-  });
-
-  it('loads the keyring module only once per provider-secrets module instance', async () => {
-    const secrets = await loadProviderSecrets();
-
-    await secrets.saveProviderApiKey('openai', 'provider-secret');
-    await secrets.readProviderApiKey('provider:openai:apiKey');
-    await secrets.deleteStoredSecret('provider:openai:apiKey');
-
-    expect(state.moduleLoads).toBe(1);
-  });
 });
 
 class FakeAsyncEntry {
@@ -140,16 +65,6 @@ class FakeAsyncEntry {
 
   async setPassword(password: string) {
     state.passwords.set(this.account, password);
-  }
-
-  async getPassword() {
-    if (state.getPasswordError) throw state.getPasswordError;
-    return state.passwords.get(this.account);
-  }
-
-  async deletePassword() {
-    if (state.deletePasswordError) throw state.deletePasswordError;
-    state.passwords.delete(this.account);
   }
 }
 

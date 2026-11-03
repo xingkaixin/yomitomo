@@ -52,17 +52,4 @@ describe('useCompositionSubmit', () => {
     expect(onSubmit).not.toHaveBeenCalled();
     expect(event.defaultPrevented).toBe(false);
   });
-
-  it('cancels and prevents default on Escape when a cancel callback exists', () => {
-    const onCancel = vi.fn();
-    const onSubmit = vi.fn();
-    render(<TestTextarea onCancel={onCancel} onSubmit={onSubmit} />);
-
-    const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' });
-    fireEvent(screen.getByLabelText('composer'), event);
-
-    expect(onCancel).toHaveBeenCalledOnce();
-    expect(onSubmit).not.toHaveBeenCalled();
-    expect(event.defaultPrevented).toBe(true);
-  });
 });

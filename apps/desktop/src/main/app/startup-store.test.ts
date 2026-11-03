@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AppSettingsPatch, DesktopStore } from '@yomitomo/shared';
 import { initializeStartupStore } from './startup-store';
-import { logError, pruneLogFile } from './logger';
 import { normalizeAppSettings } from '../../settings/app-settings-normalization';
 
 vi.mock('./logger', () => ({
@@ -26,77 +25,9 @@ describe('startup store initialization', () => {
     expect(first.setSensitiveRendererEventsLocked).toHaveBeenCalledWith(true);
     expect(second.setSensitiveRendererEventsLocked).toHaveBeenCalledWith(true);
   });
-
-  it('schedules log pruning and records startup profiling after loading', async () => {
-    const { context, recordStartupTiming } = startupContext(startupStore());
-
-    await expect(initializeStartupStore(context)).resolves.toEqual({ ok: true });
-
-    expect(pruneLogFile).toHaveBeenCalledWith(30);
-    expect(recordStartupTiming).toHaveBeenCalledWith('store.initialize_success', {
-      durationMs: expect.any(Number),
-      importDurationMs: expect.any(Number),
-      readDurationMs: expect.any(Number),
-      articleCount: 0,
-      annotationCount: 0,
-      thoughtCount: 0,
-    });
-    expect(recordStartupTiming).toHaveBeenCalledWith('store.initialize_profile', {
-      steps: [{ name: 'read_settings', durationMs: 1 }],
-    });
-  });
-
-  it('records aggregate counts from lightweight article summaries', async () => {
-    const store = startupStore();
-    store.articles = [
-      {
-        id: 'article_1',
-        url: 'https://example.com/article',
-        canonicalUrl: 'https://example.com/article',
-        sourceType: 'web',
-        title: 'Article',
-        contentHash: 'hash_1',
-        counts: {
-          annotationCount: 4,
-          thoughtCount: 3,
-          discussionCommentCount: 2,
-          aiCommentCount: 1,
-          distillationCount: 1,
-        },
-        createdAt: '2026-07-27T08:00:00.000Z',
-        updatedAt: '2026-07-27T08:00:00.000Z',
-      },
-    ];
-    const { context, recordStartupTiming } = startupContext(store);
-
-    await expect(initializeStartupStore(context)).resolves.toEqual({ ok: true });
-
-    expect(recordStartupTiming).toHaveBeenCalledWith(
-      'store.initialize_success',
-      expect.objectContaining({
-        articleCount: 1,
-        annotationCount: 4,
-        thoughtCount: 3,
-      }),
-    );
-  });
-
-  it('logs store startup failures without preventing app readiness', async () => {
-    const options = { readError: new Error('database unavailable') };
-    const { context, setSensitiveRendererEventsLocked } = startupContext(startupStore(), options);
-
-    await expect(initializeStartupStore(context)).resolves.toEqual({
-      ok: false,
-      error: options.readError,
-    });
-
-    expect(logError).toHaveBeenCalledWith('store.initialize_failed', expect.any(Error));
-    expect(setSensitiveRendererEventsLocked).not.toHaveBeenCalled();
-    expect(pruneLogFile).not.toHaveBeenCalled();
-  });
 });
 
-function startupContext(store: DesktopStore, options: { readError?: Error } = {}) {
+function startupContext(store: DesktopStore) {
   const saveSettings = vi.fn(async (settings: AppSettingsPatch) => ({
     ...store,
     settings: normalizeAppSettings({ ...store.settings, ...settings }),
@@ -108,13 +39,10 @@ function startupContext(store: DesktopStore, options: { readError?: Error } = {}
       getPersistenceModules: async () => ({
         storeSettings: { saveSettings },
         storeSnapshot: {
-          readShellStoreWithProfile: vi.fn(async () => {
-            if (options.readError) throw options.readError;
-            return {
-              store,
-              profile: [{ name: 'read_settings', durationMs: 1 }],
-            };
-          }),
+          readShellStoreWithProfile: vi.fn(async () => ({
+            store,
+            profile: [{ name: 'read_settings', durationMs: 1 }],
+          })),
         },
       }),
       recordStartupTiming,

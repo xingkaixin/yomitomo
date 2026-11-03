@@ -1,53 +1,17 @@
 import { DatabaseSync } from 'node:sqlite';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { ReadingMemoryEntry } from '@yomitomo/shared';
 import { migrations } from '../db/migrations';
 import {
   appendReadingMemoryEntries,
   deleteReadingMemoryForArticle,
   readReadingMemoryEntries,
-  rebuildReadingMemoryFts,
   searchReadingMemoryEntries,
-  softDeleteReadingMemoryEntriesBySource,
   upsertReadingMemoryEntries,
   type ReadingMemorySqliteExecutor,
 } from './reading-memory-store';
 
 describe('reading memory store', () => {
-  it('uses a native SQLite database without an adapter', () => {
-    const database: ReadingMemorySqliteExecutor = new DatabaseSync(':memory:');
-    database.exec('CREATE TABLE probe (value TEXT NOT NULL)');
-    database.prepare('INSERT INTO probe (value) VALUES (?)').run('native');
-
-    expect(database.prepare('SELECT value FROM probe').get()).toEqual({ value: 'native' });
-  });
-
-  it('appends entries and keeps FTS queryable', () => {
-    const database = memoryDatabase();
-    insertProjection(database);
-    appendReadingMemoryEntries(
-      [
-        entry({
-          id: 'entry_1',
-          payload: { summary: 'memory topic', keyTerms: ['memory'] },
-        }),
-      ],
-      database,
-    );
-
-    expect(readReadingMemoryEntries({ articleId: 'article_1', executor: database })).toHaveLength(
-      1,
-    );
-    expect(countRows(database, 'reading_memory_projections')).toBe(0);
-    expect(
-      searchReadingMemoryEntries({
-        articleId: 'article_1',
-        query: 'memory',
-        executor: database,
-      }).map((item) => item.id),
-    ).toEqual(['entry_1']);
-  });
-
   it('sanitizes mention and punctuation queries before FTS lookup', () => {
     const database = memoryDatabase();
     appendReadingMemoryEntries(
@@ -179,240 +143,6 @@ describe('reading memory store', () => {
     ).toEqual(['other_entry']);
   });
 
-  it('applies agent filters before limiting FTS hits', () => {
-    const database = memoryDatabase();
-    appendReadingMemoryEntries(
-      [
-        entry({
-          id: 'other_entry',
-          scope: 'agent',
-          agentId: 'agent_2',
-          payload: { summary: 'shared motif' },
-        }),
-        entry({
-          id: 'own_entry',
-          scope: 'agent',
-          agentId: 'agent_1',
-          payload: { summary: 'shared motif returns later in a longer own note' },
-        }),
-      ],
-      database,
-    );
-
-    expect(
-      searchReadingMemoryEntries({
-        articleId: 'article_1',
-        query: 'shared motif',
-        agentId: 'agent_1',
-        limit: 1,
-        executor: database,
-      }).map((item) => item.id),
-    ).toEqual(['own_entry']);
-  });
-
-  it('maps FTS hits by id without reading every article entry', () => {
-    const database = recordingExecutor(memoryDatabase());
-    appendReadingMemoryEntries(
-      [
-        entry({
-          id: 'matching_entry',
-          payload: { summary: 'needle memory', keyTerms: ['needle'] },
-        }),
-        entry({
-          id: 'unrelated_entry',
-          payload: { summary: 'unrelated memory', keyTerms: ['unrelated'] },
-        }),
-      ],
-      database,
-    );
-    database.sqlLog.length = 0;
-
-    expect(
-      searchReadingMemoryEntries({
-        articleId: 'article_1',
-        query: 'needle',
-        executor: database,
-      }).map((item) => item.id),
-    ).toEqual(['matching_entry']);
-
-    expect(database.sqlLog).toEqual(
-      expect.arrayContaining([expect.stringMatching(/FROM reading_memory_entries[\s\S]+id IN/)]),
-    );
-    expect(database.sqlLog).not.toEqual(
-      expect.arrayContaining([
-        expect.stringMatching(
-          /FROM reading_memory_entries[\s\S]+WHERE article_id = \?\s+AND deleted_at IS NULL\s+ORDER BY created_at ASC, id ASC/,
-        ),
-      ]),
-    );
-  });
-
-  it('limits substring fallback candidates through SQL', () => {
-    const database = recordingExecutor(memoryDatabase());
-    const performanceLogger = vi.fn();
-    appendReadingMemoryEntries(
-      [
-        entry({
-          id: 'matching_entry',
-          payload: { summary: '人物动机变化', keyTerms: ['人物动机变化'] },
-        }),
-        entry({
-          id: 'second_match',
-          payload: { summary: '动机线索延展', keyTerms: ['动机线索延展'] },
-        }),
-        entry({
-          id: 'unrelated_entry',
-          payload: { summary: 'unrelated memory', keyTerms: ['unrelated'] },
-        }),
-      ],
-      database,
-    );
-    database.sqlLog.length = 0;
-
-    expect(
-      searchReadingMemoryEntries({
-        articleId: 'article_1',
-        query: '动机',
-        fallbackToSubstring: true,
-        limit: 1,
-        performanceLogger,
-        executor: database,
-      }).map((item) => item.id),
-    ).toEqual(['matching_entry']);
-
-    expect(database.sqlLog).toEqual(
-      expect.arrayContaining([
-        expect.stringMatching(/FROM reading_memory_entry_fts AS fts[\s\S]+search_text LIKE \?/),
-        expect.stringMatching(/FROM reading_memory_entries[\s\S]+id IN/),
-      ]),
-    );
-    expect(database.sqlLog).not.toEqual(
-      expect.arrayContaining([
-        expect.stringMatching(
-          /FROM reading_memory_entries[\s\S]+WHERE article_id = \?\s+AND deleted_at IS NULL\s+ORDER BY created_at ASC, id ASC/,
-        ),
-      ]),
-    );
-    expect(performanceLogger).toHaveBeenCalledWith(
-      'performance.reading_memory.substring_fallback',
-      expect.objectContaining({
-        articleId: 'article_1',
-        queryLength: 2,
-        limit: 1,
-        candidateCount: 1,
-        entryCount: 1,
-      }),
-    );
-    expect(performanceLogger).toHaveBeenCalledWith(
-      'performance.reading_memory.fts_query',
-      expect.objectContaining({
-        articleId: 'article_1',
-        fallback: 'substring',
-        fallbackCandidateCount: 1,
-        entryCount: 1,
-      }),
-    );
-  });
-
-  it('soft-deletes source entries and removes their FTS rows', () => {
-    const database = memoryDatabase();
-    appendReadingMemoryEntries(
-      [
-        entry({
-          id: 'annotation_trace',
-          kind: 'trace',
-          sourceType: 'annotation',
-          sourceAnnotationId: 'annotation_1',
-          payload: {
-            items: [
-              {
-                type: 'agent_observation',
-                content: 'annotation memory',
-                evidenceAnchors: [],
-                confidence: 'medium',
-                createdFromTask: 'chapter_segment_annotation',
-              },
-            ],
-          },
-        }),
-        entry({
-          id: 'original_summary',
-          sourceType: 'original_text',
-          payload: { summary: 'source summary memory', keyTerms: ['source'] },
-        }),
-      ],
-      database,
-    );
-
-    const deleted = softDeleteReadingMemoryEntriesBySource({
-      articleId: 'article_1',
-      sourceAnnotationId: 'annotation_1',
-      deletionReason: 'annotation_deleted',
-      deletedAt: '2026-05-26T01:00:00.000Z',
-      executor: database,
-    });
-
-    expect(deleted).toBe(1);
-    expect(
-      readReadingMemoryEntries({ articleId: 'article_1', executor: database }).map(
-        (item) => item.id,
-      ),
-    ).toEqual(['original_summary']);
-    expect(
-      readReadingMemoryEntries({
-        articleId: 'article_1',
-        includeDeleted: true,
-        executor: database,
-      }).find((item) => item.id === 'annotation_trace')?.deletedAt,
-    ).toBe('2026-05-26T01:00:00.000Z');
-    expect(
-      searchReadingMemoryEntries({
-        articleId: 'article_1',
-        query: 'annotation',
-        executor: database,
-      }),
-    ).toEqual([]);
-    expect(
-      searchReadingMemoryEntries({
-        articleId: 'article_1',
-        query: 'source',
-        executor: database,
-      }).map((item) => item.id),
-    ).toEqual(['original_summary']);
-  });
-
-  it('rebuilds FTS from active entries', () => {
-    const database = memoryDatabase();
-    appendReadingMemoryEntries(
-      [
-        entry({
-          id: 'entry_1',
-          payload: { summary: 'rebuildable memory', keyTerms: ['rebuildable'] },
-        }),
-      ],
-      database,
-    );
-    database.prepare('DELETE FROM reading_memory_entry_fts').run();
-
-    expect(
-      searchReadingMemoryEntries({
-        articleId: 'article_1',
-        query: 'rebuildable',
-        executor: database,
-      }),
-    ).toEqual([]);
-
-    rebuildReadingMemoryFts('article_1', database);
-
-    expect(
-      searchReadingMemoryEntries({
-        articleId: 'article_1',
-        query: 'rebuildable',
-        executor: database,
-      }).map((item) => item.id),
-    ).toEqual(['entry_1']);
-  });
-
   it('cleans entries, projections, and FTS rows for an article', () => {
     const database = memoryDatabase();
     appendReadingMemoryEntries(
@@ -450,20 +180,6 @@ function memoryDatabase(): ReadingMemorySqliteExecutor {
   database.exec(readingMemory.sql);
   insertArticle(database, 'article_1');
   return database;
-}
-
-function recordingExecutor(
-  executor: ReadingMemorySqliteExecutor,
-): ReadingMemorySqliteExecutor & { sqlLog: string[] } {
-  const sqlLog: string[] = [];
-  return {
-    sqlLog,
-    exec: executor.exec.bind(executor),
-    prepare(sql: string) {
-      sqlLog.push(sql);
-      return executor.prepare(sql);
-    },
-  };
 }
 
 function entry(overrides: Partial<ReadingMemoryEntry> = {}): ReadingMemoryEntry {

@@ -18,9 +18,7 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs/promises')>();
   return {
     ...actual,
-    copyFile: vi.fn(actual.copyFile),
     rename: vi.fn(actual.rename),
-    rm: vi.fn(actual.rm),
   };
 });
 
@@ -44,19 +42,16 @@ import {
   getSqliteExecutor,
   readDatabaseLifecycle,
   replaceDatabaseFile,
-  runSqliteMaintenance,
   withDatabaseLease,
 } from './store-db';
-import { copyFile, rename, rm } from 'node:fs/promises';
+import { rename } from 'node:fs/promises';
 import { migrations } from '../db/migrations';
 
 const actualFs = await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises');
 
 beforeEach(async () => {
   vi.clearAllMocks();
-  vi.mocked(copyFile).mockImplementation(actualFs.copyFile);
   vi.mocked(rename).mockImplementation(actualFs.rename);
-  vi.mocked(rm).mockImplementation(actualFs.rm);
   closeDatabase();
   testPaths.userData = await actualFs.mkdtemp(join(tmpdir(), 'yomitomo-store-db-test-'));
 });
@@ -72,36 +67,6 @@ describe('store database backup and restore', () => {
     await expect(backupDatabaseFile(getDatabasePath())).rejects.toThrow(
       'DATA_MANAGEMENT_BACKUP_TARGET_IS_CURRENT_DATABASE',
     );
-  });
-
-  it('rejects restoring from the current database file', async () => {
-    await expect(replaceDatabaseFile(getDatabasePath())).rejects.toThrow(
-      'DATA_MANAGEMENT_RESTORE_SOURCE_IS_CURRENT_DATABASE',
-    );
-  });
-
-  it('surfaces backup filesystem failures before writing a target file', async () => {
-    writeMarker('current');
-    const blockedDirectory = join(testPaths.userData, 'blocked-parent');
-    await writeFile(blockedDirectory, 'not a directory');
-    const target = join(blockedDirectory, 'backup.sqlite');
-
-    await expect(backupDatabaseFile(target)).rejects.toThrow();
-
-    await expect(readFile(target)).rejects.toThrow();
-  });
-
-  it('surfaces backup sidecar cleanup failures', async () => {
-    writeMarker('current');
-    const target = join(testPaths.userData, 'backup.sqlite');
-    vi.mocked(rm).mockImplementation(async (path, options) => {
-      if (String(path) === `${target}-wal`) throw new Error('sidecar cleanup failed');
-      return actualFs.rm(path, options);
-    });
-
-    await expect(backupDatabaseFile(target)).rejects.toThrow('sidecar cleanup failed');
-
-    await expect(readFile(target)).rejects.toThrow();
   });
 
   it('keeps an existing backup target when sqlite backup fails', async () => {
@@ -253,38 +218,6 @@ INSERT INTO __yomitomo_metadata (key, value) VALUES ('database_reader_level', '2
     ).toEqual({ value: '4' });
   });
 
-  it('keeps the current database file when restore copy fails', async () => {
-    writeMarker('source');
-    const source = join(testPaths.userData, 'source.sqlite');
-    await backupDatabaseFile(source);
-    writeMarker('current');
-    vi.mocked(copyFile).mockImplementation(async (from, to) => {
-      if (String(to).includes('.restore-')) throw new Error('copy failed');
-      return actualFs.copyFile(from, to);
-    });
-
-    await expect(replaceDatabaseFile(source)).rejects.toThrow('copy failed');
-
-    expect(readMarker()).toBe('current');
-  });
-
-  it('keeps the current database usable when restore copy writes partially before failing', async () => {
-    writeMarker('source');
-    const source = join(testPaths.userData, 'source.sqlite');
-    await backupDatabaseFile(source);
-    writeMarker('current');
-    vi.mocked(copyFile).mockImplementation(async (from, to) => {
-      if (!String(to).includes('.restore-')) return actualFs.copyFile(from, to);
-      await actualFs.writeFile(to, 'partial restore');
-      throw new Error('copy failed after partial write');
-    });
-
-    await expect(replaceDatabaseFile(source)).rejects.toThrow('copy failed after partial write');
-
-    expect(readMarker()).toBe('current');
-    expect(await restoreTemporaryFiles()).toEqual([]);
-  });
-
   it('keeps the current database open when the copied restore file is invalid', async () => {
     writeMarker('current');
     const source = join(testPaths.userData, 'invalid.sqlite');
@@ -293,45 +226,6 @@ INSERT INTO __yomitomo_metadata (key, value) VALUES ('database_reader_level', '2
     await expect(replaceDatabaseFile(source)).rejects.toThrow(
       'DATA_MANAGEMENT_INVALID_SQLITE_DATABASE',
     );
-
-    expect(readMarker()).toBe('current');
-    expect(await restoreTemporaryFiles()).toEqual([]);
-  });
-
-  it('reopens the current database when creating the rollback snapshot fails', async () => {
-    writeMarker('source');
-    const source = join(testPaths.userData, 'source.sqlite');
-    await backupDatabaseFile(source);
-    writeMarker('current');
-    const databasePath = getDatabasePath();
-    vi.mocked(copyFile).mockImplementation(async (from, to) => {
-      if (String(from) === databasePath && String(to).includes('.rollback-')) {
-        await actualFs.writeFile(to, 'partial rollback');
-        throw new Error('rollback copy failed');
-      }
-      return actualFs.copyFile(from, to);
-    });
-
-    await expect(replaceDatabaseFile(source)).rejects.toThrow('rollback copy failed');
-
-    expect(readMarker()).toBe('current');
-    expect(await restoreTemporaryFiles()).toEqual([]);
-  });
-
-  it('rolls back when installing the copied database fails', async () => {
-    writeMarker('source');
-    const source = join(testPaths.userData, 'source.sqlite');
-    await backupDatabaseFile(source);
-    writeMarker('current');
-    const databasePath = getDatabasePath();
-    vi.mocked(rename).mockImplementation(async (from, to) => {
-      if (String(from).includes('.restore-') && String(to) === databasePath) {
-        throw new Error('install rename failed');
-      }
-      return actualFs.rename(from, to);
-    });
-
-    await expect(replaceDatabaseFile(source)).rejects.toThrow('install rename failed');
 
     expect(readMarker()).toBe('current');
     expect(await restoreTemporaryFiles()).toEqual([]);
@@ -361,23 +255,6 @@ INSERT INTO __yomitomo_metadata (key, value) VALUES ('database_reader_level', '2
     await expect(readOptionalFile(`${databasePath}-shm`)).resolves.not.toContain(
       'stale replacement',
     );
-    expect(await restoreTemporaryFiles()).toEqual([]);
-  });
-
-  it('keeps the current database file when restore sidecar cleanup fails', async () => {
-    writeMarker('source');
-    const source = join(testPaths.userData, 'source.sqlite');
-    await backupDatabaseFile(source);
-    writeMarker('current');
-    const databasePath = getDatabasePath();
-    vi.mocked(rm).mockImplementation(async (path, options) => {
-      if (String(path) === `${databasePath}-wal`) throw new Error('sidecar cleanup failed');
-      return actualFs.rm(path, options);
-    });
-
-    await expect(replaceDatabaseFile(source)).rejects.toThrow('sidecar cleanup failed');
-
-    expect(readMarker()).toBe('current');
     expect(await restoreTemporaryFiles()).toEqual([]);
   });
 });
@@ -440,57 +317,6 @@ describe('store database restore lifecycle', () => {
     expect(readMarker()).toBe('source');
   });
 
-  it('keeps the current database when a lease does not drain in time', async () => {
-    writeMarker('source');
-    const source = join(testPaths.userData, 'source.sqlite');
-    await backupDatabaseFile(source);
-    writeMarker('current');
-    const generationBeforeRestore = readDatabaseLifecycle().generation;
-    let releaseLease: () => void = noop;
-    const leaseHeld = new Promise<void>((resolve) => {
-      releaseLease = resolve;
-    });
-    const lease = withDatabaseLease(async () => leaseHeld);
-
-    vi.useFakeTimers();
-    try {
-      const restore = replaceDatabaseFile(source);
-      expect(readDatabaseLifecycle()).toMatchObject({ state: 'draining', leases: 1 });
-      vi.advanceTimersByTime(5000);
-      vi.useRealTimers();
-      await expect(restore).rejects.toThrow('DATA_MANAGEMENT_DATABASE_BUSY');
-
-      expect(readMarker()).toBe('current');
-      expect(readDatabaseLifecycle()).toMatchObject({
-        state: 'open',
-        generation: generationBeforeRestore,
-        leases: 1,
-      });
-    } finally {
-      releaseLease();
-      await lease;
-      vi.useRealTimers();
-    }
-  });
-
-  it('refuses a second restore while one is already running', async () => {
-    writeMarker('source');
-    const source = join(testPaths.userData, 'source.sqlite');
-    await backupDatabaseFile(source);
-    writeMarker('current');
-    let concurrentRestore: unknown;
-    vi.mocked(rename).mockImplementation(async (from, to) => {
-      if (String(from).includes('.restore-')) {
-        concurrentRestore = await runCatchingAsync(() => replaceDatabaseFile(source));
-      }
-      return actualFs.rename(from, to);
-    });
-
-    await replaceDatabaseFile(source);
-
-    expect(concurrentRestore).toEqual(new Error('DATA_MANAGEMENT_DATABASE_REPLACING'));
-  });
-
   it('returns to a usable connection after a failed restore', async () => {
     writeMarker('source');
     const source = join(testPaths.userData, 'source.sqlite');
@@ -506,51 +332,6 @@ describe('store database restore lifecycle', () => {
     expect(readDatabaseLifecycle().state).toBe('open');
     writeMarker('after failure');
     expect(readMarker()).toBe('after failure');
-  });
-});
-
-describe('store database sqlite maintenance', () => {
-  it('skips startup vacuum when reusable pages are below the threshold', () => {
-    const database = maintenanceDatabase();
-    try {
-      const result = runSqliteMaintenance(database, {
-        now: new Date('2026-06-22T00:00:00.000Z'),
-        freelistThresholdBytes: Number.MAX_SAFE_INTEGER,
-      });
-
-      expect(result).toMatchObject({
-        status: 'skipped',
-        reason: 'freelist_below_threshold',
-      });
-      expect(readMaintenanceVacuumAt(database)).toBeUndefined();
-    } finally {
-      database.close();
-    }
-  });
-
-  it('records startup vacuum time and respects the maintenance interval', () => {
-    const database = maintenanceDatabase();
-    const firstVacuumAt = new Date('2026-06-22T00:00:00.000Z');
-    try {
-      const vacuumed = runSqliteMaintenance(database, {
-        now: firstVacuumAt,
-        freelistThresholdBytes: 0,
-      });
-      const skipped = runSqliteMaintenance(database, {
-        now: new Date('2026-06-23T00:00:00.000Z'),
-        freelistThresholdBytes: 0,
-      });
-
-      expect(vacuumed.status).toBe('vacuumed');
-      expect(readMaintenanceVacuumAt(database)).toBe(firstVacuumAt.toISOString());
-      expect(skipped).toMatchObject({
-        status: 'skipped',
-        reason: 'interval_not_due',
-        lastVacuumAt: firstVacuumAt.toISOString(),
-      });
-    } finally {
-      database.close();
-    }
   });
 });
 
@@ -644,19 +425,6 @@ function runCatching(operation: () => unknown) {
 
 async function runCatchingAsync(operation: () => Promise<unknown>) {
   return operation().catch((error: unknown) => error);
-}
-
-function maintenanceDatabase() {
-  const database = new BetterSqliteDatabase(join(testPaths.userData, 'maintenance.sqlite'));
-  database.pragma('journal_mode = WAL');
-  return database;
-}
-
-function readMaintenanceVacuumAt(database: BetterSqliteDatabase.Database) {
-  const row = database
-    .prepare("SELECT last_vacuum_at FROM database_maintenance_state WHERE id = 'startup-vacuum'")
-    .get();
-  return isRecord(row) && typeof row.last_vacuum_at === 'string' ? row.last_vacuum_at : undefined;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

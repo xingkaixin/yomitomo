@@ -1,24 +1,6 @@
-import type { Annotation, ArticleRecord } from '@yomitomo/shared';
+import type { ArticleRecord } from '@yomitomo/shared';
 
-export const now = '2026-05-09T12:00:00.000Z';
-
-export function annotation(id: string, createdAt = now): Annotation {
-  return {
-    id,
-    anchor: {
-      exact: '正文',
-      prefix: '',
-      suffix: '',
-      start: 0,
-      end: 2,
-    },
-    author: { kind: 'user', username: 'reader' },
-    color: '#f4c95d',
-    comments: [],
-    createdAt,
-    updatedAt: createdAt,
-  };
-}
+const now = '2026-05-09T12:00:00.000Z';
 
 type WebArticleRecord = Extract<ArticleRecord, { sourceType: 'web' }>;
 type EbookArticleRecord = Extract<ArticleRecord, { sourceType: 'ebook' }>;
@@ -55,15 +37,4 @@ export function article(overrides: ArticleInput = {}): ArticleRecord {
     default:
       return { ...base, ...overrides, sourceType: 'web' };
   }
-}
-
-export function annotationWithPublishedDistillation(id: string): Annotation {
-  return {
-    ...annotation(id),
-    distillation: {
-      status: 'published',
-      content: `沉淀 ${id}`,
-      publishedAt: '2026-05-09T12:04:00.000Z',
-    },
-  };
 }

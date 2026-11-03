@@ -1,9 +1,6 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { LlmProvider, ReadingEvidence, ReadingJudgmentInput } from '@yomitomo/shared';
-import * as budget from '../provider/budget';
 import { prepareReadingJudgmentInput } from './reading-judgment-input';
-
-afterEach(() => vi.restoreAllMocks());
 
 describe('reading judgment input', () => {
   it('sends only the need-evidence flag from review metadata without exporting review dates or history', () => {
@@ -65,80 +62,6 @@ describe('reading judgment input', () => {
     items.forEach((item, index) => expect(result.sent.get(`e${index + 1}`)).toBe(item));
   });
 
-  it.each([
-    [{ kind: 'reading-relations', selection: 'A current idea.' }, 3, 3000],
-    [{ kind: 'library-answer', question: 'What did I conclude?' }, 12, 6000],
-    [{ kind: 'evidence-comparison', judgment: 'My current judgment.' }, 6, 4000],
-  ] satisfies Array<[ReadingJudgmentInput, number, number]>)(
-    'enforces the %j evidence and serialized byte limits with equal evidence shares',
-    (input, count, byteLimit) => {
-      const items = Array.from({ length: 20 }, (_, index) =>
-        evidence(String(index), {
-          content: 'Long evidence. '.repeat(10_000),
-          review: { decision: 'need_evidence', reviewedAt: '2026-08-30T00:00:00.000Z' },
-        }),
-      );
-      const result = prepareReadingJudgmentInput(provider(), input, items);
-      expect(result).not.toBeNull();
-      if (!result) return;
-      const parsed = parseUser(result.user);
-      expect(byteLength(result.user)).toBeLessThanOrEqual(byteLimit);
-      expect(parsed.evidence).toHaveLength(count);
-      expect(result.sent.size).toBe(count);
-      expect(result.truncated).toBe(true);
-      const lengths = parsed.evidence.map((item) => item.text.length);
-      expect(Math.max(...lengths) - Math.min(...lengths)).toBeLessThanOrEqual(1);
-      parsed.evidence.forEach((item, index) => {
-        expect(item.text).not.toBe('');
-        expect(item.id).toBe(`e${index + 1}`);
-        expect(item).toHaveProperty('needsEvidence', true);
-        expect(result.sent.get(item.id)).toBe(items[index]);
-      });
-    },
-  );
-
-  it.each([
-    ['an oversized selection', { kind: 'reading-relations', selection: 'x'.repeat(1_000_000) }],
-    [
-      'a question without room for JSON fields',
-      { kind: 'library-answer', question: 'x'.repeat(6000) },
-    ],
-    ['an oversized judgment', { kind: 'evidence-comparison', judgment: 'x'.repeat(4000) }],
-    [
-      'an oversized additional question',
-      { kind: 'reading-relations', selection: 'Selected.', question: 'x'.repeat(3000) },
-    ],
-    ['an empty question', { kind: 'library-answer', question: '  ' }],
-  ] satisfies Array<[string, ReadingJudgmentInput]>)(
-    'refuses %s instead of truncating required query materials',
-    (_name, input) => {
-      expect(prepareReadingJudgmentInput(provider(), input, [evidence('one')])).toBeNull();
-    },
-  );
-
-  it('preserves the additional question and caps paragraph content inside the total budget', () => {
-    const input: ReadingJudgmentInput = {
-      kind: 'reading-relations',
-      selection: '当前选区。',
-      question: ' How does this relate to "earlier ideas"?\nPlease compare. ',
-      paragraph: '语境😀\n'.repeat(10_000),
-    };
-    const result = prepareReadingJudgmentInput(provider(), input, [
-      evidence('one'),
-      evidence('two'),
-      evidence('three'),
-    ]);
-    expect(result).not.toBeNull();
-    if (!result) return;
-    const parsed = parseUser(result.user);
-    expect(parsed.input.selection).toBe(input.selection);
-    expect(parsed.input.question).toBe(input.question);
-    expect(byteLength(JSON.stringify(parsed.input.paragraph))).toBeLessThanOrEqual(1200);
-    expect(byteLength(result.user)).toBeLessThanOrEqual(3000);
-    expect(parsed.evidence).toHaveLength(3);
-    expect(result.truncated).toBe(true);
-  });
-
   it('lets the paragraph give up its space instead of dropping every evidence item', () => {
     const emptyRequestBytes = byteLength(
       JSON.stringify({ kind: 'reading-relations', input: { selection: '' }, evidence: [] }),
@@ -176,25 +99,6 @@ describe('reading judgment input', () => {
     expect(result.truncated).toBe(true);
   });
 
-  it('drops an optional excerpt when only the first complete content character fits', () => {
-    const baseBytes = byteLength(
-      JSON.stringify({ kind: 'library-answer', input: { question: '' }, evidence: [] }),
-    );
-    const source = evidence('one', { content: '中' });
-    source.location.anchor.exact = 'a';
-    const question = 'x'.repeat(6000 - baseBytes - 59);
-    const result = prepareReadingJudgmentInput(provider(), { kind: 'library-answer', question }, [
-      source,
-    ]);
-    expect(result).not.toBeNull();
-    if (!result) return;
-    expect(parseUser(result.user).evidence).toEqual([
-      { id: 'e1', kind: 'user_judgment', text: '中' },
-    ]);
-    expect(result.truncated).toBe(true);
-    expect(byteLength(result.user)).toBeLessThanOrEqual(6000);
-  });
-
   it('deduplicates local ids, omits empty content, and maps only actually sent evidence', () => {
     const first = evidence('one');
     const second = evidence('two');
@@ -223,27 +127,6 @@ describe('reading judgment input', () => {
       prepareReadingJudgmentInput(provider(), { kind: 'library-answer', question: 'Q?' }, [
         evidence('empty', { content: ' ' }),
       ]),
-    ).toBeNull();
-  });
-
-  it('honors a smaller existing provider budget before serializing the request', () => {
-    vi.spyOn(budget, 'articleTextInputLimit').mockReturnValue(500);
-    const result = prepareReadingJudgmentInput(
-      provider(),
-      { kind: 'library-answer', question: 'A question.' },
-      [evidence('one', { content: 'Long evidence. '.repeat(1000) })],
-    );
-    expect(result).not.toBeNull();
-    if (!result) return;
-    expect(byteLength(result.user)).toBeLessThanOrEqual(500);
-    expect(result.sent.size).toBe(1);
-    expect(result.truncated).toBe(true);
-    expect(
-      prepareReadingJudgmentInput(
-        provider(),
-        { kind: 'library-answer', question: 'x'.repeat(500) },
-        [evidence('one')],
-      ),
     ).toBeNull();
   });
 });

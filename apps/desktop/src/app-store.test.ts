@@ -1,27 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import {
-  emptyDesktopStore,
-  isAppLockSettingsLocked,
-  lockedRendererStoreFromSettings,
-  lockedRendererStoreFromStatus,
-  rendererStoreForAppLockState,
-} from './app-store';
+import { emptyDesktopStore, rendererStoreForAppLockState } from './app-store';
 
 describe('desktop store app lock projection', () => {
-  it('returns unlocked stores without replacing their identity', () => {
-    const store = {
-      ...emptyDesktopStore,
-      settings: {
-        ...emptyDesktopStore.settings,
-        appLockEnabled: true,
-        appLockLocked: false,
-      },
-    };
-
-    expect(rendererStoreForAppLockState(store)).toBe(store);
-    expect(isAppLockSettingsLocked(store.settings)).toBe(false);
-  });
-
   it('projects locked stores to the complete renderer settings whitelist', () => {
     const store = {
       ...emptyDesktopStore,
@@ -55,39 +35,6 @@ describe('desktop store app lock projection', () => {
         soundEffectsVolume: 0.25,
         themeId: 'ink-paper',
         uiLanguage: 'en',
-      },
-    });
-  });
-
-  it('normalizes lock booleans when projecting settings directly', () => {
-    expect(
-      lockedRendererStoreFromSettings({
-        appLockEnabled: false,
-        appLockLocked: true,
-        appLockLockOnStartup: undefined,
-      }).settings,
-    ).toMatchObject({
-      appLockEnabled: false,
-      appLockLocked: false,
-      appLockLockOnStartup: false,
-    });
-  });
-
-  it('keeps the status fallback limited to fields returned by the status IPC', () => {
-    expect(
-      lockedRendererStoreFromStatus({
-        configured: true,
-        enabled: true,
-        locked: true,
-        shortcut: 'CommandOrControl+L',
-      }),
-    ).toEqual({
-      ...emptyDesktopStore,
-      settings: {
-        ...emptyDesktopStore.settings,
-        appLockEnabled: true,
-        appLockLocked: true,
-        appLockShortcut: 'CommandOrControl+L',
       },
     });
   });

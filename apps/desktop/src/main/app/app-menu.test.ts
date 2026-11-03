@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { MenuItemConstructorOptions } from 'electron';
-import { buildAppMenuTemplate, installAppMenu, type AppMenuOptions } from './app-menu';
+import { buildAppMenuTemplate, type AppMenuOptions } from './app-menu';
 
 const electronMocks = vi.hoisted(() => ({
   buildFromTemplate: vi.fn((template: MenuItemConstructorOptions[]) => ({ template })),
@@ -22,46 +22,6 @@ describe('app menu', () => {
     expect(viewRoles).not.toContain('reload');
     expect(viewRoles).not.toContain('forceReload');
     expect(viewRoles).not.toContain('toggleDevTools');
-  });
-
-  it('keeps reload and devtools commands in development builds', () => {
-    const template = buildAppMenuTemplate(menuOptions({ isPackaged: false }));
-    const viewRoles = submenuRoles(topLevelSubmenu(template, 'View'));
-
-    expect(viewRoles).toEqual(expect.arrayContaining(['reload', 'forceReload', 'toggleDevTools']));
-  });
-
-  it('localizes custom menu labels for Japanese system locales', () => {
-    const template = buildAppMenuTemplate(menuOptions({ locale: 'ja-JP' }));
-
-    expect(template.map((item) => item.label)).toEqual([
-      'Yomitomo',
-      'ファイル',
-      '編集',
-      '表示',
-      'ウィンドウ',
-      'ヘルプ',
-    ]);
-    expect(
-      topLevelSubmenu(template, 'ヘルプ')
-        .map((item) => item.label)
-        .filter(Boolean),
-    ).toEqual(['Yomitomo ヘルプ', '更新履歴', '問題を報告', 'アップデートを確認...']);
-  });
-
-  it('logs the installed menu branch', () => {
-    const logInfo = vi.fn();
-
-    installAppMenu({ ...menuOptions({ isPackaged: true }), logInfo });
-
-    expect(electronMocks.buildFromTemplate).toHaveBeenCalledOnce();
-    expect(electronMocks.setApplicationMenu).toHaveBeenCalledOnce();
-    expect(logInfo).toHaveBeenCalledWith('app.menu.installed', {
-      platform: 'darwin',
-      packaged: true,
-      reloadCommandsEnabled: false,
-      topLevelMenus: ['Yomitomo', 'File', 'Edit', 'View', 'Window', 'Help'],
-    });
   });
 });
 

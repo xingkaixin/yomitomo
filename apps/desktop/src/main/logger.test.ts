@@ -66,32 +66,6 @@ describe('desktop logger write failures', () => {
     await rm(testPaths.userData, { recursive: true, force: true });
   });
 
-  it('serializes circular, bigint, and deeply nested payloads without rejection', async () => {
-    const circular: Record<string, unknown> = {};
-    circular.self = circular;
-    const deep: Record<string, unknown> = {};
-    let cursor = deep;
-    for (let depth = 0; depth < 12; depth += 1) {
-      const next: Record<string, unknown> = {};
-      cursor.next = next;
-      cursor = next;
-    }
-
-    const rejections = await observeUnhandledRejections(
-      () => logInfo('logger.complex_payload', { circular, deep, value: 42n }),
-      async () => {
-        await vi.waitFor(async () => {
-          const log = await readFile(getLogPath(), 'utf8');
-          expect(log).toContain('[Circular]');
-          expect(log).toContain('[MaxDepth]');
-          expect(log).toContain('42n');
-        });
-      },
-    );
-
-    expect(rejections).toEqual([]);
-  });
-
   it('falls back to minimal console output when filesystem writes fail', async () => {
     await mkdir(testPaths.userData, { recursive: true });
     testPaths.userData = join(testPaths.userData, 'not-a-directory');

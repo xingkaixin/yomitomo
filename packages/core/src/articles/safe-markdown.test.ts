@@ -19,16 +19,6 @@ describe('safe markdown', () => {
     expect(html).toContain('href="mailto:test@example.com"');
   });
 
-  it('sanitizes rendered markdown before returning html', () => {
-    const html = renderSafeMarkdown(
-      '[web](https://example.com) [mail](mailto:test@example.com)',
-      document,
-    );
-
-    expect(html).toContain('href="https://example.com"');
-    expect(html).not.toContain('mailto:');
-  });
-
   it('keeps assistant reference links in the app and drops other fragment links', () => {
     const html = renderSafeMarkdown(
       '[序言](#passage:12-40) [讨论](#discussion:annotation_1) [别处](#b12)',

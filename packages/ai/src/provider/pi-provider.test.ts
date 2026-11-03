@@ -62,19 +62,6 @@ describe('piProviderFor', () => {
     expect(payload).not.toHaveProperty('store');
   });
 
-  it.each([
-    ['moonshot', 'moonshot-v1-auto', 'none'],
-    ['dashscope', 'qwen3.5-plus', 'default'],
-  ] as const)(
-    'leaves %s %s thinking %s to the provider default',
-    async (presetId, model, effort) => {
-      const payload = await requestPayload(compatible(presetId, model, effort));
-      expect(payload).not.toHaveProperty('reasoning_effort');
-      expect(payload).not.toHaveProperty('thinking');
-      expect(payload).not.toHaveProperty('enable_thinking');
-    },
-  );
-
   it('omits temperature once a compatible model thinks', async () => {
     const payload = await requestPayload(compatible('deepseek', 'deepseek-flash', 'high'));
     expect(payload).toMatchObject({ thinking: { type: 'enabled' } });

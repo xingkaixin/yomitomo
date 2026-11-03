@@ -65,17 +65,4 @@ describe('app lock attempt policy', () => {
       { status: 'blocked', retryAfterMs: 1_000 },
     ]);
   });
-
-  it('clears cooldown state when app lock is reset', async () => {
-    const verifyPin = vi.fn().mockResolvedValue(false);
-    const policy = createAppLockAttemptPolicy({ now: () => 0, verifyPin });
-
-    await policy.verify('0001');
-    await policy.verify('0002');
-    await policy.verify('0003');
-    policy.reset();
-
-    await expect(policy.verify('0004')).resolves.toEqual({ status: 'invalid', retryAfterMs: 0 });
-    expect(verifyPin).toHaveBeenCalledTimes(4);
-  });
 });

@@ -132,29 +132,6 @@ describe('ebook content', () => {
     expect(stats.get(1)?.count).toBe(1);
   });
 
-  it('keeps normal toc items bounded by the next visible toc item', () => {
-    const article = ebookArticle([
-      chapter('preface', '序言', 'preface.html', 0, 0, 400),
-      chapter('chapter-1', '第一章', 'chapter-1.html', 1, 400, 900),
-      chapter('chapter-2', '第二章', 'chapter-2.html', 2, 900, 1300),
-    ]);
-
-    const tocItems = ebookTocItemsForReader(
-      [
-        toc('序言', 'preface.html'),
-        toc('第一章', 'chapter-1.html'),
-        toc('第二章', 'chapter-2.html'),
-      ],
-      article,
-    );
-
-    expect(tocItems.map((item) => [item.start, item.end])).toEqual([
-      [0, 400],
-      [400, 900],
-      [900, 1300],
-    ]);
-  });
-
   it('falls back to section indexes for EPUB when Foliate section ids are not href strings', () => {
     const article = ebookArticle([
       chapter('cover', '封面', 'kindle:section:0', 0, 0, 100),

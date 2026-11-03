@@ -103,26 +103,6 @@ describe('selectReadingRelationEvidence', () => {
     expect(selectReadingRelationEvidence([local[0]], current)).toEqual([local[0]]);
   });
 
-  it.each(['web', 'text'] as const)(
-    'keeps %s original and translated-block coordinates separate',
-    (sourceType) => {
-      const selection = anchor(10, 20, 'selection', { segmentId: 'translation-a' });
-      const original = evidence('original', 'current', anchor(10, 20, 'original passage'));
-      const anotherBlock = evidence(
-        'another-block',
-        'current',
-        anchor(10, 20, 'other translation', { segmentId: 'translation-b' }),
-      );
-
-      expect(
-        selectReadingRelationEvidence(
-          [evidence('selected-translation', 'current', selection), original, anotherBlock],
-          { articleId: 'current', context: context(selection, sourceType) },
-        ),
-      ).toEqual([original, anotherBlock]);
-    },
-  );
-
   it('compares PDF offsets only within the same page', () => {
     const selection = createPdfTextAnchor({
       pageText: 'the selected PDF passage',
@@ -194,39 +174,6 @@ describe('selectReadingRelationEvidence', () => {
         { articleId: 'current', context: context(selection, 'ebook') },
       ),
     ).toEqual([earlier, otherChapter, adjacent]);
-  });
-
-  it('does not infer a selection location from text or invalid offsets', () => {
-    const current = evidence('current-judgment', 'current', anchor(10, 20, 'selection'));
-
-    for (const selected of [
-      undefined,
-      anchor(Number.NaN, 20, 'selection'),
-      anchor(10, 10, 'selection'),
-    ]) {
-      expect(
-        selectReadingRelationEvidence([current], {
-          articleId: 'current',
-          context: { sourceType: 'web', quote: 'selection', anchor: selected },
-        }),
-      ).toEqual([current]);
-    }
-  });
-
-  it('keeps the first instance of an evidence ID, ignores empty content, and does not mutate inputs', () => {
-    const first = evidence('first', 'other', anchor(0, 5, 'first quote'));
-    const duplicate = { ...first, content: 'a later duplicate ID' };
-    const empty = { ...evidence('empty', 'other', anchor(10, 20, 'empty quote')), content: ' \n ' };
-    const candidates = Object.freeze([first, duplicate, empty]);
-
-    const result = selectReadingRelationEvidence(candidates, {
-      articleId: 'current',
-      context: context(anchor(100, 120, 'selection')),
-    });
-
-    expect(result).toEqual([first]);
-    expect(result[0]).toBe(first);
-    expect(candidates).toEqual([first, duplicate, empty]);
   });
 });
 

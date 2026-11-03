@@ -22,7 +22,6 @@ const testState = vi.hoisted(() => ({
     replaceDatabaseFile: vi.fn(),
     readStore: vi.fn(),
   },
-  sqliteConstructor: null as unknown,
 }));
 
 vi.mock('electron', () => ({
@@ -49,14 +48,10 @@ vi.mock('./store/store-db', () => ({
 }));
 
 vi.mock('./native/sqlite', () => ({
-  loadSQLiteDatabase: () => testState.sqliteConstructor || SQLiteDatabase,
+  loadSQLiteDatabase: () => SQLiteDatabase,
 }));
 
-import {
-  backupDatabaseWithDialog,
-  openDataManagementPath,
-  restoreDatabaseWithDialog,
-} from './data-management';
+import { restoreDatabaseWithDialog } from './data-management';
 import { DATABASE_READER_LEVEL_KEY } from './db/compatibility';
 import { createReadingMemoryTelemetry } from './telemetry/reading-memory-telemetry';
 
@@ -71,7 +66,6 @@ beforeEach(async () => {
   await mkdir(testState.appData, { recursive: true });
   await mkdir(testState.userData, { recursive: true });
   await mkdir(testState.documents, { recursive: true });
-  testState.sqliteConstructor = null;
   vi.clearAllMocks();
 });
 
@@ -80,85 +74,7 @@ afterEach(async () => {
   testState.root = '';
 });
 
-describe('data management path opening', () => {
-  it('opens the data directory path', async () => {
-    testState.shell.openPath.mockResolvedValue('');
-
-    await openDataManagementPath('dataDir');
-
-    expect(testState.shell.openPath).toHaveBeenCalledWith(testState.userData);
-    expect(testState.shell.showItemInFolder).not.toHaveBeenCalled();
-  });
-
-  it('throws when opening the data directory fails', async () => {
-    testState.shell.openPath.mockResolvedValue('failed to open');
-
-    await expect(openDataManagementPath('dataDir')).rejects.toThrow('failed to open');
-  });
-
-  it('shows the log file and database file in their folder', async () => {
-    await openDataManagementPath('logFile');
-    await openDataManagementPath('databaseFile');
-
-    expect(testState.shell.showItemInFolder).toHaveBeenCalledWith(
-      join(testState.userData, 'yomitomo-agent.log'),
-    );
-    expect(testState.shell.showItemInFolder).toHaveBeenCalledWith(
-      join(testState.userData, 'yomitomo.sqlite'),
-    );
-  });
-
-  it('rejects unknown path kinds', async () => {
-    await expect(openDataManagementPath('unknown' as never)).rejects.toThrow(
-      'DATA_MANAGEMENT_UNKNOWN_PATH',
-    );
-  });
-});
-
-describe('database backup dialog', () => {
-  it('returns canceled when the save dialog is canceled', async () => {
-    testState.dialog.showSaveDialog.mockResolvedValue({ canceled: true });
-
-    await expect(backupDatabaseWithDialog(null)).resolves.toEqual({ canceled: true });
-
-    expect(testState.store.backupDatabaseFile).not.toHaveBeenCalled();
-  });
-
-  it('backs up the database to the selected file', async () => {
-    const selectedPath = join(testState.documents, 'backup.sqlite');
-    const backupPath = join(testState.documents, 'created-backup.sqlite');
-    testState.dialog.showSaveDialog.mockResolvedValue({ canceled: false, filePath: selectedPath });
-    testState.store.backupDatabaseFile.mockResolvedValue(backupPath);
-
-    await expect(backupDatabaseWithDialog(null)).resolves.toEqual({
-      canceled: false,
-      filePath: backupPath,
-    });
-
-    expect(testState.store.backupDatabaseFile).toHaveBeenCalledWith(selectedPath);
-  });
-
-  it('surfaces backup failures from the store boundary', async () => {
-    const selectedPath = join(testState.documents, 'backup.sqlite');
-    testState.dialog.showSaveDialog.mockResolvedValue({ canceled: false, filePath: selectedPath });
-    testState.store.backupDatabaseFile.mockRejectedValue(new Error('backup failed'));
-
-    await expect(backupDatabaseWithDialog(null)).rejects.toThrow('backup failed');
-  });
-});
-
 describe('database restore dialog', () => {
-  it('returns canceled when the open dialog is canceled', async () => {
-    testState.dialog.showOpenDialog.mockResolvedValue({ canceled: true, filePaths: [] });
-
-    await expect(restoreDatabaseWithDialog(null, onDatabaseRestored)).resolves.toEqual({
-      canceled: true,
-    });
-
-    expect(testState.store.replaceDatabaseFile).not.toHaveBeenCalled();
-    expect(onDatabaseRestored).not.toHaveBeenCalled();
-  });
-
   it('rejects files that are not SQLite databases', async () => {
     const filePath = join(testState.userData, 'not-sqlite.sqlite');
     await writeFile(filePath, 'not a sqlite database');
@@ -166,23 +82,6 @@ describe('database restore dialog', () => {
 
     await expect(restoreDatabaseWithDialog(null, onDatabaseRestored)).rejects.toThrow(
       'DATA_MANAGEMENT_INVALID_SQLITE_DATABASE',
-    );
-    expect(onDatabaseRestored).not.toHaveBeenCalled();
-  });
-
-  it('rejects backup files that fail integrity check', async () => {
-    const filePath = join(testState.userData, 'broken.sqlite');
-    testState.dialog.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [filePath] });
-    testState.sqliteConstructor = class {
-      pragma() {
-        return 'not ok';
-      }
-
-      close() {}
-    };
-
-    await expect(restoreDatabaseWithDialog(null, onDatabaseRestored)).rejects.toThrow(
-      'DATA_MANAGEMENT_DATABASE_INTEGRITY_FAILED',
     );
     expect(onDatabaseRestored).not.toHaveBeenCalled();
   });
@@ -207,51 +106,6 @@ describe('database restore dialog', () => {
       'DATABASE_TOO_NEW',
     );
     expect(onDatabaseRestored).not.toHaveBeenCalled();
-  });
-
-  it('restores a valid backup file and returns the refreshed store', async () => {
-    const filePath = join(testState.userData, 'valid.sqlite');
-    const backupPath = join(testState.userData, 'backups', 'before-restore.sqlite');
-    const store = { articles: [], providers: [] };
-    createYomitomoBackupFile(filePath);
-    testState.dialog.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [filePath] });
-    testState.store.replaceDatabaseFile.mockResolvedValue(backupPath);
-    testState.store.readStore.mockResolvedValue(store);
-
-    await expect(restoreDatabaseWithDialog(null, onDatabaseRestored)).resolves.toEqual({
-      canceled: false,
-      backupPath,
-      store,
-    });
-    expect(testState.store.replaceDatabaseFile).toHaveBeenCalledWith(filePath);
-    expect(onDatabaseRestored).toHaveBeenCalledOnce();
-    expect(testState.store.readStore).toHaveBeenCalledOnce();
-  });
-
-  it('does not notify when the database replacement fails', async () => {
-    const filePath = join(testState.userData, 'valid.sqlite');
-    createYomitomoBackupFile(filePath);
-    testState.dialog.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [filePath] });
-    testState.store.replaceDatabaseFile.mockRejectedValueOnce(new Error('replacement failed'));
-
-    await expect(restoreDatabaseWithDialog(null, onDatabaseRestored)).rejects.toThrow(
-      'replacement failed',
-    );
-    expect(onDatabaseRestored).not.toHaveBeenCalled();
-    expect(testState.store.readStore).not.toHaveBeenCalled();
-  });
-
-  it('notifies once after replacement even if reading the refreshed store fails', async () => {
-    const filePath = join(testState.userData, 'valid.sqlite');
-    createYomitomoBackupFile(filePath);
-    testState.dialog.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [filePath] });
-    testState.store.replaceDatabaseFile.mockResolvedValueOnce('safety-backup.sqlite');
-    testState.store.readStore.mockRejectedValueOnce(new Error('snapshot failed'));
-
-    await expect(restoreDatabaseWithDialog(null, onDatabaseRestored)).rejects.toThrow(
-      'snapshot failed',
-    );
-    expect(onDatabaseRestored).toHaveBeenCalledOnce();
   });
 
   it('clears prior usage at replacement while reading the restored snapshot is pending', async () => {

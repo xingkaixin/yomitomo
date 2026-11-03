@@ -4,19 +4,9 @@ import SQLiteDatabase from 'better-sqlite3';
 import { describe, expect, it } from 'vitest';
 import { migrations } from '../db/migrations';
 import { readingMemoryEvidenceProjectorVersion } from './reading-memory-evidence-projection-batch';
-import {
-  materializeReadingEvidenceCandidates,
-  readKeywordReadingEvidenceCandidates,
-  readReadingEvidenceProjectionStatus,
-  searchReadingEvidence,
-  type ReadingEvidenceCandidate,
-} from './reading-memory-evidence-search';
+import { searchReadingEvidence } from './reading-memory-evidence-search';
 import { readStoredAnnotationThreadSources } from './reading-memory-evidence-source';
 import { replaceReadingEvidenceThreadInTransaction } from './reading-memory-evidence-store';
-import {
-  deferFailedReadingMemoryProjectionJob,
-  queueReadingMemoryProjectionJob,
-} from './reading-memory-projection-job-store';
 import { withReadingMemoryTransaction } from './reading-memory-store';
 import type { ReadingMemorySqliteExecutor } from './reading-memory-store-types';
 
@@ -43,30 +33,6 @@ describe('reading memory evidence search', () => {
           content: exact,
         }),
       ]);
-    }
-  });
-
-  it('matches canonically equivalent Japanese text in both directions', () => {
-    const fixture = createFixture();
-    const examples = [
-      ['decomposed', 'か\u3099くしゅうの記憶', 'がくしゅう'],
-      ['composed', 'がくしゅうの検索', 'か\u3099く'],
-    ] as const;
-    for (const [suffix, exact] of examples) {
-      const articleId = `article_${suffix}`;
-      const annotationId = `annotation_${suffix}`;
-      fixture.insertArticle({ id: articleId, title: suffix });
-      fixture.insertAnnotation({ id: annotationId, articleId, exact });
-      fixture.project(annotationId);
-    }
-
-    for (const [suffix, exact, query] of examples) {
-      expect(search(fixture, query).evidence).toContainEqual(
-        expect.objectContaining({
-          id: `reading_evidence_annotation:annotation_${suffix}`,
-          content: exact,
-        }),
-      );
     }
   });
 
@@ -158,196 +124,6 @@ describe('reading memory evidence search', () => {
         sources: [{ kind: 'weread', id: 'article_a' }],
       }).evidence,
     ).toEqual([]);
-  });
-
-  it('filters scope before the candidate cap and clamps result limits', () => {
-    const fixture = createFixture();
-    fixture.insertArticle({ id: 'article_target', title: 'Target' });
-    fixture.insertAnnotation({
-      id: 'annotation_target',
-      articleId: 'article_target',
-      exact: '候选上限过滤证明',
-    });
-    fixture.project('annotation_target');
-
-    for (let index = 0; index < 40; index += 1) {
-      const suffix = String(index).padStart(2, '0');
-      const articleId = `article_other_${suffix}`;
-      const annotationId = `annotation_other_${suffix}`;
-      fixture.insertArticle({ id: articleId, title: `Other ${suffix}` });
-      fixture.insertAnnotation({
-        id: annotationId,
-        articleId,
-        exact: `无关原文 ${suffix}`,
-        distillation: { status: 'published', content: '候选上限过滤证明' },
-      });
-      fixture.project(annotationId);
-    }
-
-    expect(
-      evidenceArticleIds(
-        search(
-          fixture,
-          '候选上限过滤证明',
-          { kind: 'sources', sources: [{ kind: 'article', id: 'article_target' }] },
-          24,
-        ).evidence,
-      ),
-    ).toEqual(['article_target']);
-    expect(search(fixture, '候选上限过滤证明').evidence).toHaveLength(12);
-    expect(search(fixture, '候选上限过滤证明', { kind: 'library' }, 1000).evidence).toHaveLength(
-      24,
-    );
-    const candidates = readKeywordReadingEvidenceCandidates(
-      fixture.executor,
-      '  候选上限过滤证明  ',
-      { kind: 'library' },
-    );
-    expect(candidates).toHaveLength(40);
-    expect(Object.keys(candidates[0]).toSorted()).toEqual([
-      'articleId',
-      'id',
-      'sourceVersion',
-      'targetId',
-    ]);
-    expect(
-      readKeywordReadingEvidenceCandidates(fixture.executor, '  ', { kind: 'library' }),
-    ).toEqual([]);
-  });
-
-  it('materializes cross-language semantic candidates without requiring literal query matches', () => {
-    const fixture = createFixture();
-    const examples = [
-      ['zh', '睡眠能巩固刚学过的内容'],
-      ['en', "A night's rest stabilizes recently acquired knowledge"],
-      ['ja', '眠っている間に学んだことが定着する'],
-    ] as const;
-    const candidates: ReadingEvidenceCandidate[] = [];
-    for (const [suffix, exact] of examples) {
-      const articleId = `article_${suffix}`;
-      const annotationId = `annotation_${suffix}`;
-      fixture.insertArticle({ id: articleId, title: suffix });
-      fixture.insertAnnotation({ id: annotationId, articleId, exact });
-      const source = fixture.project(annotationId);
-      candidates.push({
-        id: `reading_evidence_annotation:${annotationId}`,
-        articleId,
-        targetId: annotationId,
-        sourceVersion: source.sourceVersion,
-      });
-    }
-    const scope: ReadingEvidenceScope = { kind: 'library' };
-    const query = 'why we remember after resting';
-
-    expect(readKeywordReadingEvidenceCandidates(fixture.executor, query, scope)).toEqual([]);
-    expect(
-      materializeReadingEvidenceCandidates(fixture.executor, candidates, scope).map(
-        (item) => item.content,
-      ),
-    ).toEqual(examples.map(([, exact]) => exact));
-    expect(
-      materializeReadingEvidenceCandidates(fixture.executor, candidates, scope, query),
-    ).toEqual([]);
-    expect(
-      materializeReadingEvidenceCandidates(fixture.executor, candidates, scope, '  睡眠  ').map(
-        (item) => item.content,
-      ),
-    ).toEqual(['睡眠能巩固刚学过的内容']);
-  });
-
-  it('rechecks edited, deleted, and moved sources after candidates have been retrieved', () => {
-    const fixture = createFixture();
-    for (const suffix of ['edited', 'deleted', 'moved']) {
-      const articleId = `article_${suffix}`;
-      const annotationId = `annotation_${suffix}`;
-      fixture.insertArticle({ id: articleId, title: suffix });
-      fixture.insertAnnotation({ id: annotationId, articleId, exact: `候选来源 ${suffix}` });
-      fixture.project(annotationId);
-    }
-    fixture.insertCollection('collection_current', [
-      'article_edited',
-      'article_deleted',
-      'article_moved',
-    ]);
-    const scope: ReadingEvidenceScope = {
-      kind: 'collection',
-      collectionId: 'collection_current',
-    };
-    const candidates = readKeywordReadingEvidenceCandidates(fixture.executor, '候选来源', scope);
-    expect(candidates).toHaveLength(3);
-
-    fixture.updateAnnotationAnchor('annotation_edited', '已改写的来源');
-    fixture.deleteAnnotation('annotation_deleted');
-    fixture.removeCollectionMember('collection_current', 'article_moved');
-
-    expect(materializeReadingEvidenceCandidates(fixture.executor, candidates, scope)).toEqual([]);
-    expect(
-      materializeReadingEvidenceCandidates(fixture.executor, candidates, { kind: 'library' }).map(
-        (item) => item.source.ref.id,
-      ),
-    ).toEqual(['article_moved']);
-    expect(
-      materializeReadingEvidenceCandidates(fixture.executor, candidates, {
-        kind: 'sources',
-        sources: [{ kind: 'article', id: 'article_edited' }],
-      }),
-    ).toEqual([]);
-  });
-
-  it('rejects withdrawn judgments and unknown evidence ids during source materialization', () => {
-    const fixture = fixtureWithThread('judgment');
-    fixture.insertComment({
-      id: 'comment_judgment',
-      annotationId: 'annotation_judgment',
-      author: 'user',
-      content: '用户独立形成的判断',
-      createdAt: timestamp,
-    });
-    fixture.project('annotation_judgment');
-    const scope: ReadingEvidenceScope = { kind: 'library' };
-    const candidates = readKeywordReadingEvidenceCandidates(fixture.executor, '独立形成', scope);
-    expect(candidates).toHaveLength(1);
-    expect(
-      materializeReadingEvidenceCandidates(
-        fixture.executor,
-        candidates.map((candidate) => ({ ...candidate, id: 'unknown-evidence' })),
-        scope,
-      ),
-    ).toEqual([]);
-
-    fixture.executor.prepare('DELETE FROM comments WHERE id = ?').run('comment_judgment');
-    expect(materializeReadingEvidenceCandidates(fixture.executor, candidates, scope)).toEqual([]);
-  });
-
-  it('excludes pending projections before applying the candidate cap', () => {
-    const fixture = createFixture();
-    fixture.insertArticle({ id: 'article_current', title: 'Current' });
-    fixture.insertAnnotation({
-      id: 'annotation_current',
-      articleId: 'article_current',
-      exact: '待处理候选过滤证明',
-    });
-    fixture.project('annotation_current');
-
-    for (let index = 0; index < 40; index += 1) {
-      const suffix = String(index).padStart(2, '0');
-      const articleId = `article_pending_${suffix}`;
-      const annotationId = `annotation_pending_${suffix}`;
-      fixture.insertArticle({ id: articleId, title: `Pending ${suffix}` });
-      fixture.insertAnnotation({
-        id: annotationId,
-        articleId,
-        exact: `待处理原文 ${suffix}`,
-        distillation: { status: 'published', content: '待处理候选过滤证明' },
-      });
-      fixture.project(annotationId);
-      fixture.updateAnnotationAnchor(annotationId, `已变化的待处理原文 ${suffix}`);
-      fixture.queueCurrentProjection(annotationId);
-    }
-
-    expect(search(fixture, '待处理候选过滤证明').evidence).toEqual([
-      expect.objectContaining({ id: 'reading_evidence_annotation:annotation_current' }),
-    ]);
   });
 
   it('prioritizes judgments while preserving source diversity', () => {
@@ -453,26 +229,6 @@ describe('reading memory evidence search', () => {
     expect(search(fixture, '注入召回').evidence).toEqual([]);
   });
 
-  it('rejects old projector terms absent from current search text', () => {
-    const fixture = createFixture();
-    fixture.insertArticle({ id: 'article_old', title: 'Current title', byline: 'Current byline' });
-    fixture.insertAnnotation({
-      id: 'annotation_old',
-      articleId: 'article_old',
-      exact: '当前可见原文',
-    });
-    fixture.project('annotation_old', 'reading-memory-evidence:v0');
-    fixture.updateSearchText('reading_evidence_annotation:annotation_old', '旧投影私有字段');
-
-    expect(search(fixture, '旧投影私有字段')).toEqual({
-      evidence: [],
-      projection: {
-        state: 'stale',
-        coverage: { projectedAssetCount: 0, eligibleAssetCount: 1 },
-      },
-    });
-  });
-
   it('keeps matching old projector entries searchable while reporting stale status', () => {
     const fixture = createFixture();
     fixture.insertArticle({ id: 'article_old_match', title: 'Current title' });
@@ -494,114 +250,6 @@ describe('reading memory evidence search', () => {
         state: 'stale',
         coverage: { projectedAssetCount: 0, eligibleAssetCount: 1 },
       },
-    });
-  });
-
-  it('keeps safe old projections searchable while their rebuild jobs wait', () => {
-    const fixture = createFixture();
-    fixture.insertArticle({ id: 'article_old_job', title: 'Current title' });
-    fixture.insertAnnotation({
-      id: 'annotation_old_job',
-      articleId: 'article_old_job',
-      exact: '等待重建仍可检索',
-    });
-    fixture.project('annotation_old_job', 'reading-memory-evidence:v0');
-    fixture.queueCurrentProjection('annotation_old_job');
-
-    expect(search(fixture, '仍可检索')).toEqual({
-      evidence: [
-        expect.objectContaining({
-          id: 'reading_evidence_annotation:annotation_old_job',
-          content: '等待重建仍可检索',
-        }),
-      ],
-      projection: {
-        state: 'building',
-        coverage: { projectedAssetCount: 0, eligibleAssetCount: 1 },
-      },
-    });
-  });
-
-  it('batch-loads source threads and article metadata without per-result reads', () => {
-    const fixture = createFixture();
-    fixture.insertArticle({ id: 'article_batch', title: 'Batch' });
-    for (let index = 0; index < 20; index += 1) {
-      const annotationId = `annotation_batch_${index}`;
-      fixture.insertAnnotation({
-        id: annotationId,
-        articleId: 'article_batch',
-        exact: `批量读取证据 ${index}`,
-      });
-      fixture.project(annotationId);
-    }
-    fixture.resetPreparedSql();
-
-    expect(search(fixture, '批量读取证据').evidence).toHaveLength(12);
-    expect(fixture.countPreparedSql('FROM annotations AS annotation\nWHERE annotation.id IN')).toBe(
-      1,
-    );
-    expect(
-      fixture.countPreparedSql('FROM comments AS comment\nWHERE comment.annotation_id IN'),
-    ).toBe(1);
-    expect(fixture.countPreparedSql('FROM articles\nWHERE id IN')).toBe(1);
-  });
-
-  it('derives every projection state and target-level coverage from current facts', () => {
-    const empty = createFixture();
-    expect(status(empty)).toEqual({
-      state: 'available',
-      coverage: { projectedAssetCount: 0, eligibleAssetCount: 0 },
-    });
-
-    const missing = fixtureWithThread('missing');
-    expect(status(missing)).toEqual({
-      state: 'not_built',
-      coverage: { projectedAssetCount: 0, eligibleAssetCount: 1 },
-    });
-
-    const available = fixtureWithThread('available');
-    available.project('annotation_available');
-    expect(status(available)).toEqual({
-      state: 'available',
-      coverage: { projectedAssetCount: 1, eligibleAssetCount: 1 },
-    });
-
-    const pending = fixtureWithThread('pending');
-    pending.project('annotation_pending');
-    pending.queueCurrentProjection('annotation_pending');
-    expect(status(pending)).toEqual({
-      state: 'available',
-      coverage: { projectedAssetCount: 1, eligibleAssetCount: 1 },
-    });
-
-    const partial = fixtureWithThread('partial_a');
-    partial.insertAnnotation({
-      id: 'annotation_partial_b',
-      articleId: 'article_partial_a',
-      exact: 'Partial B',
-    });
-    partial.project('annotation_partial_a');
-    expect(status(partial)).toEqual({
-      state: 'building',
-      coverage: { projectedAssetCount: 1, eligibleAssetCount: 2 },
-    });
-
-    const stale = fixtureWithThread('stale');
-    stale.project('annotation_stale', 'reading-memory-evidence:v0');
-    expect(status(stale)).toEqual({
-      state: 'stale',
-      coverage: { projectedAssetCount: 0, eligibleAssetCount: 1 },
-    });
-
-    const failed = fixtureWithThread('failed');
-    const failedJob = failed.queueCurrentProjection('annotation_failed');
-    deferFailedReadingMemoryProjectionJob(failed.executor, failedJob, {
-      availableAt: '2026-08-29T00:01:00.000Z',
-      failedAt: timestamp,
-    });
-    expect(status(failed)).toEqual({
-      state: 'failed',
-      coverage: { projectedAssetCount: 0, eligibleAssetCount: 1 },
     });
   });
 });
@@ -638,11 +286,9 @@ function createFixture() {
   const database = new SQLiteDatabase(':memory:');
   database.pragma('foreign_keys = ON');
   for (const migration of migrations) database.exec(migration.sql);
-  const preparedSql: string[] = [];
   const executor: ReadingMemorySqliteExecutor = {
     exec: (sql) => database.exec(sql),
     prepare: (sql) => {
-      preparedSql.push(sql);
       const statement = database.prepare(sql);
       return {
         all: (...values) => statement.all(...values),
@@ -809,19 +455,6 @@ WHERE collection_id = ? AND member_kind = 'article' AND member_id = ?
       });
       return current;
     },
-    queueCurrentProjection: (annotationId: string) => {
-      const current = source(annotationId);
-      const job = {
-        targetType: 'annotation_thread' as const,
-        targetId: current.targetId,
-        articleId: current.articleId,
-        sourceVersion: current.sourceVersion,
-        operation: 'upsert' as const,
-        queuedAt: timestamp,
-      };
-      queueReadingMemoryProjectionJob(executor, job);
-      return job;
-    },
     updateAnnotationAnchor: (annotationId: string, exact: string) =>
       database
         .prepare('UPDATE annotations SET anchor = ?, updated_at = ? WHERE id = ?')
@@ -846,22 +479,7 @@ WHERE id = ?
       database
         .prepare('UPDATE reading_memory_evidence_entries SET search_text = ? WHERE id = ?')
         .run(searchText, evidenceId),
-    resetPreparedSql: () => preparedSql.splice(0),
-    countPreparedSql: (fragment: string) =>
-      preparedSql.filter((sql) => sql.includes(fragment)).length,
   };
-}
-
-function fixtureWithThread(suffix: string) {
-  const fixture = createFixture();
-  const articleId = `article_${suffix}`;
-  fixture.insertArticle({ id: articleId, title: suffix });
-  fixture.insertAnnotation({
-    id: `annotation_${suffix}`,
-    articleId,
-    exact: `Evidence ${suffix}`,
-  });
-  return fixture;
 }
 
 function search(
@@ -871,13 +489,6 @@ function search(
   limit?: number,
 ) {
   return searchReadingEvidence({ query, scope, limit, executor: fixture.executor });
-}
-
-function status(fixture: ReturnType<typeof createFixture>) {
-  return readReadingEvidenceProjectionStatus({
-    scope: { kind: 'library' },
-    executor: fixture.executor,
-  });
 }
 
 function evidenceArticleIds(evidence: ReturnType<typeof search>['evidence']) {

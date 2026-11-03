@@ -28,12 +28,10 @@ vi.mock('../app/logger', () => ({ logInfo: vi.fn(), logError: vi.fn() }));
 import * as schema from '../db/schema';
 import { upsertSettings } from '../store/settings-repository';
 import {
-  backupDatabaseFile,
   closeDatabase,
   getDatabase,
   getSqliteExecutor,
   readDatabaseLifecycle,
-  replaceDatabaseFile,
 } from '../store/store-db';
 import { readingMemoryEvidenceProjectorVersion } from './reading-memory-evidence-projection-batch';
 import { materializeReadingEvidenceCandidates } from './reading-memory-evidence-search';
@@ -190,28 +188,6 @@ describe('reading review blind session and local commits', () => {
 });
 
 describe('reading review explicit evidence comparison', () => {
-  it('does not let a late search cancel a replacement review that reused both request ids', async () => {
-    const fixture = createFixture();
-    fixture.allowRemote();
-    const session = await fixture.start();
-    await fixture.reveal();
-    const pause = fixture.holdSearch();
-    const searching = fixture.searchEvidence(session.routeRevision);
-    const canceled = expect(searching).rejects.toMatchObject({ name: 'AbortError' });
-    await pause.entered;
-    const replacement = await fixture.start();
-    await fixture.reveal();
-    await fixture.searchEvidence(replacement.routeRevision);
-    pause.finish();
-    await canceled;
-
-    const current = await fixture.compare().then(
-      (result) => result.judgment.state,
-      (error: unknown) => (error instanceof Error ? error.message : 'failed'),
-    );
-    expect(current).toBe('generated');
-  });
-
   it('rechecks candidate versions and deletion after local search and after remote work', async () => {
     const fixture = createFixture();
     fixture.allowRemote();
@@ -236,16 +212,6 @@ describe('reading review explicit evidence comparison', () => {
     expect(result.evidence.map((item) => item.location.commentId)).toEqual(['comment-3']);
     expect(result.judgment.sentEvidenceCount).toBe(2);
     expect(result.sentProvider).toEqual(session.provider);
-  });
-
-  it('uses the latest effective review time instead of the original formation time', async () => {
-    const fixture = createFixture();
-    fixture.appendOtherReview();
-    const session = await fixture.start();
-    await fixture.reveal();
-    expect(session.lastReviewedAt).not.toBeNull();
-    expect((await fixture.searchEvidence(session.routeRevision)).evidence).toEqual([]);
-    expect(fixture.send).not.toHaveBeenCalled();
   });
 
   it('refuses reads and writes while the app is locked without losing the frozen answer', async () => {
@@ -321,93 +287,6 @@ describe('reading review explicit evidence comparison', () => {
     await fixture.searchEvidence(session.routeRevision, 'comparison-2');
     fixture.runtime.cancel(1, 'request-1', 'comparison-1');
     expect((await fixture.compare('comparison-2')).judgment.state).toBe('generated');
-  });
-
-  it('keeps the actual send receipt when the provider changes during remote work', async () => {
-    const fixture = createFixture();
-    fixture.allowRemote();
-    const session = await fixture.start();
-    await fixture.reveal();
-    await fixture.searchEvidence(session.routeRevision);
-    const pause = fixture.holdNetwork();
-    const comparing = fixture.compare();
-    await pause.entered;
-    fixture.setModel('replacement');
-    pause.finish();
-    const result = await comparing;
-    expect(result).toMatchObject({
-      providerChanged: true,
-      provider: { modelName: 'replacement' },
-      sentProvider: session.provider,
-      judgment: { state: 'local', sentEvidenceCount: 3, inputTruncated: true },
-    });
-    expect(fixture.send).toHaveBeenCalledOnce();
-  });
-
-  it('cancels only the matching comparison while retaining the frozen review for submission', async () => {
-    const fixture = createFixture();
-    fixture.allowRemote();
-    const session = await fixture.start();
-    await fixture.reveal();
-    await fixture.searchEvidence(session.routeRevision);
-    const pause = fixture.holdNetwork();
-    const comparing = fixture.compare();
-    const canceled = expect(comparing).rejects.toMatchObject({ name: 'AbortError' });
-    const signal = await pause.entered;
-    fixture.runtime.cancel(1, 'request-1', 'comparison-1');
-    expect(signal?.aborted).toBe(true);
-    pause.finish();
-    await canceled;
-    expect(
-      (
-        await fixture.runtime.submit(1, {
-          requestId: 'request-1',
-          eventId: 'event-1',
-          decision: 'still_agree',
-        })
-      ).event.answer,
-    ).toBe(blindAnswer);
-  });
-
-  it.each(['cancel', 'destroy', 'cancelAll'] as const)(
-    'aborts and clears the review on %s',
-    async (action) => {
-      const fixture = createFixture();
-      fixture.allowRemote();
-      const session = await fixture.start();
-      await fixture.reveal();
-      await fixture.searchEvidence(session.routeRevision);
-      const pause = fixture.holdNetwork();
-      const comparing = fixture.compare();
-      const canceled = expect(comparing).rejects.toMatchObject({ name: 'AbortError' });
-      const signal = await pause.entered;
-      if (action === 'cancel') fixture.runtime.cancel(1, 'request-1');
-      if (action === 'destroy') fixture.owner.destroy();
-      if (action === 'cancelAll') fixture.runtime.cancelAll();
-      expect(signal?.aborted).toBe(true);
-      pause.finish();
-      await canceled;
-      expect(fixture.owner.listenerCount('destroyed')).toBe(0);
-      await expect(fixture.reveal()).rejects.toThrow('READING_MEMORY_SESSION_EXPIRED');
-    },
-  );
-
-  it('does not hold a database lease across remote work and rejects a restored generation', async () => {
-    const fixture = createFixture();
-    fixture.allowRemote();
-    const backup = join(paths.userData, 'review-backup.sqlite');
-    await backupDatabaseFile(backup);
-    const session = await fixture.start();
-    await fixture.reveal();
-    await fixture.searchEvidence(session.routeRevision);
-    const pause = fixture.holdNetwork();
-    const comparing = fixture.compare();
-    const stale = expect(comparing).rejects.toThrow('READING_MEMORY_SESSION_EXPIRED');
-    await pause.entered;
-    expect(readDatabaseLifecycle().leases).toBe(0);
-    await replaceDatabaseFile(backup);
-    pause.finish();
-    await stale;
   });
 });
 

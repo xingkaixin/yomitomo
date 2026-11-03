@@ -23,14 +23,6 @@ const requiredBuildFiles = [
   'dist/renderer/index.html',
 ] as const;
 
-type DesktopPreloadProbe = {
-  appInfo: { desktopVersion?: string } | null;
-  hasPreloadApi: boolean;
-  hasRendererSurface: boolean;
-  hasShowMainWindow: boolean;
-  rootHasContent: boolean;
-};
-
 export type DesktopE2eApp = {
   app: ElectronApplication;
   artifactsDir: string;
@@ -80,31 +72,6 @@ export async function withDesktopE2eApp<T>(
   } finally {
     await desktopApp.close();
   }
-}
-
-export async function probeDesktopPreload(page: Page): Promise<DesktopPreloadProbe> {
-  return page.evaluate(async (surfaceSelector) => {
-    const desktop = (
-      window as typeof window & {
-        yomitomoDesktop?: {
-          app?: {
-            getInfo?: () => Promise<{ desktopVersion?: string }>;
-            showMainWindow?: () => void;
-          };
-        };
-      }
-    ).yomitomoDesktop;
-    const root = document.getElementById('root');
-    return {
-      appInfo: typeof desktop?.app?.getInfo === 'function' ? await desktop.app.getInfo() : null,
-      hasPreloadApi: Boolean(desktop),
-      hasRendererSurface: Boolean(document.querySelector(surfaceSelector)),
-      hasShowMainWindow: typeof desktop?.app?.showMainWindow === 'function',
-      rootHasContent: Boolean(
-        root && (root.childElementCount > 0 || root.textContent?.trim().length),
-      ),
-    };
-  }, rendererReadySelector);
 }
 
 export async function resizeDesktopContent(

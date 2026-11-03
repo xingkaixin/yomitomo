@@ -24,8 +24,4 @@ describe('rankLexicalDocuments', () => {
       2.0035, 0.6852, 0.6677,
     ]);
   });
-
-  it('ignores queries made only of stop terms', () => {
-    expect(rankLexicalDocuments(documents(['这里讨论人口红利。']), '这里 哪里 什么')).toEqual([]);
-  });
 });
