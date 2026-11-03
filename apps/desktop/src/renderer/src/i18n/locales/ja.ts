@@ -1033,7 +1033,7 @@ export const jaResources = {
           idleDropTitle: '電子書籍ファイルをドロップするか、クリックして選択してください',
           draggingDropTitle: '解析するためにリリース',
           importedDropTitle: 'インポートが完了しました',
-          dropHint: '複数のファイルを選択またはドロップします。インポートは順番に実行されます',
+          dropHint: '複数のファイルを選択またはドロップします',
           footerHint: '解析後、タイトル、著者、表紙、章が抽出されます。',
           progress: '電子書籍のインポートの進行状況',
           openDuplicate: '既存の電子ブックを開く',
