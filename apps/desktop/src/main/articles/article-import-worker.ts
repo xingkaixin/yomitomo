@@ -15,6 +15,7 @@ import {
 } from './article-import-response';
 
 const ARTICLE_IMAGE_TIMEOUT_MS = 10_000;
+const ARTICLE_FAVICON_TIMEOUT_MS = 3_000;
 const MAX_ARTICLE_IMAGE_BYTES = 2_000_000;
 const MAX_ARTICLE_IMAGE_REDIRECTS = 5;
 
@@ -56,7 +57,14 @@ async function extractArticleRecord(input: unknown) {
   try {
     let article = await extractArticleFromDocument(dom.window.document, data.url);
     const fetcher = (imageUrl: string, signal?: AbortSignal) =>
-      fetchArticleImageDataUrl(imageUrl, article.url, data.userAgent, signal);
+      fetchArticleImageDataUrl(
+        imageUrl,
+        article.url,
+        data.userAgent,
+        signal,
+        // favicon 最先提交，慢响应会挡住全部正文图的提交。
+        imageUrl === article.siteIconUrl ? ARTICLE_FAVICON_TIMEOUT_MS : ARTICLE_IMAGE_TIMEOUT_MS,
+      );
     if (data.inlineImages) {
       article = await inlineArticleImages(article, {
         articleDocument: dom.window.document,
@@ -98,9 +106,10 @@ async function fetchArticleImageDataUrl(
   articleUrl: string,
   userAgent: string | undefined,
   parentSignal?: AbortSignal,
+  timeoutMs = ARTICLE_IMAGE_TIMEOUT_MS,
 ) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), ARTICLE_IMAGE_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const signal = parentSignal
     ? AbortSignal.any([controller.signal, parentSignal])
     : controller.signal;

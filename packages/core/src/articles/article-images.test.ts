@@ -146,6 +146,44 @@ describe('inlineArticleImages', () => {
     expect(aborted).toBe(true);
   });
 
+  it('commits favicon and lead image before faster content images', async () => {
+    const dataUrlChars = 3_000_000;
+    const fetcher = vi.fn(async (url: string) => {
+      if (!url.includes('/images/')) await new Promise((resolve) => setTimeout(resolve, 5));
+      return `data:image/png;base64,${url.split('/').pop()?.padEnd(dataUrlChars, 'x')}`;
+    });
+
+    const article = await inlineArticleImages(
+      articleRecord({
+        content: '<img src="/images/first.jpg"><img src="/images/second.jpg">',
+        siteIconUrl: 'https://example.com/favicon.ico',
+      }),
+      { articleDocument: document, fetcher },
+    );
+
+    expect(article.siteIconUrl).toMatch(/^data:image/);
+    expect(article.leadImageUrl).toMatch(/^data:image/);
+    expect(article.content).toContain('src="data:image');
+    expect(article.content).toContain('src="https://example.com/images/second.jpg"');
+    expect(article.content).not.toContain('src="https://example.com/images/first.jpg"');
+  });
+
+  it('stops downloading once the image count is reached', async () => {
+    const fetcher = vi.fn(async (url: string) => `data:image/png;base64,${url}`);
+    const content = Array.from(
+      { length: 100 },
+      (_, index) => `<img src="/images/inline-${index}.jpg">`,
+    ).join('');
+
+    const article = await inlineArticleImages(
+      articleRecord({ content, leadImageUrl: undefined, siteIconUrl: undefined }),
+      { articleDocument: document, fetcher },
+    );
+
+    expect(article.content.match(/src="data:image/g)).toHaveLength(40);
+    expect(fetcher.mock.calls.length).toBeLessThan(50);
+  });
+
   it('dedupes repeated image requests', async () => {
     const fetcher = vi.fn(async () => 'data:image/png;base64,shared');
 
