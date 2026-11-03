@@ -7,7 +7,6 @@ export {
   translateBilingualArticleBlocks,
   translateBilingualArticleBlocksEffect,
 } from './translation/bilingual-translation';
-export { planAgentMentionRoute } from './agent/annotation-metadata';
 export { buildChannelAgentInstructions } from './agent/agent-channel-prompt';
 export {
   buildDistillationReviewInput,

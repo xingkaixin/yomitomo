@@ -1,4 +1,4 @@
-import type { AgentMentionDirective, AgentMentionRoutePlan, PublicAgent } from '@yomitomo/shared';
+import type { PublicAgent } from '@yomitomo/shared';
 
 export function agentInstructionFromNote(note: string, mentionedAgents: PublicAgent[]) {
   let instruction = note.trim();
@@ -12,21 +12,6 @@ export function agentInstructionFromNote(note: string, mentionedAgents: PublicAg
     }
   }
   return instruction.replace(/\s+/g, ' ').trim();
-}
-
-export function mentionDirectivesForAgent(
-  route: AgentMentionRoutePlan,
-  agent: PublicAgent,
-  action?: AgentMentionDirective['action'],
-) {
-  return route.directives
-    .filter(
-      (directive) =>
-        directive.agentId === agent.id ||
-        directive.agentUsername === agent.username ||
-        (!directive.agentId && directive.agentUsername === agent.nickname),
-    )
-    .filter((directive) => !action || directive.action === action);
 }
 
 function escapeRegExp(value: string) {

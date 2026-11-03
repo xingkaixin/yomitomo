@@ -111,7 +111,7 @@ telemetry → shared
   标记，启动时恢复。
 - 沉淀审阅同样在助手会话里运行：从审阅 agent 在该文章的主会话 fork 一次，模型每次调用
   `add_review_item` 工具提交一条审阅项。参数不合法时工具返回错误，由模型修正后重新提交。
-- 翻译、阅读记忆判断、@ 路由和连接测试是单次调用，不建会话，经
+- 翻译、阅读记忆判断和连接测试是单次调用，不建会话，经
   `packages/ai/src/provider/generation-runtime.ts` 走 pi-ai。provider 以 error 或 aborted 结束、
   返回空正文时按失败处理。
 - 思考强度和采样参数由 `packages/ai/src/provider/pi-provider.ts` 按 pi-ai 模型目录换算；目录里没有的

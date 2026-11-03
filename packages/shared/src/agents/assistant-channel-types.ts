@@ -1,5 +1,4 @@
 import type { AssistantRuntimeProgressStep } from '../annotation-types';
-import type { AgentReadingIntent } from './agent-types';
 
 export type AssistantChannel =
   | { kind: 'thread'; annotationId: string; threadId: string }
@@ -12,7 +11,6 @@ export type AssistantDeliveryRequest = {
   agentId: string;
   triggerId: string;
   instruction?: string;
-  readingIntent?: AgentReadingIntent;
   reviewTargetCommentId?: string;
   allowDisabledAgentForRule?: boolean;
 };

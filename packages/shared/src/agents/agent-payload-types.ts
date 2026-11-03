@@ -1,6 +1,5 @@
 import type { AgentReadingIntent, PublicAgent } from './agent-types';
 import type { Annotation, Comment } from '../annotation-types';
-import type { TextAnchor } from '../anchor-types';
 import type { EpubBookIndex } from '../sources/ebook-types';
 import type { UiLanguage } from '../locale-types';
 
@@ -33,37 +32,3 @@ export type AgentDistillationReviewPayload = Omit<AgentMessagePayload, 'response
   responseMode?: 'distillation_review';
   reviewMessageId?: string;
 };
-
-export type AgentMentionInstructionPayload = {
-  note: string;
-  targetAnchor?: TextAnchor;
-  targetSection?: {
-    sectionId?: string;
-    sectionTitle?: string;
-    text: string;
-  };
-  allowedActions?: AgentMentionAction[];
-  agents: PublicAgent[];
-  article: {
-    title: string;
-    url: string;
-    text: string;
-  };
-};
-
-export type AgentMentionAction = 'comment' | 'create_thought';
-
-export type AgentMentionDirective = {
-  agentId?: string;
-  agentUsername: string;
-  action: AgentMentionAction;
-  instruction?: string;
-  readingIntent?: AgentReadingIntent;
-};
-
-export type AgentMentionRoutePlan = {
-  createUserThought: boolean;
-  directives: AgentMentionDirective[];
-};
-
-export type AgentMentionInstruction = AgentMentionDirective;

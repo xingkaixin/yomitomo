@@ -20,7 +20,7 @@ export type ChannelSnapshot = { messages: Comment[]; quote?: string; anchor?: Te
 
 export type ChannelReply = Pick<
   Comment,
-  'id' | 'author' | 'content' | 'createdAt' | 'readingIntent' | 'assistantProgress'
+  'id' | 'author' | 'content' | 'createdAt' | 'assistantProgress'
 >;
 
 // Annotation threads live in the comments table and 问一问 sessions in the article's reader

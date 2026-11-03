@@ -877,8 +877,9 @@ describe('AnnotationDiscussionWindow', () => {
       expect.objectContaining({
         agentId: 'agent_1',
         channel: { kind: 'annotation', annotationId: 'annotation_1' },
+        instruction: '分别补一条想法',
       }),
-      expect.objectContaining({ agentId: 'agent_2' }),
+      expect.objectContaining({ agentId: 'agent_2', instruction: '分别补一条想法' }),
     ]);
   });
 
@@ -908,7 +909,10 @@ describe('AnnotationDiscussionWindow', () => {
     fireEvent.click(screen.getByRole('button', { name: '重试' }));
 
     await waitFor(() => expect(desktop.deliver).toHaveBeenCalledTimes(3));
-    expect(desktop.deliver.mock.calls[2]?.[0].agentId).toBe('agent_2');
+    expect(desktop.deliver.mock.calls[2]?.[0]).toMatchObject({
+      agentId: 'agent_2',
+      instruction: '分别补一条想法',
+    });
   });
 });
 
@@ -1029,14 +1033,6 @@ function installDesktopApi(
       ...emptyStore,
       agents: options.agents || agents(),
     }),
-    planAgentMentionRoute: vi.fn(async (payload) => ({
-      createUserThought: false,
-      directives: payload.agents.map((mentionedAgent: Agent) => ({
-        agentId: mentionedAgent.id,
-        agentUsername: mentionedAgent.username,
-        action: 'create_thought' as const,
-      })),
-    })),
     deliver:
       options.deliver || vi.fn(async (request: AssistantDeliveryRequest) => finishSoon(request)),
     emitRun,
@@ -1058,9 +1054,6 @@ function installDesktopApi(
     configurable: true,
     value: {
       platform: 'darwin',
-      agent: {
-        planMentionRoute: desktop.planAgentMentionRoute,
-      },
       assistant: {
         deliver: desktop.deliver,
         runs: vi.fn().mockResolvedValue([]),

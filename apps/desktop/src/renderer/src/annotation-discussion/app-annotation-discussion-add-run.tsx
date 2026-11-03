@@ -22,7 +22,6 @@ export type AddThoughtAgentRun = {
   errorMessage?: string;
   instruction?: string;
   progress?: Comment['assistantProgress'];
-  readingIntent?: Comment['readingIntent'];
   status: AddThoughtAgentRunStatus;
 };
 

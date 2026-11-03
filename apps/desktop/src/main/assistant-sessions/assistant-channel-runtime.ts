@@ -24,7 +24,6 @@ import {
 } from '@yomitomo/core';
 import type {
   Agent,
-  AgentReadingIntent,
   ArticleReadingProgress,
   ArticleTextSnapshot,
   AssistantChannel,
@@ -175,7 +174,6 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
       messages: state.fresh,
       anchorBlockId: text && anchor ? anchorBlockId(text, anchor) : undefined,
       instruction: request.instruction,
-      readingIntent: request.readingIntent,
       reviewTargetCommentId: request.reviewTargetCommentId,
     });
     const record: AssistantRunRecord = {
@@ -184,7 +182,6 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
       forkId: state.liveForkId ?? -1,
       delivery,
       deliveredIds: state.fresh.map((message) => message.id),
-      readingIntent: request.readingIntent ?? null,
     };
 
     if (state.liveForkId !== undefined) {
@@ -303,7 +300,6 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
         : { kind: 'agent', agentId: first.agentId, username: first.agentId },
       content,
       createdAt: new Date().toISOString(),
-      ...(first.readingIntent ? { readingIntent: first.readingIntent as AgentReadingIntent } : {}),
       ...(steps.length > 0 ? { assistantProgress: { steps } } : {}),
     });
 
