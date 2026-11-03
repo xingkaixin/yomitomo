@@ -1,5 +1,5 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
-import { Type, type Static, type TSchema } from '@earendil-works/pi-ai';
+import { StringEnum } from '@earendil-works/pi-ai';
 import {
   defineDoc,
   defineExtension,
@@ -8,6 +8,7 @@ import {
   type ToolExecutionApi,
   type ToolExecutionResult,
 } from '@earendil-works/pi-durable';
+import { int, obj, opt, str, type Static } from '@earendil-works/pi-schema';
 import {
   createArticleTextIndex,
   readingMemoryEntrySearchText,
@@ -82,7 +83,7 @@ export function createAssistantReadingExtension(ports: AssistantReadingPorts) {
     name: 'article_outline',
     description:
       '列出当前文章可读范围内的章节目录：章节 id、标题和起始段落 id。需要了解文章结构或定位章节时先调用。',
-    parameters: Type.Object({}),
+    parameters: obj({}, { open: true }),
     run: async (_args, run) => {
       const outline = (await articleIndex(run)).outline();
       if (outline.length === 0)
@@ -100,12 +101,15 @@ export function createAssistantReadingExtension(ports: AssistantReadingPorts) {
     name: 'read_article',
     description:
       '按章节或段落读取原文，每段带段落 id（如 b12）。三选一：sectionId 读一个章节；fromBlockId 从某段向后连续读；aroundBlockId 读某段前后的上下文。结果过长时会给出继续读取的段落 id。',
-    parameters: Type.Object({
-      sectionId: Type.Optional(Type.String()),
-      fromBlockId: Type.Optional(Type.String()),
-      aroundBlockId: Type.Optional(Type.String()),
-      maxChars: Type.Optional(Type.Integer({ minimum: 500, maximum: MAX_READ_CHARS })),
-    }),
+    parameters: obj(
+      {
+        sectionId: opt(str()),
+        fromBlockId: opt(str()),
+        aroundBlockId: opt(str()),
+        maxChars: opt(int({ minimum: 500, maximum: MAX_READ_CHARS })),
+      },
+      { open: true },
+    ),
     run: async (args, run) => {
       const index = await articleIndex(run);
       const maxChars = args.maxChars ?? 6000;
@@ -132,10 +136,13 @@ export function createAssistantReadingExtension(ports: AssistantReadingPorts) {
     name: 'search_article',
     description:
       '在当前文章可读范围内按关键词检索原文段落，返回段落 id、所属章节和段落全文。需要找同一概念在别处的展开或补充原文证据时使用。',
-    parameters: Type.Object({
-      query: Type.String({ minLength: 1 }),
-      limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 12 })),
-    }),
+    parameters: obj(
+      {
+        query: str({ minLength: 1 }),
+        limit: opt(int({ minimum: 1, maximum: 12 })),
+      },
+      { open: true },
+    ),
     run: async (args, run) => {
       const hits = (await articleIndex(run)).search(args.query, args.limit ?? DEFAULT_LIMIT);
       if (hits.length === 0) return `没有找到与「${args.query}」相关的段落。`;
@@ -152,13 +159,14 @@ export function createAssistantReadingExtension(ports: AssistantReadingPorts) {
     name: 'search_reading_memory',
     description:
       '检索当前文章里已有的批注、想法和讨论（包括其他讨论串）。author 可选 self（只看你自己的）、others（其他助手）或 all（默认，含读者）。结果带批注 id 和评论 id，可用 read_thread 读取完整讨论串。',
-    parameters: Type.Object({
-      query: Type.String({ minLength: 1 }),
-      author: Type.Optional(
-        Type.Union([Type.Literal('all'), Type.Literal('self'), Type.Literal('others')]),
-      ),
-      limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 20 })),
-    }),
+    parameters: obj(
+      {
+        query: str({ minLength: 1 }),
+        author: opt(StringEnum(['all', 'self', 'others'])),
+        limit: opt(int({ minimum: 1, maximum: 20 })),
+      },
+      { open: true },
+    ),
     run: async (args, run) => {
       const entries = ports.searchMemory({
         articleId: run.articleId,
@@ -176,10 +184,13 @@ export function createAssistantReadingExtension(ports: AssistantReadingPorts) {
     name: 'read_thread',
     description:
       '读取一条批注的原文和讨论串全文。threadId 是讨论串根评论 id；省略时读取该批注下的全部讨论串。',
-    parameters: Type.Object({
-      annotationId: Type.String({ minLength: 1 }),
-      threadId: Type.Optional(Type.String()),
-    }),
+    parameters: obj(
+      {
+        annotationId: str({ minLength: 1 }),
+        threadId: opt(str()),
+      },
+      { open: true },
+    ),
     run: async (args, run) => {
       const annotation = ports
         .annotations(run.articleId)
@@ -215,7 +226,7 @@ export function createAssistantReadingExtension(ports: AssistantReadingPorts) {
   });
 }
 
-function readingTool<TParameters extends TSchema>(tool: {
+function readingTool<TParameters extends object>(tool: {
   name: string;
   description: string;
   parameters: TParameters;

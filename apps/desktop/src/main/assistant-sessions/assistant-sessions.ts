@@ -1,6 +1,6 @@
 import { rm, writeFile } from 'node:fs/promises';
 import { createModels } from '@earendil-works/pi-ai/models';
-import { createRegistry, type HarnessSettings } from '@earendil-works/pi-durable';
+import { createRegistry, type HarnessSettings, type Report } from '@earendil-works/pi-durable';
 import { eq } from 'drizzle-orm';
 import type {
   ArticleReadingProgress,
@@ -158,6 +158,6 @@ async function resolveAgent(agentId: string, allowDisabled: boolean) {
   return { agent, provider, uiLanguage: normalizeUiLanguage(appSettings.uiLanguage), fake };
 }
 
-function reportHarnessError(error: unknown) {
-  logError('assistant_session.report', error);
+function reportHarnessError(report: Report) {
+  logError('assistant_session.report', report.error, { kind: report.kind });
 }

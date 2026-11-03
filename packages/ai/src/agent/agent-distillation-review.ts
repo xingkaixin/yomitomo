@@ -1,4 +1,5 @@
-import { Type } from '@earendil-works/pi-ai';
+import { StringEnum } from '@earendil-works/pi-ai';
+import { obj, opt, str } from '@earendil-works/pi-schema';
 import { annotationAuthorName } from '@yomitomo/core';
 import type { AgentMessagePayload, Annotation, Comment } from '@yomitomo/shared';
 import { resolvePromptAgentIdentity } from '@yomitomo/shared';
@@ -13,24 +14,24 @@ import {
 
 export const DISTILLATION_REVIEW_TOOL = 'add_review_item';
 
-const oneOf = <T extends string>(...values: T[]) =>
-  Type.Union(values.map((value) => Type.Literal(value)));
-
 // A flat object rather than a union: several providers require tool parameters to be one object.
-export const distillationReviewItemParameters = Type.Object({
-  type: oneOf('overview', 'finding', 'proposal'),
-  stance: Type.Optional(oneOf('solid', 'mixed', 'weak')),
-  category: Type.Optional(oneOf('evidence', 'logic', 'coverage', 'clarity', 'actionability')),
-  severity: Type.Optional(oneOf('low', 'medium', 'high')),
-  kind: Type.Optional(oneOf('insert', 'replace', 'delete')),
-  title: Type.Optional(Type.String()),
-  content: Type.Optional(Type.String()),
-  rationale: Type.Optional(Type.String()),
-  insertAfterText: Type.Optional(Type.String()),
-  targetText: Type.Optional(Type.String()),
-  replacementText: Type.Optional(Type.String()),
-  draftTargetText: Type.Optional(Type.String()),
-});
+export const distillationReviewItemParameters = obj(
+  {
+    type: StringEnum(['overview', 'finding', 'proposal']),
+    stance: opt(StringEnum(['solid', 'mixed', 'weak'])),
+    category: opt(StringEnum(['evidence', 'logic', 'coverage', 'clarity', 'actionability'])),
+    severity: opt(StringEnum(['low', 'medium', 'high'])),
+    kind: opt(StringEnum(['insert', 'replace', 'delete'])),
+    title: opt(str()),
+    content: opt(str()),
+    rationale: opt(str()),
+    insertAfterText: opt(str()),
+    targetText: opt(str()),
+    replacementText: opt(str()),
+    draftTargetText: opt(str()),
+  },
+  { open: true },
+);
 
 export function buildDistillationReviewInstructions(
   agent: PromptAgent,

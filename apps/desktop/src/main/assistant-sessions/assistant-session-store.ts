@@ -67,7 +67,7 @@ export function createAssistantSessionStore(input: {
       harness = await openAt(path);
     }
     void harness.closed.then((end) => {
-      if (end.reason === 'failed') {
+      if (end.kind === 'failed') {
         input.logError('assistant_session.failed', end.error, { articleId });
         entries.delete(articleId);
       }
