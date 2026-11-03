@@ -26,6 +26,7 @@ import {
 const databaseName = 'yomitomo.sqlite';
 const assetDirectories = ['ebooks', 'pdf', 'assets/pdf-thumbs'] as const;
 const manifestName = 'manifest.json';
+const hashConcurrency = 4;
 const assetPathPattern =
   /^(?:ebooks\/[A-Za-z0-9_-]+\.(?:epub|mobi|azw3)|pdf\/[A-Za-z0-9_-]+\.pdf|assets\/pdf-thumbs\/[A-Za-z0-9_-]+\.jpg)$/;
 const manifestSchema = z.object({
@@ -108,10 +109,7 @@ async function writeFullBackup(target: string) {
     for (const directory of assetDirectories) {
       paths.push(...(await copyAssetDirectory(getDataDirectoryPath(), temporary, directory)));
     }
-    const files = [];
-    for (const path of paths) {
-      files.push({ path, sha256: await hashFile(join(temporary, path)) });
-    }
+    const files = await hashFiles(temporary, paths);
     await writeFile(
       join(temporary, manifestName),
       JSON.stringify(
@@ -209,6 +207,21 @@ async function assertDirectory(path: string) {
 
 async function assertRegularFile(path: string) {
   if (!(await lstat(path)).isFile()) throw new Error('DATA_MANAGEMENT_INVALID_FULL_BACKUP');
+}
+
+async function hashFiles(root: string, paths: string[]) {
+  const files: { path: string; sha256: string }[] = [];
+  let nextIndex = 0;
+  async function hashNextFiles() {
+    while (nextIndex < paths.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      const path = paths[index];
+      files[index] = { path, sha256: await hashFile(join(root, path)) };
+    }
+  }
+  await Promise.all(Array.from({ length: hashConcurrency }, hashNextFiles));
+  return files;
 }
 
 async function hashFile(path: string) {
