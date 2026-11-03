@@ -20,6 +20,7 @@
     "@earendil-works/chord": "catalog:",
     "@earendil-works/pi-ai": "catalog:",
     "@earendil-works/pi-durable": "catalog:",
+    "@earendil-works/pi-schema": "catalog:",
     "@yomitomo/core": "workspace:*",
     "@yomitomo/shared": "workspace:*",
     "effect": "catalog:"

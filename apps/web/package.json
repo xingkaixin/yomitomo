@@ -17,7 +17,7 @@
     "deploy:cf": "pnpm build && cf-wrangler build && cf deploy --prebuilt"
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.42.7",
+    "@astrojs/starlight": "^0.42.8",
     "astro": "^7.4.4"
   },
   "devDependencies": {
@@ -25,7 +25,7 @@
     "@tailwindcss/postcss": "catalog:",
     "@types/jsdom": "catalog:",
     "fontverter": "2.0.0",
-    "harfbuzzjs": "1.6.2",
+    "harfbuzzjs": "1.6.4",
     "jsdom": "catalog:",
     "playwright-core": "^1.64.1",
     "subset-font": "2.9.0",

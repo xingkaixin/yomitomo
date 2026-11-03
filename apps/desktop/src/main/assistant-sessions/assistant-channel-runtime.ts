@@ -399,7 +399,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     if (watchers.has(runKey)) return;
     const fork = await harness.conversation(run.forkId as ConversationId, context);
     if (!fork) return;
-    const state = await harness.documentState(LiveDoc, run.forkId as ConversationId, context);
+    const watch = await harness.watchDoc(LiveDoc, run.forkId as ConversationId, context);
     let timer: ReturnType<typeof setTimeout> | undefined;
     let emitting = false;
     let again = false;
@@ -407,7 +407,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
       const transcript = await readRunTranscript(fork);
       if (!watchers.has(runKey)) return;
       // Read after the entries: a partial committed meanwhile is gone from the live doc, not doubled.
-      const partial = state?.value?.generation?.message as AssistantMessage | undefined;
+      const partial = watch?.value.generation?.message as AssistantMessage | undefined;
       publish({
         runKey,
         articleId,
@@ -436,13 +436,12 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
         emitting = false;
       })();
     };
-    const unsubscribe = state?.subscribe(() => {
+    watch?.start(async () => {
       timer ??= setTimeout(emit, PROGRESS_INTERVAL_MS);
     });
     watchers.set(runKey, () => {
       clearTimeout(timer);
-      unsubscribe?.();
-      state?.dispose();
+      void watch?.stop();
     });
     emit();
   }
