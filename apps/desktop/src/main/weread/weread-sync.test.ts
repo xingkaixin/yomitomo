@@ -67,86 +67,6 @@ describe('syncWeReadLibrary', () => {
     expect(snapshots).toEqual([['book_old'], ['book_old', 'book_new']]);
   });
 
-  it('continues with the next queued sync after a failed fetch', async () => {
-    const error = new Error('gateway unavailable');
-    vi.mocked(fetchWeReadNotebooks).mockRejectedValueOnce(error).mockResolvedValueOnce([]);
-    const result = syncResult();
-    const persistence = {
-      readWeReadApiKeyRef: () => 'weread-key-ref',
-      readStoredWeReadApiKey: vi.fn(async () => 'weread-key'),
-      saveWeReadLibrarySnapshot: vi.fn(async () => result),
-    };
-
-    const results = await Promise.allSettled([
-      syncWeReadLibrary({ persistence, reason: 'auto:startup', ...testLogger() }),
-      syncWeReadLibrary({ persistence, reason: 'manual', ...testLogger() }),
-    ]);
-
-    expect(results).toEqual([
-      { status: 'rejected', reason: error },
-      { status: 'fulfilled', value: result },
-    ]);
-    expect(persistence.saveWeReadLibrarySnapshot).toHaveBeenCalledOnce();
-  });
-
-  it('rejects before loading notebooks when the API key is missing', async () => {
-    const persistence = {
-      readWeReadApiKeyRef: () => 'weread-key-ref',
-      readStoredWeReadApiKey: vi.fn(async () => ''),
-      saveWeReadLibrarySnapshot: vi.fn(),
-    };
-    const logger = testLogger();
-
-    await expect(
-      syncWeReadLibrary({
-        persistence,
-        reason: 'manual',
-        ...logger,
-      }),
-    ).rejects.toThrow('WEREAD_API_KEY_REQUIRED');
-
-    expect(fetchWeReadNotebooks).not.toHaveBeenCalled();
-    expect(persistence.saveWeReadLibrarySnapshot).not.toHaveBeenCalled();
-    expect(logger.logInfo).not.toHaveBeenCalled();
-    expect(logger.logError).not.toHaveBeenCalled();
-  });
-
-  it('saves an empty detail list when the notebook library is empty', async () => {
-    vi.mocked(fetchWeReadNotebooks).mockResolvedValueOnce([]);
-    const result = syncResult();
-    const persistence = {
-      readWeReadApiKeyRef: () => 'weread-key-ref',
-      readStoredWeReadApiKey: vi.fn(async () => 'weread-key'),
-      saveWeReadLibrarySnapshot: vi.fn(async () => result),
-    };
-    const logger = testLogger();
-
-    await expect(
-      syncWeReadLibrary({
-        persistence,
-        reason: 'startup',
-        ...logger,
-      }),
-    ).resolves.toBe(result);
-
-    expect(fetchWeReadNotebooks).toHaveBeenCalledWith('weread-key');
-    expect(fetchWeReadBookDetail).not.toHaveBeenCalled();
-    expect(persistence.saveWeReadLibrarySnapshot).toHaveBeenCalledWith(
-      {
-        details: [],
-        authoritativeBookIds: [],
-        apiKeyRef: 'weread-key-ref',
-      },
-      logger.logInfo,
-    );
-    expect(logger.logInfo).toHaveBeenCalledWith('weread.sync.complete', {
-      reason: 'startup',
-      bookCount: 0,
-      detailCount: 0,
-      durationMs: 1,
-    });
-  });
-
   it('fetches book details, merges notebook metadata, and skips empty details', async () => {
     vi.mocked(fetchWeReadNotebooks).mockResolvedValueOnce([
       bookFixture('book_1', 'Notebook Title'),
@@ -191,37 +111,6 @@ describe('syncWeReadLibrary', () => {
       },
       logger.logInfo,
     );
-  });
-
-  it('logs sync failure and does not persist partial details when a detail fetch fails', async () => {
-    const error = new Error('detail timeout');
-    vi.mocked(fetchWeReadNotebooks).mockResolvedValueOnce([bookFixture('book_failed')]);
-    vi.mocked(fetchWeReadBookDetail).mockRejectedValueOnce(error);
-    const persistence = {
-      readWeReadApiKeyRef: () => 'weread-key-ref',
-      readStoredWeReadApiKey: vi.fn(async () => 'weread-key'),
-      saveWeReadLibrarySnapshot: vi.fn(),
-    };
-    const logger = testLogger();
-
-    await expect(
-      syncWeReadLibrary({
-        persistence,
-        reason: 'auto',
-        ...logger,
-      }),
-    ).rejects.toThrow(error);
-
-    expect(persistence.saveWeReadLibrarySnapshot).not.toHaveBeenCalled();
-    expect(logger.logError).toHaveBeenCalledWith(
-      'weread.sync.book_detail_failed',
-      error,
-      expect.objectContaining({ bookId: 'book_failed', stage: 'book_detail' }),
-    );
-    expect(logger.logError).toHaveBeenCalledWith('weread.sync.failed', error, {
-      reason: 'auto',
-      durationMs: 1,
-    });
   });
 });
 

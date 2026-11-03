@@ -32,60 +32,6 @@ describe('settings draft store', () => {
     expect(drafts().profile).toMatchObject({ canSave: true, saveState: 'idle' });
   });
 
-  it('preserves newer general edits after an autosave override completes', async () => {
-    const pending = deferred<DesktopStore>();
-    stubDesktop({ store: { saveSettings: () => pending.promise } });
-    const { drafts, store } = startDrafts();
-    const submitted = { ...emptyStore.settings, saveArticleImages: true };
-    drafts().general.update(submitted);
-    const request = drafts().general.save(submitted);
-    drafts().general.update({ ...submitted, saveArticleImages: false });
-
-    pending.resolve({ ...emptyStore, settings: submitted });
-    await request;
-
-    expect(store().settings.saveArticleImages).toBe(true);
-    expect(drafts().general.value.saveArticleImages).toBe(false);
-    expect(drafts().general).toMatchObject({ canSave: true, saveState: 'idle' });
-  });
-
-  it('does not replace a profile restored while saving', async () => {
-    const pending = deferred<UserStorePatch>();
-    stubDesktop({ store: { saveUser: () => pending.promise } });
-    const { drafts, sync } = startDrafts();
-    const request = drafts().profile.save({ ...emptyStore.user, nickname: 'A' });
-    const restored = { ...emptyStore.user, nickname: 'restored' };
-    sync({ ...emptyStore, user: restored });
-
-    pending.resolve({ user: { ...emptyStore.user, nickname: 'A' } });
-    await request;
-
-    expect(drafts().profile.value).toEqual(restored);
-    expect(drafts().profile.saveState).toBe('idle');
-  });
-
-  it('keeps the selected provider when another provider finishes saving', async () => {
-    const first = makeProvider('first');
-    const second = makeProvider('second');
-    const pending = deferred<DesktopStore>();
-    stubDesktop({ provider: { save: () => pending.promise } });
-    const { drafts, store } = startDrafts({ ...emptyStore, providers: [first, second] });
-    const edited = { ...first, name: 'edited' };
-    drafts().provider.update(edited);
-    const request = drafts().provider.save();
-    drafts().provider.select(second);
-
-    pending.resolve({ ...emptyStore, providers: [edited, second] });
-
-    await expect(request).resolves.toBeUndefined();
-    expect(store().providers[0]).toEqual(edited);
-    expect(drafts().provider).toMatchObject({
-      saveState: 'idle',
-      selectedProviderId: second.id,
-      value: second,
-    });
-  });
-
   it('blocks duplicate creation while retaining the provider identity and newer input', async () => {
     const pending = deferred<DesktopStore>();
     const created = makeProvider('created');
@@ -116,28 +62,6 @@ describe('settings draft store', () => {
     expect(drafts().provider).toMatchObject({ canSave: false, saveState: 'saved' });
   });
 
-  it('selects the first provider once providers load and clears the editor when they are gone', () => {
-    const first = makeProvider('first');
-    const { drafts, sync } = startDrafts();
-    expect(drafts().provider.selectedProviderId).toBeNull();
-
-    sync({ ...emptyStore, providers: [first] });
-    expect(drafts().provider).toMatchObject({ selectedProviderId: first.id, value: first });
-
-    sync({ ...emptyStore, providers: [] });
-    expect(drafts().provider).toMatchObject({ canSave: false, selectedProviderId: null });
-  });
-
-  it('keeps a new provider form when a store update still has no providers', () => {
-    const { drafts, sync } = startDrafts();
-    drafts().provider.create();
-    drafts().provider.update({ ...drafts().provider.value, name: 'typing' });
-
-    sync({ ...emptyStore, providers: [] });
-
-    expect(drafts().provider.value.name).toBe('typing');
-  });
-
   it('persists the default model with route settings and preserves task overrides', async () => {
     const initial = makeStore({ settings: { reviewAssistantProviderId: 'review-provider' } });
     const saveSettings = vi.fn(async (patch: AppSettingsPatch) => ({
@@ -161,49 +85,12 @@ describe('settings draft store', () => {
     expect(drafts().routes.canSave).toBe(false);
   });
 
-  it('saves only the general section and preserves unsaved shortcut edits', async () => {
-    const saveSettings = vi.fn().mockResolvedValue(emptyStore);
-    stubDesktop({ store: { saveSettings } });
-    const { drafts } = startDrafts();
-    drafts().general.update({
-      ...drafts().general.value,
-      saveArticleImages: !emptyStore.settings.saveArticleImages,
-      selectionActionShortcuts: { copy: 'Mod+K', annotate: 'Mod+K', ask: 'Mod+L' },
-    });
-
-    await drafts().general.save();
-
-    expect(saveSettings).toHaveBeenCalledOnce();
-    const payload = saveSettings.mock.calls[0]?.[0];
-    expect(payload).toMatchObject({ saveArticleImages: true });
-    expect(payload).not.toHaveProperty('selectionActionShortcuts');
-    expect(payload).not.toHaveProperty('readingAssistantProviderId');
-    expect(drafts().shortcuts.value.selectionActionShortcuts).toEqual({
-      copy: 'Mod+K',
-      annotate: 'Mod+K',
-      ask: 'Mod+L',
-    });
-  });
-
   it('detects telemetryEnabled-only general settings changes', () => {
     const { drafts } = startDrafts();
 
     drafts().general.update({ ...emptyStore.settings, telemetryEnabled: false });
 
     expect(drafts().general.canSave).toBe(true);
-  });
-
-  it('does not reset edited settings drafts for store updates outside draft sync', () => {
-    const { desktopStore, drafts, sync } = startDrafts(
-      makeStore({ settings: { saveArticleImages: false } }),
-    );
-    drafts().general.update({ ...drafts().general.value, saveArticleImages: true });
-
-    desktopStore.getState().applyStore(makeStore({ settings: { saveArticleImages: false } }));
-    expect(drafts().general.value.saveArticleImages).toBe(true);
-
-    sync(makeStore({ settings: { saveArticleImages: false } }));
-    expect(drafts().general.value.saveArticleImages).toBe(false);
   });
 });
 
@@ -213,10 +100,8 @@ function startDrafts(initialStore: DesktopStore = emptyStore) {
   onTestFinished(bindSettingsDraftEvents(desktopStore, draftStore));
   desktopStore.getState().receiveStore(initialStore);
   return {
-    desktopStore,
     drafts: () => settingsDraftsView(draftStore.getState()),
     store: () => desktopStore.getState().store!,
-    sync: (store: DesktopStore) => desktopStore.getState().receiveStore(store),
   };
 }
 

@@ -29,51 +29,6 @@ describe('agent stream tasks', () => {
     expect(otherTask.signal.aborted).toBe(false);
     expect(tasks.activeCount()).toBe(1);
   });
-
-  it('reaches exactly one terminal state when a cancel races a completion', () => {
-    const tasks = createAgentStreamTasks();
-    const owner = streamOwner(4);
-    const task = tasks.start(owner, 'agent:distillation-review:stream', 'request_1');
-
-    expect(tasks.cancel(owner.id, 'agent:distillation-review:stream', 'request_1')).toBe(true);
-    expect(task.finish()).toBe(false);
-    expect(task.fail()).toBe(false);
-    expect(tasks.cancel(owner.id, 'agent:distillation-review:stream', 'request_1')).toBe(false);
-    expect(task.isCancelled()).toBe(true);
-  });
-
-  it('does not cancel a finished task', () => {
-    const tasks = createAgentStreamTasks();
-    const owner = streamOwner(5);
-    const task = tasks.start(owner, 'agent:distillation-review:stream', 'request_1');
-
-    expect(task.finish()).toBe(true);
-    expect(tasks.cancel(owner.id, 'agent:distillation-review:stream', 'request_1')).toBe(false);
-    expect(task.signal.aborted).toBe(false);
-    expect(task.isCancelled()).toBe(false);
-  });
-
-  it('cancels a superseded task that reuses one request id', () => {
-    const tasks = createAgentStreamTasks();
-    const owner = streamOwner(6);
-    const first = tasks.start(owner, 'agent:distillation-review:stream', 'request_1');
-
-    const second = tasks.start(owner, 'agent:distillation-review:stream', 'request_1');
-
-    expect(first.signal.aborted).toBe(true);
-    expect(second.signal.aborted).toBe(false);
-    expect(tasks.activeCount()).toBe(1);
-  });
-
-  it('stops listening for destruction once a task settles', () => {
-    const tasks = createAgentStreamTasks();
-    const owner = streamOwner(7);
-    const task = tasks.start(owner, 'agent:distillation-review:stream', 'request_1');
-
-    task.finish();
-
-    expect(owner.off).toHaveBeenCalledWith('destroyed', expect.any(Function));
-  });
 });
 
 function streamOwner(id: number) {

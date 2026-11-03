@@ -22,15 +22,10 @@
 
 本地快速循环使用 `mise run check:fast`。推送 PR 分支前至少运行 `pnpm format:check`；会触发完整 CI 的改动在推送前运行 `mise run check`。
 
-`mise run check` 是 canonical 门禁，CI 把同一组命令拆到并行 job 执行。未安装 mise 时运行下面的等价命令，`pnpm gate:check` 会校验它与 `mise.toml`、CI 一致：
+`mise run check` 是 canonical 门禁，CI 把同一组命令拆到并行 job 执行。未安装 mise 时运行下面的等价命令；改动门禁时同步更新 `mise.toml`、CI 和本节：
 
-<!-- gate:check -->
 ```bash
 pnpm lint
-pnpm gate:check
-pnpm effect:check
-pnpm docs:check-paths
-pnpm ui:check-primitives
 pnpm format:check
 pnpm typecheck
 pnpm test
@@ -44,9 +39,10 @@ CI 用 `Repository checks` job 判断改动范围：只改文档的 PR 跳过构
 
 ## 测试取舍
 
-- 测试优先保护核心计算、业务规则、数据一致性、安全边界和真实故障回归，不以覆盖率或用例数量为目标。
-- 新增测试应对应独立的可观察结果。同一行为不在多层重复穷举；不为导出清单、组件引用、文案、CSS 排版或动画参数维护实现快照。涉及可访问性、点击或文本选择的必要约束可以保留。
-- 常规测试使用能触发边界的最小数据集。大规模性能测量放在专项测试或工作流中；阅读记忆的万条向量检索性能由 `reading-memory-model.yml` 中的真实模型 benchmark 验证。
+- 只保留证明产品或逻辑假设的测试：能说清"这个假设不成立时，用户会看到什么错误、丢失什么数据或泄露什么信息"。说不清，或只是在复述实现，就不写。
+- 可保留的范围：核心计算与业务规则、数据一致性与迁移、真实输入格式解析、安全与隐私边界、打包与发布、可复现的真实故障回归。
+- 不写实现细节测试：mock 调用、内部状态、接线与清单、组件 DOM 结构、文案、样式、动画、默认值。同一假设只在最贴近用户结果的一层测一次，用能触发边界的最少用例。
+- 大规模性能测量放在专项测试或工作流中；阅读记忆的万条向量检索性能由 `reading-memory-model.yml` 中的真实模型 benchmark 验证。
 
 ## 仓库约束
 

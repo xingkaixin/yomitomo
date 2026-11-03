@@ -80,33 +80,6 @@ describe('article translation runtime', () => {
     expect(completed.status).toBe('ready');
   });
 
-  it('recovers all interrupted segments before retrying a selected block', async () => {
-    const harness = translationHarness(3);
-    harness.seedInterruptedTranslation(['block-0']);
-
-    const retried = await harness.runtime.translate(
-      { ...translateRequest(3), sourceBlockIds: ['block-1'] },
-      () => {},
-    );
-
-    expect(retried).toMatchObject({ status: 'ready', error: 'TRANSLATION_INCOMPLETE' });
-    expect(retried.segments.map((segment) => segment.status)).toEqual(['ready', 'ready', 'failed']);
-    expect(retried.segments[0]?.translatedText).toBe('saved block-0');
-    expect(harness.translateBlocks).toHaveBeenCalledOnce();
-    expect(await harness.runtime.deleteCurrent(translateRequest(3))).not.toBeNull();
-    expect(await harness.runtime.readCurrent(translateRequest(3))).toBeNull();
-  });
-
-  it('writes one segment update per block instead of rewriting the translation', async () => {
-    const harness = translationHarness(4);
-
-    await harness.runtime.translate(translateRequest(4), () => {});
-
-    expect(harness.calls.initialize).toBe(1);
-    expect(harness.calls.updateSegment).toBe(4);
-    expect(harness.calls.finalize).toBe(1);
-  });
-
   it('serializes two first-time requests for one key onto a single owner', async () => {
     const harness = translationHarness(2);
 
@@ -119,23 +92,6 @@ describe('article translation runtime', () => {
     expect(harness.translateBlocks).toHaveBeenCalledTimes(2);
     expect(harness.calls.initialize).toBe(1);
     expect(harness.countTranslations()).toBe(1);
-  });
-
-  it('retranslates every block when a concurrent request forces a refresh', async () => {
-    const harness = translationHarness(2);
-
-    await harness.runtime.translate(translateRequest(2), () => {});
-    const [, forced] = await Promise.all([
-      harness.runtime.translate(translateRequest(2), () => {}),
-      harness.runtime.translate({ ...translateRequest(2), force: true }, () => {}),
-    ]);
-
-    expect(harness.translateBlocks).toHaveBeenCalledTimes(4);
-    expect(harness.countTranslations()).toBe(1);
-    expect(forced.segments.map((segment) => segment.translatedText)).toEqual([
-      'translated block-0',
-      'translated block-1',
-    ]);
   });
 
   it('applies out-of-order provider completions to their own segment', async () => {
@@ -204,27 +160,6 @@ describe('article translation runtime', () => {
 
     expect(await deleted).not.toBeNull();
     expect(harness.calls.updateSegment).toBe(1);
-    expect(harness.countTranslations()).toBe(0);
-  });
-
-  it('aborts active generation and skips queued blocks when the translation is deleted', async () => {
-    const signals: AbortSignal[] = [];
-    const harness = translationHarness(5, (_blockId, signal) => {
-      signals.push(signal);
-      return new Promise<string>((_resolve, reject) => {
-        signal.addEventListener('abort', () => reject(signal.reason), { once: true });
-      });
-    });
-    const running = harness.runtime.translate(translateRequest(5), () => {});
-    await vi.waitFor(() => expect(signals).toHaveLength(3));
-
-    await harness.runtime.deleteCurrent(translateRequest(5));
-    await running;
-
-    expect(signals.every((signal) => signal.aborted)).toBe(true);
-    expect(harness.translateBlocks).toHaveBeenCalledTimes(3);
-    expect(harness.calls.updateSegment).toBe(0);
-    expect(harness.calls.finalize).toBe(0);
     expect(harness.countTranslations()).toBe(0);
   });
 

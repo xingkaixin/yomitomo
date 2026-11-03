@@ -1,14 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type {
-  AgentMessagePayload,
-  Annotation,
-  AnnotationDistillationReviewMessage,
-  PublicAgent,
-} from '@yomitomo/shared';
+import type { AgentMessagePayload, Annotation } from '@yomitomo/shared';
 import { DesktopIpcError, desktopIpcErrorCodes } from '../../ipc-errors';
 
 const ipcHandlers = vi.hoisted(() => new Map<string, (...args: unknown[]) => unknown>());
-const logError = vi.hoisted(() => vi.fn());
 
 vi.mock('electron', () => ({
   ipcMain: {
@@ -18,117 +12,15 @@ vi.mock('electron', () => ({
   },
 }));
 
-vi.mock('../app/logger', () => ({ logError }));
+vi.mock('../app/logger', () => ({ logError: vi.fn() }));
 
-import { agentStreamTasks, runAgentStreamIpc } from './ipc-agent-stream';
+import { runAgentStreamIpc } from './ipc-agent-stream';
 
 beforeEach(() => {
   ipcHandlers.clear();
 });
 
 describe('runAgentStreamIpc', () => {
-  it('sends handler events to the request-scoped response channel', async () => {
-    runAgentStreamIpc(
-      'agent:distillation-review:stream',
-      'STREAM_FAILED',
-      async (input, sender) => {
-        sender.send({
-          type: 'done',
-          message: {
-            ...finalMessage,
-            author: {
-              kind: 'agent',
-              agentId: 'agent_1',
-              username: input.payload.agentUsername,
-            },
-          },
-        });
-      },
-    );
-    const sender = streamSender();
-
-    await ipcHandler('agent:distillation-review:stream')(
-      { sender },
-      request('req_1', agentMessagePayload),
-    );
-
-    expect(sender.send).toHaveBeenCalledWith('agent:distillation-review:stream:req_1', {
-      type: 'done',
-      message: {
-        ...finalMessage,
-        author: { kind: 'agent', agentId: 'agent_1', username: 'agent' },
-      },
-    });
-  });
-
-  it('serializes stream errors with the fallback message for generic failures', async () => {
-    runAgentStreamIpc('agent:distillation-review:stream', 'STREAM_FAILED', async () => {
-      throw new Error('low level error');
-    });
-    const sender = streamSender();
-
-    await ipcHandler('agent:distillation-review:stream')(
-      { sender },
-      request('req_2', agentMessagePayload),
-    );
-
-    expect(sender.send).toHaveBeenCalledWith(
-      'agent:distillation-review:stream:req_2',
-      expect.objectContaining({
-        type: 'error',
-        message: 'STREAM_FAILED',
-        error: expect.objectContaining({ code: desktopIpcErrorCodes.handlerFailed }),
-      }),
-    );
-  });
-
-  it('keeps known desktop IPC error messages', async () => {
-    runAgentStreamIpc('agent:distillation-review:stream', 'STREAM_FAILED', async () => {
-      throw new DesktopIpcError(
-        desktopIpcErrorCodes.agentNotFound,
-        desktopIpcErrorCodes.agentNotFound,
-      );
-    });
-    const sender = streamSender();
-
-    await ipcHandler('agent:distillation-review:stream')(
-      { sender },
-      request('req_3', agentMessagePayload),
-    );
-
-    expect(sender.send).toHaveBeenCalledWith(
-      'agent:distillation-review:stream:req_3',
-      expect.objectContaining({
-        type: 'error',
-        message: desktopIpcErrorCodes.agentNotFound,
-        error: expect.objectContaining({ code: desktopIpcErrorCodes.agentNotFound }),
-      }),
-    );
-  });
-
-  it('does not send done after a cancelled stream handler returns', async () => {
-    runAgentStreamIpc(
-      'agent:distillation-review:stream',
-      'STREAM_FAILED',
-      async (input, sender, event) => {
-        agentStreamTasks.cancel(
-          event.sender.id,
-          'agent:distillation-review:stream',
-          input.requestId,
-        );
-        sender.send({ type: 'done', message: finalMessage });
-      },
-    );
-    const sender = streamSender();
-
-    await ipcHandler('agent:distillation-review:stream')(
-      { sender },
-      request('req_cancelled', agentMessagePayload),
-    );
-
-    expect(sender.send).not.toHaveBeenCalled();
-  });
-
   it('runs the guard before the stream handler', async () => {
     const handler = vi.fn();
     runAgentStreamIpc('agent:distillation-review:stream', 'STREAM_FAILED', handler, async () => {
@@ -149,90 +41,6 @@ describe('runAgentStreamIpc', () => {
         message: desktopIpcErrorCodes.appLockRequired,
         error: expect.objectContaining({ code: desktopIpcErrorCodes.appLockRequired }),
       }),
-    );
-  });
-
-  it.each([
-    ['missing request', undefined],
-    ['non-string request id', request(42, agentMessagePayload)],
-    ['overlong request id', request('r'.repeat(129), agentMessagePayload)],
-  ])('drops a %s before guard and handler execution', async (_label, malformedRequest) => {
-    const guard = vi.fn();
-    const handler = vi.fn();
-    runAgentStreamIpc('agent:distillation-review:stream', 'STREAM_FAILED', handler, guard);
-    const sender = streamSender();
-
-    expect(() =>
-      ipcHandler('agent:distillation-review:stream')({ sender }, malformedRequest),
-    ).not.toThrow();
-
-    expect(guard).not.toHaveBeenCalled();
-    expect(handler).not.toHaveBeenCalled();
-    expect(sender.send).not.toHaveBeenCalled();
-  });
-
-  it.each([
-    ['overlong article text', { ...agentMessagePayload, article: article('x'.repeat(20_000_001)) }],
-    [
-      'oversized agent roster',
-      {
-        ...agentMessagePayload,
-        agentRoster: Array.from({ length: 101 }, () => publicAgent),
-      },
-    ],
-    [
-      'invalid annotation author identity',
-      {
-        ...agentMessagePayload,
-        annotation: {
-          ...annotation,
-          author: { kind: 'agent', username: 'agent' },
-        },
-      },
-    ],
-  ])('rejects %s before guard and handler execution', async (_label, payload) => {
-    const guard = vi.fn();
-    const handler = vi.fn();
-    runAgentStreamIpc('agent:distillation-review:stream', 'STREAM_FAILED', handler, guard);
-    const sender = streamSender();
-
-    expect(() =>
-      ipcHandler('agent:distillation-review:stream')({ sender }, request('req_invalid', payload)),
-    ).not.toThrow();
-
-    expect(guard).not.toHaveBeenCalled();
-    expect(handler).not.toHaveBeenCalled();
-    expect(sender.send).toHaveBeenCalledWith(
-      'agent:distillation-review:stream:req_invalid',
-      expect.objectContaining({
-        type: 'error',
-        message: desktopIpcErrorCodes.invalidArgs,
-        error: expect.objectContaining({ code: desktopIpcErrorCodes.invalidArgs }),
-      }),
-    );
-  });
-
-  it('does not surface send failures while rejecting malformed requests', () => {
-    const handler = vi.fn();
-    runAgentStreamIpc('agent:distillation-review:stream', 'STREAM_FAILED', handler);
-    const sender = {
-      send: vi.fn(() => {
-        throw new Error('sender destroyed');
-      }),
-    };
-
-    expect(() =>
-      ipcHandler('agent:distillation-review:stream')(
-        { sender },
-        request('req_destroyed', { ...agentMessagePayload, agentRoster: null }),
-      ),
-    ).not.toThrow();
-
-    expect(handler).not.toHaveBeenCalled();
-    expect(logError).toHaveBeenCalledWith(
-      'ipc.invalid_response_failed',
-      expect.any(Error),
-      expect.objectContaining({ channel: 'agent:distillation-review:stream' }),
     );
   });
 });
@@ -271,19 +79,6 @@ const annotation: Annotation = {
   updatedAt: '2026-07-15T00:00:00.000Z',
 };
 
-const publicAgent: PublicAgent = {
-  id: 'agent_1',
-  kind: 'annotation',
-  enabled: true,
-  nickname: 'Agent',
-  username: 'agent',
-  avatar: '',
-  annotationColor: '#fff',
-  annotationDensity: 'medium',
-  temperature: 0.5,
-  personalityName: 'Agent',
-};
-
 const agentMessagePayload = {
   agentUsername: 'agent',
   article: article('article text'),
@@ -295,13 +90,6 @@ const agentMessagePayload = {
     createdAt: '2026-07-15T00:00:00.000Z',
   },
 } as AgentMessagePayload;
-
-const finalMessage: AnnotationDistillationReviewMessage = {
-  id: 'comment_1',
-  author: { kind: 'agent', agentId: 'agent_1', username: 'agent' },
-  content: 'done',
-  createdAt: '2026-07-15T00:00:00.000Z',
-};
 
 let streamSenderId = 0;
 

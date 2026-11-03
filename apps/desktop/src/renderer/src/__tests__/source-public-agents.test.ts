@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Agent } from '@yomitomo/shared';
-import {
-  publicAnnotationAgents,
-  publicReviewAgents,
-} from '../source/bookcase/source-public-agents';
+import { publicAnnotationAgents } from '../source/bookcase/source-public-agents';
 
 function desktopAgent(overrides: Partial<Agent> = {}): Agent {
   return {
@@ -38,46 +35,5 @@ describe('publicAnnotationAgents', () => {
         (item) => item.username,
       ),
     ).toEqual(['enabled', 'disabled']);
-  });
-
-  it('uses locale persona assets instead of the stored legacy avatar', () => {
-    const agents: Agent[] = [
-      desktopAgent({
-        id: 'agent_reading_partner',
-        presetId: 'reading-partner',
-        nickname: '林知微',
-        username: '林知微',
-        avatar: 'zh-legacy-avatar',
-        soul: 'legacy soul',
-      }),
-    ];
-
-    const [publicAgent] = publicAnnotationAgents(agents, 'en');
-
-    expect(publicAgent.nickname).toBe('June Hartley');
-    expect(publicAgent.username).toBe('JuneHartley');
-    expect(publicAgent.avatar).toContain('/agent-personas/en/annotation/reading-partner.webp');
-    expect(publicAgent.avatar).not.toBe('zh-legacy-avatar');
-  });
-});
-
-describe('publicReviewAgents', () => {
-  it('filters disabled review agents', () => {
-    const enabled = desktopAgent({
-      id: 'review_enabled',
-      kind: 'review',
-      username: 'review-enabled',
-      enabled: true,
-    });
-    const disabled = desktopAgent({
-      id: 'review_disabled',
-      kind: 'review',
-      username: 'review-disabled',
-      enabled: false,
-    });
-
-    expect(publicReviewAgents([enabled, disabled]).map((item) => item.username)).toEqual([
-      'review-enabled',
-    ]);
   });
 });

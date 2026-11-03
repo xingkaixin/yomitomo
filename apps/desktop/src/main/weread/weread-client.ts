@@ -592,7 +592,3 @@ function optionalNumber(value: unknown) {
 function numberValue(value: unknown) {
   return optionalNumber(value) || 0;
 }
-
-export const weReadClientTestApi = {
-  requestWeReadEffect,
-};

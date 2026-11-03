@@ -225,32 +225,6 @@ export function writeCollectionRows(database: StoreExecutor, collection: Collect
     .run();
 }
 
-export function writeCollectionMemberRows(database: StoreExecutor, member: CollectionMember) {
-  database
-    .insert(schema.collectionMembers)
-    .values(collectionMemberToRow(member))
-    .onConflictDoUpdate({
-      target: [
-        schema.collectionMembers.collectionId,
-        schema.collectionMembers.memberKind,
-        schema.collectionMembers.memberId,
-      ],
-      set: { addedAt: member.addedAt },
-    })
-    .run();
-}
-
-export function writeLibraryPinRows(database: StoreExecutor, pin: LibraryPin) {
-  database
-    .insert(schema.libraryPins)
-    .values(pinToRow(pin))
-    .onConflictDoUpdate({
-      target: [schema.libraryPins.targetKind, schema.libraryPins.targetId],
-      set: { pinnedAt: pin.pinnedAt },
-    })
-    .run();
-}
-
 function buildCollectionUpsertPatch(collection: Collection): CollectionStorePatch {
   return { type: 'collection-upsert', collection };
 }
@@ -329,17 +303,6 @@ function collectionToRow(collection: Collection): typeof schema.collections.$inf
     desc: collection.desc,
     createdAt: collection.createdAt,
     updatedAt: collection.updatedAt,
-  };
-}
-
-function collectionMemberToRow(
-  member: CollectionMember,
-): typeof schema.collectionMembers.$inferInsert {
-  return {
-    collectionId: member.collectionId,
-    memberKind: member.member.kind,
-    memberId: member.member.id,
-    addedAt: member.addedAt,
   };
 }
 

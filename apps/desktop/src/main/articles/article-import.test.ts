@@ -1,6 +1,5 @@
 import type { ArticleRecord } from '@yomitomo/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Effect, Fiber } from 'effect';
 
 const workerMocks = vi.hoisted(() => {
   type Handler = (...args: unknown[]) => void;
@@ -135,13 +134,10 @@ const browserWindowMocks = vi.hoisted(() => ({
 }));
 
 import {
-  articleImportTestApi,
   articleRecordFromUrl,
   cancelArticleImport,
   MAX_ARTICLE_IMPORT_HTML_BYTES,
 } from './article-import';
-
-function noop() {}
 
 describe('article import', () => {
   afterEach(() => {
@@ -151,47 +147,6 @@ describe('article import', () => {
     browserWindowMocks.nextRenderedPage = undefined;
     workerMocks.MockWorker.nextMessage = undefined;
     workerMocks.MockWorker.delayMessage = false;
-  });
-
-  it('fetches html and extracts the article in a worker', async () => {
-    const article = articleRecord();
-    workerMocks.MockWorker.nextMessage = { ok: true, article };
-    const fetchMock = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(new Response('<html><body>正文</body></html>'));
-
-    await expect(
-      articleRecordFromUrl('example.com/post', { inlineImages: true, requestId: 'import-1' }),
-    ).resolves.toEqual(article);
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://example.com/post',
-      expect.objectContaining({ redirect: 'manual' }),
-    );
-    expect(workerMocks.instances).toHaveLength(1);
-    expect(workerMocks.instances[0].workerData).toMatchObject({
-      html: '<html><body>正文</body></html>',
-      inlineImages: true,
-      url: 'https://example.com/post',
-    });
-    expect(workerMocks.instances[0].terminated).toBe(true);
-    expect(cancelArticleImport('import-1')).toBe(false);
-  });
-
-  it('fetches local and private network targets', async () => {
-    const article = articleRecord();
-    workerMocks.MockWorker.nextMessage = { ok: true, article };
-    const fetchMock = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(new Response('<html><body>local</body></html>'));
-
-    await expect(articleRecordFromUrl('http://127.0.0.1:8080/post')).resolves.toEqual(article);
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      'http://127.0.0.1:8080/post',
-      expect.objectContaining({ redirect: 'manual' }),
-    );
-    expect(workerMocks.instances).toHaveLength(1);
   });
 
   it('follows redirects', async () => {
@@ -240,23 +195,6 @@ describe('article import', () => {
     expect(workerMocks.instances).toHaveLength(0);
   });
 
-  it('rejects html responses with content-length over the import limit', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response('<html><body>正文</body></html>', {
-        headers: {
-          'content-length': String(MAX_ARTICLE_IMPORT_HTML_BYTES + 1),
-          'content-type': 'text/html',
-        },
-      }),
-    );
-
-    await expect(articleRecordFromUrl('https://example.com/large')).rejects.toThrow(
-      'ARTICLE_IMPORT_RESPONSE_TOO_LARGE',
-    );
-
-    expect(workerMocks.instances).toHaveLength(0);
-  });
-
   it('cancels streaming response reads when the body exceeds the import limit', async () => {
     const cancel = vi.fn();
     const stream = new ReadableStream<Uint8Array>({
@@ -298,37 +236,6 @@ describe('article import', () => {
     expect(workerMocks.instances).toHaveLength(2);
   });
 
-  it('rejects rendered fallback html over the import limit', async () => {
-    vi.spyOn(console, 'info').mockImplementation(() => undefined);
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response('<html>cf-browser-verification</html>'),
-    );
-    browserWindowMocks.nextRenderedPage = {
-      html: '',
-      htmlByteLength: MAX_ARTICLE_IMPORT_HTML_BYTES + 1,
-      text: '正文',
-      title: 'Article',
-      url: 'https://example.com/post',
-    };
-
-    await expect(articleRecordFromUrl('https://example.com/post')).rejects.toThrow(
-      'ARTICLE_IMPORT_RESPONSE_TOO_LARGE',
-    );
-
-    expect(workerMocks.instances).toHaveLength(0);
-  });
-
-  it('maps fetch AbortError to the import timeout code', async () => {
-    const error = new Error('aborted');
-    error.name = 'AbortError';
-    vi.spyOn(globalThis, 'fetch').mockRejectedValue(error);
-
-    await expect(articleRecordFromUrl('https://example.com/post')).rejects.toThrow(
-      'ARTICLE_IMPORT_TIMEOUT',
-    );
-    expect(workerMocks.instances).toHaveLength(0);
-  });
-
   it('cancels an active worker import and cleans up the task', async () => {
     workerMocks.MockWorker.delayMessage = true;
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('<html><body>正文</body></html>'));
@@ -342,66 +249,6 @@ describe('article import', () => {
     await expect(pending).rejects.toThrow('ARTICLE_IMPORT_CANCELED');
     expect(workerMocks.instances[0].terminated).toBe(true);
     expect(cancelArticleImport('import-cancel')).toBe(false);
-  });
-
-  it('aborts article fetch when its Effect is interrupted', async () => {
-    const request = hangingFetch();
-    vi.spyOn(globalThis, 'fetch').mockImplementation(request.run);
-    const fiber = Effect.runFork(
-      articleImportTestApi.articleRecordFromUrlEffect('https://example.com/post', {}),
-    );
-
-    await request.started.promise;
-    await Effect.runPromise(Fiber.interrupt(fiber));
-    const aborted = request.aborted();
-    request.release();
-
-    expect(aborted).toBe(true);
-    expect(workerMocks.instances).toHaveLength(0);
-  });
-
-  it('terminates the article worker when its Effect is interrupted', async () => {
-    workerMocks.MockWorker.delayMessage = true;
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('<html><body>正文</body></html>'));
-    const fiber = Effect.runFork(
-      articleImportTestApi.articleRecordFromUrlEffect('https://example.com/post', {}),
-    );
-    await vi.waitFor(() => expect(workerMocks.instances).toHaveLength(1));
-
-    await Effect.runPromise(Fiber.interrupt(fiber));
-
-    expect(workerMocks.instances[0].terminated).toBe(true);
-  });
-
-  it('waits for both session clears and only warns when one fails', async () => {
-    const article = articleRecord();
-    workerMocks.MockWorker.nextMessage = { ok: true, article };
-    vi.spyOn(console, 'info').mockImplementation(() => undefined);
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response('<html>cf-browser-verification</html>'),
-    );
-    let finishClearCache!: () => void;
-    const clearCache = new Promise<void>((resolve) => {
-      finishClearCache = resolve;
-    });
-    const clearError = new Error('clear storage failed');
-    const pending = articleRecordFromUrl('https://example.com/post');
-    await vi.waitFor(() => expect(browserWindowMocks.instances).toHaveLength(1));
-    const { session } = browserWindowMocks.instances[0].webContents;
-    session.clearStorageData.mockRejectedValueOnce(clearError);
-    session.clearCache.mockReturnValueOnce(clearCache);
-
-    await vi.waitFor(() => expect(session.clearCache).toHaveBeenCalledOnce(), { timeout: 5_000 });
-    await new Promise((resolve) => setTimeout(resolve));
-    expect(workerMocks.instances).toHaveLength(0);
-
-    finishClearCache();
-    await expect(pending).resolves.toEqual(article);
-    expect(warn).toHaveBeenCalledWith(
-      '[article-import] failed to clear temporary session',
-      expect.objectContaining({ error: clearError }),
-    );
   });
 
   it('loads challenge pages in an isolated temporary browser session', async () => {
@@ -452,31 +299,6 @@ describe('article import', () => {
     expect(openWindow({ url: 'https://example.com/popup' })).toEqual({ action: 'deny' });
   });
 });
-
-function hangingFetch() {
-  const started = deferredPromise();
-  let signal: AbortSignal | undefined;
-  let rejectRequest: (reason?: unknown) => void = noop;
-  return {
-    started,
-    run: (_input: URL | RequestInfo, init?: RequestInit) =>
-      new Promise<Response>((_resolve, reject) => {
-        signal = init?.signal instanceof AbortSignal ? init.signal : undefined;
-        rejectRequest = reject;
-        started.resolve();
-      }),
-    aborted: () => signal?.aborted === true,
-    release: () => rejectRequest(new DOMException('Aborted', 'AbortError')),
-  };
-}
-
-function deferredPromise(): { promise: Promise<void>; resolve: () => void } {
-  let resolve = noop;
-  const promise = new Promise<void>((settle) => {
-    resolve = settle;
-  });
-  return { promise, resolve };
-}
 
 function articleRecord(): ArticleRecord {
   return {

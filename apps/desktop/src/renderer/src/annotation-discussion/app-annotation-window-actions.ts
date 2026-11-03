@@ -59,6 +59,4 @@ export function createAnnotationWindowActions(getDesktop: () => AnnotationWindow
   };
 }
 
-export type AnnotationWindowActions = ReturnType<typeof createAnnotationWindowActions>;
-
 export const annotationWindowActions = createAnnotationWindowActions(getDesktopApi);

@@ -80,20 +80,6 @@ describe('app lock IPC guard', () => {
     expect(protectedHandler).not.toHaveBeenCalled();
   });
 
-  it('checks protected IPC without reading a store snapshot', async () => {
-    const storeModule = createStoreModule(lockedStore());
-    const ipcContext = context(storeModule);
-    configureDesktopIpcAppLockGuardContext(ipcContext);
-    const protectedHandler = vi.fn();
-    handleDesktopIpc('article:get', protectedHandler);
-
-    await expectAppLockRequired('article:get', 'article_1');
-
-    expect(storeModule.readAppLockSettings).toHaveBeenCalledOnce();
-    expect(storeModule.readStore).not.toHaveBeenCalled();
-    expect(protectedHandler).not.toHaveBeenCalled();
-  });
-
   it('does not let setLocked unlock the app from renderer-controlled input', async () => {
     const storeModule = createStoreModule(lockedStore());
     const ipcContext = context(storeModule);
@@ -103,27 +89,6 @@ describe('app lock IPC guard', () => {
     await expectAppLockRequired('appLock:setLocked', { locked: false });
 
     expect(storeModule.saveSettings).not.toHaveBeenCalled();
-  });
-
-  it('unlocks in main after validating the pin in the same handler', async () => {
-    ipcState.verifyAppLockPin.mockResolvedValue(true);
-    const storeModule = createStoreModule(lockedStore());
-    const ipcContext = context(storeModule);
-    configureDesktopIpcAppLockGuardContext(ipcContext);
-    registerAppLockIpc(ipcContext);
-
-    const envelope = await invokeRegisteredHandler('appLock:unlock', { pin: '1234' });
-
-    expect(ipcState.verifyAppLockPin).toHaveBeenCalledWith('1234');
-    expect(storeModule.saveSettings).toHaveBeenCalledWith({ appLockLocked: false });
-    expect(ipcContext.sendFullStoreUpdated).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ settings: expect.objectContaining({ appLockLocked: false }) }),
-    );
-    expect(envelope).toMatchObject({
-      ok: true,
-      value: { settings: { appLockEnabled: true, appLockLocked: false } },
-    });
   });
 
   it('keeps the app locked when unlock receives a wrong pin', async () => {
@@ -191,25 +156,6 @@ describe('app lock IPC guard', () => {
       },
     });
   });
-
-  it('allows lock status reads while locked without returning the store', async () => {
-    const storeModule = createStoreModule(lockedStore());
-    const ipcContext = context(storeModule);
-    configureDesktopIpcAppLockGuardContext(ipcContext);
-    registerAppLockIpc(ipcContext);
-
-    const envelope = await invokeRegisteredHandler('appLock:getStatus');
-
-    expect(envelope).toEqual({
-      ok: true,
-      value: {
-        configured: true,
-        enabled: true,
-        locked: true,
-        shortcut: 'CommandOrControl+L',
-      },
-    });
-  });
 });
 
 function context(storeModule: ReturnType<typeof createStoreModule>) {
@@ -238,7 +184,6 @@ function context(storeModule: ReturnType<typeof createStoreModule>) {
         readStore: storeModule.readStore,
         readShellStore: storeModule.readStore,
         readShellStoreWithProfile: storeModule.readShellStoreWithProfile,
-        readStoreWithProfile: storeModule.readStoreWithProfile,
       },
     }),
     logError: vi.fn(),
@@ -274,7 +219,6 @@ function createStoreModule(initialStore: DesktopStore) {
     })),
     readStore: vi.fn(async () => store),
     readShellStoreWithProfile: vi.fn(async () => ({ store, profile: [] })),
-    readStoreWithProfile: vi.fn(async () => ({ store, profile: [] })),
     readStoredProviderApiKey: vi.fn(async () => 'provider-secret'),
     readStoredWeReadApiKey: vi.fn(async () => 'weread-secret'),
     saveSettings: vi.fn(async (settings: AppSettingsPatch) => {

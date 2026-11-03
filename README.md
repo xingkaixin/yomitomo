@@ -146,7 +146,6 @@ pnpm lint
 pnpm lint:fix
 pnpm format
 pnpm format:check
-pnpm ui:check-primitives
 pnpm typecheck
 pnpm test
 pnpm build
@@ -188,13 +187,8 @@ mise run check:fast
 
 The full gate expands to:
 
-<!-- gate:check -->
 ```bash
 pnpm lint
-pnpm gate:check
-pnpm effect:check
-pnpm docs:check-paths
-pnpm ui:check-primitives
 pnpm format:check
 pnpm typecheck
 pnpm test

@@ -30,7 +30,6 @@ import {
   deleteWeReadDetailRowsForBooks,
   insertWeReadDetailRows,
   upsertWeReadBookRows,
-  weReadBookRow,
   type WeReadDetailRows,
 } from './weread-detail-row-writes';
 
@@ -131,32 +130,6 @@ export async function saveWeReadTestResult(ok: boolean, message: string) {
     message,
     lastSyncAt: existing?.lastSyncAt,
     lastTestAt: new Date().toISOString(),
-  });
-  return readWeReadState();
-}
-
-export async function saveWeReadBooks(books: WeReadBook[]) {
-  const database = getDatabase();
-  database.transaction((tx) => {
-    upsertWeReadBookRows(tx, books.map(weReadBookRow));
-    removeStaleWeReadBooks(
-      tx,
-      books.map((book) => book.bookId),
-    );
-    const existing = tx
-      .select()
-      .from(schema.wereadAccounts)
-      .where(eq(schema.wereadAccounts.id, WEREAD_ACCOUNT_ID))
-      .get();
-    upsertWeReadAccountRow(tx, {
-      apiKeyRef: existing?.apiKeyRef || null,
-      openMethod: normalizeWeReadOpenMethod(existing?.openMethod),
-      syncMode: normalizeWeReadSyncMode(existing?.syncMode),
-      status: 'connected',
-      message: null,
-      lastSyncAt: new Date().toISOString(),
-      lastTestAt: existing?.lastTestAt,
-    });
   });
   return readWeReadState();
 }

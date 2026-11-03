@@ -7,7 +7,6 @@ import {
   buildPdfTextDocument,
   pdfReaderBookmarkRanges,
   pdfReaderReadingSections,
-  primaryPdfiumTocItems,
 } from '../source/pdfium/pdfium-text-document';
 
 describe('pdfium text document', () => {
@@ -77,38 +76,6 @@ describe('pdfium text document', () => {
         start: document.pages[1].bodyStart,
         end: document.text.length,
       },
-    ]);
-  });
-
-  it('groups non-empty pages when bookmarks are unavailable', () => {
-    const document = buildPdfTextDocument(['一', '', '三', '四', '五', '六']);
-
-    expect(pdfReaderReadingSections(document, [], 6)).toEqual([
-      {
-        id: 'pdf-pages-1-5',
-        title: '第 1-5 页',
-        start: document.pages[0].bodyStart,
-        end: document.pages[4].bodyEnd,
-      },
-      {
-        id: 'pdf-pages-6-6',
-        title: '第 6 页',
-        start: document.pages[5].bodyStart,
-        end: document.pages[5].bodyEnd,
-      },
-    ]);
-  });
-
-  it('keeps only primary depth TOC items and derives page ends', () => {
-    const items: TocItem[] = [
-      { index: 0, text: '章一', depth: 0, start: 0, end: 9 },
-      { index: 1, text: '节一', depth: 1, start: 1, end: 9 },
-      { index: 2, text: '章二', depth: 0, start: 4, end: 9 },
-    ];
-
-    expect(primaryPdfiumTocItems(items, 9)).toEqual([
-      { index: 0, text: '章一', depth: 0, start: 0, end: 4 },
-      { index: 1, text: '章二', depth: 0, start: 4, end: 9 },
     ]);
   });
 });

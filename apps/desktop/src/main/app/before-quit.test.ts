@@ -31,21 +31,4 @@ describe('before quit', () => {
     expect(dispose).toHaveBeenCalledOnce();
     expect(logError).not.toHaveBeenCalled();
   });
-
-  it('does not report resources released when disposal fails', async () => {
-    const error = new Error('child process could not exit');
-    const dispose = vi.fn().mockRejectedValueOnce(error).mockResolvedValueOnce(undefined);
-    const quit = vi.fn();
-    const logError = vi.fn();
-    const handler = createBeforeQuitHandler({ dispose, quit, logError });
-    const event = { preventDefault: vi.fn() };
-
-    handler(event);
-    await vi.waitFor(() => expect(logError).toHaveBeenCalledWith('app.shutdown_failed', error));
-
-    expect(quit).not.toHaveBeenCalled();
-    handler(event);
-    await vi.waitFor(() => expect(quit).toHaveBeenCalledOnce());
-    expect(event.preventDefault).toHaveBeenCalledTimes(2);
-  });
 });

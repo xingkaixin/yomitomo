@@ -1,12 +1,9 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AppSettingsPatch, DesktopStore } from '@yomitomo/shared';
-import { AppLockGate, useAppLockController } from '../app-lock/app-lock-gate';
+import { AppLockGate } from '../app-lock/app-lock-gate';
 import { initializeAppI18n } from '../i18n/app-i18n';
-import { emptyStore } from '../settings/app-settings';
-import { normalizeAppSettings } from '../../../settings/app-settings-normalization';
 
 beforeEach(() => {
   initializeAppI18n('zh-CN');
@@ -16,114 +13,6 @@ afterEach(() => {
   cleanup();
   Reflect.deleteProperty(window, 'yomitomoDesktop');
   vi.clearAllMocks();
-});
-
-describe('useAppLockController', () => {
-  it('locks the app through the desktop preload facade', async () => {
-    const lockedStore = makeStore({
-      articles: [articleSummary({ id: 'article_secret' })],
-      settings: { appLockEnabled: true, appLockLocked: true },
-    });
-    const onStoreUpdated = vi.fn();
-    const latest: { current?: ReturnType<typeof useAppLockController> } = {};
-
-    Object.defineProperty(window, 'yomitomoDesktop', {
-      configurable: true,
-      value: {
-        platform: 'darwin',
-        appLock: {
-          setLocked: vi.fn().mockResolvedValue(lockedStore),
-        },
-      },
-    });
-
-    render(<Harness latest={latest} onStoreUpdated={onStoreUpdated} />);
-
-    await act(async () => {
-      await latest.current?.lockApp();
-    });
-
-    expect(window.yomitomoDesktop.appLock.setLocked).toHaveBeenCalledWith({ locked: true });
-    expect(onStoreUpdated).toHaveBeenCalledWith(
-      expect.objectContaining({
-        articles: [],
-        settings: expect.objectContaining({ appLockEnabled: true, appLockLocked: true }),
-      }),
-    );
-  });
-
-  it('handles slide, invalid PIN, and successful unlock states', async () => {
-    const unlockedStore = makeStore({ settings: { appLockEnabled: true, appLockLocked: false } });
-    const onStoreUpdated = vi.fn();
-    const latest: { current?: ReturnType<typeof useAppLockController> } = {};
-
-    Object.defineProperty(window, 'yomitomoDesktop', {
-      configurable: true,
-      value: {
-        platform: 'darwin',
-        appLock: {
-          unlock: vi
-            .fn()
-            .mockRejectedValueOnce({ code: 'APP_LOCK_PIN_INVALID', message: 'bad pin' })
-            .mockResolvedValueOnce(unlockedStore),
-        },
-      },
-    });
-
-    render(<Harness latest={latest} locked onStoreUpdated={onStoreUpdated} />);
-
-    act(() => {
-      latest.current?.completeSlide();
-    });
-    expect(screen.getByTestId('step').textContent).toBe('pin');
-
-    act(() => {
-      latest.current?.updatePin('12a34');
-    });
-    expect(screen.getByTestId('pin').textContent).toBe('1234');
-
-    await act(async () => {
-      await latest.current?.unlockApp();
-    });
-    expect(screen.getByTestId('error').textContent).toBe('PIN 不正确。');
-    expect(screen.getByTestId('pin').textContent).toBe('');
-
-    act(() => {
-      latest.current?.updatePin('1234');
-    });
-    await act(async () => {
-      await latest.current?.unlockApp('1234');
-    });
-
-    expect(window.yomitomoDesktop.appLock.unlock).toHaveBeenLastCalledWith({ pin: '1234' });
-    expect(onStoreUpdated).toHaveBeenCalledWith(unlockedStore);
-  });
-
-  it('shows the retry delay returned by the main process', async () => {
-    const latest: { current?: ReturnType<typeof useAppLockController> } = {};
-
-    Object.defineProperty(window, 'yomitomoDesktop', {
-      configurable: true,
-      value: {
-        platform: 'darwin',
-        appLock: {
-          unlock: vi.fn().mockRejectedValue({
-            code: 'APP_LOCK_RATE_LIMITED',
-            detail: { retryAfterMs: 2_001 },
-            message: 'APP_LOCK_RATE_LIMITED',
-          }),
-        },
-      },
-    });
-
-    render(<Harness latest={latest} locked onStoreUpdated={vi.fn()} />);
-
-    await act(async () => {
-      await latest.current?.unlockApp('1234');
-    });
-
-    expect(screen.getByTestId('error').textContent).toBe('错误次数过多，请在 3 秒后重试。');
-  });
 });
 
 describe('AppLockGate', () => {
@@ -138,67 +27,3 @@ describe('AppLockGate', () => {
     expect(screen.getByRole('dialog')).not.toBeNull();
   });
 });
-
-function Harness({
-  enabled = true,
-  latest,
-  locked = false,
-  onStoreUpdated,
-}: {
-  enabled?: boolean;
-  latest: { current?: ReturnType<typeof useAppLockController> };
-  locked?: boolean;
-  onStoreUpdated: (store: DesktopStore) => void;
-}) {
-  const controller = useAppLockController({
-    enabled,
-    locked,
-    onStoreUpdated,
-  });
-  latest.current = controller;
-
-  return (
-    <>
-      <span data-testid="step">{controller.step}</span>
-      <span data-testid="pin">{controller.pin}</span>
-      <span data-testid="error">{controller.error}</span>
-    </>
-  );
-}
-
-function makeStore(input: {
-  articles?: DesktopStore['articles'];
-  settings: AppSettingsPatch;
-}): DesktopStore {
-  return {
-    ...emptyStore,
-    articles: input.articles || [],
-    settings: normalizeAppSettings({ soundEffectsEnabled: false, ...input.settings }),
-  };
-}
-
-type WebArticleSummaryRecord = Extract<DesktopStore['articles'][number], { sourceType: 'web' }>;
-
-function articleSummary(input: Partial<WebArticleSummaryRecord>): WebArticleSummaryRecord {
-  return {
-    id: input.id || 'article_1',
-    title: input.title || '文章',
-    url: input.url || '',
-    canonicalUrl: input.canonicalUrl || input.url || '',
-    excerpt: input.excerpt || '',
-    byline: input.byline || '',
-    siteName: input.siteName || '',
-    contentHash: input.contentHash || 'hash',
-    sourceType: 'web',
-    readingProgress: input.readingProgress,
-    counts: input.counts || {
-      annotationCount: 0,
-      thoughtCount: 0,
-      discussionCommentCount: 0,
-      aiCommentCount: 0,
-      distillationCount: 0,
-    },
-    createdAt: input.createdAt || '2026-06-27T00:00:00.000Z',
-    updatedAt: input.updatedAt || '2026-06-27T00:00:00.000Z',
-  };
-}

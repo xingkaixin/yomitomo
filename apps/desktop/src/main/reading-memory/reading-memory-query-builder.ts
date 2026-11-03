@@ -1,8 +1,5 @@
 import type { TextRange } from '@yomitomo/shared';
-import type {
-  ReadReadingMemoryEntriesOptions,
-  SoftDeleteReadingMemoryEntriesBySourceOptions,
-} from './reading-memory-store-types';
+import type { ReadReadingMemoryEntriesOptions } from './reading-memory-store-types';
 import type { SqliteValue } from './reading-memory-row-mapper';
 
 export function readingMemoryWhereClause(options: ReadReadingMemoryEntriesOptions) {
@@ -42,24 +39,6 @@ export function readingMemoryWhereClause(options: ReadReadingMemoryEntriesOption
   addNearTextRangeClause(clauses, values, options.nearTextRange, 2400);
   if (!options.includeDeleted) clauses.push('deleted_at IS NULL');
   return { where: `WHERE ${clauses.join('\n  AND ')}`, values };
-}
-
-export function sourceWhereClause(options: SoftDeleteReadingMemoryEntriesBySourceOptions) {
-  const clauses: string[] = [];
-  const values: SqliteValue[] = [];
-  if (options.sourceAnnotationId) {
-    clauses.push('source_annotation_id = ?');
-    values.push(options.sourceAnnotationId);
-  }
-  if (options.sourceCommentId) {
-    clauses.push('source_comment_id = ?');
-    values.push(options.sourceCommentId);
-  }
-  if (options.sourceType && options.sourceId) {
-    clauses.push('(source_type = ? AND source_id = ?)');
-    values.push(options.sourceType, options.sourceId);
-  }
-  return { where: clauses.join(' OR '), values };
 }
 
 export function readingMemoryFtsQuery(query: string) {

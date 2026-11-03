@@ -12,8 +12,6 @@ import type { ArticleTranslationIdentity } from './article-translation-identity'
 type ArticleTranslationRow = typeof schema.articleTranslations.$inferSelect;
 type ArticleTranslationSegmentRow = typeof schema.articleTranslationSegments.$inferSelect;
 
-export type ArticleTranslationKey = ArticleTranslationIdentity;
-
 export type ArticleTranslationSegmentInitializer = {
   sourceBlockId: string;
   sourceText: string;

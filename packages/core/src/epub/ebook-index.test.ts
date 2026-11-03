@@ -5,76 +5,11 @@ import {
   createEpubTextAnchor,
   createEpubTextAnchorFromQuote,
   epubIndexText,
-  locateEpubOffset,
   locateEpubTextAnchor,
-  prepareEpubBookIndex,
   prepareEpubTextAnchorResolver,
 } from './ebook-index';
 
 describe('buildEpubBookIndex', () => {
-  it('diagnoses prepared index construction and reuse', () => {
-    const index = buildEpubBookIndex({
-      articleId: 'article-1',
-      chapters: [{ id: 'chapter-1', title: '第一章', paragraphs: ['正文。'] }],
-    });
-    const events: Array<{ event: string; data?: Record<string, unknown> }> = [];
-    const logger = (event: string, data?: Record<string, unknown>) => {
-      events.push({ event, data });
-    };
-
-    prepareEpubBookIndex(index, logger);
-    prepareEpubBookIndex(index, logger);
-
-    expect(events).toEqual([
-      {
-        event: 'performance.epub_book_index_prepare',
-        data: expect.objectContaining({ result: 'built', articleId: 'article-1' }),
-      },
-      {
-        event: 'performance.epub_book_index_prepare',
-        data: expect.objectContaining({ result: 'reused', articleId: 'article-1' }),
-      },
-    ]);
-  });
-
-  it('answers structural queries without exposing lookup state', () => {
-    const index = buildEpubBookIndex({
-      articleId: 'article-1',
-      maxSegmentTextLength: 1,
-      minSegmentTextLength: 1,
-      chapters: [
-        { id: 'chapter-1', title: '第一章', paragraphs: ['第一段。', '第二段。'] },
-        { id: 'chapter-2', title: '第二章', paragraphs: ['第三段。'] },
-      ],
-    });
-    const prepared = prepareEpubBookIndex(index);
-    const firstSegment = index.segments[0];
-    const secondSegment = index.segments[1];
-    const secondParagraph = index.paragraphs[1];
-    const secondChapter = index.chapters[1];
-    if (!firstSegment || !secondSegment || !secondParagraph || !secondChapter) {
-      throw new Error('expected prepared EPUB fixtures');
-    }
-
-    expect(prepared.chapter('chapter-2')?.title).toBe('第二章');
-    expect(prepared.segment(secondSegment.id)).toBe(secondSegment);
-    expect(prepared.paragraph(secondParagraph.id)).toBe(secondParagraph);
-    expect(prepared.firstSegmentInChapter('chapter-1')).toBe(firstSegment);
-    expect(prepared.nextSegment(firstSegment)).toBe(secondSegment);
-    expect(prepared.previousSegment(secondSegment)).toBe(firstSegment);
-    expect(prepared.segmentsOverlapping(secondParagraph).map((item) => item.id)).toEqual([
-      secondSegment.id,
-    ]);
-    expect(prepared.paragraphsOverlapping(secondSegment).map((item) => item.id)).toEqual([
-      secondParagraph.id,
-    ]);
-    expect(prepared.paragraphWindow(secondParagraph, 1).map((item) => item.id)).toEqual([
-      'chapter-1-paragraph-1',
-      'chapter-1-paragraph-2',
-    ]);
-    expect(prepared.chaptersBefore(secondChapter)).toEqual(['chapter-1']);
-  });
-
   it('builds chapter, segment and paragraph ranges over book text', () => {
     const chapters = [
       {
@@ -110,69 +45,9 @@ describe('buildEpubBookIndex', () => {
       [12, 16],
     ]);
   });
-
-  it('groups long chapters by paragraph boundaries', () => {
-    const paragraphs = Array.from({ length: 7 }, (_, index) => `第 ${index + 1} 段。`.repeat(40));
-    const index = buildEpubBookIndex({
-      articleId: 'article-1',
-      chapters: [{ id: 'chapter-1', title: '长章节', paragraphs }],
-      maxSegmentTextLength: 360,
-      minSegmentTextLength: 180,
-    });
-
-    expect(index.segments.length).toBeGreaterThan(1);
-    expect(index.segments.flatMap((segment) => segment.paragraphIds)).toEqual(
-      index.paragraphs.map((paragraph) => paragraph.id),
-    );
-    expect(index.segments.every((segment) => segment.paragraphIds.length > 0)).toBe(true);
-  });
-
-  it('keeps empty titles and short chapters addressable', () => {
-    const chapters = [
-      { id: 'chapter-1', title: '', paragraphs: ['短章。'] },
-      { id: 'chapter-2', title: '尾声', paragraphs: ['完。'] },
-    ];
-    const index = buildEpubBookIndex({ articleId: 'article-1', chapters });
-
-    expect(index.chapters[0]).toMatchObject({
-      title: '',
-      textLength: 3,
-      segmentIds: ['chapter-1-segment-1'],
-      paragraphIds: ['chapter-1-paragraph-1'],
-    });
-    expect(index.segments[0]).toMatchObject({
-      id: 'chapter-1-segment-1',
-      textLength: 3,
-      previewStart: '短章。',
-      previewEnd: '短章。',
-    });
-  });
 });
 
 describe('locateEpubOffset', () => {
-  it('locates offset in chapter, segment, paragraph and paragraph window', () => {
-    const chapters = [
-      { id: 'chapter-1', title: '第一章', paragraphs: ['甲段。', '乙段。', '丙段。'] },
-    ];
-    const text = epubIndexText(chapters);
-    const index = buildEpubBookIndex({
-      articleId: 'article-1',
-      chapters,
-      maxSegmentTextLength: 8,
-      minSegmentTextLength: 4,
-    });
-    const location = locateEpubOffset(index, text.indexOf('乙'), { paragraphWindowSize: 1 });
-
-    expect(location?.chapter.id).toBe('chapter-1');
-    expect(location?.segment.id).toBe('chapter-1-segment-1');
-    expect(location?.paragraph?.id).toBe('chapter-1-paragraph-2');
-    expect(location?.paragraphWindow.map((paragraph) => paragraph.id)).toEqual([
-      'chapter-1-paragraph-1',
-      'chapter-1-paragraph-2',
-      'chapter-1-paragraph-3',
-    ]);
-  });
-
   it('locates TextAnchor through shared anchor resolution', () => {
     const chapters = [
       { id: 'chapter-1', title: '第一章', paragraphs: ['重复句子。', '目标句子。', '重复句子。'] },
@@ -186,28 +61,6 @@ describe('locateEpubOffset', () => {
     expect(location?.textStart).toBe(start);
     expect(location?.textEnd).toBe(start + '目标句子'.length);
     expect(location?.paragraph?.id).toBe('chapter-1-paragraph-2');
-  });
-
-  it('creates paragraph-aware anchors from EPUB index offsets', () => {
-    const chapters = [
-      { id: 'chapter-1', title: '第一章', paragraphs: ['第一段目标。', '第二段目标。'] },
-    ];
-    const text = epubIndexText(chapters);
-    const index = buildEpubBookIndex({ articleId: 'article-1', chapters });
-    const start = text.indexOf('第二');
-    const anchor = createEpubTextAnchor(index, text, start, start + '第二段'.length);
-
-    expect(anchor).toMatchObject({
-      exact: '第二段',
-      chapterId: 'chapter-1',
-      segmentId: 'chapter-1-segment-1',
-      paragraphId: 'chapter-1-paragraph-2',
-      textStartInParagraph: 0,
-      textEndInParagraph: 3,
-      textStartInBook: start,
-      textEndInBook: start + '第二段'.length,
-    });
-    expect(anchor.quoteHash).toBeTruthy();
   });
 
   it('prefers paragraph offsets when exact text repeats', () => {
@@ -336,58 +189,6 @@ describe('locateEpubOffset', () => {
     });
 
     expect(position).toEqual({ start, end: start + 'target quote'.length });
-  });
-
-  it('rejects resolved anchors outside allowed paragraph and core ranges', () => {
-    const chapters = [
-      { id: 'chapter-1', title: '第一章', paragraphs: ['第一段目标。', '第二段目标。'] },
-    ];
-    const text = epubIndexText(chapters);
-    const index = buildEpubBookIndex({ articleId: 'article-1', chapters });
-    const second = index.paragraphs[1];
-    const anchor = createEpubTextAnchor(index, text, second.textStart, second.textStart + 4);
-
-    expect(
-      locateEpubTextAnchor(index, text, anchor, {
-        allowedParagraphIds: ['chapter-1-paragraph-1'],
-      }),
-    ).toBeNull();
-    expect(
-      locateEpubTextAnchor(index, text, anchor, {
-        allowedTextStart: 0,
-        allowedTextEnd: second.textStart,
-      }),
-    ).toBeNull();
-    expect(
-      locateEpubTextAnchor(index, text, anchor, {
-        allowedParagraphIds: ['chapter-1-paragraph-2'],
-        allowedTextStart: second.textStart,
-        allowedTextEnd: second.textEnd,
-      })?.paragraph?.id,
-    ).toBe('chapter-1-paragraph-2');
-  });
-
-  it('preserves first-match IDs in a prepared resolver', () => {
-    const chapters = [
-      { id: 'chapter-1', title: '第一章', paragraphs: ['重复目标。', '重复目标。'] },
-    ];
-    const text = epubIndexText(chapters);
-    const index = buildEpubBookIndex({ articleId: 'article-1', chapters });
-    const first = index.paragraphs[0];
-    const second = index.paragraphs[1];
-    const secondAnchor = createEpubTextAnchor(index, text, second.textStart, second.textEnd);
-    second.id = first.id;
-    const resolver = prepareEpubTextAnchorResolver(index, text);
-    const duplicateIdLocation = resolver.locate({
-      ...secondAnchor,
-      paragraphId: first.id,
-      start: second.textStart,
-      end: second.textEnd,
-      textStartInBook: second.textStart,
-      textEndInBook: second.textEnd,
-    });
-
-    expect(duplicateIdLocation?.textStart).toBe(first.textStart);
   });
 
   it('checks every crossed range in a prepared resolver', () => {

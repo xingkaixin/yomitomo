@@ -1,14 +1,9 @@
 import type { RefObject } from 'react';
 import {
   buildSearchClearGlowBackground,
-  textForSearchClearMirror,
   useSearchClearDissolveCore,
   type SearchClearGlowBuilderParams,
 } from './reader-search-clear-dissolve-core';
-
-export function textForSearchMirror(value: string) {
-  return textForSearchClearMirror(value);
-}
 
 export function useSearchClearDissolve({
   inputRef,

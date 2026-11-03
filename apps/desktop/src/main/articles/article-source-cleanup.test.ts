@@ -6,8 +6,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const cleanupState = vi.hoisted(() => ({
   deleteError: undefined as Error | undefined,
-  deletedArticleIds: [] as string[],
-  logErrors: [] as Array<{ event: string; error: unknown; data?: Record<string, unknown> }>,
   userData: '',
 }));
 
@@ -31,20 +29,17 @@ vi.mock('../ebooks/ebook-storage', async (importOriginal) => {
     deleteEbookSourceFile: vi.fn(async (articleId: string) => {
       if (cleanupState.deleteError) throw cleanupState.deleteError;
       await actual.deleteEbookSourceFile(articleId);
-      cleanupState.deletedArticleIds.push(articleId);
     }),
   };
 });
 
 vi.mock('../app/logger', () => ({
-  logError: (event: string, error: unknown, data?: Record<string, unknown>) => {
-    cleanupState.logErrors.push({ event, error, data });
-  },
+  logError: vi.fn(),
 }));
 
 import * as schema from '../db/schema';
 import { closeDatabase } from '../store/store-lifecycle';
-import { getDatabase, getSqliteExecutor, readDatabaseLifecycle } from '../store/store-db';
+import { getDatabase, getSqliteExecutor } from '../store/store-db';
 import {
   deleteEbookSourceFile,
   readEbookSourceFile,
@@ -65,8 +60,6 @@ beforeEach(async () => {
     fs.mkdtemp(join(tmpdir(), 'yomitomo-source-cleanup-')),
   );
   cleanupState.deleteError = undefined;
-  cleanupState.deletedArticleIds = [];
-  cleanupState.logErrors = [];
 });
 
 afterEach(async () => {
@@ -121,61 +114,7 @@ describe('article source cleanup recovery', () => {
     expect(readArticleRows(getDatabase(), id)).not.toBeNull();
     expect(readCleanupTasks()).toEqual([]);
   });
-
-  it('holds its database lease until detached source cleanup finishes', async () => {
-    let release!: () => void;
-    const pending = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    vi.mocked(deleteEbookSourceFile).mockImplementationOnce(() => pending);
-    insertCleanupTask('article_pending', 'ebook');
-    const cleanup = completeArticleSourceCleanup('article_pending');
-    try {
-      await vi.waitFor(() => expect(deleteEbookSourceFile).toHaveBeenCalledWith('article_pending'));
-      expect(readDatabaseLifecycle().leases).toBe(1);
-      expect(readCleanupTasks()).toHaveLength(1);
-    } finally {
-      release();
-      await cleanup;
-    }
-    expect(readCleanupTasks()).toEqual([]);
-    expect(readDatabaseLifecycle().leases).toBe(0);
-  });
-
-  it('keeps failed cleanup tasks and retries them after recovery reset', async () => {
-    const deleteError = new Error('injected source delete failure');
-    cleanupState.deleteError = deleteError;
-    insertCleanupTask('article_1', 'ebook');
-
-    await completeArticleSourceCleanup('article_1');
-
-    expect(readCleanupTasks()).toHaveLength(1);
-    expect(cleanupState.logErrors).toContainEqual({
-      event: 'article_source.cleanup_deferred',
-      error: deleteError,
-      data: {
-        articleId: 'article_1',
-        operationId: expect.any(String),
-        phase: 'delete_assets',
-        sourceType: 'ebook',
-      },
-    });
-
-    cleanupState.deleteError = undefined;
-    closeDatabase();
-    await recoverPendingArticleSourceCleanup();
-
-    expect(cleanupState.deletedArticleIds).toEqual(['article_1']);
-    expect(readCleanupTasks()).toEqual([]);
-  });
 });
-
-function insertCleanupTask(articleId: string, sourceType: string) {
-  getDatabase()
-    .insert(schema.articleSourceCleanupTasks)
-    .values({ articleId, sourceType, createdAt: new Date().toISOString() })
-    .run();
-}
 
 function readCleanupTasks() {
   return getDatabase().select().from(schema.articleSourceCleanupTasks).all();

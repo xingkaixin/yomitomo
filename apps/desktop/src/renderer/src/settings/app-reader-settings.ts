@@ -87,10 +87,6 @@ export function readDesktopReaderBackgroundsByTone(): Record<ReaderBackgroundTon
   }
 }
 
-export function readDesktopReaderBackgroundForTone(tone: ReaderBackgroundTone): string {
-  return readDesktopReaderBackgroundsByTone()[tone];
-}
-
 export function writeDesktopReaderBackgroundForTone(backgroundColor: string) {
   if (typeof window === 'undefined') return;
 

@@ -109,10 +109,6 @@ export type DesktopIpcToRendererEventMap = {
   'library-pin:patched': LibraryPinPatch;
   'weread:state-updated': WeReadState;
 };
-
-export type DesktopIpcEventMap = DesktopIpcToMainEventMap & DesktopIpcToRendererEventMap;
-
-export type DesktopIpcEventChannel = keyof DesktopIpcEventMap;
 export type DesktopIpcToMainEventChannel = keyof DesktopIpcToMainEventMap;
 export type DesktopIpcToRendererEventChannel = keyof DesktopIpcToRendererEventMap;
 

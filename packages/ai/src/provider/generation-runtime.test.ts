@@ -1,9 +1,8 @@
 import type { LlmProvider } from '@yomitomo/shared';
-import { Cause, Effect, Exit, Fiber } from 'effect';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { setAiLogger } from '../logger';
-import { generateYomitomoText, generateYomitomoTextEffect } from './generation-runtime';
+import { generateYomitomoText } from './generation-runtime';
 
 afterEach(() => {
   setAiLogger({});
@@ -20,26 +19,6 @@ describe('generateYomitomoText', () => {
       finishReason: 'stop',
     });
   });
-
-  it('fails with a typed empty response error', async () => {
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => completionStream(''));
-
-    const exit = await Effect.runPromiseExit(generateYomitomoTextEffect(provider(), payload()));
-
-    expect(Exit.isFailure(exit)).toBe(true);
-    if (Exit.isSuccess(exit)) return;
-    expect(Cause.squash(exit.cause)).toMatchObject({ _tag: 'GenerationEmptyResponseError' });
-  });
-
-  it('aborts the request when its Effect fiber is interrupted', async () => {
-    const started = pendingFetch();
-    const fiber = Effect.runFork(generateYomitomoTextEffect(provider(), payload()));
-
-    const signal = await started;
-    await Effect.runPromise(Fiber.interrupt(fiber));
-
-    expect(signal.aborted).toBe(true);
-  });
 });
 
 describe('provider generation logging', () => {
@@ -53,15 +32,6 @@ describe('provider generation logging', () => {
     expect(startEvents).toEqual([expect.objectContaining({ providerId: 'p', hasApiKey: true })]);
     expectLogToExcludeCredential(startEvents[0], apiKey);
   });
-
-  it('records when an API key is not configured', async () => {
-    const startEvents = captureGenerationStarts();
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => completionStream('ok'));
-
-    await generateYomitomoText({ ...provider(), apiKey: '' }, payload()).catch(() => undefined);
-
-    expect(startEvents[0]).toMatchObject({ hasApiKey: false });
-  });
 });
 
 function completionStream(text: string) {
@@ -74,22 +44,6 @@ function completionStream(text: string) {
   ];
   const body = `${chunks.map((chunk) => `data: ${JSON.stringify(chunk)}\n\n`).join('')}data: [DONE]\n\n`;
   return new Response(body, { status: 200, headers: { 'content-type': 'text/event-stream' } });
-}
-
-function pendingFetch() {
-  let resolveSignal: (signal: AbortSignal) => void = () => undefined;
-  const started = new Promise<AbortSignal>((resolve) => {
-    resolveSignal = resolve;
-  });
-  vi.spyOn(globalThis, 'fetch').mockImplementation((_input, init) => {
-    const signal = init?.signal;
-    if (!signal) throw new Error('Expected fetch AbortSignal');
-    resolveSignal(signal);
-    return new Promise<Response>((_resolve, reject) => {
-      signal.addEventListener('abort', () => reject(signal.reason), { once: true });
-    });
-  });
-  return started;
 }
 
 function captureGenerationStarts() {

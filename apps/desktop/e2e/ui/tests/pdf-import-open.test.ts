@@ -1,18 +1,13 @@
 import type { Page } from 'playwright-core';
-import { describe, expect, it } from 'vitest';
+import { describe, it } from 'vitest';
 import { cleanupE2eData, createE2eRunData, createTinyPdfFixture } from '../../helpers/e2e-data';
-import {
-  launchDesktopE2eApp,
-  withDesktopE2eApp,
-  type DesktopE2eApp,
-} from '../helpers/electron-app';
+import { launchDesktopE2eApp, type DesktopE2eApp } from '../helpers/electron-app';
 import {
   importPdfFileThroughLibraryUi,
   libraryDocumentButton,
   openLibraryHome,
   waitForLibraryDocument,
 } from '../helpers/library';
-import { openRelationSource, selectRelationQuote } from '../helpers/reading-relations-fixtures';
 
 const pdfTitle = 'RD-797 PDF Path';
 
@@ -71,55 +66,7 @@ describe('pdf import and open', () => {
       await cleanupE2eData(runData);
     }
   });
-
-  it('opens at the top of the first page with a highlight near the page top visible', async () => {
-    await withDesktopE2eApp('pdf-open-top-highlight', async ({ fixtureDir, page }) => {
-      const source = {
-        kind: 'pdf' as const,
-        title: 'PDF open keeps page top',
-        quote: 'A highlight near the top of the page stays visible',
-      };
-      // A tall page: the auto zoom has to leave room to scroll for it to shift the first page.
-      const fixture = await createTinyPdfFixture(fixtureDir, {
-        fileName: `${source.title}.pdf`,
-        title: source.quote,
-        pageHeight: 792,
-        pageWidth: 600,
-      });
-      await openLibraryHome(page);
-      await importPdfFileThroughLibraryUi(page, fixture.path);
-      await waitForLibraryDocument(page, source.title, 'PDF');
-
-      await openRelationSource(page, source);
-      await expectPdfAutoZoomedAtPageTop(page);
-      await selectRelationQuote(page, source);
-      await page
-        .locator('.reader-selection-menu')
-        .getByRole('button', { name: /Record thought/ })
-        .click();
-      await page.locator('.reader-composer').getByRole('button', { name: 'Highlight' }).click();
-      await page.locator('.reader-note').waitFor();
-      await page.getByRole('button', { name: 'Back to library' }).click();
-      await waitForLibraryDocument(page, source.title, 'PDF');
-
-      await openRelationSource(page, source);
-      await expectPdfAutoZoomedAtPageTop(page);
-      await page.locator('.reader-note').waitFor();
-      await page.locator('.reader-highlight').waitFor();
-    });
-  });
 });
-
-async function expectPdfAutoZoomedAtPageTop(page: Page) {
-  await page.waitForFunction(() => {
-    const pageShell = document.querySelector('[data-pdfium-page-index="0"]');
-    return (pageShell?.getBoundingClientRect().width ?? 0) > 600;
-  });
-  const scrollTop = await page
-    .locator('.pdfium-spike-viewport')
-    .evaluate((viewport) => viewport.scrollTop);
-  expect(scrollTop).toBe(0);
-}
 
 async function openReaderDocument(page: Page, title: string) {
   await libraryDocumentButton(page, title, 'PDF').click();

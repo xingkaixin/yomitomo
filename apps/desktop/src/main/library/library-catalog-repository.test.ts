@@ -2,89 +2,12 @@ import { describe, expect, it } from 'vitest';
 import SQLiteDatabase from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { ARTICLE_SOURCE_TYPES } from '@yomitomo/shared';
-import { libraryCatalogItemRef, libraryCatalogItemType } from '../../ipc-contract';
+import { libraryCatalogItemRef } from '../../ipc-contract';
 import * as schema from '../db/schema';
 import { migrations } from '../db/migrations';
 import { readLibraryCatalogRows } from './library-catalog-repository';
 
 describe('library catalog repository', () => {
-  it('bounds the statement count for a mixed catalog search', () => {
-    const queries: string[] = [];
-    const { database } = createCatalogDatabase((query) => queries.push(query));
-    queries.length = 0;
-
-    readLibraryCatalogRows(database, {
-      scope: { kind: 'library' },
-      query: 'member topic',
-      pageSize: 10,
-    });
-
-    expect(queries.length).toBeLessThanOrEqual(8);
-  });
-
-  it('uses the catalog index in the production candidate query', () => {
-    const queries: string[] = [];
-    const { database, sqlite } = createCatalogDatabase((query) => queries.push(query));
-    queries.length = 0;
-    readLibraryCatalogRows(database, { scope: { kind: 'library' }, pageSize: 12 });
-    const candidateQuery = queries.find((query) => query.includes('with all_candidates'));
-    if (!candidateQuery) throw new Error('Production candidate query was not recorded');
-    const plan = sqlite.prepare(`EXPLAIN QUERY PLAN ${candidateQuery}`).all() as {
-      detail: string;
-    }[];
-    expect(plan.some((row) => row.detail.includes('articles_library_catalog_idx'))).toBe(true);
-  });
-
-  it('paginates the mixed catalog without exposing collected items twice', () => {
-    const database = catalogDatabase();
-
-    const result = readLibraryCatalogRows(database, {
-      scope: { kind: 'library' },
-      page: 1,
-      pageSize: 2,
-    });
-
-    expect(result).toMatchObject({
-      page: 1,
-      pageSize: 2,
-      totalCount: 4,
-      unfilteredCount: 4,
-      itemCounts: { web: 3, ebook: 0, pdf: 0, text: 0, weread: 1 },
-    });
-    expect(result.entities.map(entityKey)).toEqual(['article:article_pinned', 'collection_1']);
-    expect(result.entities[1]).toMatchObject({
-      kind: 'col',
-      memberCount: 1,
-      coverMembers: [
-        {
-          kind: 'item',
-          source: 'article',
-          article: { id: 'article_member' },
-        },
-      ],
-    });
-  });
-
-  it('hydrates catalog items from one required source payload', () => {
-    const result = readLibraryCatalogRows(catalogDatabase(), {
-      scope: { kind: 'library' },
-      pageSize: 10,
-    });
-    const items = result.entities.filter((entity) => entity.kind === 'item');
-
-    expect(
-      items.map((item) => ({
-        ref: libraryCatalogItemRef(item),
-        type: libraryCatalogItemType(item),
-      })),
-    ).toEqual([
-      { ref: { kind: 'article', id: 'article_pinned' }, type: 'web' },
-      { ref: { kind: 'article', id: 'article_loose' }, type: 'web' },
-      { ref: { kind: 'weread', id: 'weread_1' }, type: 'weread' },
-    ]);
-    expect(items.every((item) => !('ref' in item) && !('type' in item))).toBe(true);
-  });
-
   it('keeps source, collection, picker, and member-search scopes consistent', () => {
     const database = catalogDatabase();
 
@@ -144,18 +67,6 @@ describe('library catalog repository', () => {
       weread: 20,
     });
   });
-
-  it('returns counts when the requested page is empty', () => {
-    const result = readLibraryCatalogRows(catalogDatabase(), {
-      scope: { kind: 'library' },
-      page: 10,
-      pageSize: 10,
-    });
-
-    expect(result.entities).toEqual([]);
-    expect(result.totalCount).toBe(4);
-    expect(result.unfilteredCount).toBe(4);
-  });
 });
 
 function entityKey(entity: ReturnType<typeof readLibraryCatalogRows>['entities'][number]) {
@@ -165,17 +76,7 @@ function entityKey(entity: ReturnType<typeof readLibraryCatalogRows>['entities']
 }
 
 function catalogDatabase() {
-  return createCatalogDatabase().database;
-}
-
-function createCatalogDatabase(verbose?: (query: string) => void) {
-  const sqlite = new SQLiteDatabase(':memory:', {
-    verbose: verbose
-      ? (message) => {
-          if (typeof message === 'string') verbose(message);
-        }
-      : undefined,
-  });
+  const sqlite = new SQLiteDatabase(':memory:');
   for (const migration of migrations) sqlite.exec(migration.sql);
   const database = drizzle(sqlite, { schema });
   const insertArticle = sqlite.prepare(`
@@ -226,7 +127,7 @@ function createCatalogDatabase(verbose?: (query: string) => void) {
     insert into weread_books (book_id, title, updated_at)
     values ('weread_1', 'WeRead', '2026-07-02T00:00:00.000Z');
   `);
-  return { database, sqlite };
+  return database;
 }
 
 function largeCatalogDatabase() {

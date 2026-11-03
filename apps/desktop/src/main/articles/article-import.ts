@@ -641,7 +641,3 @@ function wait(ms: number, signal: AbortSignal) {
     signal.addEventListener('abort', abort, { once: true });
   });
 }
-
-export const articleImportTestApi = {
-  articleRecordFromUrlEffect,
-};

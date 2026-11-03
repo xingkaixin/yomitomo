@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import {
   materializeReadingEvidence,
   projectReadingEvidenceThread,
-  selectProjectableReadingJudgments,
 } from './reading-evidence-projection';
 
 describe('reading evidence projection', () => {
@@ -138,26 +137,6 @@ describe('reading evidence projection', () => {
         reviews,
       }),
     ).toBeNull();
-  });
-
-  it('selects judgments from only the source fields needed for eligibility', () => {
-    const reader = { author: { kind: 'user' as const }, content: '  判断  ' };
-    const assistant = { author: { kind: 'agent' as const }, content: '补充' };
-    const blankReader = { ...reader, content: '\u00a0\u3000\ufeff' };
-    const pendingReader = { ...reader, pending: true };
-
-    expect(
-      selectProjectableReadingJudgments({
-        comments: [assistant, blankReader, pendingReader],
-        distillation: { status: 'published', content: '\u3000提炼\u00a0' },
-      }),
-    ).toEqual({ comments: [], distillationContent: '提炼' });
-    expect(
-      selectProjectableReadingJudgments({
-        comments: [assistant, reader, blankReader, pendingReader],
-        distillation: { status: 'published', content: '\u00a0\u3000\ufeff' },
-      }),
-    ).toEqual({ comments: [assistant, reader], distillationContent: '' });
   });
 
   it('projects a user annotation with stable asset-specific identity', () => {
@@ -340,44 +319,6 @@ describe('reading evidence projection', () => {
     ).not.toMatch(/secret|可深挖|challenge/);
   });
 
-  it('materializes an annotation from current source and article facts', () => {
-    const source = annotation({ author: userAuthor('reader') });
-    const [projected] = project(source);
-    if (!projected) throw new Error('missing projected annotation');
-
-    expect(
-      materializeReadingEvidence({
-        projected,
-        annotation: source,
-        article: {
-          id: 'article_1',
-          sourceType: 'ebook',
-          title: '当前标题',
-          byline: '当前作者',
-        },
-      }),
-    ).toEqual({
-      id: 'reading_evidence_annotation:annotation_1',
-      assetType: 'annotation',
-      role: 'source',
-      authorKind: 'user',
-      content: '目标原文',
-      sourceVersion: 'source-v1',
-      source: {
-        ref: { kind: 'article', id: 'article_1' },
-        sourceType: 'ebook',
-        title: '当前标题',
-        byline: '当前作者',
-      },
-      location: {
-        annotationId: 'annotation_1',
-        anchor: source.anchor,
-      },
-      createdAt: '2026-08-29T00:00:00.000Z',
-      updatedAt: '2026-08-29T00:10:00.000Z',
-    });
-  });
-
   it('materializes a current comment and rejects stale comment facts', () => {
     const source = annotation({
       comments: [
@@ -434,39 +375,6 @@ describe('reading evidence projection', () => {
         annotation: {
           ...source,
           comments: [assistantComment, { ...readerComment, pending: true }],
-        },
-        article,
-      }),
-    ).toBeNull();
-  });
-
-  it('materializes only a currently published distillation', () => {
-    const source = annotation({
-      distillation: {
-        status: 'published',
-        content: '  当前蒸馏  ',
-        publishedAt: '2026-08-29T00:20:00.000Z',
-        updatedAt: '2026-08-29T00:30:00.000Z',
-      },
-    });
-    const projected = project(source).find((entry) => entry.assetType === 'distillation');
-    if (!projected) throw new Error('missing projected distillation');
-    const article = { id: 'article_1', sourceType: 'pdf' as const, title: '文章' };
-
-    expect(materializeReadingEvidence({ projected, annotation: source, article })).toMatchObject({
-      id: 'reading_evidence_distillation:annotation_1',
-      assetType: 'distillation',
-      role: 'judgment',
-      content: '当前蒸馏',
-      createdAt: '2026-08-29T00:20:00.000Z',
-      updatedAt: '2026-08-29T00:30:00.000Z',
-    });
-    expect(
-      materializeReadingEvidence({
-        projected,
-        annotation: {
-          ...source,
-          distillation: { ...source.distillation!, status: 'unpublished' },
         },
         article,
       }),

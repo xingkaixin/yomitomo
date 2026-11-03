@@ -1,6 +1,5 @@
 import { eq } from 'drizzle-orm';
 import type {
-  ArticleDeletePatch,
   ArticleReaderChatStatePatch,
   ArticleRecord,
   ArticleReadingProgress,
@@ -8,7 +7,6 @@ import type {
 } from '@yomitomo/shared';
 import * as schema from '../db/schema';
 import type { StoreDatabase } from '../store/store-db';
-import { deleteReadingMemoryForArticle } from '../reading-memory/reading-memory-store';
 import {
   normalizeArticleReadingProgress,
   normalizeReaderChatState,
@@ -63,10 +61,4 @@ export function buildArticleReaderChatStatePatch(
   const normalized = normalizeReaderChatState(readerChatState, articleId);
   const updatedAt = normalized?.updatedAt || new Date().toISOString();
   return { type: 'article-reader-chat-state', articleId, readerChatState: normalized, updatedAt };
-}
-
-export function deleteArticleRows(database: StoreDatabase, id: string): ArticleDeletePatch {
-  deleteReadingMemoryForArticle(id);
-  database.delete(schema.articles).where(eq(schema.articles.id, id)).run();
-  return { articleId: id };
 }

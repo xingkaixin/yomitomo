@@ -75,5 +75,3 @@ export function createAgentStreamTasks() {
 function taskKey(senderId: number, channel: DesktopIpcStreamChannel, requestId: string) {
   return `${senderId}:${channel}:${requestId}`;
 }
-
-export type AgentStreamTasks = ReturnType<typeof createAgentStreamTasks>;

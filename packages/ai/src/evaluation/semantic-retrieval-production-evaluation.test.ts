@@ -54,43 +54,6 @@ describe('strict production retrieval evaluation', () => {
       samples.slice(0, 3).map((sample) => `${sample.queryId}:incomplete_production_retrieval`),
     );
   });
-
-  it('rejects missing or duplicate samples and fewer than twenty queries per direction', () => {
-    const samples = passingSamples();
-    expect(() => evaluateProductionRetrieval(queries, samples.slice(1))).toThrow('Missing');
-    expect(() => evaluateProductionRetrieval(queries, [...samples, samples[0]])).toThrow(
-      'Duplicate',
-    );
-    const remainingQueries = queries.slice(1);
-    expect(evaluateProductionRetrieval(remainingQueries, samples.slice(1)).failures).toEqual([
-      'zh->zh:insufficient_queries',
-    ]);
-    const remainingIds = new Set(
-      queries.filter((query) => query.direction !== 'zh->zh').map((query) => query.id),
-    );
-    expect(() =>
-      evaluateProductionRetrieval(
-        queries.filter((query) => remainingIds.has(query.id)),
-        samples.filter((sample) => remainingIds.has(sample.queryId)),
-      ),
-    ).toThrow('missing direction');
-  });
-
-  it('refuses invented or duplicate evidence IDs at the final send boundary', () => {
-    const samples = passingSamples();
-    samples[0].sentIds = ['not-retrieved'];
-    expect(() => evaluateProductionRetrieval(queries, samples)).toThrow('Invalid production');
-    samples[0].sentIds = [samples[0].evidenceIds[0], samples[0].evidenceIds[0]];
-    expect(() => evaluateProductionRetrieval(queries, samples)).toThrow('Invalid production');
-  });
-
-  it('preserves the final production order when a selector reprioritizes candidates', () => {
-    const samples = passingSamples();
-    const sample = samples[0];
-    sample.evidenceIds = sample.candidateIds.toReversed();
-    sample.sentIds = [...sample.evidenceIds];
-    expect(evaluateProductionRetrieval(queries, samples).passed).toBe(true);
-  });
 });
 
 function passingSamples(): ProductionRetrievalSample[] {

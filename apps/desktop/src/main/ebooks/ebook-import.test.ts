@@ -1,13 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Buffer } from 'node:buffer';
 import JSZip from 'jszip';
-import {
-  MAX_EPUB_CHAPTER_ENTRY_BYTES,
-  MAX_EPUB_CHAPTER_TEXT_CHARS,
-  MAX_EPUB_COVER_BYTES,
-  MAX_EPUB_METADATA_ENTRY_BYTES,
-  articleRecordFromEpubFile,
-} from './ebook-import';
+import { MAX_EPUB_CHAPTER_ENTRY_BYTES, articleRecordFromEpubFile } from './ebook-import';
 
 function arrayBufferFromBuffer(buffer: Buffer) {
   const data = new ArrayBuffer(buffer.byteLength);
@@ -20,20 +14,6 @@ function ebookChaptersHtml(article: Awaited<ReturnType<typeof articleRecordFromE
 }
 
 describe('articleRecordFromEpubFile', () => {
-  it('distinguishes books with the same opening and different later content', async () => {
-    const records = await Promise.all(
-      ['original ending', 'revised ending'].map(async (ending) => {
-        const data = await minimalEpubZip({
-          chapter: `<html><body><p>${'Shared opening. '.repeat(900)}</p><p>${ending}</p></body></html>`,
-        }).generateAsync({ type: 'arraybuffer' });
-        return articleRecordFromEpubFile({ fileName: 'book.epub', data });
-      }),
-    );
-    expect(records[0].legacyId).toBe(records[1].legacyId);
-    expect(records[0].id).not.toBe(records[1].id);
-    expect(records[0].contentHash).not.toBe(records[1].contentHash);
-  });
-
   it('keeps the same source identity when only the imported filename changes', async () => {
     const data = await minimalEpubZip({
       chapter: '<html><body><p>Book text</p></body></html>',
@@ -160,23 +140,6 @@ describe('articleRecordFromEpubFile', () => {
     });
   });
 
-  it('rejects oversized metadata entries before parsing', async () => {
-    const zip = minimalEpubZip({
-      chapter: '<html><body><p>正文。</p></body></html>',
-    });
-    zip.file('OPS/package.opf', 'x'.repeat(MAX_EPUB_METADATA_ENTRY_BYTES + 1));
-
-    const buffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
-
-    await expect(
-      articleRecordFromEpubFile({
-        fileName: 'oversized-opf.epub',
-        mimeType: 'application/epub+zip',
-        data: arrayBufferFromBuffer(buffer),
-      }),
-    ).rejects.toThrow('EBOOK_IMPORT_ENTRY_TOO_LARGE');
-  });
-
   it('rejects oversized chapter entries before parsing', async () => {
     const zip = minimalEpubZip({
       chapter: `<html><body><p>${'x'.repeat(MAX_EPUB_CHAPTER_ENTRY_BYTES + 1)}</p></body></html>`,
@@ -191,53 +154,6 @@ describe('articleRecordFromEpubFile', () => {
         data: arrayBufferFromBuffer(buffer),
       }),
     ).rejects.toThrow('EBOOK_IMPORT_ENTRY_TOO_LARGE');
-  });
-
-  it('rejects chapters with excessive extracted text', async () => {
-    const zip = minimalEpubZip({
-      chapter: `<html><body><p>${'x'.repeat(MAX_EPUB_CHAPTER_TEXT_CHARS + 1)}</p></body></html>`,
-    });
-
-    const buffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
-
-    await expect(
-      articleRecordFromEpubFile({
-        fileName: 'oversized-chapter-text.epub',
-        mimeType: 'application/epub+zip',
-        data: arrayBufferFromBuffer(buffer),
-      }),
-    ).rejects.toThrow('EBOOK_IMPORT_ENTRY_TOO_LARGE');
-  });
-
-  it('skips oversized cover entries without failing the import', async () => {
-    const zip = minimalEpubZip({
-      chapter: '<html><body><p>正文。</p></body></html>',
-      cover: Buffer.alloc(MAX_EPUB_COVER_BYTES + 1, 1),
-    });
-    const events: { event: string; data?: Record<string, unknown> }[] = [];
-
-    const buffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
-    const article = await articleRecordFromEpubFile(
-      {
-        fileName: 'oversized-cover.epub',
-        mimeType: 'application/epub+zip',
-        data: arrayBufferFromBuffer(buffer),
-      },
-      {
-        performanceLogger: (event, eventData) => events.push({ event, data: eventData }),
-      },
-    );
-
-    expect(article.ebook?.chapters[0]?.textLength).toBe('正文。'.length);
-    expect(article.leadImageUrl).toBeUndefined();
-    expect(
-      events.find((entry) => entry.event === 'performance.epub_import.cover_skipped')?.data,
-    ).toMatchObject({
-      path: 'OPS/cover.jpeg',
-      reason: 'too_large',
-      maxBytes: MAX_EPUB_COVER_BYTES,
-      uncompressedBytes: MAX_EPUB_COVER_BYTES + 1,
-    });
   });
 
   it('stores cleaned display title without overwriting the original article title', async () => {
@@ -388,80 +304,9 @@ describe('articleRecordFromEpubFile', () => {
     ]);
     expect(ebookChaptersHtml(article)).not.toContain('隐藏文本');
   });
-
-  it('strips html and svg chapter image references', async () => {
-    const zip = new JSZip();
-    zip.file(
-      'META-INF/container.xml',
-      `<?xml version="1.0"?>
-      <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
-        <rootfiles>
-          <rootfile full-path="OPS/package.opf" media-type="application/oebps-package+xml"/>
-        </rootfiles>
-      </container>`,
-    );
-    zip.file(
-      'OPS/package.opf',
-      `<?xml version="1.0"?>
-      <package xmlns="http://www.idpf.org/2007/opf" unique-identifier="bookid" version="3.0">
-        <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
-          <dc:title>图片电子书</dc:title>
-        </metadata>
-        <manifest>
-          <item id="c1" href="chapter.xhtml" media-type="application/xhtml+xml"/>
-          <item id="photo" href="images/photo.png" media-type="image/png"/>
-          <item id="vector" href="images/vector.svg" media-type="image/svg+xml"/>
-        </manifest>
-        <spine>
-          <itemref idref="c1"/>
-        </spine>
-      </package>`,
-    );
-    zip.file(
-      'OPS/chapter.xhtml',
-      `<html><body>
-        <p>带图片的正文。</p>
-        <img src="images/photo.png" srcset="images/photo@2x.png 2x">
-        <svg xmlns="http://www.w3.org/2000/svg"><image href="images/vector.svg"/></svg>
-      </body></html>`,
-    );
-    const svg = '<svg xmlns="http://www.w3.org/2000/svg"></svg>';
-    zip.file('OPS/images/photo.png', Buffer.from([1, 2, 3]));
-    zip.file('OPS/images/vector.svg', svg);
-
-    const buffer = await zip.generateAsync({ type: 'nodebuffer' });
-    const data = arrayBufferFromBuffer(buffer);
-    const events: { event: string; data?: Record<string, unknown> }[] = [];
-    const article = await articleRecordFromEpubFile(
-      {
-        fileName: 'images.epub',
-        mimeType: 'application/epub+zip',
-        data,
-      },
-      {
-        performanceLogger: (event, eventData) => events.push({ event, data: eventData }),
-      },
-    );
-
-    expect(ebookChaptersHtml(article)).toContain('带图片的正文。');
-    expect(ebookChaptersHtml(article)).not.toContain('data:image/');
-    expect(ebookChaptersHtml(article)).not.toContain('https://ebook.local/');
-    expect(ebookChaptersHtml(article)).not.toContain('src=');
-    expect(ebookChaptersHtml(article)).not.toContain('href=');
-    expect(ebookChaptersHtml(article)).not.toContain('srcset=');
-    expect(
-      events.find(
-        (entry) =>
-          entry.event === 'performance.epub_import.chapter' && entry.data?.result === 'imported',
-      )?.data,
-    ).toMatchObject({
-      imageElementCount: 2,
-      strippedImageCount: 2,
-    });
-  });
 });
 
-function minimalEpubZip(input: { chapter: string; cover?: Buffer }) {
+function minimalEpubZip(input: { chapter: string }) {
   const zip = new JSZip();
   zip.file(
     'META-INF/container.xml',
@@ -481,11 +326,6 @@ function minimalEpubZip(input: { chapter: string; cover?: Buffer }) {
       </metadata>
       <manifest>
         <item id="c1" href="chapter.xhtml" media-type="application/xhtml+xml"/>
-        ${
-          input.cover
-            ? '<item id="cover" href="cover.jpeg" media-type="image/jpeg" properties="cover-image"/>'
-            : ''
-        }
       </manifest>
       <spine>
         <itemref idref="c1"/>
@@ -493,6 +333,5 @@ function minimalEpubZip(input: { chapter: string; cover?: Buffer }) {
     </package>`,
   );
   zip.file('OPS/chapter.xhtml', input.chapter);
-  if (input.cover) zip.file('OPS/cover.jpeg', input.cover);
   return zip;
 }

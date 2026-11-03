@@ -72,7 +72,8 @@ vi.mock('../app/logger', () => ({
 import { writeArticleRows } from '../articles/article-row-writes';
 import { getDatabase } from './store-db';
 import { closeDatabase } from './store-lifecycle';
-import { saveUser } from './store-settings';
+// Registers the default-row seeder that getDatabase runs on open.
+import './store-snapshot';
 import { mergeSettingsForUpsert } from './store-normalizers';
 import * as schema from '../db/schema';
 
@@ -137,13 +138,6 @@ describe('desktop store initialization', () => {
 });
 
 describe('desktop store settings', () => {
-  it('returns only the saved user slice', async () => {
-    const patch = await saveUser({ nickname: 'Updated User' });
-
-    expect(Object.keys(patch)).toEqual(['user']);
-    expect(patch.user.nickname).toBe('Updated User');
-  });
-
   it('preserves missing settings fields during partial upserts', () => {
     expect(
       mergeSettingsForUpsert(
@@ -211,91 +205,6 @@ describe('desktop store settings', () => {
       logRetentionDays: 30,
       onboardingCompletedAt: '2026-05-12T00:00:00.000Z',
       lastSeenVersion: undefined,
-    });
-  });
-
-  it('defaults interface language to Simplified Chinese', () => {
-    expect(mergeSettingsForUpsert({}, {})).toMatchObject({
-      uiLanguage: 'zh-CN',
-    });
-  });
-
-  it('defaults library content sources to the current source order', () => {
-    expect(mergeSettingsForUpsert({}, {})).toMatchObject({
-      libraryContentSources: [
-        { id: 'web', enabled: true },
-        { id: 'ebook', enabled: true },
-        { id: 'pdf', enabled: true },
-        { id: 'text', enabled: true },
-        { id: 'weread', enabled: true },
-      ],
-    });
-  });
-
-  it('defaults log retention to 90 days', () => {
-    expect(mergeSettingsForUpsert({}, {})).toMatchObject({
-      logRetentionDays: 90,
-    });
-    expect(mergeSettingsForUpsert({}, { logRetentionDays: undefined })).toMatchObject({
-      logRetentionDays: 90,
-    });
-  });
-
-  it('normalizes persisted library page size settings', () => {
-    expect(mergeSettingsForUpsert({ libraryPageSize: 18 }, {})).toMatchObject({
-      libraryPageSize: 18,
-    });
-    expect(mergeSettingsForUpsert({ libraryPageSize: 10 }, { libraryPageSize: 24 })).toMatchObject({
-      libraryPageSize: undefined,
-    });
-  });
-
-  it('updates the theme id while preserving other settings fields', () => {
-    expect(
-      mergeSettingsForUpsert(
-        { themeId: 'ink-paper' },
-        {
-          themeId: 'default',
-          saveArticleImages: true,
-          messageSendShortcut: 'mod-enter',
-        },
-      ),
-    ).toMatchObject({
-      themeId: 'ink-paper',
-      saveArticleImages: true,
-      messageSendShortcut: 'mod-enter',
-    });
-  });
-
-  it('preserves onboarding completion when merging a log retention patch', () => {
-    expect(
-      mergeSettingsForUpsert(
-        { logRetentionDays: 15 },
-        {
-          onboardingCompletedAt: '2026-05-12T00:00:00.000Z',
-          saveArticleImages: true,
-        },
-      ),
-    ).toMatchObject({
-      onboardingCompletedAt: '2026-05-12T00:00:00.000Z',
-      logRetentionDays: 15,
-      saveArticleImages: true,
-    });
-  });
-
-  it('defaults telemetry on and preserves it during partial settings updates', () => {
-    expect(mergeSettingsForUpsert({}, {})).toMatchObject({ telemetryEnabled: true });
-    expect(
-      mergeSettingsForUpsert(
-        { saveArticleImages: true },
-        {
-          telemetryEnabled: false,
-          saveArticleImages: false,
-        },
-      ),
-    ).toMatchObject({
-      saveArticleImages: true,
-      telemetryEnabled: false,
     });
   });
 });

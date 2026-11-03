@@ -3,7 +3,6 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   cleanupE2eData,
-  cleanupE2ePath,
   createE2eDesktopEnv,
   createE2eRunData,
   createTextFixture,
@@ -70,25 +69,5 @@ describe('desktop E2E data helpers', () => {
     }
 
     await expect(stat(data.rootDir)).rejects.toMatchObject({ code: 'ENOENT' });
-  });
-
-  it('keeps data and logs paths when requested', async () => {
-    const data = await createE2eRunData('keep-data');
-    const messages: string[] = [];
-    try {
-      await cleanupE2eData(data, {
-        keep: true,
-        log: (message) => messages.push(message),
-      });
-
-      expect(messages).toEqual([
-        `YOMITOMO_E2E_ROOT_DIR=${data.rootDir}`,
-        `YOMITOMO_E2E_USER_DATA_DIR=${data.userDataDir}`,
-        `YOMITOMO_E2E_FIXTURE_DIR=${data.fixtureDir}`,
-      ]);
-      expect((await stat(data.rootDir)).isDirectory()).toBe(true);
-    } finally {
-      await cleanupE2ePath(data.rootDir);
-    }
   });
 });

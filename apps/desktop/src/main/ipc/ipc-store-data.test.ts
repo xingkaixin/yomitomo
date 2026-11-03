@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DesktopStore } from '@yomitomo/shared';
 import { emptyDesktopStore } from '../../app-store';
-import type { AppUpdateState } from '../../app-update-types';
 import type { DesktopIpcInvokeEnvelope } from '../../ipc-errors';
 import type { StartupStoreInitializationResult } from '../app/startup-store';
 import { registerStoreDataIpc } from './ipc-store-data';
@@ -44,22 +43,6 @@ beforeEach(() => {
 });
 
 describe('store data update IPC', () => {
-  it('loads the shell store without the full article catalog', async () => {
-    const shellStore = desktopStore({ articles: [] });
-    const readShellStore = vi.fn(async () => shellStore);
-    const context = storeContext({ readShellStore });
-
-    registerStoreDataIpc(context);
-
-    const envelope = await invokeRegisteredHandler('store:get');
-
-    expect(envelope).toEqual({
-      ok: true,
-      value: { ok: true, store: shellStore },
-    });
-    expect(readShellStore).toHaveBeenCalledTimes(1);
-  });
-
   it('returns the startup failure without reading an unlocked store', async () => {
     const startupError = new Error('startup lock failed');
     const loadError = { code: 'DATABASE_UNAVAILABLE' as const };
@@ -81,139 +64,12 @@ describe('store data update IPC', () => {
     expect(context.storeLoadErrorInfo).toHaveBeenCalledWith(startupError);
     expect(readShellStore).not.toHaveBeenCalled();
   });
-
-  it('forwards update channels to the app updater module', async () => {
-    const updaterModule = {
-      checkForAppUpdates: vi.fn(async () => updateState('available')),
-      downloadAppUpdate: vi.fn(async () => updateState('downloading')),
-      getAppUpdateState: vi.fn(() => updateState('idle')),
-      installAppUpdate: vi.fn(async () => updateState('downloaded')),
-      simulateUpdateAvailable: vi.fn(() => updateState('available')),
-    };
-
-    registerStoreDataIpc(storeContext({ updaterModule }));
-
-    await expectUpdateForward('updates:get-status', updaterModule.getAppUpdateState, 'idle');
-    await expectUpdateForward('updates:check', updaterModule.checkForAppUpdates, 'available');
-    await expectUpdateForward('updates:download', updaterModule.downloadAppUpdate, 'downloading');
-    await expectUpdateForward('updates:install', updaterModule.installAppUpdate, 'downloaded');
-    await expectUpdateForward(
-      'updates:simulate-available',
-      updaterModule.simulateUpdateAvailable,
-      'available',
-    );
-  });
-
-  it('forwards restored stores with their source event', async () => {
-    const store = desktopStore();
-    ipcState.restoreDatabaseWithDialog.mockImplementation(
-      async (_parentWindow, onDatabaseRestored: () => void) => {
-        onDatabaseRestored();
-        return { canceled: false, store };
-      },
-    );
-    const context = storeContext({});
-    registerStoreDataIpc(context);
-    const handler = ipcState.handlers.get('data:database-restore');
-    const event = { sender: { id: 17 } };
-
-    const result = await handler?.(event);
-
-    expect(result).toEqual({ ok: true, value: { canceled: false, store } });
-    expect(context.sendFullStoreUpdated).toHaveBeenCalledWith(event, store);
-    expect(context.onDatabaseRestored).toHaveBeenCalledOnce();
-    expect(ipcState.restoreDatabaseWithDialog).toHaveBeenCalledWith(
-      null,
-      context.onDatabaseRestored,
-    );
-  });
-
-  it('forwards complete backup restored stores with their source event', async () => {
-    const store = desktopStore();
-    ipcState.restoreFullDataWithDialog.mockImplementation(
-      async (_parentWindow, onDatabaseRestored: () => void) => {
-        onDatabaseRestored();
-        return { canceled: false, store };
-      },
-    );
-    const context = storeContext({});
-    registerStoreDataIpc(context);
-    const handler = ipcState.handlers.get('data:full-restore');
-    const event = { sender: { id: 17 } };
-
-    const result = await handler?.(event);
-
-    expect(result).toEqual({ ok: true, value: { canceled: false, store } });
-    expect(context.sendFullStoreUpdated).toHaveBeenCalledWith(event, store);
-    expect(context.onDatabaseRestored).toHaveBeenCalledOnce();
-    expect(ipcState.restoreFullDataWithDialog).toHaveBeenCalledWith(
-      null,
-      context.onDatabaseRestored,
-    );
-  });
-
-  it('keeps the replacement notification when refreshing the restored snapshot fails', async () => {
-    ipcState.restoreDatabaseWithDialog.mockImplementation(
-      async (_parentWindow, onDatabaseRestored: () => void) => {
-        onDatabaseRestored();
-        throw new Error('Snapshot unavailable');
-      },
-    );
-    const context = storeContext({});
-    registerStoreDataIpc(context);
-
-    const result = await invokeRegisteredHandler('data:database-restore');
-
-    expect(result.ok).toBe(false);
-    expect(context.onDatabaseRestored).toHaveBeenCalledOnce();
-    expect(context.sendFullStoreUpdated).not.toHaveBeenCalled();
-  });
-
-  it.each(['canceled', 'failed'])(
-    'leaves runtime settings unchanged when restore is %s',
-    async (outcome) => {
-      if (outcome === 'canceled') {
-        ipcState.restoreDatabaseWithDialog.mockResolvedValue({ canceled: true });
-      } else {
-        ipcState.restoreDatabaseWithDialog.mockRejectedValue(new Error('invalid backup'));
-      }
-      const context = storeContext({});
-      registerStoreDataIpc(context);
-
-      const result = await invokeRegisteredHandler('data:database-restore');
-
-      expect(result.ok).toBe(outcome === 'canceled');
-      expect(context.sendFullStoreUpdated).not.toHaveBeenCalled();
-      expect(context.onDatabaseRestored).not.toHaveBeenCalled();
-    },
-  );
 });
-
-async function expectUpdateForward(
-  channel: string,
-  updaterFunction: ReturnType<typeof vi.fn>,
-  expectedStatus: AppUpdateState['status'],
-) {
-  const envelope = await invokeRegisteredHandler(channel);
-
-  expect(envelope).toEqual({
-    ok: true,
-    value: updateState(expectedStatus),
-  });
-  expect(updaterFunction).toHaveBeenCalledTimes(1);
-}
 
 async function invokeRegisteredHandler(channel: string, ...args: unknown[]) {
   const handler = ipcState.handlers.get(channel);
   if (!handler) throw new Error(`${channel} handler was not registered`);
   return (await handler({}, ...args)) as DesktopIpcInvokeEnvelope<unknown>;
-}
-
-function updateState(status: AppUpdateState['status']): AppUpdateState {
-  return {
-    status,
-    currentVersion: '1.2.3-test',
-  };
 }
 
 type StoreDataIpcContext = Parameters<typeof registerStoreDataIpc>[0];

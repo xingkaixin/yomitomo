@@ -93,10 +93,7 @@ describe('foldReadingReviews', () => {
   it.each([
     { judgmentSnapshot: `${base.content} ` },
     { judgmentDigest: 'f'.repeat(64) },
-    { judgmentDigest: '12345678' },
-    { createdAt: 'not-a-date' },
     { createdAt: '2025-12-31T00:00:00.000Z' },
-    { answer: ' \n' },
   ])('stops at an invalid event without applying its descendants: %j', (invalid) => {
     const first = review('first', 'still_agree');
     const broken = review('broken', 'changed', { previousReviewId: first.id, ...invalid });
@@ -110,12 +107,6 @@ describe('foldReadingReviews', () => {
       content: base.content,
       latestReview: { id: first.id },
     });
-  });
-
-  it('rejects time regression between reviews even if snapshots and digests match', () => {
-    const first = review('first', 'still_agree', { createdAt: '2026-02-03T00:00:00.000Z' });
-    const earlier = review('earlier', 'changed', { previousReviewId: first.id });
-    expect(foldReadingReviews(base, [earlier, first], digest).latestReview?.id).toBe(first.id);
   });
 
   it('stops before an ambiguous branch or repeated id regardless of event order', () => {

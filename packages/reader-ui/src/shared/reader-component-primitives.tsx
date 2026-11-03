@@ -1,16 +1,3 @@
-import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
-import {
-  Alert01Icon,
-  ArrowTurnDownIcon,
-  BulbIcon,
-  FileLinkIcon,
-  Layers02Icon,
-  BubbleChatIcon,
-  Plant01Icon,
-  PuzzleIcon,
-  SecurityWarningIcon,
-  SparklesIcon,
-} from '@hugeicons/core-free-icons';
 import {
   useReducer,
   useRef,
@@ -21,104 +8,12 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react';
-import type {
-  AgentReadingIntent,
-  AnnotationType,
-  MessageSendShortcut,
-  PublicAgent,
-} from '@yomitomo/shared';
-import { agentReadingIntentLabel, agentReadingIntentOptions } from '@yomitomo/shared';
-import { annotationTypeLabel } from '@yomitomo/core';
+import type { MessageSendShortcut, PublicAgent } from '@yomitomo/shared';
 import { Kbd } from '../components/ui/kbd';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../components/ui/tooltip';
 import { messageSendShortcutKeys } from '../reader-shortcuts';
-
-const readingIntentIcons: Record<AgentReadingIntent, IconSvgElement> = {
-  explain: BubbleChatIcon,
-  decompose: Layers02Icon,
-  challenge: SecurityWarningIcon,
-  question: ArrowTurnDownIcon,
-  connect: FileLinkIcon,
-};
-const annotationTypeIcons: Record<AnnotationType, IconSvgElement> = {
-  key_point: BulbIcon,
-  assumption: Alert01Icon,
-  concept: PuzzleIcon,
-  question: Plant01Icon,
-  quote: SparklesIcon,
-};
 const readerTooltipDelayDuration = 360;
 const readerTooltipSkipDelayDuration = 80;
-
-export function ReadingIntentIcon({
-  intent,
-  size = 13,
-}: {
-  intent: AgentReadingIntent;
-  size?: number;
-}) {
-  const icon = readingIntentIcons[intent];
-  return (
-    <HugeiconsIcon
-      icon={icon}
-      aria-hidden="true"
-      className="reader-reading-intent-icon"
-      focusable="false"
-      size={size}
-      strokeWidth={2.3}
-    />
-  );
-}
-
-export function ReadingIntentLabelContent({
-  intent,
-  short = false,
-}: {
-  intent: AgentReadingIntent;
-  short?: boolean;
-}) {
-  const option = agentReadingIntentOptions.find((item) => item.value === intent);
-  const label = short
-    ? option?.shortLabel || agentReadingIntentLabel(intent)
-    : agentReadingIntentLabel(intent);
-  return (
-    <>
-      <ReadingIntentIcon intent={intent} />
-      {label}
-    </>
-  );
-}
-
-export function AnnotationTypeLabelContent({ type }: { type: AnnotationType }) {
-  const icon = annotationTypeIcons[type];
-  return (
-    <>
-      <HugeiconsIcon
-        icon={icon}
-        aria-hidden="true"
-        className="reader-annotation-type-icon"
-        focusable="false"
-        size={13}
-        strokeWidth={2.3}
-      />
-      {annotationTypeLabel(type)}
-    </>
-  );
-}
-
-export function AnnotationTypeIcon({ type }: { type: AnnotationType }) {
-  const icon = annotationTypeIcons[type];
-  return (
-    <HugeiconsIcon
-      icon={icon}
-      aria-hidden="true"
-      className="reader-annotation-type-icon"
-      focusable="false"
-      size={13}
-      strokeWidth={2.3}
-    />
-  );
-}
 
 export function AvatarBadge({ avatar, fallback = 'AI' }: { avatar?: string; fallback?: string }) {
   const value = avatar || fallback;

@@ -1,30 +1,11 @@
-import i18next from 'i18next';
 import type { ArticleRecord } from '@yomitomo/shared';
 import type { TocItem } from '@yomitomo/core';
-import type { ReaderReadingSection } from '@yomitomo/reader-ui/reader-types';
 import type { FoliateTocItem, FoliateViewElement } from './ebook-foliate-view';
 
 export function ebookHasStableSectionChapterMapping(
   article: ArticleRecord & { ebook: NonNullable<ArticleRecord['ebook']> },
 ) {
   return article.ebook.metadata.format === 'epub';
-}
-
-export function ebookReaderReadingSections(
-  article: ArticleRecord & { ebook: NonNullable<ArticleRecord['ebook']> },
-  text: string,
-): ReaderReadingSection[] {
-  const index = article.ebook.index;
-  if (!index?.chapters.length) {
-    return text ? [{ id: 'ebook', title: article.title, start: 0, end: text.length }] : [];
-  }
-  return index.chapters.map((chapter) => ({
-    id: chapter.id,
-    title:
-      chapter.title || i18next.t('ebookReader.chapterLabel', { chapter: chapter.indexInBook + 1 }),
-    start: chapter.textStart,
-    end: chapter.textEnd,
-  }));
 }
 
 export function ebookTocItemsForReader(

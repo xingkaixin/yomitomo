@@ -19,20 +19,6 @@ export type ExtractedArticle = {
   contentHash: string;
 };
 
-export type ArticlePreview = {
-  url: string;
-  canonicalUrl: string;
-  title: string;
-  domain: string;
-  wordCount: number;
-  readingMinutes: number;
-  readerActive: boolean;
-};
-
-export async function extractCurrentArticle(): Promise<ExtractedArticle> {
-  return extractArticleFromDocument(document, location.href);
-}
-
 export async function extractArticleFromDocument(
   articleDocument: Document,
   pageUrl = documentPageUrl(articleDocument),
@@ -122,22 +108,6 @@ export function fallbackArticleFromDocument(
     ...metadata,
     content,
     contentHash,
-  };
-}
-
-export function articlePreviewFromExtractedArticle(
-  article: ExtractedArticle,
-  articleDocument = document,
-): ArticlePreview {
-  const wordCount = countReadableWords(textFromHtml(articleDocument, article.content));
-  return {
-    url: article.url,
-    canonicalUrl: article.canonicalUrl,
-    title: article.title,
-    domain: domainFromUrl(article.canonicalUrl || article.url),
-    wordCount,
-    readingMinutes: Math.max(1, Math.ceil(wordCount / 250)),
-    readerActive: false,
   };
 }
 
@@ -339,14 +309,6 @@ function textFromHtml(articleDocument: Document, html: string) {
   const container = articleDocument.createElement('div');
   container.innerHTML = html;
   return container.textContent || '';
-}
-
-function countReadableWords(text: string) {
-  const normalized = text.replace(/\s+/g, ' ').trim();
-  const cjkCount = normalized.match(/[\u3400-\u9fff]/g)?.length || 0;
-  const latinCount =
-    normalized.replace(/[\u3400-\u9fff]/g, ' ').match(/[a-z0-9]+(?:[-'][a-z0-9]+)*/gi)?.length || 0;
-  return cjkCount + latinCount;
 }
 
 function domainFromUrl(url: string) {

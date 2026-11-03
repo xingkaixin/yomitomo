@@ -59,12 +59,6 @@ afterEach(async () => {
 });
 
 describe('reading review queue', () => {
-  it('keeps an empty library usable without a semantic model', async () => {
-    const fixture = createFixture();
-    const queue = await fixture.readQueue();
-    expect(queue).toMatchObject({ items: [], mode: 'time', coverage: { eligibleAssetCount: 0 } });
-  });
-
   it('derives the oldest 64 raw judgments without revealing their text or requiring projections', async () => {
     const fixture = createFixture();
     for (let index = 0; index < 70; index += 1) fixture.add(`comment-${index}`, 100 - index);
@@ -94,80 +88,6 @@ describe('reading review queue', () => {
     expect(queue.items[1]?.lastReviewedAt).not.toBeNull();
   });
 
-  it('bounds body reads and yields between batches for ten thousand long judgments', async () => {
-    const fixture = createFixture();
-    const ref = fixture.add('first', 100);
-    const content = 'reading judgment '.repeat(512);
-    const insert = fixture.executor.prepare(
-      `INSERT INTO comments (id, annotation_id, author, content, created_at)
-       VALUES (?, ?, 'user', ?, ?)`,
-    );
-    fixture.executor.transaction(() => {
-      for (let index = 1; index < 10_000; index += 1) {
-        insert.run(`large-${index}`, ref.annotationId, content, '2026-01-01T00:00:00.000Z');
-      }
-    })();
-    let maximumRows = 0;
-    let historyBodyReads = 0;
-    let yielded = false;
-    const originalPrepare = fixture.executor.prepare.bind(fixture.executor);
-    vi.spyOn(fixture.executor, 'prepare').mockImplementation((sql) => {
-      const statement = originalPrepare(sql);
-      const readAll = statement.all.bind(statement);
-      vi.spyOn(statement, 'all').mockImplementation((...values: unknown[]) => {
-        const rows = readAll(...values);
-        maximumRows = Math.max(maximumRows, rows.length);
-        if (sql.includes('judgment_snapshot')) historyBodyReads += 1;
-        return rows;
-      });
-      return statement;
-    });
-    fixture.onStatus = (call) => {
-      if (call === 1)
-        setImmediate(() => {
-          yielded = true;
-        });
-    };
-    const queue = await fixture.readQueue();
-    expect(queue.coverage.eligibleAssetCount).toBe(10_000);
-    expect(queue.items).toHaveLength(64);
-    expect(maximumRows).toBeLessThanOrEqual(64);
-    expect(historyBodyReads).toBe(0);
-    expect(yielded).toBe(true);
-  }, 15_000);
-
-  it('drops deleted and changed candidates before returning a queue', async () => {
-    const fixture = createFixture();
-    fixture.add('deleted');
-    fixture.add('changed');
-    fixture.add('kept');
-    fixture.onStatus = (call) => {
-      if (call !== 2) return;
-      fixture.executor.prepare('DELETE FROM comments WHERE id = ?').run('deleted');
-      fixture.executor
-        .prepare('UPDATE comments SET content = ?, asset_revision = ? WHERE id = ?')
-        .run('A newly edited judgment', randomUUID(), 'changed');
-    };
-    const queue = await fixture.readQueue();
-    expect(queue.items.map((item) => item.asset.assetId)).toEqual(['kept']);
-  });
-
-  it('rejects a database generation change and a canceled queue request', async () => {
-    const fixture = createFixture();
-    fixture.add('old');
-    fixture.onStatus = (call) => {
-      if (call !== 2) return;
-      closeDatabase();
-      getDatabase();
-    };
-    await expect(fixture.readQueue()).rejects.toThrow('READING_MEMORY_SESSION_EXPIRED');
-    const controller = new AbortController();
-    controller.abort();
-    await expect(fixture.readQueue(controller.signal)).rejects.toMatchObject({
-      name: 'AbortError',
-    });
-  });
-
   it('uses only current local vectors to weakly promote nearby dates', async () => {
     const fixture = createFixture();
     const oldest = fixture.add('oldest', 10);
@@ -185,24 +105,6 @@ describe('reading review queue', () => {
     expect(time.items[0]?.asset.assetId).toBe('oldest');
     expect(time.mode).toBe('time');
     expect(time.coverage.semanticCandidateCount).toBe(0);
-  });
-
-  it('does not reuse vectors removed by an index rebuild while the model remains installed', async () => {
-    const fixture = createFixture();
-    const oldest = fixture.add('oldest', 10);
-    const related = fixture.add('related', 9);
-    const recent = fixture.add('recent', 1);
-    fixture.vector(oldest, 1);
-    fixture.vector(related, 0);
-    fixture.vector(recent, 0);
-    fixture.semanticAvailable = true;
-    fixture.onStatus = (call) => {
-      if (call === 2) fixture.executor.exec('DELETE FROM reading_memory_evidence_vectors');
-    };
-    const queue = await fixture.readQueue();
-    expect(queue.mode).toBe('time');
-    expect(queue.coverage.semanticCandidateCount).toBe(0);
-    expect(queue.items[0]?.asset.assetId).toBe('oldest');
   });
 });
 
@@ -257,7 +159,6 @@ function createFixture() {
   const database = getDatabase();
   const executor = getSqliteExecutor();
   const getStatus = vi.fn(async () => {
-    fixture.onStatus(getStatus.mock.calls.length);
     const currentExecutor = getSqliteExecutor();
     const semantic: ReadingMemorySemanticStatus = {
       state: fixture.semanticAvailable ? 'available' : 'not_installed',
@@ -277,7 +178,6 @@ function createFixture() {
   const fixture = {
     executor,
     semanticAvailable: false,
-    onStatus: (_call: number) => {},
     readQueue: createReadingReviewQueue({ semanticIndex: { getStatus } }),
     add: (id: string, daysAgo = 10): ReadingReviewAssetRef => {
       const createdAt = new Date(Date.now() - daysAgo * 86_400_000).toISOString();

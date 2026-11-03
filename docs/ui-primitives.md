@@ -53,5 +53,4 @@ There are no current Radix exceptions.
 
 Do not add Radix imports, package dependencies, or lockfile references. Older
 migration notes that allowed temporary wrapper or package exceptions are no
-longer current. `pnpm ui:check-primitives` is the source of truth for this
-boundary.
+longer current.

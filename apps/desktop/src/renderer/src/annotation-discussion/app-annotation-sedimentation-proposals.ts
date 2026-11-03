@@ -297,31 +297,6 @@ export function planDistillationProposalDraftAnchor(
   return anchorMatchResult(draft, targetText, proposal.sourceDraftHash, 'text');
 }
 
-export function updateReviewProposalStatus(
-  sessions: AnnotationDistillationReviewSession[],
-  messageId: string,
-  proposalId: string,
-  status: AnnotationDistillationProposalStatus,
-  now: string,
-) {
-  return updateReviewProposalStatuses(sessions, messageId, [proposalId], status, now);
-}
-
-export function updateReviewProposalStatuses(
-  sessions: AnnotationDistillationReviewSession[],
-  messageId: string,
-  proposalIds: string[],
-  status: AnnotationDistillationProposalStatus,
-  now: string,
-) {
-  return updateReviewProposalStatusMap(
-    sessions,
-    messageId,
-    Object.fromEntries(proposalIds.map((proposalId) => [proposalId, status])),
-    now,
-  );
-}
-
 export function updateReviewProposalStatusMap(
   sessions: AnnotationDistillationReviewSession[],
   messageId: string,

@@ -9,8 +9,6 @@ import { MAX_PDF_IMPORT_BYTES } from '../../ipc-contract';
 import { SourceImportError } from '../../ipc/article-import-boundary';
 import { readPdfiumWasmBinary } from './pdfium-resource';
 
-export const MAX_PDF_BYTES = MAX_PDF_IMPORT_BYTES;
-
 // 封面缩略图：约 300px 宽的 JPEG，导入期一次性渲染并本地持久化。
 const PDF_THUMBNAIL_TARGET_WIDTH = 300;
 const PDF_THUMBNAIL_MAX_HEIGHT = 600;

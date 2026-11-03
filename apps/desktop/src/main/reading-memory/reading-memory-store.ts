@@ -7,11 +7,7 @@ import {
   readingMemoryEntrySearchText,
 } from '@yomitomo/core';
 import { getSqliteExecutor } from '../store/store-db';
-import {
-  readingMemoryFtsQuery,
-  readingMemoryWhereClause,
-  sourceWhereClause,
-} from './reading-memory-query-builder';
+import { readingMemoryFtsQuery, readingMemoryWhereClause } from './reading-memory-query-builder';
 import {
   readingMemoryEntrySqlValues,
   rowToReadingMemoryEntry,
@@ -22,7 +18,6 @@ import type {
   ReadingMemorySqliteExecutor,
   ReadReadingMemoryEntriesOptions,
   SearchReadingMemoryEntriesOptions,
-  SoftDeleteReadingMemoryEntriesBySourceOptions,
 } from './reading-memory-store-types';
 export type {
   ReadingMemorySqliteExecutor,
@@ -47,13 +42,6 @@ type ReadingMemoryWriteStatements = {
   upsertEntry: SqliteStatement;
   insertFts: SqliteStatement;
 };
-
-export function appendReadingMemoryEntry(
-  entry: ReadingMemoryEntry,
-  executor?: ReadingMemorySqliteExecutor,
-) {
-  appendReadingMemoryEntries([entry], executor);
-}
 
 export function appendReadingMemoryEntries(
   entries: ReadingMemoryEntry[],
@@ -316,47 +304,6 @@ ORDER BY created_at ASC, id ASC
   return applySupersededEntryFilter(entries);
 }
 
-export function softDeleteReadingMemoryEntriesBySource(
-  options: SoftDeleteReadingMemoryEntriesBySourceOptions,
-) {
-  const executor = options.executor || defaultExecutor();
-  const deletedAt = options.deletedAt || new Date().toISOString();
-  const { where, values } = sourceWhereClause(options);
-  if (!where) return 0;
-
-  const run = () => {
-    const ids = executor
-      .prepare(
-        `
-SELECT id
-FROM reading_memory_entries
-WHERE article_id = ?
-  AND deleted_at IS NULL
-  AND (${where})
-`,
-      )
-      .all(options.articleId, ...values)
-      .map((row) => stringValue(recordField(row, 'id')));
-    if (ids.length === 0) return 0;
-
-    executor
-      .prepare(
-        `
-UPDATE reading_memory_entries
-SET deleted_at = ?, deletion_reason = ?, updated_at = ?
-WHERE article_id = ?
-  AND deleted_at IS NULL
-  AND (${where})
-`,
-      )
-      .run(deletedAt, options.deletionReason, deletedAt, options.articleId, ...values);
-    deleteFtsRows(executor, ids);
-    deleteProjectionRows(executor, options.articleId);
-    return ids.length;
-  };
-  return options.useTransaction === false ? run() : withReadingMemoryTransaction(executor, run);
-}
-
 export function deleteReadingMemoryForArticle(
   articleId: string,
   executor?: ReadingMemorySqliteExecutor,
@@ -370,21 +317,6 @@ export function deleteReadingMemoryForArticle(
   };
   if (options.useTransaction === false) run();
   else withReadingMemoryTransaction(database, run);
-}
-
-export function rebuildReadingMemoryFts(
-  articleId?: string,
-  executor?: ReadingMemorySqliteExecutor,
-) {
-  const database = executor || defaultExecutor();
-  withReadingMemoryTransaction(database, () => {
-    if (articleId) {
-      database.prepare('DELETE FROM reading_memory_entry_fts WHERE article_id = ?').run(articleId);
-    } else database.prepare('DELETE FROM reading_memory_entry_fts').run();
-
-    const entries = readActiveRowsForFtsRebuild(database, articleId);
-    for (const entry of entries) upsertFtsRow(database, entry);
-  });
 }
 
 function defaultExecutor(): ReadingMemorySqliteExecutor {
@@ -532,38 +464,6 @@ function deleteFtsRows(executor: ReadingMemorySqliteExecutor, entryIds: string[]
 
 function deleteProjectionRows(executor: ReadingMemorySqliteExecutor, articleId: string) {
   executor.prepare('DELETE FROM reading_memory_projections WHERE article_id = ?').run(articleId);
-}
-
-function readActiveRowsForFtsRebuild(
-  executor: ReadingMemorySqliteExecutor,
-  articleId: string | undefined,
-) {
-  const rows = articleId
-    ? executor
-        .prepare(
-          `
-SELECT *
-FROM reading_memory_entries
-WHERE article_id = ?
-  AND deleted_at IS NULL
-ORDER BY created_at ASC, id ASC
-`,
-        )
-        .all(articleId)
-    : executor
-        .prepare(
-          `
-SELECT *
-FROM reading_memory_entries
-WHERE deleted_at IS NULL
-ORDER BY created_at ASC, id ASC
-`,
-        )
-        .all();
-  return rows.flatMap((row) => {
-    const entry = rowToReadingMemoryEntry(row);
-    return entry ? [entry] : [];
-  });
 }
 
 function logReadingMemoryTiming(

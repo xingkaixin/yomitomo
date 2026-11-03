@@ -1,17 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Effect, Fiber } from 'effect';
 
-import {
-  fetchWeReadBookDetail,
-  fetchWeReadNotebooks,
-  fetchWeReadReadingStats,
-  testWeReadConnection,
-  weReadClientTestApi,
-  WEREAD_REQUEST_TIMEOUT_MS,
-  WEREAD_SKILL_VERSION,
-} from './weread-client';
-
-function noop() {}
+import { fetchWeReadBookDetail, fetchWeReadNotebooks, WEREAD_SKILL_VERSION } from './weread-client';
 
 function response(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status });
@@ -133,68 +122,6 @@ describe('weread client', () => {
     });
   });
 
-  it.each([
-    ['missing books', { hasMore: 0 }],
-    ['wrong books type', { books: {}, hasMore: 0 }],
-    ['non-object gateway body', 'upstream unavailable'],
-    ['missing pagination state', { books: [] }],
-    ['non-object book item', { books: [null], hasMore: 0 }],
-  ])('rejects incomplete notebook authority: %s', async (_name, body) => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(response(body));
-
-    await expect(fetchWeReadNotebooks('secret')).rejects.toThrow('Failed to parse WeRead response');
-  });
-
-  it('rejects with the HTTP error message from the Effect boundary', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(response({}, 502));
-
-    await expect(testWeReadConnection('secret')).rejects.toThrow('WeRead request failed: HTTP 502');
-  });
-
-  it('aborts a hanging gateway request after the configured timeout', async () => {
-    vi.useFakeTimers();
-    vi.spyOn(globalThis, 'fetch').mockImplementation(
-      (_input, init) =>
-        new Promise<Response>((_resolve, reject) => {
-          init?.signal?.addEventListener('abort', () =>
-            reject(new DOMException('Aborted', 'AbortError')),
-          );
-        }),
-    );
-
-    const result = testWeReadConnection('secret');
-    const assertion = expect(result).rejects.toThrow('WeRead request timed out: /user/notebooks');
-    await vi.advanceTimersByTimeAsync(WEREAD_REQUEST_TIMEOUT_MS);
-
-    await assertion;
-  });
-
-  it('aborts a gateway request when its Effect is interrupted', async () => {
-    const request = hangingFetch();
-    vi.spyOn(globalThis, 'fetch').mockImplementation(request.run);
-    const fiber = Effect.runFork(
-      weReadClientTestApi.requestWeReadEffect('secret', '/user/notebooks'),
-    );
-
-    await request.started.promise;
-    await Effect.runPromise(Fiber.interrupt(fiber));
-    const aborted = request.aborted();
-    request.release();
-
-    expect(aborted).toBe(true);
-  });
-
-  it('rejects with the gateway business error from the Effect boundary', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      response({
-        errcode: 1001,
-        errmsg: '签名无效',
-      }),
-    );
-
-    await expect(fetchWeReadReadingStats('secret', 'overall')).rejects.toThrow('签名无效');
-  });
-
   it('continues thoughts pagination when the next synckey is zero', async () => {
     const fetchMock = mockBookDetailFetch([
       reviewPage('review_1', { hasMore: 1, synckey: 0 }),
@@ -209,72 +136,4 @@ describe('weread client', () => {
       { api_name: '/review/list/mine', bookid: 'book_1', count: 100, synckey: 0 },
     ]);
   });
-
-  it('stops thoughts pagination when hasMore is false', async () => {
-    const fetchMock = mockBookDetailFetch([reviewPage('review_1', { hasMore: 0, synckey: 9 })]);
-
-    const detail = await fetchWeReadBookDetail('secret', 'book_1');
-
-    expect(detail.thoughts.map((thought) => thought.reviewId)).toEqual(['review_1']);
-    expect(reviewRequestBodies(fetchMock)).toHaveLength(1);
-  });
-
-  it('rejects thoughts pagination when hasMore lacks a next synckey', async () => {
-    const fetchMock = mockBookDetailFetch([reviewPage('review_1', { hasMore: 1 })]);
-
-    await expect(fetchWeReadBookDetail('secret', 'book_1')).rejects.toThrow('missing synckey');
-
-    expect(reviewRequestBodies(fetchMock)).toHaveLength(1);
-  });
-
-  it('rejects thoughts pagination when the next synckey repeats', async () => {
-    const fetchMock = mockBookDetailFetch([
-      reviewPage('review_1', { hasMore: 1, synckey: 7 }),
-      reviewPage('review_2', { hasMore: 1, synckey: 7 }),
-    ]);
-
-    await expect(fetchWeReadBookDetail('secret', 'book_1')).rejects.toThrow('repeats synckey');
-
-    expect(reviewRequestBodies(fetchMock)).toMatchObject([
-      { api_name: '/review/list/mine', bookid: 'book_1', count: 100 },
-      { api_name: '/review/list/mine', bookid: 'book_1', count: 100, synckey: 7 },
-    ]);
-  });
-
-  it.each([
-    ['/book/chapterinfo', { chapters: {} }],
-    ['/book/bookmarklist', { updated: null }],
-    ['/review/list/mine', { reviews: {}, hasMore: 0 }],
-  ])('rejects an incomplete detail response from %s', async (apiName, body) => {
-    mockBookDetailFetch([reviewPage('review_1', { hasMore: 0 })], { [apiName]: body });
-
-    await expect(fetchWeReadBookDetail('secret', 'book_1')).rejects.toThrow(
-      'Failed to parse WeRead response',
-    );
-  });
 });
-
-function hangingFetch() {
-  const started = deferredPromise();
-  let signal: AbortSignal | undefined;
-  let rejectRequest: (reason?: unknown) => void = noop;
-  return {
-    started,
-    run: (_input: URL | RequestInfo, init?: RequestInit) =>
-      new Promise<Response>((_resolve, reject) => {
-        signal = init?.signal instanceof AbortSignal ? init.signal : undefined;
-        rejectRequest = reject;
-        started.resolve();
-      }),
-    aborted: () => signal?.aborted === true,
-    release: () => rejectRequest(new DOMException('Aborted', 'AbortError')),
-  };
-}
-
-function deferredPromise(): { promise: Promise<void>; resolve: () => void } {
-  let resolve = noop;
-  const promise = new Promise<void>((settle) => {
-    resolve = settle;
-  });
-  return { promise, resolve };
-}

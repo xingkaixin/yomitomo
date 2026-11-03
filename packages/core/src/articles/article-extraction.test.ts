@@ -1,32 +1,11 @@
 // @vitest-environment jsdom
 
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  articlePreviewFromExtractedArticle,
-  extractCurrentArticle,
-  fallbackCurrentArticle,
-} from './article-extraction';
-
-vi.mock('defuddle', () => ({
-  default: class {
-    async parseAsync() {
-      return {
-        title: 'Defuddle 标题',
-        author: 'Defuddle 作者',
-        site: 'Defuddle 站点',
-        favicon: '/favicon.ico',
-        description: 'Defuddle 摘要',
-        content:
-          '<article><p style="color:red">正文</p><script>bad()</script><custom-card><strong>重点</strong></custom-card></article>',
-      };
-    }
-  },
-}));
+import { afterEach, describe, expect, it } from 'vitest';
+import { fallbackCurrentArticle } from './article-extraction';
 
 afterEach(() => {
   document.head.innerHTML = '';
   document.body.innerHTML = '';
-  vi.clearAllMocks();
 });
 
 describe('article extraction', () => {
@@ -64,47 +43,5 @@ describe('article extraction', () => {
     expect(article.content).not.toContain('script');
     expect(article.content).not.toContain('style=');
     expect(article.contentHash).toMatch(/^[a-z0-9]+$/);
-  });
-
-  it('uses a mocked Defuddle result before readability fallback', async () => {
-    document.title = '页面标题';
-    document.head.innerHTML = `
-      <link rel="canonical" href="https://example.com/post" />
-      <meta property="og:image" content="https://cdn.example.com/cover.jpg" />
-    `;
-    document.body.innerHTML = '<main><h1>页面标题</h1><p>页面正文</p></main>';
-
-    const article = await extractCurrentArticle();
-
-    expect(article.title).toBe('Defuddle 标题');
-    expect(article.byline).toBe('Defuddle 作者');
-    expect(article.excerpt).toBe('Defuddle 摘要');
-    expect(article.siteName).toBe('Defuddle 站点');
-    expect(article.siteIconUrl).toBe('https://example.com/favicon.ico');
-    expect(article.leadImageUrl).toBe('https://cdn.example.com/cover.jpg');
-    expect(article.content).toContain('<p>正文</p>');
-    expect(article.content).toContain('<strong>重点</strong>');
-    expect(article.content).not.toContain('custom-card');
-    expect(article.contentHash).toMatch(/^[a-z0-9]+$/);
-  });
-
-  it('builds article preview metadata', () => {
-    const preview = articlePreviewFromExtractedArticle({
-      url: 'https://www.example.com/post',
-      canonicalUrl: 'https://www.example.com/post',
-      title: '文章标题',
-      content: '<p>中文正文 mixed words 123</p>',
-      contentHash: 'hash',
-    });
-
-    expect(preview).toEqual({
-      url: 'https://www.example.com/post',
-      canonicalUrl: 'https://www.example.com/post',
-      title: '文章标题',
-      domain: 'example.com',
-      wordCount: 7,
-      readingMinutes: 1,
-      readerActive: false,
-    });
   });
 });

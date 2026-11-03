@@ -1,5 +1,5 @@
 import i18next from 'i18next';
-import { articleCounts, readingProgressRatio } from '@yomitomo/core';
+import { articleCounts } from '@yomitomo/core';
 import {
   cleanEpubDisplayTitle,
   type ArticleRecord,
@@ -7,58 +7,10 @@ import {
   type LibraryContentSourceId,
   type WeReadBook,
 } from '@yomitomo/shared';
-import { articlePlainText, formatDate, urlHost } from '../shell/app-article-presentation';
-
-export type LibraryFilter = 'all' | 'new' | 'progress' | 'done';
 
 export type LibrarySource = LibraryContentSourceId;
 
 export type LibrarySort = 'recentReading' | 'recentAdded' | 'annotations' | 'discussions';
-
-const libraryFilters: LibraryFilter[] = ['all', 'new', 'progress', 'done'];
-
-const librarySorts: LibrarySort[] = ['recentAdded', 'recentReading', 'annotations', 'discussions'];
-
-export function libraryFilterOptions(): Array<{ value: LibraryFilter; label: string }> {
-  return libraryFilters.map((value) => ({
-    value,
-    label: i18next.t(`library.filters.${value}`),
-  }));
-}
-
-export function librarySortOptions(): Array<{ value: LibrarySort; label: string }> {
-  return librarySorts.map((value) => ({
-    value,
-    label: i18next.t(`library.sort.${value}`),
-  }));
-}
-
-export function articleMatchesLibrarySearch(article: ArticleSummaryRecord, query: string) {
-  const normalizedQuery = query.trim().toLocaleLowerCase('zh-CN');
-  if (!normalizedQuery) return true;
-
-  return [
-    articleDisplayTitle(article),
-    article.title,
-    article.byline,
-    article.siteName,
-    article.excerpt,
-    article.ebook?.metadata.originalTitle,
-    article.ebook?.metadata.fileName,
-    article.pdf?.metadata.fileName,
-    urlHost(article.canonicalUrl || article.url),
-    article.canonicalUrl,
-    article.url,
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .toLocaleLowerCase('zh-CN')
-    .includes(normalizedQuery);
-}
-
-export function librarySourceForArticle(article: ArticleSummaryRecord): LibrarySource {
-  return article.sourceType;
-}
 
 export function articleDisplayTitle(article: ArticleRecord | ArticleSummaryRecord) {
   if (article.sourceType !== 'ebook') return article.title;
@@ -69,50 +21,6 @@ export function articleDisplayTitle(article: ArticleRecord | ArticleSummaryRecor
       fileName: metadata.fileName,
       creator: article.byline,
     }) || article.title
-  );
-}
-
-export function articleMatchesLibraryFilter(article: ArticleSummaryRecord, filter: LibraryFilter) {
-  const status = libraryArticleStatus(article);
-  if (filter === 'new') return status.tone === 'new';
-  if (filter === 'progress') return status.tone === 'progress';
-  if (filter === 'done') return status.tone === 'done';
-  return true;
-}
-
-export function compareLibraryArticles(
-  left: ArticleSummaryRecord,
-  right: ArticleSummaryRecord,
-  sort: LibrarySort,
-) {
-  if (sort === 'recentAdded') {
-    return (
-      compareTimestampDesc(left.createdAt, right.createdAt) ||
-      compareTimestampDesc(left.updatedAt, right.updatedAt) ||
-      articleDisplayTitle(left).localeCompare(articleDisplayTitle(right), 'zh-CN')
-    );
-  }
-
-  if (sort === 'annotations') {
-    return (
-      articleAnnotationCount(right) - articleAnnotationCount(left) ||
-      compareTimestampDesc(left.updatedAt, right.updatedAt) ||
-      articleDisplayTitle(left).localeCompare(articleDisplayTitle(right), 'zh-CN')
-    );
-  }
-
-  if (sort === 'discussions') {
-    return (
-      articleDistillationCount(right) - articleDistillationCount(left) ||
-      compareTimestampDesc(left.updatedAt, right.updatedAt) ||
-      articleDisplayTitle(left).localeCompare(articleDisplayTitle(right), 'zh-CN')
-    );
-  }
-
-  return (
-    compareTimestampDesc(left.updatedAt, right.updatedAt) ||
-    compareTimestampDesc(left.createdAt, right.createdAt) ||
-    articleDisplayTitle(left).localeCompare(articleDisplayTitle(right), 'zh-CN')
   );
 }
 
@@ -145,37 +53,12 @@ function formatLibraryCountGroup(count: number, unit: 'annotations' | 'distillat
   return i18next.t(`library.group.count.${unit}`, { count });
 }
 
-export function libraryArticleStatus(article: ArticleSummaryRecord) {
-  if (articleAnnotationCount(article) === 0)
-    return { label: i18next.t('library.status.new'), tone: 'new' };
-  if (readingProgressRatio(article.readingProgress) >= 0.98)
-    return { label: i18next.t('library.status.done'), tone: 'done' };
-  return { label: i18next.t('library.status.progress'), tone: 'progress' };
-}
-
 export function articleAnnotationCount(article: ArticleRecord | ArticleSummaryRecord) {
   return articleCounts(article).annotationCount;
 }
 
-export function articleThoughtCount(article: ArticleRecord | ArticleSummaryRecord) {
-  return articleCounts(article).thoughtCount;
-}
-
 export function articleDistillationCount(article: ArticleRecord | ArticleSummaryRecord) {
   return articleCounts(article).distillationCount;
-}
-
-export function articleReadingMinutes(article: ArticleSummaryRecord) {
-  const text =
-    (typeof document === 'undefined' ? article.excerpt : articlePlainText(article)) ||
-    article.title;
-  const cjkCount = text.match(/[\u3400-\u9fff]/g)?.length || 0;
-  const wordCount = text
-    .replace(/[\u3400-\u9fff]/g, ' ')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean).length;
-  return Math.max(1, Math.round(cjkCount / 450 + wordCount / 220));
 }
 
 export function formatLibraryShortDate(value: string, locale = i18next.language || 'zh-CN') {
@@ -206,25 +89,6 @@ function formatLibraryDateGroup(value: string) {
   return i18next.t('library.dateGroup.earlier');
 }
 
-export function formatLibraryRelativeTime(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return formatDate(value);
-
-  const time = new Intl.DateTimeFormat(i18next.language || 'zh-CN', {
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
-  const days = localDayDistance(value);
-  if (days <= 0) return i18next.t('library.relativeTime.today', { time });
-  if (days === 1) return i18next.t('library.relativeTime.yesterday', { time });
-  if (days < 7) return `${weekdayLabel(date)} ${time}`;
-  return formatDate(value);
-}
-
-function weekdayLabel(date: Date) {
-  return new Intl.DateTimeFormat(i18next.language || 'zh-CN', { weekday: 'short' }).format(date);
-}
-
 function localDayDistance(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return Number.POSITIVE_INFINITY;
@@ -232,18 +96,4 @@ function localDayDistance(value: string) {
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
   const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
   return Math.floor((todayStart - dateStart) / 86_400_000);
-}
-
-function compareTimestampDesc(
-  left: string | number | undefined,
-  right: string | number | undefined,
-) {
-  return timestampValue(right) - timestampValue(left);
-}
-
-function timestampValue(value: string | number | undefined) {
-  if (typeof value === 'number') return value;
-  if (!value) return 0;
-  const time = Date.parse(value);
-  return Number.isNaN(time) ? 0 : time;
 }

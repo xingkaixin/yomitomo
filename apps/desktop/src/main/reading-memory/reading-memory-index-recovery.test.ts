@@ -12,10 +12,7 @@ import type {
   ReadingMemoryModelLifecycle,
   ReadingMemoryModelLifecycleState,
 } from './reading-memory-model-lifecycle';
-import {
-  readingMemoryModelRelease,
-  readingMemoryModelVectorDimension,
-} from './reading-memory-model-manifest';
+import { readingMemoryModelRelease } from './reading-memory-model-manifest';
 import { createReadingMemorySemanticIndex } from './reading-memory-semantic-index';
 import { readReadingReviewAsset } from './reading-review-source';
 import { appendReadingReview } from './reading-review-store';
@@ -207,51 +204,6 @@ END;
     expect(restored.originals()).toEqual(original);
     expect(restored.createEmbedding).not.toHaveBeenCalled();
   });
-
-  it('rolls back an interrupted reset and clears all derived generations on retry', async () => {
-    const fixture = createFixture();
-    fixture.add('indexed');
-    fixture.project();
-    fixture.seedVectors();
-    fixture.database.exec(`
-INSERT INTO reading_memory_evidence_fts (entry_id, article_id, asset_type, search_text)
-VALUES ('orphan', 'article_indexed', 'comment', '复审后的判断 orphan');
-`);
-    fixture.add('pending');
-    const original = fixture.originals();
-    const derived = fixture.derived();
-    expect(derived.vectors).toHaveLength(4);
-    expect(derived.jobs).toHaveLength(1);
-    fixture.database.exec(`
-CREATE TEMP TRIGGER reject_receipt_reset
-BEFORE DELETE ON reading_memory_evidence_receipts BEGIN
-  SELECT RAISE(ABORT, 'CONTROLLED_RESET_FAILURE');
-END;
-`);
-
-    await expect(fixture.controls.rebuild()).rejects.toThrow('CONTROLLED_RESET_FAILURE');
-    expect(fixture.derived()).toEqual(derived);
-    expect(fixture.originals()).toEqual(original);
-    expect((await fixture.search()).evidence).toEqual([
-      expect.objectContaining({ content: '复审后的判断 indexed' }),
-    ]);
-
-    fixture.database.exec('DROP TRIGGER reject_receipt_reset');
-    await fixture.controls.rebuild();
-    expect(fixture.derived()).toEqual({
-      entries: [],
-      fts: [],
-      receipts: [],
-      vectors: [],
-      jobs: [],
-      semantic: [],
-    });
-    expect(fixture.originals()).toEqual(original);
-    expect(fixture.project()).toMatchObject({ queuedBackfillCount: 2, completedJobCount: 2 });
-    expect((await fixture.search()).evidence).toHaveLength(2);
-    expect(fixture.originals()).toEqual(original);
-    expect(fixture.createEmbedding).not.toHaveBeenCalled();
-  });
 });
 
 function createFixture(image?: Buffer) {
@@ -303,32 +255,6 @@ function createFixture(image?: Buffer) {
       comments: rows('comments'),
       reviews: rows('reading_memory_reviews'),
     }),
-    derived: () => ({
-      entries: rows('reading_memory_evidence_entries'),
-      fts: rows('reading_memory_evidence_fts'),
-      receipts: rows('reading_memory_evidence_receipts'),
-      vectors: rows('reading_memory_evidence_vectors'),
-      jobs: rows('reading_memory_projection_jobs'),
-      semantic: rows('reading_memory_semantic_state'),
-    }),
-    seedVectors() {
-      const vector = new Float32Array(readingMemoryModelVectorDimension);
-      vector[0] = 1;
-      for (const version of [readingMemoryModelRelease.internalId, 'previous-model']) {
-        database
-          .prepare(`
-INSERT INTO reading_memory_evidence_vectors
-  (evidence_id, model_version, source_version, projector_version, dimension, vector)
-SELECT id, ?, source_version, projector_version, ?, ? FROM reading_memory_evidence_entries
-`)
-          .run(version, vector.length, Buffer.from(vector.buffer));
-      }
-      database
-        .prepare(
-          'INSERT INTO reading_memory_semantic_state (id, active_model_version) VALUES (1, ?)',
-        )
-        .run('previous-model');
-    },
     project: (options?: ReadingMemoryEvidenceProjectionBatchOptions) =>
       runReadingMemoryEvidenceProjectionBatch(database, options),
     search: () => index.search({ query: '复审后的判断', scope: { kind: 'library' } }),

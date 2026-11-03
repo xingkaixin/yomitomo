@@ -27,8 +27,6 @@ export function rowToSettings(
   return normalizeAppSettings(settings);
 }
 
-export const normalizeSettings = normalizeAppSettings;
-
 export function settingsToRow(settings: ResolvedAppSettings, updatedAt = new Date().toISOString()) {
   const normalized = normalizeAppSettings(settings);
   return {

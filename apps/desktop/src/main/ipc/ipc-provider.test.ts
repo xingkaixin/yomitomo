@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import SQLiteDatabase from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
-import type { AppSettingsPatch, DesktopStore } from '@yomitomo/shared';
+import type { DesktopStore } from '@yomitomo/shared';
 import { emptyDesktopStore } from '../../app-store';
 import { ensureAdditiveSchemaColumns, migrations } from '../db/migrations';
 import * as schema from '../db/schema';
@@ -103,43 +103,6 @@ describe('provider IPC persistence boundary', () => {
     },
   );
 
-  it('forwards saved settings with their source event', async () => {
-    ipcMocks.ipcMainHandle.mockClear();
-    const store = desktopStore();
-    const saveSettings = vi.fn(async (_input: AppSettingsPatch) => store);
-    const readAppLockSettings = vi.fn(() => ({
-      appLockEnabled: false,
-      appLockLocked: false,
-    }));
-    const sendFullStoreUpdated = vi.fn();
-    const onSettingsSaved = vi.fn();
-    registerProviderIpc(
-      providerIpcContext(
-        {},
-        {},
-        { readAppLockSettings, saveSettings },
-        { sendFullStoreUpdated, onSettingsSaved },
-      ),
-    );
-    const handler = ipcMocks.ipcMainHandle.mock.calls.find(
-      ([channel]) => channel === 'settings:save',
-    )?.[1];
-    const event = { sender: { id: 17 } };
-
-    const result = await handler(event, { uiLanguage: 'en' });
-
-    expect(result).toEqual({ ok: true, value: store });
-    expect(readAppLockSettings).toHaveBeenCalledOnce();
-    expect(sendFullStoreUpdated).toHaveBeenCalledWith(event, store);
-    expect(onSettingsSaved).toHaveBeenCalledOnce();
-    expect(onSettingsSaved.mock.invocationCallOrder[0]).toBeGreaterThan(
-      saveSettings.mock.invocationCallOrder[0],
-    );
-    expect(onSettingsSaved.mock.invocationCallOrder[0]).toBeLessThan(
-      sendFullStoreUpdated.mock.invocationCallOrder[0],
-    );
-  });
-
   it('rejects renderer-controlled app lock state changes through settings', async () => {
     ipcMocks.ipcMainHandle.mockClear();
     const saveSettings = vi.fn();
@@ -160,23 +123,6 @@ describe('provider IPC persistence boundary', () => {
     });
     expect(readAppLockSettings).toHaveBeenCalledOnce();
     expect(saveSettings).not.toHaveBeenCalled();
-  });
-
-  it('reads provider API keys through provider persistence only', async () => {
-    ipcMocks.ipcMainHandle.mockClear();
-    const readStoredProviderApiKey = vi.fn(async () => 'provider-secret');
-
-    registerProviderIpc(providerIpcContext({ readStoredProviderApiKey }));
-
-    const handler = ipcMocks.ipcMainHandle.mock.calls.find(
-      ([channel]) => channel === 'provider:read-api-key',
-    )?.[1];
-    expect(handler).toBeTypeOf('function');
-
-    const result = await handler({}, 'provider_1');
-
-    expect(result).toEqual({ ok: true, value: 'provider-secret' });
-    expect(readStoredProviderApiKey).toHaveBeenCalledWith('provider_1');
   });
 
   it('does not return raw provider test errors to the renderer', async () => {

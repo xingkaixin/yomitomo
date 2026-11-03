@@ -383,7 +383,3 @@ function modelPriceRecordId(providerId: string, modelId: string) {
 function modelPriceIdentity(providerId: string, modelId: string) {
   return `${providerId}\u0000${modelId}`;
 }
-
-export const modelPricingRepositoryTestApi = {
-  refreshModelsDevPricesEffect,
-};

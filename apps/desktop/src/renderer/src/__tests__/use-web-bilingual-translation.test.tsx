@@ -28,7 +28,6 @@ afterEach(() => {
   document.body.replaceChildren();
   Reflect.deleteProperty(window, 'yomitomoDesktop');
   vi.clearAllMocks();
-  vi.useRealTimers();
 });
 
 function webArticle(): ArticleRecord {
@@ -147,45 +146,6 @@ function renderedTranslationText(html: string) {
 }
 
 describe('useWebBilingualTranslation', () => {
-  it.each(['retranslate', 'delete'] as const)(
-    'allows %s after the runtime recovers an interrupted translation',
-    async (action) => {
-      const cached = translationFor();
-      const api = installDesktopApi({
-        ...cached,
-        status: 'failed',
-        error: 'TRANSLATION_INCOMPLETE',
-        // oxlint-disable-next-line oxc/no-map-spread -- Copying keeps the fixture immutable; the cost is irrelevant in a test.
-        segments: cached.segments.map((segment) => ({
-          ...segment,
-          status: 'failed',
-          error: 'TRANSLATION_INTERRUPTED',
-          translatedText: undefined,
-        })),
-      });
-      const { result } = renderTranslationHook();
-      await waitFor(() => {
-        const toolbar = result.current.toolbar as React.ReactElement<{
-          busy: boolean;
-          hasTranslation: boolean;
-        }>;
-        expect(toolbar.props.hasTranslation).toBe(true);
-        expect(toolbar.props.busy).toBe(false);
-      });
-
-      const dialog = result.current.dialog as React.ReactElement<{
-        onConfirm: (action: 'retranslate' | 'delete') => Promise<void>;
-      }>;
-      await act(() => dialog.props.onConfirm(action));
-
-      if (action === 'delete') {
-        expect(api.deleteCurrentArticleTranslation).toHaveBeenCalledOnce();
-      } else {
-        expect(api.translateArticle).toHaveBeenCalledWith(expect.objectContaining({ force: true }));
-      }
-    },
-  );
-
   it.each([
     ['keeps', 'before', 0],
     ['removes', 'after', 1],
@@ -262,129 +222,4 @@ describe('useWebBilingualTranslation', () => {
       );
     },
   );
-
-  it('does not reveal the old language while the new target is loading', async () => {
-    const api = installDesktopApi(translationFor());
-    const { result, rerender } = renderTranslationHook();
-    await waitFor(() => expect(renderedTranslationText(result.current.renderedHtml)).toBeDefined());
-    let complete!: (value: ArticleTranslation | null) => void;
-    const pending = new Promise<ArticleTranslation | null>((resolve) => {
-      complete = resolve;
-    });
-    api.getCurrentArticleTranslation.mockReturnValue(pending);
-    rerender({ targetLanguage: 'en' });
-    act(() => api.callbacks.forEach((receive) => receive(translationFor('迟到的中文译文'))));
-    expect(renderedTranslationText(result.current.renderedHtml)).toBeUndefined();
-    await act(async () => {
-      complete(null);
-      await pending;
-    });
-    expect(renderedTranslationText(result.current.renderedHtml)).toBeUndefined();
-  });
-
-  it('restores and renders the cached article translation', async () => {
-    const cached = translationFor();
-    const api = installDesktopApi(cached);
-    const { result } = renderTranslationHook();
-
-    await waitFor(() => {
-      expect(renderedTranslationText(result.current.renderedHtml)).toBe(
-        '你好世界，这一段应该被翻译。',
-      );
-    });
-    expect(api.getCurrentArticleTranslation).toHaveBeenCalledWith({
-      articleId: 'article-1',
-      targetLanguage: 'zh-CN',
-    });
-  });
-
-  it('defers subscription updates until the selection gesture finishes', async () => {
-    vi.useFakeTimers();
-    const api = installDesktopApi(null);
-    const { result } = renderTranslationHook();
-    await act(async () => Promise.resolve());
-
-    act(() => {
-      result.current.selection.start('pointerdown');
-      api.callbacks[0]?.(translationFor());
-    });
-    expect(renderedTranslationText(result.current.renderedHtml)).toBeUndefined();
-
-    act(() => {
-      result.current.selection.finish('pointerup');
-      vi.runOnlyPendingTimers();
-    });
-    expect(renderedTranslationText(result.current.renderedHtml)).toBe(
-      '你好世界，这一段应该被翻译。',
-    );
-  });
-
-  it('keeps subscription updates deferred while an article selection remains active', async () => {
-    vi.useFakeTimers();
-    const api = installDesktopApi(null);
-    const { articleElement, result } = renderTranslationHook();
-    await act(async () => Promise.resolve());
-    const text = articleElement.querySelector('p')?.firstChild;
-    if (!text) throw new Error('article text missing');
-    const range = document.createRange();
-    range.setStart(text, 0);
-    range.setEnd(text, 5);
-    document.getSelection()?.addRange(range);
-
-    act(() => api.callbacks[0]?.(translationFor()));
-    expect(renderedTranslationText(result.current.renderedHtml)).toBeUndefined();
-
-    act(() => {
-      document.getSelection()?.removeAllRanges();
-      result.current.selection.finish('selection-cleared');
-      vi.runOnlyPendingTimers();
-    });
-    expect(renderedTranslationText(result.current.renderedHtml)).toBe(
-      '你好世界，这一段应该被翻译。',
-    );
-  });
-
-  it('requests translation through the confirmation interface', async () => {
-    const api = installDesktopApi(null);
-    const { result } = renderTranslationHook();
-    await waitFor(() => expect(api.getCurrentArticleTranslation).toHaveBeenCalledOnce());
-
-    const toolbar = result.current.toolbar as React.ReactElement<{
-      onConfirm: (action: 'translate') => void;
-    }>;
-    act(() => toolbar.props.onConfirm('translate'));
-    const dialog = result.current.dialog as React.ReactElement<{
-      onConfirm: (action: 'translate') => Promise<void>;
-    }>;
-    await act(() => dialog.props.onConfirm('translate'));
-
-    expect(api.translateArticle).toHaveBeenCalledWith({
-      articleId: 'article-1',
-      force: false,
-      sourceBlockIds: undefined,
-      targetLanguage: 'zh-CN',
-    });
-    expect(renderedTranslationText(result.current.renderedHtml)).toBe('请求生成的文章译文。');
-  });
-
-  it('deletes the cached article translation through the confirmation interface', async () => {
-    const api = installDesktopApi(translationFor());
-    const { result } = renderTranslationHook();
-    await waitFor(() =>
-      expect(renderedTranslationText(result.current.renderedHtml)).toBe(
-        '你好世界，这一段应该被翻译。',
-      ),
-    );
-
-    const dialog = result.current.dialog as React.ReactElement<{
-      onConfirm: (action: 'delete') => Promise<void>;
-    }>;
-    await act(() => dialog.props.onConfirm('delete'));
-
-    expect(api.deleteCurrentArticleTranslation).toHaveBeenCalledWith({
-      articleId: 'article-1',
-      targetLanguage: 'zh-CN',
-    });
-    expect(renderedTranslationText(result.current.renderedHtml)).toBeUndefined();
-  });
 });

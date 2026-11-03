@@ -11,10 +11,6 @@ const MAX_DESKTOP_IPC_VALIDATION_ISSUES = 20;
 export const desktopIpcInvokeSchemas = defineDesktopIpcSchemas(desktopIpcRawInvokeSchemas);
 const desktopIpcInvokeSchemaLookup: DesktopIpcSchemaLookup = desktopIpcInvokeSchemas;
 
-export const desktopIpcInvokeSchemaChannels = Object.keys(
-  desktopIpcInvokeSchemas,
-) as DesktopIpcInvokeChannel[];
-
 export function validateDesktopIpcInvokeArgs<Channel extends DesktopIpcInvokeChannel>(
   channel: Channel,
   args: DesktopIpcInvokeArgs<Channel>,

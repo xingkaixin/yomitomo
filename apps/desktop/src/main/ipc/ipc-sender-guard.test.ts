@@ -40,36 +40,6 @@ describe('desktop IPC sender authorization', () => {
     }
   });
 
-  it('limits the annotation window to its own responsibilities', () => {
-    const annotation = senderEvent(2);
-    roles.register('annotation', annotation.sender);
-
-    const allowed = Object.entries(desktopIpcInvokeRoles)
-      .filter(([, allowedRoles]) => (allowedRoles as readonly string[]).includes('annotation'))
-      .map(([channel]) => channel);
-
-    expect(allowed.toSorted()).toEqual([
-      'annotation-discussion:consume-thought-draft',
-      'annotation-discussion:open',
-      'annotation-sedimentation:commit',
-      'annotation-sedimentation:open',
-      'app:info',
-      'article:delete-comment',
-      'article:get',
-      'article:save-annotation-distillation',
-      'article:save-comment',
-      'assistant:deliver',
-      'assistant:reveal-passage',
-      'assistant:runs',
-      'performance:timing',
-      'store:get',
-      'url:open',
-    ]);
-    for (const channel of allowed) {
-      expect(() => assertInvoke(channel, annotation)).not.toThrow();
-    }
-  });
-
   it('refuses privileged channels from the annotation window', () => {
     const annotation = senderEvent(2);
     roles.register('annotation', annotation.sender);

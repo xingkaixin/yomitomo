@@ -20,6 +20,4 @@ export function createAppSettingsActions(getDesktop: () => SettingsDesktopApi) {
   };
 }
 
-export type AppSettingsActions = ReturnType<typeof createAppSettingsActions>;
-
 export const appSettingsActions = createAppSettingsActions(getDesktopApi);

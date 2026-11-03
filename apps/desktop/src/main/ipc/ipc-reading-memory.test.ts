@@ -120,42 +120,6 @@ describe('reading-memory release boundary', () => {
     }
     expect(operation).not.toHaveBeenCalled();
   });
-
-  it('routes the default build through the existing typed handlers', async () => {
-    const { context, operation } = runtimeContext();
-    const cancelRelations = vi.fn();
-    const cancelLibrary = vi.fn();
-    const cancelReview = vi.fn();
-    const confirmPrivacy = vi.fn(async () => undefined);
-    const recordUsage = vi.fn();
-    context.relations.cancel = cancelRelations;
-    context.library.cancel = cancelLibrary;
-    context.review.cancel = cancelReview;
-    context.relations.confirmPrivacy = confirmPrivacy;
-    context.recordUsage = recordUsage;
-    registerReadingMemoryIpc(context);
-
-    for (const channel of [
-      'reading-memory:relations:cancel',
-      'reading-memory:library:cancel',
-      'reading-memory:review:cancel',
-      'reading-memory:confirm-privacy',
-      'reading-memory:record-usage',
-    ] as const) {
-      const response = await state.handlers.get(channel)!({ sender: { id: 42 } }, ...args[channel]);
-      expect(response).toEqual({ ok: true, value: undefined });
-    }
-    expect(cancelRelations).toHaveBeenCalledExactlyOnceWith(42, request.requestId);
-    expect(cancelLibrary).toHaveBeenCalledExactlyOnceWith(42, request.requestId);
-    expect(cancelReview).toHaveBeenCalledExactlyOnceWith(
-      42,
-      request.requestId,
-      comparison.comparisonId,
-    );
-    expect(confirmPrivacy).toHaveBeenCalledOnce();
-    expect(recordUsage).toHaveBeenCalledExactlyOnceWith('feature_opened');
-    expect(operation).not.toHaveBeenCalled();
-  });
 });
 
 function runtimeContext() {

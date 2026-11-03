@@ -104,8 +104,6 @@ export type UseReaderShellStateOptions = {
   readerChatOpen?: boolean;
 };
 
-export type ReaderShellState = ReturnType<typeof useReaderShellState>;
-
 export function useReaderShellState({
   activeId,
   annotationRailLayoutOverride,

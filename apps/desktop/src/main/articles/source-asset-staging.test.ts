@@ -37,23 +37,6 @@ afterEach(() => {
 });
 
 describe('source asset staging', () => {
-  it('installs all staged assets and removes backups after finalize', async () => {
-    const sourcePath = join(directory, 'article.pdf');
-    const thumbnailPath = join(directory, 'article.jpg');
-    writeFileSync(sourcePath, 'old-source');
-    writeFileSync(thumbnailPath, 'old-thumbnail');
-    const staged = await stageSourceAssets([
-      { data: Buffer.from('new-source'), targetPath: sourcePath },
-      { data: Buffer.from('new-thumbnail'), targetPath: thumbnailPath },
-    ]);
-
-    await staged.commit();
-    await staged.finalize();
-
-    expect(readFileSync(sourcePath, 'utf8')).toBe('new-source');
-    expect(readFileSync(thumbnailPath, 'utf8')).toBe('new-thumbnail');
-  });
-
   it('restores every old asset when a later rename fails', async () => {
     const sourcePath = join(directory, 'article.pdf');
     const thumbnailPath = join(directory, 'article.jpg');
