@@ -373,6 +373,37 @@ describe('article import', () => {
     expect(workerMocks.instances[0].terminated).toBe(true);
   });
 
+  it('waits for both session clears and only warns when one fails', async () => {
+    const article = articleRecord();
+    workerMocks.MockWorker.nextMessage = { ok: true, article };
+    vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('<html>cf-browser-verification</html>'),
+    );
+    let finishClearCache!: () => void;
+    const clearCache = new Promise<void>((resolve) => {
+      finishClearCache = resolve;
+    });
+    const clearError = new Error('clear storage failed');
+    const pending = articleRecordFromUrl('https://example.com/post');
+    await vi.waitFor(() => expect(browserWindowMocks.instances).toHaveLength(1));
+    const { session } = browserWindowMocks.instances[0].webContents;
+    session.clearStorageData.mockRejectedValueOnce(clearError);
+    session.clearCache.mockReturnValueOnce(clearCache);
+
+    await vi.waitFor(() => expect(session.clearCache).toHaveBeenCalledOnce(), { timeout: 5_000 });
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(workerMocks.instances).toHaveLength(0);
+
+    finishClearCache();
+    await expect(pending).resolves.toEqual(article);
+    expect(warn).toHaveBeenCalledWith(
+      '[article-import] failed to clear temporary session',
+      expect.objectContaining({ error: clearError }),
+    );
+  });
+
   it('loads challenge pages in an isolated temporary browser session', async () => {
     const article = articleRecord();
     workerMocks.MockWorker.nextMessage = { ok: true, article };
