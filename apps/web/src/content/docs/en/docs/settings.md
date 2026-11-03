@@ -36,7 +36,7 @@ Once configured, choose your synchronization strategy:
 
 ## Intelligent Task Routing
 
-Choose one default model for reading comprehension, in-depth review, and bilingual translation. Expand per-task settings when you need different models; each task can also keep using the default.
+Choose one default model for reading comprehension, in-depth review, and bilingual translation. Expand per-task settings when you need different models. Tasks without their own model show "Inherit default model" and follow the default when it changes.
 
 | Task Scenario           | Primary Responsibility                               |
 | ----------------------- | ---------------------------------------------------- |
@@ -47,7 +47,7 @@ Choose one default model for reading comprehension, in-depth review, and bilingu
 ## Language and Visual Customization
 
 - **Language**: Toggle between Simplified Chinese, English, and Japanese in Settings > General. UI text and assistant personas adapt instantly.
-- **Themes and Paper**: The sidebar theme picker groups themes into light and dark categories, including ShadLingo variants. Theme cards show library samples, while paper cards show reader samples with choices such as pure white and deep blue. Within a category, custom paper choices are kept and default paper follows the theme; switching categories restores the remembered theme and paper. PDFs retain their original page colors in dark mode.
+- **Themes and Paper**: The sidebar theme picker groups themes into light and dark categories, including ShadLingo variants and the hand-drawn Blue Ink light theme. Theme cards show library samples, while paper cards show reader samples with choices such as pure white and deep blue. Within a category, custom paper choices are kept and default paper follows the theme; switching categories restores the remembered theme and paper. PDFs retain their original page colors in dark mode.
 - **Audio Feedback**: Adjust or mute tactile UI sound effects (e.g., successful imports, deletions, highlight creation, distillation publishing, unlock events, and typing effects).
 
 ## Security and Privacy Controls
