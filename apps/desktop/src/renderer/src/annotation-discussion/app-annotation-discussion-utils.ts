@@ -15,7 +15,6 @@ import {
 } from '@yomitomo/core';
 import { mentionDraftWithAgent } from '@yomitomo/reader-ui/reader-mention-utils';
 import i18next from 'i18next';
-import { articlePlainText } from '../shell/app-article-presentation';
 import type { AssistantRunView } from '../shell/app-assistant-runs';
 
 export type DiscussionThread = {
@@ -45,10 +44,6 @@ export function waitForMilliseconds(duration: number) {
   return new Promise<void>((resolve) => {
     window.setTimeout(resolve, duration);
   });
-}
-
-export function assistantThoughtRouteNote(note: string, agents: PublicAgent[]) {
-  return `${agents.map((agent) => `@${agent.username}`).join(' ')} ${note}`.trim();
 }
 
 export function replyTargetAgents(content: string, root: Comment, agents: PublicAgent[]) {
@@ -126,16 +121,6 @@ export function formatRelativeTime(value: string) {
   return i18next.t(`discussion.time.${parts.unit}`, { count: parts.count });
 }
 
-export function discussionArticleText(article: ArticleRecord) {
-  if (article.contentHtml) return articlePlainText(article);
-  if (article.ebook?.chapters.length) {
-    return article.ebook.chapters.map((chapter) => htmlText(chapter.html)).join('\n\n');
-  }
-  return [article.excerpt, article.annotations.map((item) => item.anchor.exact).join('\n')]
-    .filter(Boolean)
-    .join('\n\n');
-}
-
 export function annotationUserProfile(
   annotation: Annotation,
   article: ArticleRecord,
@@ -193,12 +178,6 @@ export function formatAbsoluteTime(value: string) {
     hour: '2-digit',
     minute: '2-digit',
   });
-}
-
-function htmlText(value: string) {
-  const container = document.createElement('div');
-  container.innerHTML = value;
-  return container.textContent?.replace(/\s+/g, ' ').trim() || '';
 }
 
 export function annotationWithAssistantRuns(

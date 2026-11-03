@@ -24,12 +24,8 @@ import { makeId } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
 import { createUserComment, findMentionedAgents, sortAnnotations } from '@yomitomo/core';
 import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
-import {
-  agentInstructionFromNote,
-  mentionDirectivesForAgent,
-} from '../source/bookcase/app-source-agent-mention-request';
+import { agentInstructionFromNote } from '../source/bookcase/app-source-agent-mention-request';
 import { annotationsWithSavedComment } from '../source/bookcase/source-annotation-updates';
-import { promptArticle } from '../source/bookcase/source-prompt-article';
 import {
   publicAnnotationAgents,
   publicPersonaAgents,
@@ -48,8 +44,6 @@ import {
 import {
   annotationUserProfile,
   annotationWithAssistantRuns,
-  assistantThoughtRouteNote,
-  discussionArticleText,
   replyTargetAgents,
   discussionThreads,
   waitForMilliseconds,
@@ -677,35 +671,13 @@ function AnnotationDiscussionShell({
           ),
         );
       } else {
+        const instruction = agentInstructionFromNote(trimmed, mentionedThoughtAgents) || trimmed;
+        const tasks = mentionedThoughtAgents.map((agent) => ({ agent, instruction }));
         dispatch({
           type: 'assistantThoughtRunsStarted',
-          runs: mentionedThoughtAgents.map((agent) => ({ agent, status: 'active' })),
+          runs: tasks.map((task) => ({ ...task, status: 'active' })),
         });
         playAppSoundEffect('discussion.assistant_thought_writing', settings);
-        const route = await planAssistantThoughtRoute(trimmed, mentionedThoughtAgents);
-        const tasks = mentionedThoughtAgents.map((agent) => {
-          const directive = mentionDirectivesForAgent(route, agent, 'create_thought')[0];
-          const instruction =
-            directive?.instruction ||
-            agentInstructionFromNote(assistantThoughtRouteNote(trimmed, mentionedThoughtAgents), [
-              agent,
-            ]) ||
-            trimmed;
-          return {
-            agent,
-            instruction,
-            readingIntent: directive?.readingIntent,
-          };
-        });
-        dispatch({
-          type: 'assistantThoughtRunsStarted',
-          runs: tasks.map((task) => ({
-            agent: task.agent,
-            instruction: task.instruction,
-            readingIntent: task.readingIntent,
-            status: 'active',
-          })),
-        });
         const failedCount = await runAssistantThoughtTasks(tasks);
         if (failedCount > 0) return;
         await finishSuccessfulAssistantThoughts();
@@ -732,11 +704,7 @@ function AnnotationDiscussionShell({
       .filter(
         (run) => agentIds.includes(run.agent.id) && run.status === 'failed' && run.instruction,
       )
-      .map((run) => ({
-        agent: run.agent,
-        instruction: run.instruction || '',
-        readingIntent: run.readingIntent,
-      }));
+      .map((run) => ({ agent: run.agent, instruction: run.instruction || '' }));
     if (tasks.length === 0) return;
 
     dispatch({ type: 'assistantThoughtRetryStarted', agentIds });
@@ -755,17 +723,11 @@ function AnnotationDiscussionShell({
     }
   }
 
-  async function runAssistantThoughtTasks(
-    tasks: {
-      agent: PublicAgent;
-      instruction: string;
-      readingIntent?: Comment['readingIntent'];
-    }[],
-  ) {
+  async function runAssistantThoughtTasks(tasks: { agent: PublicAgent; instruction: string }[]) {
     const results = await Promise.all(
       tasks.map(async (task) => {
         try {
-          const event = await requestAgentThought(task.agent, task.instruction, task.readingIntent);
+          const event = await requestAgentThought(task.agent, task.instruction);
           dispatch({
             type: 'assistantThoughtFinished',
             agentId: task.agent.id,
@@ -795,38 +757,11 @@ function AnnotationDiscussionShell({
     await waitForMilliseconds(1000);
   }
 
-  async function planAssistantThoughtRoute(note: string, selectedAgents: PublicAgent[]) {
-    const routeNote = assistantThoughtRouteNote(note, selectedAgents);
-    try {
-      const currentArticle = latestArticle();
-      return await annotationWindowActions.planAgentMentionRoute({
-        note: routeNote,
-        targetAnchor: annotation.anchor,
-        agents: selectedAgents,
-        allowedActions: ['create_thought'],
-        article: promptArticle(currentArticle, discussionArticleText(currentArticle)),
-      });
-    } catch {
-      return {
-        createUserThought: false,
-        directives: selectedAgents.map((agent) => ({
-          agentId: agent.id,
-          agentUsername: agent.username,
-          action: 'create_thought' as const,
-          instruction: note,
-        })),
-      };
-    }
-  }
-
   function assistantRequest(
     agent: PublicAgent,
     channel: AssistantChannel,
     triggerId: string,
-    options: Pick<
-      AssistantDeliveryRequest,
-      'allowDisabledAgentForRule' | 'instruction' | 'readingIntent'
-    > = {},
+    options: Pick<AssistantDeliveryRequest, 'allowDisabledAgentForRule' | 'instruction'> = {},
   ): AssistantDeliveryRequest {
     return { articleId: article.id, channel, agentId: agent.id, triggerId, ...options };
   }
@@ -847,15 +782,10 @@ function AnnotationDiscussionShell({
     });
   }
 
-  async function requestAgentThought(
-    agent: PublicAgent,
-    instruction: string,
-    readingIntent?: Comment['readingIntent'],
-  ) {
+  async function requestAgentThought(agent: PublicAgent, instruction: string) {
     const delivery = await deliverAssistantMessage(
       assistantRequest(agent, { kind: 'annotation', annotationId: annotation.id }, makeId('ask'), {
         instruction,
-        readingIntent,
       }),
     );
     const event = await delivery?.settled;

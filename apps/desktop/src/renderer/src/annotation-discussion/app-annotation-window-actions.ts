@@ -28,9 +28,6 @@ export function createAnnotationWindowActions(getDesktop: () => AnnotationWindow
     openSedimentation: (
       input: Parameters<AnnotationWindowDesktopApi['annotations']['sedimentation']['open']>[0],
     ) => getDesktop().annotations.sedimentation.open(input),
-    planAgentMentionRoute: (
-      input: Parameters<AnnotationWindowDesktopApi['agent']['planMentionRoute']>[0],
-    ) => getDesktop().agent.planMentionRoute(input),
     platform: () => getDesktop().platform,
     requestAgentDistillationReviewStream: (
       payload: Parameters<
