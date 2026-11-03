@@ -53,7 +53,7 @@ const ARTICLE_IMPORT_CLOSE_DELAY_MS = 900;
 const FILE_IMPORT_CLOSE_DELAY_MS = 900;
 const EBOOK_IMPORT_CELEBRATION_CLOSE_DELAY_MS = 900;
 const EBOOK_IMPORT_CELEBRATION_MAX_VISIBLE = 7;
-const EBOOK_IMPORT_MAX_CONCURRENT = 1;
+const EBOOK_IMPORT_MAX_CONCURRENT = 3;
 // PDF imports share one PDFium engine in the main process, so parallel requests only queue there.
 const PDF_IMPORT_MAX_CONCURRENT = 1;
 // Every in-flight file is held by the renderer, the IPC copy in main and the parser worker.
