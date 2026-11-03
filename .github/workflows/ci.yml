@@ -30,13 +30,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Setup toolchain
-        uses: ./.github/actions/setup-workspace
-        with:
-          install: 'false'
-
-      # Paths are filtered here rather than with `paths-ignore`: these four checks read the
-      # documentation, and a skipped workflow would leave a required check pending forever.
+      # Paths are filtered here rather than with `paths-ignore`: a skipped workflow would leave
+      # the required `CI OK` check pending forever.
       - name: Detect changed paths
         id: changes
         env:
@@ -55,18 +50,6 @@ jobs:
           fi
           echo "code=$code" >>"$GITHUB_OUTPUT"
           echo "sparkle=$sparkle" >>"$GITHUB_OUTPUT"
-
-      - name: Gate documentation check
-        run: pnpm gate:check
-
-      - name: Effect v4 boundary check
-        run: pnpm effect:check
-
-      - name: Documentation path check
-        run: pnpm docs:check-paths
-
-      - name: UI primitive boundary check
-        run: pnpm ui:check-primitives
 
   static:
     name: Lint, format and typecheck

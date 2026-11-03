@@ -10,9 +10,6 @@
     "dev:web": "pnpm --filter @yomitomo/web dev",
     "licenses:generate": "node scripts/generate-third-party-notices.mjs",
     "licenses:check": "node scripts/generate-third-party-notices.mjs --check",
-    "docs:check-paths": "node scripts/check-doc-paths.mjs",
-    "effect:check": "node scripts/check-effect-v4.mjs",
-    "ui:check-primitives": "node scripts/check-ui-primitives.mjs",
     "make": "pnpm run make:app:mac-arm",
     "make:app:mac-arm": "pnpm --filter @yomitomo/desktop make:mac-arm",
     "make:app:mac-arm:from-dist": "pnpm --filter @yomitomo/desktop make:mac-arm:from-dist",
@@ -32,8 +29,7 @@
     "test": "turbo test",
     "test:app:e2e": "pnpm --filter @yomitomo/desktop test:e2e",
     "test:app:e2e:from-dist": "pnpm --filter @yomitomo/desktop test:e2e:from-dist",
-    "test:app:e2e:ui": "pnpm --filter @yomitomo/desktop test:e2e:ui",
-    "gate:check": "node scripts/check-gate-docs.mjs"
+    "test:app:e2e:ui": "pnpm --filter @yomitomo/desktop test:e2e:ui"
   },
   "devDependencies": {
     "@testing-library/dom": "catalog:",

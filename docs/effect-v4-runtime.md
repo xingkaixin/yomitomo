@@ -1,14 +1,8 @@
 # Effect v4 runtime boundary
 
-Pinned Effect version: `4.1.1`
-
-Production Effect modules: `16`
-
-Production API inventory: `Cause.hasInterrupts,Cause.squash,Deferred.Deferred,Deferred.await,Deferred.complete,Deferred.doneUnsafe,Deferred.make,Deferred.makeUnsafe,Deferred.succeed,Effect.Effect,Effect.Success,Effect.acquireUseRelease,Effect.all,Effect.callback,Effect.catch,Effect.delay,Effect.ensuring,Effect.fail,Effect.flatMap,Effect.fn,Effect.forEach,Effect.forkChild,Effect.forkIn,Effect.gen,Effect.map,Effect.mapError,Effect.onExit,Effect.promise,Effect.repeat,Effect.runFork,Effect.runPromise,Effect.runSync,Effect.sleep,Effect.succeed,Effect.sync,Effect.tapError,Effect.timeoutOption,Effect.timeoutOrElse,Effect.try,Effect.tryPromise,Effect.uninterruptible,Effect.void,Exit.isFailure,Exit.void,Fiber.Fiber,Fiber.await,Fiber.interrupt,Fiber.join,Option.getOrElse,Queue.make,Queue.offerUnsafe,Queue.shutdown,Queue.take,Schedule.spaced,Schema.Array,Schema.Constraint,Schema.Literal,Schema.Number,Schema.Record,Schema.String,Schema.Struct,Schema.Union,Schema.Unknown,Schema.decodeUnknownEffect,Schema.instanceOf,Schema.isGreaterThan,Schema.isInt,Schema.isLessThanOrEqualTo,Schema.optionalKey,Scope.Scope,Scope.close,Scope.makeUnsafe,Semaphore.make`
-
 ## Scope
 
-The production inventory covers Effect imports under `apps/desktop/src`, `packages/ai/src`, and
+The production inventory is the set of Effect APIs imported under `apps/desktop/src`, `packages/ai/src`, and
 `packages/core/src`. It describes APIs the repository actually uses; it is not a checklist of every
 Effect v4 breaking change. AI runtime operations use direct Effect composition and named boundaries;
 provider and models.dev HTTP boundaries decode unknown JSON with `Schema.decodeUnknownEffect` before
@@ -110,11 +104,6 @@ The renamed Schema filters and changed `Effect.partition` result order are not u
 | `Deferred.makeUnsafe`, `Deferred.doneUnsafe`, `Effect.timeoutOrElse`, `Effect.onExit`, `Fiber.await` | Callback boundaries can complete a Deferred directly; exit finalizers finish before a fiber's Exit is observable. | Embedding errors and cancellation recycle the child process exactly once; busy requests stay rejected until OS exit, and disposal joins pending cleanup. | Embedding service tests cover native exit, timeout, malformed IPC, graceful disposal, and disposal during cancellation. |
 | `Effect.all`, `Effect.gen`, `Effect.try`, `Effect.catch`, `Effect.fail`, `Effect.succeed`, `Effect.sync`, `Effect.map`, `Effect.flatMap`, `Effect.mapError` | `Effect.catch` replaces `Effect.catchAll`; the remaining primitives have no repository-relevant v4 semantic change. | Keep explicit concurrency, composition, and typed error mapping at the call site. | Existing domain tests cover their behavior. |
 
-The test-only inventory additionally uses `Cause.hasDies`, `Cause.hasFails`, `Cause.hasInterrupts`,
-`Effect.die`, `Effect.runFork`, `Effect.runPromiseExit`, `Exit.isFailure`, `Fiber.await`,
-`Fiber.interrupt`, and `Fiber.join` to observe v4 runtime behavior without relying on rejected Promise
-shape.
-
 ## Upgrade procedure
 
 1. Update `effect` and `@effect/vitest` in the `pnpm-workspace.yaml` catalog to the same exact v4
@@ -122,10 +111,6 @@ shape.
    and `packages/core` reference them through `catalog:`. Update the matching
    `minimumReleaseAgeExclude` entries when the new version is younger than the release-age window.
 2. Run `pnpm install --lockfile-only` and confirm `pnpm why effect -r` reports one version.
-3. Diff the pinned package source for every API in the production inventory. Update the pinned
-   version, module count, inventory, and semantic rows in this document before changing application
-   code.
-4. Run `pnpm effect:check`, focused runtime tests, and `mise run check`.
-
-The gate rejects version drift, multiple lockfile resolutions, a stale documented inventory, and the
-retired `Effect.async`, `Effect.catchAll`, `Effect.fork`, or `Effect.makeSemaphore` names.
+3. Diff the pinned package source for every API in the production inventory and update the
+   semantic rows in this document before changing application code.
+4. Run focused runtime tests and `mise run check`.

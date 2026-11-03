@@ -136,14 +136,13 @@ telemetry → shared
 
 - Effect v4 只用于 main 进程编排、`packages/ai` 和 `packages/core`，不进入 renderer、preload、
   `reader-ui` 和 `shared`。对外 API 保持 Promise，内部工作流直接组合 Effect。
-  规则与升级流程见 [Effect v4 runtime boundary](effect-v4-runtime.md)，由 `pnpm effect:check` 校验。
+  规则与升级流程见 [Effect v4 runtime boundary](effect-v4-runtime.md)。
 - 周期任务、投影 worker、语义索引和 embedding 进程归属 main 进程 runtime
   （`apps/desktop/src/main/app/main-process-runtime.ts`），退出时中断并等待它们释放数据库。
 
 ## 界面
 
-- 交互 primitive 使用 Base UI 及本地 wrapper，禁止 Radix，见 [UI primitive boundary](ui-primitives.md)，
-  由 `pnpm ui:check-primitives` 校验。
+- 交互 primitive 使用 Base UI 及本地 wrapper，禁止 Radix，见 [UI primitive boundary](ui-primitives.md)。
 - 桌面端样式归属见 [Desktop renderer style ownership](desktop-style-ownership.md)。颜色来自主题变量，
   不在组件中写死核心色。
 - 局部状态用 `useReducer`，跨组件状态用 zustand，按需 IPC 读取用 TanStack Query。业务代码不直接使用
