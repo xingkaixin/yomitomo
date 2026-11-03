@@ -62,7 +62,7 @@ Bundled font notices are discovered from:
 | CC0-1.0 | 1 |
 | ISC | 21 |
 | LGPL-3.0-or-later | 1 |
-| MIT | 225 |
+| MIT | 227 |
 | MIT AND ISC | 1 |
 | MIT-0 | 2 |
 | OFL-1.1 | 11 |
@@ -110,17 +110,18 @@ Bundled font notices are discovered from:
 | @csstools/css-syntax-patches-for-csstree | 1.1.15 | MIT-0 | [link](https://github.com/csstools/postcss-plugins/tree/main/packages/css-syntax-patches-for-csstree#readme) |
 | @csstools/css-tokenizer | 4.0.2 | MIT | [link](https://github.com/csstools/postcss-plugins/tree/main/packages/css-tokenizer#readme) |
 | @date-fns/tz | 1.5.0 | MIT | [link](https://github.com/date-fns/date-fns#readme) |
-| @dnd-kit/abstract | 0.5.1 | MIT | [link](https://github.com/clauderic/dnd-kit#readme) |
-| @dnd-kit/collision | 0.5.1 | MIT | [link](https://github.com/clauderic/dnd-kit#readme) |
-| @dnd-kit/dom | 0.5.1 | MIT | [link](https://github.com/clauderic/dnd-kit#readme) |
-| @dnd-kit/geometry | 0.5.1 | MIT | [link](https://github.com/clauderic/dnd-kit#readme) |
-| @dnd-kit/react | 0.5.1 | MIT | [link](https://github.com/clauderic/dnd-kit#readme) |
-| @dnd-kit/state | 0.5.1 | MIT | [link](https://github.com/clauderic/dnd-kit#readme) |
-| @earendil-works/chord | 1.4.0 | MIT | [link](https://github.com/earendil-works/pi#readme) |
-| @earendil-works/pi-ai | 1.4.0 | MIT | [link](https://github.com/earendil-works/pi#readme) |
-| @earendil-works/pi-codemode | 1.4.0 | MIT | [link](https://github.com/earendil-works/pi#readme) |
-| @earendil-works/pi-durable | 1.4.0 | MIT | [link](https://github.com/earendil-works/pi#readme) |
-| @earendil-works/pi-telemetry | 1.4.0 | MIT | [link](https://github.com/earendil-works/pi#readme) |
+| @dnd-kit/abstract | 0.5.3 | MIT | [link](https://github.com/clauderic/dnd-kit#readme) |
+| @dnd-kit/collision | 0.5.3 | MIT | [link](https://github.com/clauderic/dnd-kit#readme) |
+| @dnd-kit/dom | 0.5.3 | MIT | [link](https://github.com/clauderic/dnd-kit#readme) |
+| @dnd-kit/geometry | 0.5.3 | MIT | [link](https://github.com/clauderic/dnd-kit#readme) |
+| @dnd-kit/react | 0.5.3 | MIT | [link](https://github.com/clauderic/dnd-kit#readme) |
+| @dnd-kit/state | 0.5.3 | MIT | [link](https://github.com/clauderic/dnd-kit#readme) |
+| @earendil-works/chord | 1.5.0 | MIT | [link](https://github.com/earendil-works/pi#readme) |
+| @earendil-works/pi-ai | 1.5.0 | MIT | [link](https://github.com/earendil-works/pi#readme) |
+| @earendil-works/pi-codemode | 1.5.0 | MIT | [link](https://github.com/earendil-works/pi#readme) |
+| @earendil-works/pi-durable | 1.5.0 | MIT | [link](https://github.com/earendil-works/pi#readme) |
+| @earendil-works/pi-schema | 1.5.0 | MIT | [link](https://github.com/earendil-works/pi#readme) |
+| @earendil-works/pi-telemetry | 1.5.0 | MIT | [link](https://github.com/earendil-works/pi#readme) |
 | @embedpdf/core | 2.15.1 | MIT |  |
 | @embedpdf/engines | 2.15.1 | MIT | [link](https://www.embedpdf.com/docs/engines/introduction) |
 | @embedpdf/fonts-arabic | 1.0.0 | OFL-1.1 | [link](https://www.embedpdf.com/docs) |
@@ -141,6 +142,7 @@ Bundled font notices are discovered from:
 | @embedpdf/plugin-viewport | 2.15.1 | MIT | [link](https://www.embedpdf.com/docs) |
 | @embedpdf/plugin-zoom | 2.15.1 | MIT | [link](https://www.embedpdf.com/docs) |
 | @embedpdf/utils | 2.15.1 | MIT | [link](https://www.embedpdf.com/docs) |
+| @esbuild/darwin-arm64 | 0.28.2 | MIT | [link](https://github.com/evanw/esbuild#readme) |
 | @exodus/bytes | 1.16.0 | MIT | [link](https://github.com/ExodusOSS/bytes) |
 | @floating-ui/core | 1.8.0 | MIT | [link](https://floating-ui.com) |
 | @floating-ui/dom | 1.8.0 | MIT | [link](https://floating-ui.com) |
@@ -188,8 +190,8 @@ Bundled font notices are discovered from:
 | @standard-schema/spec | 1.1.0 | MIT | [link](https://standardschema.dev) |
 | @standard-schema/utils | 0.3.0 | MIT | [link](https://github.com/standard-schema/standard-schema#readme) |
 | @sveltejs/acorn-typescript | 1.0.10 | MIT | [link](https://github.com/sveltejs/acorn-typescript#readme) |
-| @tanstack/query-core | 5.105.0 | MIT | [link](https://tanstack.com/query) |
-| @tanstack/react-query | 5.105.0 | MIT | [link](https://tanstack.com/query) |
+| @tanstack/query-core | 5.105.1 | MIT | [link](https://tanstack.com/query) |
+| @tanstack/react-query | 5.105.1 | MIT | [link](https://tanstack.com/query) |
 | @vue/compiler-core | 3.5.34 | MIT | [link](https://github.com/vuejs/core/tree/main/packages/compiler-core#readme) |
 | @vue/compiler-dom | 3.5.34 | MIT | [link](https://github.com/vuejs/core/tree/main/packages/compiler-dom#readme) |
 | @vue/compiler-sfc | 3.5.34 | MIT | [link](https://github.com/vuejs/core/tree/main/packages/compiler-sfc#readme) |
@@ -257,13 +259,14 @@ Bundled font notices are discovered from:
 | domutils | 3.2.2, 4.0.2 | BSD-2-Clause | [link](https://github.com/fb55/domutils#readme) |
 | drizzle-orm | 0.45.4 | Apache-2.0 | [link](https://orm.drizzle.team) |
 | ecdsa-sig-formatter | 1.0.11 | Apache-2.0 | [link](https://github.com/Brightspace/node-ecdsa-sig-formatter#readme) |
-| effect | 4.1.0 | MIT | [link](https://effect.website) |
+| effect | 4.1.1 | MIT | [link](https://effect.website) |
 | electron-updater | 6.8.11 | MIT | [link](https://github.com/electron-userland/electron-builder) |
 | entities | 4.5.0, 7.0.1, 8.0.0 | BSD-2-Clause | [link](https://github.com/fb55/entities#readme) |
 | es-define-property | 1.0.1 | MIT | [link](https://github.com/ljharb/es-define-property#readme) |
 | es-errors | 1.3.0 | MIT | [link](https://github.com/ljharb/es-errors#readme) |
 | es-toolkit | 1.52.0 | MIT | [link](https://es-toolkit.dev) |
 | es6-error | 4.1.1 | MIT | [link](https://github.com/bjyoungblood/es6-error) |
+| esbuild | 0.28.2 | MIT | [link](https://github.com/evanw/esbuild#readme) |
 | escape-string-regexp | 4.0.0 | MIT | [link](https://github.com/sindresorhus/escape-string-regexp#readme) |
 | esm-env | 1.2.2 | MIT | [link](https://github.com/benmccann/esm-env) |
 | esrap | 2.2.12 | MIT | [link](https://github.com/sveltejs/esrap#readme) |
@@ -276,7 +279,7 @@ Bundled font notices are discovered from:
 | flatbuffers | 25.9.23 | Apache-2.0 | [link](https://google.github.io/flatbuffers/) |
 | foliate-js | vendored 78914ae | MIT | [link](https://github.com/johnfactotum/foliate-js) |
 | formdata-polyfill | 4.0.10 | MIT | [link](https://github.com/jimmywarting/FormData#readme) |
-| framer-motion | 14.8.0 | MIT |  |
+| framer-motion | 14.9.0 | MIT |  |
 | fs-extra | 10.1.0 | MIT | [link](https://github.com/jprichardson/node-fs-extra) |
 | gaxios | 7.3.1 | Apache-2.0 | [link](https://github.com/googleapis/google-cloud-node/tree/main/core/packages/gaxios) |
 | gcp-metadata | 8.1.2 | Apache-2.0 | [link](https://github.com/googleapis/google-cloud-node-core/tree/main/packages/gcp-metadata) |
@@ -295,7 +298,7 @@ Bundled font notices are discovered from:
 | htmlparser2 | 10.1.0 | MIT | [link](https://github.com/fb55/htmlparser2#readme) |
 | http-proxy-agent | 9.1.0 | MIT | [link](https://github.com/TooTallNate/proxy-agents#readme) |
 | https-proxy-agent | 7.0.6, 9.1.0 | MIT | [link](https://github.com/TooTallNate/proxy-agents#readme) |
-| i18next | 26.5.11 | MIT | [link](https://www.i18next.com) |
+| i18next | 26.7.1 | MIT | [link](https://www.i18next.com) |
 | immediate | 3.0.6 | MIT | [link](https://github.com/calvinmetcalf/immediate#readme) |
 | immer | 11.1.18 | MIT | [link](https://github.com/immerjs/immer#readme) |
 | inherits | 2.0.4 | ISC | [link](https://github.com/isaacs/inherits#readme) |
@@ -326,7 +329,7 @@ Bundled font notices are discovered from:
 | matcher | 3.0.0 | MIT | [link](https://github.com/sindresorhus/matcher#readme) |
 | mathml-to-latex | 1.8.0 | MIT | [link](https://github.com/asnunes/mathml-to-latex#readme) |
 | mdn-data | 2.27.1 | CC0-1.0 | [link](https://developer.mozilla.org) |
-| motion-dom | 14.8.0 | MIT | [link](https://github.com/motiondivision/motion#readme) |
+| motion-dom | 14.9.0 | MIT | [link](https://github.com/motiondivision/motion#readme) |
 | motion-utils | 14.7.0 | MIT | [link](https://github.com/motiondivision/motion#readme) |
 | ms | 2.1.3 | MIT | [link](https://github.com/vercel/ms#readme) |
 | nanoid | 3.3.18 | MIT | [link](https://github.com/ai/nanoid#readme) |
@@ -358,7 +361,7 @@ Bundled font notices are discovered from:
 | react | 19.3.1 | MIT | [link](https://react.dev/) |
 | react-day-picker | 10.0.2 | MIT | [link](https://daypicker.dev) |
 | react-dom | 19.3.1 | MIT | [link](https://react.dev/) |
-| react-i18next | 17.1.9 | MIT | [link](https://github.com/i18next/react-i18next) |
+| react-i18next | 17.1.11 | MIT | [link](https://github.com/i18next/react-i18next) |
 | react-is | 17.0.2 | MIT | [link](https://reactjs.org/) |
 | react-redux | 9.3.0 | MIT | [link](https://github.com/reduxjs/react-redux) |
 | readable-stream | 2.3.8 | MIT | [link](https://github.com/nodejs/readable-stream#readme) |
@@ -399,7 +402,6 @@ Bundled font notices are discovered from:
 | tslib | 2.8.1 | 0BSD | [link](https://www.typescriptlang.org/) |
 | turndown | 7.2.4 | MIT | [link](https://github.com/mixmark-io/turndown#readme) |
 | type-fest | 0.13.1 | (MIT OR CC0-1.0) | [link](https://github.com/sindresorhus/type-fest#readme) |
-| typebox | 1.3.27 | MIT | [link](https://github.com/sinclairzx81/typebox#readme) |
 | uhyphen | 0.2.0 | ISC | [link](https://github.com/WebReflection/uhyphen#readme) |
 | undici | 8.12.3 | MIT | [link](https://undici.nodejs.org) |
 | universalify | 2.0.1 | MIT | [link](https://github.com/RyanZim/universalify#readme) |
