@@ -1,0 +1,35 @@
+{
+  "version": "0.17.0",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "蓝墨主题：像在笔记本上读书",
+      "description": "冷白纸面、钢笔蓝墨和铅笔手绘线条，从书库到阅读器都换上手绘风格；书籍正文保持干净。",
+      "audience": "settings"
+    },
+    {
+      "type": "changed",
+      "title": "沉淀卡片翻面切换",
+      "description": "批注变成沉淀时卡片会翻面，发布时伴有翻纸声；堆叠的卡片错落展开，切换时只动被换上来的那张。",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "批注栏滚动更稳",
+      "description": "在批注密集的 PDF 中滚动，卡片平滑进出、贴着原文移动，不再跳动或闪烁；打开 PDF 时顶部批注直接可见。",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "大书更省内存，导入更快",
+      "description": "大型 PDF 打开和滚动时内存占用降低约三成；旧 EPUB 数据完成瘦身；批量导入电子书耗时约减半。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "任务模型跟随默认模型",
+      "description": "未单独设置的任务显示「继承默认模型」，修改默认模型后随之切换；只设置默认模型时助手也能正常启用。",
+      "audience": "settings"
+    }
+  ]
+}

@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.17.0 - 2026-11-03
+
+### Features
+
+- Added the Blue Ink light theme, with cool white paper, fountain-pen blue, and pencil-drawn frames and rules across the library, settings, stats, Reading Memory, assistants, dialogs, and reader UI. Book content is left undecorated. (#1007)
+- Redesigned the first-launch screen with a language switch and an example of a highlight, a thought, and an assistant reply. It explains that reading works without AI, and its import entries now cover AZW3 and MOBI. (#1006)
+- Switching a card between annotation and distillation now plays a 3D card flip with a paper sound on publish. Stacked cards fan from the top corner, and committing a distillation on long annotation rails no longer stalls the reader. (#1008)
+- Replaced the app icon and website logo, and redesigned the website with a new landing page, documentation layout, and 404 pages. Website font downloads shrink by 67–90%. (#1011, #1012)
+
+### Performance
+
+- Rendered PDF pages directly on canvas, cutting memory use by 24–27% when opening large PDFs and 24–35% while scrolling, and speeding up the first frame. (#999)
+- Removed base64 images left in EPUB chapters imported by earlier versions. On a sample library, chapter data dropped from 53 MB to 4.4 MB, and turning pages in large books no longer inflates memory. (#1000)
+- Imported up to three ebooks at once, cutting batch import time roughly in half. (#1018)
+- Downloaded web article images concurrently, so one slow image no longer delays the rest; favicons time out after 3 seconds. (#1017)
+- Read keychain secrets off the main thread, removed an extra keychain read from every assistant reply, and removed a model call made before each assistant thought. (#1014, #1015)
+- Parallelized cache cleanup at startup, backup file hashing, and the first ebook open. (#1016)
+
+### Fixes
+
+- Fixed task model settings for existing users: tasks without their own model now follow the default model, show "Inherit default model", and assistants no longer report a missing route when only a default model is set. (#1005)
+- Kept PDFs at the top of the first page when opening, so annotations near the top are visible immediately. (#1004)
+- Smoothed annotation rail cards as they enter, leave, and move while scrolling, so dense pages no longer jump or flicker. (#1003)
+- Made switching stacked annotation cards move only the swapped cards, and kept short back cards visible behind taller ones. (#1002)
+- Made the reader table of contents retract when closing instead of turning translucent. (#1001)
+
+### Engineering
+
+- Moved renderer state into zustand stores, reducers, and TanStack Query, and restricted direct state and effect hooks in renderer code. (#983–#997)
+- Upgraded Electron to 45.2.1, Node.js to 24.22.2, Effect to 4.1.1, and pi to 1.5.0, picked up patched undici releases, and turned off pi attribution headers on provider requests. (#979, #998, #1013)
+- Sped up CI with parallel jobs and change-based skips, made oxlint suspicious and perf rules blocking, and added a packaged startup benchmark. (#978, #980, #1009)
+- Tightened README and website wording. (#981, #982)
+
 ## 0.16.6 - 2026-10-21
 
 ### Fixes

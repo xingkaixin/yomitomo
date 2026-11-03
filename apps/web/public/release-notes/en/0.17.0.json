@@ -1,0 +1,35 @@
+{
+  "version": "0.17.0",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "Blue Ink: read like a marked-up notebook",
+      "description": "Cool white paper, fountain-pen blue, and pencil-drawn lines give everything from the library to the reader a hand-drawn look, while book text stays clean.",
+      "audience": "settings"
+    },
+    {
+      "type": "changed",
+      "title": "Distillation cards flip over",
+      "description": "Turning an annotation into a distillation flips the card, with a paper sound when you publish. Stacked cards fan out, and switching moves only the card you bring forward.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "A steadier annotation rail",
+      "description": "In dense PDFs, cards glide in and out and stay with the text as you scroll instead of jumping or flickering. Annotations at the top show as soon as a PDF opens.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "Less memory for big books, faster imports",
+      "description": "Large PDFs use about a third less memory while opening and scrolling, older EPUB data is slimmed down, and batch ebook imports take about half the time.",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "Task models follow the default model",
+      "description": "Tasks without their own model show \"Inherit default model\" and switch when you change the default. Assistants also work when only a default model is set.",
+      "audience": "settings"
+    }
+  ]
+}

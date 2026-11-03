@@ -5,6 +5,17 @@ sidebar:
   hidden: true
 ---
 
+## 0.17.0
+
+Released: 2026-11-03
+
+- Added the hand-drawn Blue Ink light theme and redesigned the first-launch screen, app icon, and website.
+- Annotation and distillation cards flip; the annotation rail, stack switches, and table of contents move more smoothly.
+- Large PDFs use about a third less memory, legacy EPUB data shrinks, and batch ebook imports take about half the time.
+- Fixed task models not following the default model for existing users.
+
+[View 0.17.0 release notes](/en/changelogs/v0-17-0/)
+
 ## 0.16.6
 
 Released: 2026-10-21
