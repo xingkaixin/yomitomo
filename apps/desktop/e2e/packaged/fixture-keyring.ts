@@ -1,21 +1,21 @@
 const passwords = new Map<string, string>();
 
-export class Entry {
+export class AsyncEntry {
   private readonly key: string;
 
   constructor(service: string, account: string) {
     this.key = JSON.stringify([service, account]);
   }
 
-  setPassword(password: string): void {
+  async setPassword(password: string): Promise<void> {
     passwords.set(this.key, password);
   }
 
-  getPassword(): string | null {
+  async getPassword(): Promise<string | null> {
     return passwords.get(this.key) ?? null;
   }
 
-  deletePassword(): boolean {
+  async deletePassword(): Promise<boolean> {
     return passwords.delete(this.key);
   }
 }

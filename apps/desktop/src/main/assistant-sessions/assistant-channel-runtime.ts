@@ -14,6 +14,7 @@ import {
   piModelRef,
   piProviderFor,
   piThinkingLevel,
+  type PiModelRef,
 } from '@yomitomo/ai';
 import {
   annotationAgentAuthorRef,
@@ -62,6 +63,10 @@ export type ResolvedChannelAgent = {
   fake: boolean;
 };
 
+export type ChannelAgentIdentity = Pick<ResolvedChannelAgent, 'agent' | 'uiLanguage'> & {
+  provider?: LlmProvider;
+};
+
 type ArticleMeta = {
   title: string;
   ebookIndex?: EpubBookIndex;
@@ -73,6 +78,7 @@ export type AssistantChannelPorts = {
   articleText: (articleId: string) => Promise<ArticleTextSnapshot | undefined>;
   models: ReturnType<typeof createModels>;
   resolveAgent: (agentId: string, allowDisabled: boolean) => Promise<ResolvedChannelAgent>;
+  resolveAgentIdentity: (agentId: string) => Promise<ChannelAgentIdentity>;
   readChannel: (articleId: string, channel: AssistantChannel) => ChannelSnapshot | undefined;
   publishReply: (articleId: string, channel: AssistantChannel, reply: ChannelReply) => boolean;
   existingMessageIds: (articleId: string, ids: string[]) => Set<string>;
@@ -290,13 +296,13 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     const content = resolveReplyLinks(text, await ports.articleText(articleId), (id) =>
       ports.findDiscussion(articleId, id),
     );
-    const resolved = await ports.resolveAgent(first.agentId, true).catch(() => undefined);
+    const identity = await ports.resolveAgentIdentity(first.agentId).catch(() => undefined);
     const hash = createHash('sha256').update(`${articleId}:${forkId}:${answerId}`).digest('hex');
     const commentId = `${first.channel.kind === 'chat' ? 'reader_chat_message' : 'comment'}_${hash.slice(0, 24)}`;
     const saved = ports.publishReply(articleId, first.channel, {
       id: commentId,
-      author: resolved
-        ? annotationAgentAuthorRef(resolveAgentPublicIdentity(resolved.agent, resolved.uiLanguage))
+      author: identity
+        ? annotationAgentAuthorRef(resolveAgentPublicIdentity(identity.agent, identity.uiLanguage))
         : { kind: 'agent', agentId: first.agentId, username: first.agentId },
       content,
       createdAt: new Date().toISOString(),
@@ -356,7 +362,9 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
       steps,
       ...(saved ? { commentId } : { error: 'channel_deleted' }),
     });
-    if (main && resolved) await compactWhenLarge(main, resolved);
+    if (main && identity?.provider) {
+      await compactWhenLarge(main, piModelRef(identity.provider, identity.agent));
+    }
   }
 
   async function dropRun(
@@ -510,11 +518,11 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
 
   async function compactWhenLarge(
     main: NonNullable<Awaited<ReturnType<Harness['conversation']>>>,
-    resolved: ResolvedChannelAgent,
+    model: PiModelRef,
   ) {
     const view = await main.context(context);
     if (JSON.stringify(view.messages).length < MAIN_COMPACT_CHARS) return;
-    await main.configure({ model: piModelRef(resolved.provider, resolved.agent) }, context);
+    await main.configure({ model }, context);
     await main.compact(undefined, context).catch((error: unknown) => {
       ports.logError('assistant_channel.compact_failed', error);
     });

@@ -26,7 +26,7 @@ export async function saveWeReadApiKey(apiKey: string, accountId = 'default') {
 
 export async function saveStoredSecret(ref: string, secret: string) {
   const entry = await createEntry(ref);
-  entry.setPassword(secret);
+  await entry.setPassword(secret);
 }
 
 export function readProviderApiKey(apiKeyRef?: string | null) {
@@ -41,7 +41,7 @@ async function readStoredSecret(ref?: string | null) {
   if (!ref) return '';
   const entry = await createEntry(ref);
   try {
-    return entry.getPassword() || '';
+    return (await entry.getPassword()) || '';
   } catch (error) {
     if (isNoEntryError(error)) return '';
     throw error;
@@ -51,15 +51,15 @@ async function readStoredSecret(ref?: string | null) {
 export async function deleteStoredSecret(secretRef: string) {
   const entry = await createEntry(secretRef);
   try {
-    entry.deletePassword();
+    await entry.deletePassword();
   } catch (error) {
     if (!isNoEntryError(error)) throw error;
   }
 }
 
 async function createEntry(account: string) {
-  const { Entry } = await loadKeyring();
-  return new Entry(getDesktopAppProfile().keychainService, account);
+  const { AsyncEntry } = await loadKeyring();
+  return new AsyncEntry(getDesktopAppProfile().keychainService, account);
 }
 
 function loadKeyring() {

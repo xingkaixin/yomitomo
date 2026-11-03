@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { join, resolve } from 'node:path';
 import fixtureConfig from './electron.vite.config';
 import { cleanupE2eData, createE2eRunData } from '../helpers/e2e-data';
-import { Entry } from './fixture-keyring';
+import { AsyncEntry } from './fixture-keyring';
 import { prepareFixtureProfile } from './fixture-profile';
 import { allowsFixtureHost, allowsFixtureUrl, fixtureSocketHost } from './fixture-network-policy';
 
@@ -37,14 +37,14 @@ describe('reading memory fixture isolation', () => {
     }
   });
 
-  it('keeps credentials in memory and separates service/account identities', () => {
-    const first = new Entry('fixture', 'account');
-    const other = new Entry('fixture-other', 'account');
-    first.setPassword('fixture-key');
-    expect(new Entry('fixture', 'account').getPassword()).toBe('fixture-key');
-    expect(other.getPassword()).toBeNull();
-    expect(first.deletePassword()).toBe(true);
-    expect(first.getPassword()).toBeNull();
+  it('keeps credentials in memory and separates service/account identities', async () => {
+    const first = new AsyncEntry('fixture', 'account');
+    const other = new AsyncEntry('fixture-other', 'account');
+    await first.setPassword('fixture-key');
+    await expect(new AsyncEntry('fixture', 'account').getPassword()).resolves.toBe('fixture-key');
+    await expect(other.getPassword()).resolves.toBeNull();
+    await expect(first.deletePassword()).resolves.toBe(true);
+    await expect(first.getPassword()).resolves.toBeNull();
   });
 
   it('allows local sockets and app resources, but not external hosts', () => {
