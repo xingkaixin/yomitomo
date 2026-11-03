@@ -53,6 +53,11 @@ const ARTICLE_IMPORT_CLOSE_DELAY_MS = 900;
 const FILE_IMPORT_CLOSE_DELAY_MS = 900;
 const EBOOK_IMPORT_CELEBRATION_CLOSE_DELAY_MS = 900;
 const EBOOK_IMPORT_CELEBRATION_MAX_VISIBLE = 7;
+const EBOOK_IMPORT_MAX_CONCURRENT = 1;
+// PDF imports share one PDFium engine in the main process, so parallel requests only queue there.
+const PDF_IMPORT_MAX_CONCURRENT = 1;
+// Every in-flight file is held by the renderer, the IPC copy in main and the parser worker.
+const FILE_IMPORT_MAX_IN_FLIGHT_BYTES = 100 * 1024 * 1024;
 type ArticleImportState =
   | { type: 'idle'; message: string }
   | {
@@ -121,9 +126,7 @@ type FileImportDialogState = { importState: FileImportState; dragging: boolean }
 type FileImportDialogEvent =
   | { type: 'batchRejected'; message: string; items: FileImportItem[] }
   | { type: 'batchStarted'; message: string; items: FileImportItem[] }
-  | { type: 'itemStarted'; message: string; items: FileImportItem[] }
-  | { type: 'itemChanged'; items: FileImportItem[] }
-  | { type: 'progressChanged'; progress: number }
+  | { type: 'batchProgressed'; message: string; items: FileImportItem[]; progress: number }
   | { type: 'batchFinished'; state: Exclude<FileImportState, { type: 'idle' }> }
   | { type: 'reset' }
   | { type: 'dragEntered' }
@@ -150,6 +153,7 @@ type FileImportDialogConfig = {
   isValidFileName: (name: string) => boolean;
   maxBytes: number;
   maxFileCount: number;
+  maxConcurrentImports: number;
   invalidFileMessage: string;
   oversizeMessage: string;
   tooManyFilesMessage: string;
@@ -259,17 +263,17 @@ function fileImportDialogReducer(
           progress: 0,
         },
       };
-    case 'itemStarted':
+    case 'batchProgressed':
       return importState.type === 'submitting'
-        ? { ...state, importState: { ...importState, message: event.message, items: event.items } }
-        : state;
-    case 'itemChanged':
-      return importState.type === 'submitting'
-        ? { ...state, importState: { ...importState, items: event.items } }
-        : state;
-    case 'progressChanged':
-      return importState.type === 'submitting'
-        ? { ...state, importState: { ...importState, progress: event.progress } }
+        ? {
+            ...state,
+            importState: {
+              ...importState,
+              message: event.message,
+              items: event.items,
+              progress: event.progress,
+            },
+          }
         : state;
     case 'batchFinished':
       return { ...state, importState: event.state };
@@ -358,6 +362,45 @@ function isValidArticleImportUrl(value: string) {
 
 function fileImportItemId(file: File, index: number) {
   return `${file.name}-${file.size}-${file.lastModified || 0}-${index}`;
+}
+
+export function fileImportBatchProgress(
+  items: Pick<FileImportItem, 'progress'>[],
+  importableCount: number,
+) {
+  // Files rejected before the batch started stay at 0, so only importable files add progress.
+  return items.reduce((total, item) => total + item.progress, 0) / importableCount;
+}
+
+export async function runFileImportQueue<Entry extends { file: Pick<File, 'size'> }>(
+  entries: Entry[],
+  limits: { maxConcurrent: number; maxInFlightBytes: number },
+  importEntry: (entry: Entry) => Promise<void>,
+) {
+  await new Promise<void>((resolve) => {
+    let nextIndex = 0;
+    let activeCount = 0;
+    let activeBytes = 0;
+
+    function startReadyEntries() {
+      while (nextIndex < entries.length && activeCount < limits.maxConcurrent) {
+        const entry = entries[nextIndex];
+        const { size } = entry.file;
+        if (activeCount > 0 && activeBytes + size > limits.maxInFlightBytes) return;
+        nextIndex += 1;
+        activeCount += 1;
+        activeBytes += size;
+        void importEntry(entry).finally(() => {
+          activeCount -= 1;
+          activeBytes -= size;
+          if (activeCount === 0 && nextIndex === entries.length) resolve();
+          else startReadyEntries();
+        });
+      }
+    }
+
+    startReadyEntries();
+  });
 }
 
 export function fileImportErrorMessage(error: unknown, fallback: string, t: AppT) {
@@ -1042,6 +1085,7 @@ function EbookImportDialog({
         isValidFileName: (name) => /\.(?:epub|azw3|mobi)$/i.test(name),
         maxBytes: MAX_EBOOK_IMPORT_BYTES,
         maxFileCount: MAX_BATCH_IMPORT_FILES,
+        maxConcurrentImports: EBOOK_IMPORT_MAX_CONCURRENT,
         invalidFileMessage: t('library.import.ebook.invalidFile'),
         oversizeMessage: t('library.import.ebook.oversize'),
         tooManyFilesMessage: t('library.import.ebook.tooManyFiles', {
@@ -1097,6 +1141,7 @@ function PdfImportDialog({
         isValidFileName: (name) => name.toLowerCase().endsWith('.pdf'),
         maxBytes: MAX_PDF_IMPORT_BYTES,
         maxFileCount: MAX_BATCH_IMPORT_FILES,
+        maxConcurrentImports: PDF_IMPORT_MAX_CONCURRENT,
         invalidFileMessage: t('library.import.pdf.invalidFile'),
         oversizeMessage: t('library.import.pdf.oversize'),
         tooManyFilesMessage: t('library.import.pdf.tooManyFiles', {
@@ -1207,70 +1252,59 @@ function FileImportDialog({
     onBusyChange(true);
 
     let currentItems = initialItems;
-    function updateImportItem(itemId: string, patch: Partial<FileImportItem>) {
+    let completedCount = 0;
+    function patchImportItem(itemId: string, patch: Partial<FileImportItem>) {
       currentItems = currentItems.map((item) =>
         item.id === itemId ? { ...item, ...patch } : item,
       );
-    }
-    function patchImportItem(itemId: string, patch: Partial<FileImportItem>) {
-      updateImportItem(itemId, patch);
-      dispatch({ type: 'itemChanged', items: currentItems });
-    }
-
-    let completedCount = 0;
-    for (const entry of validEntries) {
-      const itemId = entry.item.id;
-      const currentIndex = completedCount;
-      updateImportItem(itemId, { status: 'importing', progress: 4, message: undefined });
       dispatch({
-        type: 'itemStarted',
+        type: 'batchProgressed',
         message: t('library.import.importing', {
-          current: currentIndex + 1,
+          current: Math.min(completedCount + 1, validEntries.length),
           total: validEntries.length,
         }),
         items: currentItems,
+        progress: fileImportBatchProgress(currentItems, validEntries.length),
       });
+    }
 
+    async function importedItemPatch(entry: (typeof validEntries)[number]) {
       try {
         const result = await config.onImportFile(entry.file, (nextProgress) => {
-          const itemProgress = clampNumber(nextProgress, 0, 100, 4);
-          patchImportItem(itemId, { progress: itemProgress });
-          dispatch({
-            type: 'progressChanged',
-            progress: ((currentIndex + itemProgress / 100) / validEntries.length) * 100,
-          });
+          patchImportItem(entry.item.id, { progress: clampNumber(nextProgress, 0, 100, 4) });
         });
-
         if (result.status === 'canceled') {
-          patchImportItem(itemId, {
-            message: t('library.import.canceled'),
-            progress: 100,
-            status: 'error',
-          });
-          completedCount += 1;
-          continue;
+          return { message: t('library.import.canceled'), status: 'error' } as const;
         }
-
-        patchImportItem(itemId, {
+        return {
           article: result.article,
           message:
             result.status === 'duplicate'
               ? config.duplicateMessage
               : articleImportMeta(result.article, t),
-          progress: 100,
           status: result.status,
-        });
+        };
       } catch (error) {
-        patchImportItem(itemId, {
+        return {
           message: fileImportErrorMessage(error, config.errorFallbackMessage, t),
-          progress: 100,
           status: 'error',
-        });
+        } as const;
       }
-
-      completedCount += 1;
-      dispatch({ type: 'progressChanged', progress: (completedCount / validEntries.length) * 100 });
     }
+
+    await runFileImportQueue(
+      validEntries,
+      {
+        maxConcurrent: config.maxConcurrentImports,
+        maxInFlightBytes: FILE_IMPORT_MAX_IN_FLIGHT_BYTES,
+      },
+      async (entry) => {
+        patchImportItem(entry.item.id, { status: 'importing', progress: 4, message: undefined });
+        const patch = await importedItemPatch(entry);
+        completedCount += 1;
+        patchImportItem(entry.item.id, { ...patch, progress: 100 });
+      },
+    );
 
     resetInput();
     onBusyChange(false);

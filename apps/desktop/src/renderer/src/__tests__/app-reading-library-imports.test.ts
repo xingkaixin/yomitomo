@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { DesktopIpcError } from '../../../ipc-errors';
 import {
   articleImportErrorMessage,
+  fileImportBatchProgress,
   fileImportErrorMessage,
+  runFileImportQueue,
 } from '../reading-library/app-reading-library-imports';
 
 describe('article import errors', () => {
@@ -48,6 +50,67 @@ describe('file import errors', () => {
     );
   });
 });
+
+describe('file import queue', () => {
+  it('caps concurrent imports', async () => {
+    const limits = { maxConcurrent: 2, maxInFlightBytes: 100 };
+    const { finish, started, queue } = startQueue([1, 2, 3], limits);
+
+    expect(started).toEqual([1, 2]);
+    finish(2);
+    await settle();
+    expect(started).toEqual([1, 2, 3]);
+    finish(1);
+    finish(3);
+    await queue;
+  });
+
+  it('keeps selection order and runs an oversized file alone', async () => {
+    const limits = { maxConcurrent: 3, maxInFlightBytes: 100 };
+    const { finish, started, queue } = startQueue([10, 20, 80, 30, 200], limits);
+
+    expect(started).toEqual([10, 20]);
+    finish(20);
+    await settle();
+    expect(started).toEqual([10, 20, 80]);
+    finish(10);
+    await settle();
+    expect(started).toEqual([10, 20, 80]);
+    finish(80);
+    await settle();
+    expect(started).toEqual([10, 20, 80, 30]);
+    finish(30);
+    await settle();
+    expect(started).toEqual([10, 20, 80, 30, 200]);
+    finish(200);
+    await queue;
+  });
+
+  it('reports batch progress as the share of all importable files', () => {
+    const rejected = { progress: 0 };
+    const items = [{ progress: 100 }, { progress: 50 }, { progress: 0 }, { progress: 50 }];
+
+    expect(fileImportBatchProgress([...items, rejected], items.length)).toBe(50);
+  });
+});
+
+function startQueue(sizes: number[], limits: Parameters<typeof runFileImportQueue>[1]) {
+  const started: number[] = [];
+  const pending = new Map<number, () => void>();
+  const queue = runFileImportQueue(
+    sizes.map((size) => ({ file: { size } })),
+    limits,
+    ({ file }) => {
+      started.push(file.size);
+      return new Promise<void>((resolve) => pending.set(file.size, resolve));
+    },
+  );
+  return { finish: (size: number) => pending.get(size)?.(), started, queue };
+}
+
+function settle() {
+  return new Promise((resolve) => setTimeout(resolve));
+}
 
 const keyT = ((key: string) => key) as Parameters<typeof articleImportErrorMessage>[1];
 
