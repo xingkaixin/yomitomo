@@ -1,7 +1,5 @@
 import React from 'react';
 import { OTPInput, OTPInputContext, REGEXP_ONLY_DIGITS } from 'input-otp';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { DotIcon } from '@hugeicons/core-free-icons';
 import { cn } from '../../lib/utils';
 
 export const InputOTP = React.forwardRef<
@@ -44,14 +42,6 @@ export function InputOTPSlot({
     >
       {visibleChar}
       {slot?.hasFakeCaret ? <span className="input-otp-caret" /> : null}
-    </div>
-  );
-}
-
-export function InputOTPSeparator({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div className={cn('input-otp-separator', className)} role="separator" {...props}>
-      <HugeiconsIcon icon={DotIcon} aria-hidden="true" size={18} />
     </div>
   );
 }

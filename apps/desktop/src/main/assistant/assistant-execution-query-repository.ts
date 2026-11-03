@@ -10,7 +10,6 @@ import {
 } from '@yomitomo/shared';
 import type {
   AssistantExecutionQueryInput,
-  AssistantExecutionRun,
   AssistantExecutionRunDetail,
   AssistantExecutionRunListItem,
   AssistantExecutionSafeStep,
@@ -38,11 +37,6 @@ type AssistantExecutionUsageRow = Pick<
   | 'cacheWriteTokens'
   | 'totalTokens'
 >;
-type AssistantExecutionTotalsAccumulator = {
-  totals: AssistantExecutionTotals;
-  durationCount: number;
-  durationSum: number;
-};
 type AssistantExecutionAggregateRow = AssistantExecutionUsage &
   Omit<AssistantExecutionTotals, 'averageDurationMs' | 'usage'> & {
     averageDurationMs: number | null;
@@ -162,23 +156,6 @@ export function assistantExecutionRunDetailDto(
     id: row.id,
     safeSteps: safeTraceSteps(row.traceJson),
   };
-}
-
-export function assistantExecutionRunDto(row: AssistantExecutionRow): AssistantExecutionRun {
-  return {
-    ...assistantExecutionRunListItemDto(row),
-    ...assistantExecutionRunDetailDto(row),
-  };
-}
-
-export function summarizeAssistantExecutionRows(
-  rows: AssistantExecutionRow[],
-): AssistantExecutionTotals {
-  const accumulator = emptyTotalsAccumulator();
-  for (const row of rows) {
-    addRowToTotals(accumulator, row);
-  }
-  return finalizeTotals(accumulator);
 }
 
 function aggregateAssistantExecutionTotals(database: StoreExecutor, where: SQL | undefined) {
@@ -306,66 +283,6 @@ function latestGroupLabel(label: SQL<string>) {
   return sql<string>`substr(max(${value}), instr(max(${value}), char(31)) + 1)`;
 }
 
-function emptyTotals(): AssistantExecutionTotals {
-  return {
-    runCount: 0,
-    successCount: 0,
-    fallbackCount: 0,
-    errorCount: 0,
-    usage: emptyUsage(),
-    estimatedCostMicros: 0,
-    missingCostCount: 0,
-  };
-}
-
-function emptyTotalsAccumulator(): AssistantExecutionTotalsAccumulator {
-  return {
-    totals: emptyTotals(),
-    durationCount: 0,
-    durationSum: 0,
-  };
-}
-
-function addRowToTotals(
-  accumulator: AssistantExecutionTotalsAccumulator,
-  row: AssistantExecutionRow,
-) {
-  const { totals } = accumulator;
-  totals.runCount += 1;
-  const status = normalizeStatus(row.status);
-  if (status === 'success') totals.successCount += 1;
-  if (status === 'fallback') totals.fallbackCount += 1;
-  if (status === 'error') totals.errorCount += 1;
-  addUsage(totals.usage, rowUsage(row));
-  if (row.estimatedCostMicros === null) totals.missingCostCount += 1;
-  else totals.estimatedCostMicros += row.estimatedCostMicros;
-  if (row.durationMs !== null) {
-    accumulator.durationCount += 1;
-    accumulator.durationSum += row.durationMs;
-  }
-}
-
-function finalizeTotals(
-  accumulator: AssistantExecutionTotalsAccumulator,
-): AssistantExecutionTotals {
-  const { totals } = accumulator;
-  if (accumulator.durationCount > 0) {
-    totals.averageDurationMs = Math.round(accumulator.durationSum / accumulator.durationCount);
-  }
-  return totals;
-}
-
-function emptyUsage(): AssistantExecutionUsage {
-  return {
-    inputTokens: 0,
-    outputTokens: 0,
-    reasoningTokens: 0,
-    cachedInputTokens: 0,
-    cacheWriteTokens: 0,
-    totalTokens: 0,
-  };
-}
-
 function rowUsage(row: AssistantExecutionUsageRow): AssistantExecutionUsage {
   return {
     inputTokens: row.inputTokens || 0,
@@ -380,15 +297,6 @@ function rowUsage(row: AssistantExecutionUsageRow): AssistantExecutionUsage {
         (row.reasoningTokens || 0) +
         (row.cacheWriteTokens || 0),
   };
-}
-
-function addUsage(target: AssistantExecutionUsage, next: AssistantExecutionUsage) {
-  target.inputTokens += next.inputTokens;
-  target.outputTokens += next.outputTokens;
-  target.reasoningTokens += next.reasoningTokens;
-  target.cachedInputTokens += next.cachedInputTokens;
-  target.cacheWriteTokens += next.cacheWriteTokens;
-  target.totalTokens += next.totalTokens;
 }
 
 function safeTraceSteps(traceJson: unknown): AssistantExecutionSafeStep[] {

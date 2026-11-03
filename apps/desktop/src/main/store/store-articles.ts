@@ -79,12 +79,6 @@ export async function readArticle(id: string): Promise<ArticleRecord | null> {
   }
 }
 
-export async function readArticleSummary(id: string) {
-  const database = getDatabase();
-  await migrateProviderApiKeys(database);
-  return readArticleSummaryRows(database, id);
-}
-
 export async function listLibraryArticles(
   input: ArticleLibraryListInput,
 ): Promise<ArticleLibraryListResult> {

@@ -14,12 +14,6 @@ export type PageMetric = {
   clipBottom: number;
 };
 
-export type PdfPageGeometryEntry = {
-  geometry: PdfPageGeometry;
-  width: number;
-  height: number;
-};
-
 export type PdfiumCanvasPoint = {
   x: number;
   y: number;

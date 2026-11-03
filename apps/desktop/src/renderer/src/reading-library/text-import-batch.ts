@@ -38,5 +38,3 @@ export async function readTextImportFiles(files: TextImportFile[]) {
   }
   return payload;
 }
-
-export const textImportReadConcurrency = TEXT_IMPORT_READ_CONCURRENCY;

@@ -412,11 +412,6 @@ export type PdfImportFileInput = DesktopIpcSchemaArgs<'pdf:import-file'>[0];
 
 export type TextImportPrepareInput = DesktopIpcSchemaArgs<'text:import-prepare'>[0];
 
-export type TextImportFileInput = Extract<
-  TextImportPrepareInput,
-  { kind: 'files' }
->['files'][number];
-
 export type TextImportPreparedItem =
   | {
       ok: true;

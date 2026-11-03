@@ -40,14 +40,6 @@ export async function readShellStore(): Promise<DesktopStore> {
   return readStoreInternal(undefined, { includeArticles: false });
 }
 
-export async function readStoreWithProfile(): Promise<{
-  store: DesktopStore;
-  profile: StoreReadProfileEntry[];
-}> {
-  const profile: StoreReadProfileEntry[] = [];
-  return { store: await readStoreInternal(profile), profile };
-}
-
 export async function readShellStoreWithProfile(): Promise<{
   store: DesktopStore;
   profile: StoreReadProfileEntry[];

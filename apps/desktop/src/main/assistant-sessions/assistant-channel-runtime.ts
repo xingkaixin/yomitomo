@@ -89,8 +89,6 @@ export type AssistantChannelPorts = {
   logError: (event: string, error: unknown, data?: Record<string, unknown>) => void;
 };
 
-export type AssistantChannelRuntime = ReturnType<typeof createAssistantChannelRuntime>;
-
 export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
   const locks = new Map<string, Promise<unknown>>();
   const active = new Map<string, AssistantRunEvent>();

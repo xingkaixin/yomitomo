@@ -18,12 +18,6 @@ export function stringValue(value: unknown) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-export function numberArray(value: unknown) {
-  return Array.isArray(value)
-    ? value.map((item) => Number(item)).filter((item) => Number.isInteger(item) && item > 0)
-    : [];
-}
-
 function cleanJsonFence(value: string) {
   return value
     .trim()

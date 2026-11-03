@@ -2,7 +2,6 @@ import type {
   Agent,
   AgentDistillationReviewPayload,
   AgentMessagePayload,
-  AnnotationDistillationReviewMessage,
   ResolvedAppSettings,
 } from '@yomitomo/shared';
 import { normalizeUiLanguage } from '@yomitomo/shared';
@@ -20,11 +19,4 @@ export function distillationReviewMessagePayload(
     agentRoster:
       payload.agentRoster || publicCommentAgents(agents, normalizeUiLanguage(settings.uiLanguage)),
   };
-}
-
-export function messageWithReviewId(
-  message: AnnotationDistillationReviewMessage,
-  reviewMessageId: string | undefined,
-) {
-  return reviewMessageId ? { ...message, id: reviewMessageId } : message;
 }

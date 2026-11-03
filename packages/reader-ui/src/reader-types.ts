@@ -23,10 +23,3 @@ export type HighlightChoiceAction = {
   x: number;
   y: number;
 };
-
-export type ReaderReadingSection = {
-  id: string;
-  title: string;
-  start: number;
-  end: number;
-};

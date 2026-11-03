@@ -41,15 +41,6 @@ function latestChangelogPage(paths: string[], urlPrefix: string) {
 export const githubUrl = 'https://github.com/xingkaixin/yomitomo';
 export const youtubeUrl = 'https://www.youtube.com/@yomitomo';
 export const xUrl = 'https://x.com/yomitomo';
-export const docsUrl = '/docs/';
-export const englishDocsUrl = '/en/docs/';
-export const japaneseDocsUrl = '/ja/docs/';
-export const blogUrl = '/blog/';
-export const englishBlogUrl = '/en/blog/';
-export const japaneseBlogUrl = '/ja/blog/';
-export const wereadApiKeyDocsUrl = '/docs/weread-api-key/';
-export const englishWereadApiKeyDocsUrl = '/en/docs/weread-api-key/';
-export const japaneseWereadApiKeyDocsUrl = '/ja/docs/weread-api-key/';
 export const changelogsUrl = latestChangelog.url;
 export const englishChangelogsUrl = latestEnglishChangelog.url;
 export const japaneseChangelogsUrl = latestJapaneseChangelog.url;

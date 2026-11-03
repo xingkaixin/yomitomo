@@ -1,18 +1,3 @@
-import type { DesktopStore } from '@yomitomo/shared';
-import { providerPresets } from '@yomitomo/shared';
-import { normalizeUser } from './store-normalizers-user';
-import {
-  normalizeAgentKind,
-  normalizeAnnotationDensity,
-  normalizeModelNames,
-  normalizePresetId,
-  normalizeProviderModelInputMode,
-  normalizeProviderType,
-  normalizeTemperature,
-} from './store-normalizers-provider-agent';
-import { normalizeSettings } from './store-normalizers-settings';
-import { normalizeArticleSummaryRecord } from './store-normalizers-sources';
-
 export {
   defaultUser,
   normalizeUser,
@@ -70,37 +55,3 @@ export { normalizeReaderChatState } from './store-normalizers-reader-chat';
 export { mergeSettingsForUpsert, rowToSettings, settingsToRow } from './store-normalizers-settings';
 export { sortByCreatedAt } from './store-normalizers-common';
 export { emptyDesktopStore as defaultStore } from '../../app-store';
-
-export function normalizeStore(store: DesktopStore): DesktopStore {
-  return {
-    user: normalizeUser(store.user),
-    settings: normalizeSettings(store.settings),
-    providers: (store.providers || []).map((provider) => {
-      const presetId = normalizePresetId(provider.presetId);
-      const preset = providerPresets.find((item) => item.id === presetId);
-      return Object.assign({}, provider, {
-        type: preset?.type || normalizeProviderType(provider.type) || 'openai-chat',
-        presetId,
-        modelNames:
-          provider.modelInputMode === 'custom'
-            ? undefined
-            : normalizeModelNames(provider.modelNames),
-        modelInputMode: normalizeProviderModelInputMode(provider.modelInputMode) || 'list',
-        reasoningEffort: 'none',
-      });
-    }),
-    agents: (store.agents || []).map((agent) =>
-      Object.assign({}, agent, {
-        annotationColor: agent.annotationColor || '#8ab6d6',
-        kind: normalizeAgentKind(agent.kind) || 'annotation',
-        enabled: agent.enabled ?? true,
-        annotationDensity: normalizeAnnotationDensity(agent.annotationDensity) || 'medium',
-        temperature: normalizeTemperature(agent.temperature),
-      }),
-    ),
-    articles: (store.articles || []).map(normalizeArticleSummaryRecord),
-    collections: store.collections || [],
-    collectionMembers: store.collectionMembers || [],
-    pins: store.pins || [],
-  };
-}

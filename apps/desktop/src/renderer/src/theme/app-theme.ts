@@ -1251,13 +1251,6 @@ export function readCachedThemeIdsByTone(
   }
 }
 
-export function readCachedThemeIdForTone(
-  tone: AppThemeTone,
-  storage: Storage | undefined = browserLocalStorage(),
-): AppThemeId {
-  return readCachedThemeIdsByTone(storage)[tone];
-}
-
 export function writeCachedThemeIdForTone(
   themeId: AppThemeId,
   storage: Storage | undefined = browserLocalStorage(),

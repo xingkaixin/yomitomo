@@ -107,10 +107,6 @@ export function themeDisplayName(themeId: string) {
   return i18next.t(`theme.names.${themeId}`, { defaultValue: themeId });
 }
 
-export function themeDisplayDescription(themeId: string, fallback: string) {
-  return i18next.t(`theme.descriptions.${themeId}`, { defaultValue: fallback });
-}
-
 export function readerPaperDisplayName(label: string) {
   return i18next.t(`theme.readerPaperNames.${label}`, { defaultValue: label });
 }

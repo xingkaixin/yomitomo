@@ -1,7 +1,7 @@
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { app } from 'electron';
-import { assistantRuntimeTaskTypes, isRecord, makeId } from '@yomitomo/shared';
+import { assistantRuntimeTaskTypes, isRecord } from '@yomitomo/shared';
 import type {
   AgentRuntimeTraceDecision,
   AgentRuntimeTraceEntry,
@@ -15,19 +15,6 @@ const MAX_TRACE_LIMIT = 500;
 
 export function getAgentRuntimeTracePath() {
   return join(app.getPath('userData'), TRACE_FILE_NAME);
-}
-
-export async function appendAgentRuntimeTrace(
-  input: Omit<AgentRuntimeTraceEntry, 'id' | 'at'> &
-    Partial<Pick<AgentRuntimeTraceEntry, 'id' | 'at'>>,
-) {
-  const entry: AgentRuntimeTraceEntry = {
-    ...input,
-    id: input.id || makeId('trace'),
-    at: input.at || new Date().toISOString(),
-  };
-  await ensureTraceFile();
-  await appendFile(getAgentRuntimeTracePath(), `${JSON.stringify(entry)}\n`, 'utf8');
 }
 
 export async function readAgentRuntimeTraces(input: AgentRuntimeTraceListInput = {}) {

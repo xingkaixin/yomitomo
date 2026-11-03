@@ -11,8 +11,3 @@ export type AppMenuCommand =
   | 'report-issue'
   | 'restore-database'
   | 'sync-weread';
-
-export type AppMenuCommandRequest = {
-  command: AppMenuCommand;
-  id: number;
-};

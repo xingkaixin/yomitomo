@@ -4,26 +4,20 @@ import type {
   AgentKind,
   LlmProvider,
   MessageSendShortcut,
-  PublicAgent,
   UiLanguage,
   UserProfile,
 } from '@yomitomo/shared';
 import i18next from 'i18next';
 import {
   agentPersonalities,
-  annotationAgentPersonalities,
-  customPersonality,
   customPersonalityId,
-  defaultAgentSoul,
   defaultUserAnnotationColor,
   defaultUserProfile,
   localizedAgentPersonalitiesForKind,
   localizedAgentPersonality,
   providerPresets,
-  resolveAgentPublicIdentity,
   resolveAgentPresetId,
   resolveAgentPersonalityPresentation,
-  reviewAgentPersonalities,
 } from '@yomitomo/shared';
 export type { AgentPersonality } from '@yomitomo/shared';
 
@@ -46,10 +40,6 @@ export const annotationColors = [
 ];
 
 export const userAnnotationColors = [annotationColors[0], annotationColors[1]];
-
-export const agentKindOptions: Array<{
-  value: AgentKind;
-}> = [{ value: 'annotation' }, { value: 'review' }];
 
 export const annotationDensityOptions: Array<{
   value: AgentAnnotationDensity;
@@ -78,28 +68,6 @@ export const emptyProvider: ProviderDraft = {
 
 export { emptyDesktopStore as emptyStore } from '../../../app-store';
 
-export function createEmptyAgent(
-  defaultAvatar: string,
-  kind: AgentKind = 'annotation',
-): AgentDraft {
-  const personality =
-    kind === 'review' ? reviewAgentPersonalities[0] : annotationAgentPersonalities[0];
-
-  return {
-    kind,
-    presetId: personality?.id,
-    enabled: personality?.defaultEnabled ?? true,
-    nickname: kind === 'review' ? '审核助手' : '阅读伙伴',
-    username: personality?.name || (kind === 'review' ? '审核助手' : '阅读伙伴'),
-    avatar: defaultAvatar,
-    annotationColor: personality?.defaultColor || annotationColors[1],
-    annotationDensity: 'medium',
-    personalityId: personality?.id,
-    temperature: personality?.temperature ?? 0.35,
-    soul: personality?.soul || defaultAgentSoul,
-  };
-}
-
 export function findAgentPersonalityId(soul: string) {
   return (
     agentPersonalities.find((personality) => personality.soul === soul)?.id || customPersonalityId
@@ -115,11 +83,6 @@ export function agentPersonalityName(agent: Agent, uiLanguage?: UiLanguage) {
   );
 }
 
-export function agentKindLabel(kind: AgentKind | undefined) {
-  const normalizedKind = kind || 'annotation';
-  return i18next.t(`settings.agents.modes.${normalizedKind}`, { defaultValue: normalizedKind });
-}
-
 export function personalitiesForKind(kind: AgentKind | undefined, uiLanguage?: UiLanguage) {
   const normalizedKind = kind || 'annotation';
   return localizedAgentPersonalitiesForKind(normalizedKind, uiLanguage);
@@ -130,10 +93,6 @@ export function localizedPersonalityForAgent(agent: Agent, uiLanguage?: UiLangua
     (item) => item.id === (agent.presetId || findAgentPersonalityId(agent.soul)),
   );
   return personality ? localizedAgentPersonality(personality, uiLanguage) : undefined;
-}
-
-export function publicAgentForLocale(agent: Agent, uiLanguage?: UiLanguage): PublicAgent {
-  return resolveAgentPublicIdentity(agent, uiLanguage);
 }
 
 export function userDraftHasChanges(draft: UserDraft, user: UserProfile) {
@@ -149,35 +108,6 @@ export function providerDraftHasChanges(draft: ProviderDraft, provider: LlmProvi
   if (!provider) return true;
   if (textField(draft.apiKey).trim() || draft.removeApiKey) return true;
   return !recordsEqual(normalizeProviderDraft(draft), normalizeProviderDraft(provider));
-}
-
-export function agentDraftHasChanges(draft: AgentDraft, agent: Agent | null) {
-  if (!agent) return true;
-
-  const personalityId =
-    draft.personalityId || findAgentPersonalityId(draft.soul || defaultAgentSoul);
-  const personality = agentPersonalities.find((item) => item.id === personalityId);
-  const soul = personality?.soul || draft.soul || '';
-  const temperature =
-    personality?.temperature ?? draft.temperature ?? customPersonality.temperature;
-
-  return [
-    textField(draft.providerId) !== agent.providerId,
-    textField(draft.kind, 'annotation') !== textField(agent.kind, 'annotation'),
-    textField(draft.presetId) !== textField(agent.presetId),
-    draft.enabled !== agent.enabled,
-    textField(draft.nickname).trim() !== agent.nickname,
-    textField(draft.username).trim() !== agent.username,
-    textField(draft.avatar).trim() !== agent.avatar,
-    textField(draft.annotationColor) !== agent.annotationColor,
-    textField(draft.annotationDensity, 'medium') !== agent.annotationDensity,
-    Math.abs(temperature - agent.temperature) > 0.001,
-    soul.trim() !== agent.soul,
-  ].some(Boolean);
-}
-
-export function isValidUsername(value: string) {
-  return /^[\p{L}\p{N}_-]+$/u.test(value.trim());
 }
 
 function normalizeProviderDraft(draft: ProviderDraft) {

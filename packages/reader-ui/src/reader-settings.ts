@@ -1,5 +1,3 @@
-import type { ArticleRecord } from '@yomitomo/shared';
-import { timestamp } from '@yomitomo/core';
 import type { ReaderSettings } from './reader-types';
 
 export const defaultReaderBackgroundColor = '#fffdf8';
@@ -34,17 +32,6 @@ export const defaultReaderSettings: ReaderSettings = {
   contentWidth: 860,
   backgroundColor: defaultReaderBackgroundColor,
 };
-
-export function toCachedArticleRecord(record: ArticleRecord): ArticleRecord {
-  return {
-    ...record,
-    contentHtml: undefined,
-  };
-}
-
-export function isNewerArticleRecord(record: ArticleRecord, current: ArticleRecord | null) {
-  return !current || timestamp(record.updatedAt) > timestamp(current.updatedAt);
-}
 
 export function clampNumber(value: number | undefined, min: number, max: number, fallback: number) {
   if (typeof value !== 'number' || Number.isNaN(value)) return fallback;

@@ -15,15 +15,6 @@ export const semanticRetrievalDirections = semanticRetrievalLanguages.flatMap((q
   ),
 );
 
-export const semanticRetrievalCandidatePlatforms = ['darwin-arm64', 'win32-x64'] as const;
-
-export const defaultSemanticRetrievalCandidateCriteria = {
-  relateHitAt3Min: 0.8,
-  askNecessaryCoverageAt12Min: 0.9,
-  p95LatencyMsMax: 1_000,
-  requiredPlatforms: semanticRetrievalCandidatePlatforms,
-} as const;
-
 export type SemanticRetrievalDirection =
   `${SemanticRetrievalLanguage}->${SemanticRetrievalLanguage}`;
 
@@ -89,33 +80,6 @@ export type SemanticRetrievalDirectionMetrics = {
 
 export type SemanticRetrievalEvaluationResult = {
   directions: SemanticRetrievalDirectionMetrics[];
-};
-
-export type SemanticRetrievalCandidatePlatform =
-  (typeof semanticRetrievalCandidatePlatforms)[number];
-
-export type SemanticRetrievalCandidateResult = {
-  id: string;
-  downloadBytes: number;
-  peakMemoryBytes: number;
-  p95LatencyMs: number;
-  commercialDistributionAllowed: boolean;
-  localInferenceAllowed: boolean;
-  loadedPlatforms: readonly SemanticRetrievalCandidatePlatform[];
-  evaluation: SemanticRetrievalEvaluationResult;
-};
-
-export type SemanticRetrievalCandidateCriteria = {
-  relateHitAt3Min: number;
-  askNecessaryCoverageAt12Min: number;
-  p95LatencyMsMax: number;
-  requiredPlatforms: readonly SemanticRetrievalCandidatePlatform[];
-};
-
-export type SemanticRetrievalCandidateEligibility = {
-  candidateId: string;
-  eligible: boolean;
-  failures: string[];
 };
 
 export function validateSemanticRetrievalScenarios(
@@ -334,58 +298,6 @@ export function evaluateSemanticRetrievalRankings(
   };
 }
 
-export function evaluateSemanticRetrievalCandidateEligibility(
-  candidate: SemanticRetrievalCandidateResult,
-  criteria: SemanticRetrievalCandidateCriteria = defaultSemanticRetrievalCandidateCriteria,
-): SemanticRetrievalCandidateEligibility {
-  validateCandidate(candidate);
-  validateCriteria(criteria);
-  const failures: string[] = [];
-  if (!candidate.commercialDistributionAllowed) failures.push('commercial_distribution');
-  if (!candidate.localInferenceAllowed) failures.push('local_inference');
-  if (candidate.p95LatencyMs > criteria.p95LatencyMsMax) failures.push('p95_latency');
-  for (const platform of criteria.requiredPlatforms) {
-    if (!candidate.loadedPlatforms.includes(platform)) failures.push(`platform:${platform}`);
-  }
-  for (const direction of semanticRetrievalDirections) {
-    const metrics = candidate.evaluation.directions.find((item) => item.direction === direction);
-    if (!metrics) {
-      failures.push(`direction:${direction}:missing`);
-      continue;
-    }
-    if (metrics.relateHitAt3 < criteria.relateHitAt3Min) {
-      failures.push(`direction:${direction}:relate_hit_at_3`);
-    }
-    if (metrics.askNecessaryCoverageAt12 < criteria.askNecessaryCoverageAt12Min) {
-      failures.push(`direction:${direction}:ask_coverage_at_12`);
-    }
-  }
-  return { candidateId: candidate.id, eligible: failures.length === 0, failures };
-}
-
-export function selectSemanticRetrievalCandidate(
-  candidates: readonly SemanticRetrievalCandidateResult[],
-  criteria: SemanticRetrievalCandidateCriteria = defaultSemanticRetrievalCandidateCriteria,
-): SemanticRetrievalCandidateResult | null {
-  const ids = new Set<string>();
-  for (const candidate of candidates) {
-    validateCandidate(candidate);
-    uniqueText(candidate.id, 'Semantic retrieval candidate.id', ids);
-  }
-  return (
-    candidates
-      .filter(
-        (candidate) => evaluateSemanticRetrievalCandidateEligibility(candidate, criteria).eligible,
-      )
-      .toSorted(
-        (left, right) =>
-          left.downloadBytes - right.downloadBytes ||
-          left.peakMemoryBytes - right.peakMemoryBytes ||
-          compareIds(left.id, right.id),
-      )[0] || null
-  );
-}
-
 function evidenceId(
   scenarioId: string,
   language: SemanticRetrievalLanguage,
@@ -524,57 +436,6 @@ function minimumRank(ids: readonly string[], ranks: ReadonlyMap<string, number>)
   return Math.min(...ids.map((id) => ranks.get(id) ?? Number.POSITIVE_INFINITY));
 }
 
-function validateCandidate(candidate: SemanticRetrievalCandidateResult) {
-  nonEmptyText(candidate.id, 'Semantic retrieval candidate.id');
-  nonNegativeSafeInteger(candidate.downloadBytes, 'Semantic retrieval candidate.downloadBytes');
-  nonNegativeSafeInteger(candidate.peakMemoryBytes, 'Semantic retrieval candidate.peakMemoryBytes');
-  nonNegativeFiniteNumber(candidate.p95LatencyMs, 'Semantic retrieval candidate.p95LatencyMs');
-  if (typeof candidate.commercialDistributionAllowed !== 'boolean') {
-    throw new Error('Semantic retrieval candidate.commercialDistributionAllowed must be boolean');
-  }
-  if (typeof candidate.localInferenceAllowed !== 'boolean') {
-    throw new Error('Semantic retrieval candidate.localInferenceAllowed must be boolean');
-  }
-  const platforms = new Set<SemanticRetrievalCandidatePlatform>();
-  for (const platform of candidate.loadedPlatforms) {
-    if (!semanticRetrievalCandidatePlatforms.includes(platform)) {
-      throw new Error(`Unsupported semantic retrieval candidate platform: ${platform}`);
-    }
-    if (platforms.has(platform)) {
-      throw new Error(`Duplicate semantic retrieval candidate platform: ${platform}`);
-    }
-    platforms.add(platform);
-  }
-  const directions = new Set<SemanticRetrievalDirection>();
-  for (const metrics of candidate.evaluation.directions) {
-    if (!semanticRetrievalDirections.includes(metrics.direction)) {
-      throw new Error(`Unsupported semantic retrieval candidate direction: ${metrics.direction}`);
-    }
-    if (directions.has(metrics.direction)) {
-      throw new Error(`Duplicate semantic retrieval candidate direction: ${metrics.direction}`);
-    }
-    directions.add(metrics.direction);
-    unitInterval(metrics.relateHitAt3, `${metrics.direction}.relateHitAt3`);
-    unitInterval(metrics.askNecessaryCoverageAt12, `${metrics.direction}.askNecessaryCoverageAt12`);
-  }
-}
-
-function validateCriteria(criteria: SemanticRetrievalCandidateCriteria) {
-  unitInterval(criteria.relateHitAt3Min, 'Semantic retrieval criteria.relateHitAt3Min');
-  unitInterval(
-    criteria.askNecessaryCoverageAt12Min,
-    'Semantic retrieval criteria.askNecessaryCoverageAt12Min',
-  );
-  nonNegativeFiniteNumber(criteria.p95LatencyMsMax, 'Semantic retrieval criteria.p95LatencyMsMax');
-  const platforms = new Set<SemanticRetrievalCandidatePlatform>();
-  for (const platform of criteria.requiredPlatforms) {
-    if (!semanticRetrievalCandidatePlatforms.includes(platform) || platforms.has(platform)) {
-      throw new Error(`Invalid semantic retrieval criteria platform: ${platform}`);
-    }
-    platforms.add(platform);
-  }
-}
-
 function recordValue(value: unknown, label: string): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new Error(`${label} must be an object`);
@@ -614,19 +475,4 @@ function nonEmptyText(value: unknown, label: string) {
   }
   if (value.normalize('NFC') !== value) throw new Error(`${label} must use NFC normalization`);
   return value;
-}
-
-function nonNegativeSafeInteger(value: number, label: string) {
-  if (!Number.isSafeInteger(value) || value < 0) throw new Error(`${label} must be a safe integer`);
-}
-
-function nonNegativeFiniteNumber(value: number, label: string) {
-  if (!Number.isFinite(value) || value < 0)
-    throw new Error(`${label} must be finite and non-negative`);
-}
-
-function unitInterval(value: number, label: string) {
-  if (!Number.isFinite(value) || value < 0 || value > 1) {
-    throw new Error(`${label} must be between zero and one`);
-  }
 }

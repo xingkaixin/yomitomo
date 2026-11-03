@@ -32,11 +32,6 @@ export function pdfTranslationBlockId(pageIndex: number, blockIndex: number, tex
   return `pdf-p${pageIndex}-b${blockIndex}-${hashText(text)}`;
 }
 
-export function pdfTranslationBlockPage(blockId: string) {
-  const pageIndex = Number(blockId.match(/^pdf-p(\d+)-/)?.[1]);
-  return Number.isInteger(pageIndex) ? pageIndex : null;
-}
-
 function pageBlockTexts(pageText: string) {
   return pageText
     .split(/\n\s*\n/)
