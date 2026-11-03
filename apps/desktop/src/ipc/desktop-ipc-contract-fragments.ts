@@ -1,5 +1,4 @@
 import type {
-  AgentMentionRoutePlan,
   ArticleDeletePatch,
   ArticleReaderChatStatePatch,
   ArticleReadingProgressPatch,
@@ -57,14 +56,6 @@ export const agentIpcInvokeDescriptors = {
   'agent:delete': desktopIpcInvoke<DesktopIpcSchemaArgs<'agent:delete'>, AgentStorePatch>()({
     route: ['agent', 'delete'],
     roles: mainOnly,
-    validation: 'schema',
-  }),
-  'agent:mention-route': desktopIpcInvoke<
-    DesktopIpcSchemaArgs<'agent:mention-route'>,
-    AgentMentionRoutePlan
-  >()({
-    route: ['agent', 'planMentionRoute'],
-    roles: annotationAndMain,
     validation: 'schema',
   }),
   'agent:save': desktopIpcInvoke<DesktopIpcSchemaArgs<'agent:save'>, AgentStorePatch>()({

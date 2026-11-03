@@ -49,7 +49,6 @@ describe('desktop IPC sender authorization', () => {
       .map(([channel]) => channel);
 
     expect(allowed.toSorted()).toEqual([
-      'agent:mention-route',
       'annotation-discussion:consume-thought-draft',
       'annotation-discussion:open',
       'annotation-sedimentation:commit',
