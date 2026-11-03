@@ -977,7 +977,7 @@ export const zhCNResources = {
           idleDropTitle: '拖入电子书文件，或点击选择',
           draggingDropTitle: '松开开始解析',
           importedDropTitle: '导入完成',
-          dropHint: '可多选或多拖，顺序导入',
+          dropHint: '可多选或多拖',
           footerHint: '解析完成后会提取标题、作者、封面和章节正文。',
           progress: '电子书导入进度',
           openDuplicate: '打开已有电子书',

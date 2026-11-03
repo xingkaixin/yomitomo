@@ -1019,7 +1019,7 @@ export const enResources = {
           idleDropTitle: 'Drop ebook files, or click to choose',
           draggingDropTitle: 'Release to parse',
           importedDropTitle: 'Import complete',
-          dropHint: 'Select or drop multiple files; imports run in order',
+          dropHint: 'Select or drop multiple files',
           footerHint: 'After parsing, title, author, cover, and chapters are extracted.',
           progress: 'Ebook import progress',
           openDuplicate: 'Open existing ebook',
