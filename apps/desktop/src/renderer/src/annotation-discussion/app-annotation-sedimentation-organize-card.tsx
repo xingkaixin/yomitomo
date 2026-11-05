@@ -88,6 +88,7 @@ export function OrganizeDiscussionConfirmDialog({
 
 export function OrganizeDiscussionCard({
   appliedProposalIds,
+  canRetry,
   dismissedProposalIds,
   onClose,
   onProposalAnchorEnter,
@@ -98,6 +99,7 @@ export function OrganizeDiscussionCard({
   state,
 }: {
   appliedProposalIds: Set<string>;
+  canRetry: boolean;
   dismissedProposalIds: Set<string>;
   onClose: () => void;
   onProposalAnchorEnter: (proposal: AnnotationDistillationProposal) => void;
@@ -194,7 +196,7 @@ export function OrganizeDiscussionCard({
           <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
           <span>{agent.nickname}</span>
           {isFailed ? (
-            <button type="button" onClick={onRetry}>
+            <button type="button" disabled={!canRetry} onClick={onRetry}>
               <HugeiconsIcon icon={RotateLeft01Icon} size={14} />
               <span>{t('sedimentation.organizeCardRetry')}</span>
             </button>

@@ -235,6 +235,7 @@ function SedimentationShell({
                 <OrganizeDiscussionCard
                   state={organize.state}
                   appliedProposalIds={organize.appliedProposalIds}
+                  canRetry={organize.canRun}
                   dismissedProposalIds={organize.dismissedProposalIds}
                   pendingProposalIds={organize.pendingProposalIds}
                   onProposalAnchorEnter={draft.enterProposalAnchor}
