@@ -173,6 +173,7 @@ export function WeReadSettingsPanel() {
     testState,
   } = panel;
   const revealRequestRef = useRef(0);
+  const testRequestRef = useRef(0);
   const testResetTimerRef = useRef<number | undefined>(undefined);
   const credentialSave = useSaveStatus({
     errorMessage: (error) => settingsSaveErrorMessage(error, t),
@@ -233,15 +234,22 @@ export function WeReadSettingsPanel() {
         });
         setSettings(state.settings);
       },
-      { onSaved: () => dispatch({ type: 'storedApiKeyRemoved' }) },
+      {
+        onSaved: () => {
+          testRequestRef.current += 1;
+          dispatch({ type: 'storedApiKeyRemoved' });
+        },
+      },
     );
   }
 
   async function testConnection() {
     clearTestResetTimer();
     dispatch({ type: 'testStarted' });
+    const requestId = ++testRequestRef.current;
     try {
       const { result, state } = await appSettingsActions.testWeReadAndRefresh(apiKey);
+      if (requestId !== testRequestRef.current) return;
       dispatch({
         type: 'testFinished',
         message: result.ok
@@ -251,10 +259,10 @@ export function WeReadSettingsPanel() {
       });
       setSettings(state.settings);
     } catch (error) {
+      if (requestId !== testRequestRef.current) return;
       dispatch({ type: 'testFinished', message: wereadErrorMessage(error, t), ok: false });
-    } finally {
-      scheduleTestReset();
     }
+    scheduleTestReset();
   }
 
   async function toggleApiKeyVisible() {
