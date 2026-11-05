@@ -57,6 +57,8 @@ export function createReaderThemeStore(input: {
   applyStore: (store: DesktopStore) => void;
 }): ReaderThemeStoreApi {
   return createStore<ReaderThemeState>()((set, get) => {
+    let latestThemeSave = 0;
+
     function showTheme(themeId: AppThemeId) {
       if (get().activeThemeId !== themeId) applyAppTheme(themeRegistry[themeId]);
       set((state) => ({
@@ -100,9 +102,11 @@ export function createReaderThemeStore(input: {
         );
         if (nextBackgroundColor !== readerBackgroundColor)
           saveReaderBackground(nextBackgroundColor);
+        const themeSave = ++latestThemeSave;
         try {
           const nextStore = await getDesktopApi().store.saveSettings({ themeId });
-          input.applyStore(nextStore);
+          // An older save's snapshot would sync the theme back to an earlier choice.
+          if (themeSave === latestThemeSave) input.applyStore(nextStore);
         } catch {
           // Keep the immediate visual choice; a later settings sync can reconcile persistence.
         }

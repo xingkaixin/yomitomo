@@ -24,7 +24,7 @@ function agentSaveReducer(state: AgentSaveState, event: AgentSaveEvent): AgentSa
     case 'saveFailed':
       return { agentSaveError: event.error, agentSaveState: 'idle' };
     case 'saveStarted':
-      return { ...state, agentSaveState: 'saving' };
+      return { agentSaveError: '', agentSaveState: 'saving' };
     case 'saveSucceeded':
       return { agentSaveError: '', agentSaveState: 'saved' };
     case 'savedNoticeExpired':
