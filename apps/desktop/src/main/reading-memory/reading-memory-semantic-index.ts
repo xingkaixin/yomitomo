@@ -90,6 +90,7 @@ export function createReadingMemorySemanticIndex(
   let disposePromise: Promise<void> | null = null;
   // Keyset cursor over evidence ids, so each batch does not rescan already indexed rows.
   let indexCursor = { generation: -1, afterId: '' };
+  let evidenceRevision = 0;
 
   const selectModel = (executor: ReadingMemorySqliteExecutor) => {
     const target = installedModel(options.modelLifecycle);
@@ -184,6 +185,7 @@ export function createReadingMemorySemanticIndex(
   const buildNextBatch = async (signal: AbortSignal): Promise<number | null> => {
     const installation = installedModel(options.modelLifecycle);
     if (!installation) return null;
+    const revision = evidenceRevision;
     const model = {
       modelVersion: installation.internalId,
       dimension: installation.manifest.vector.dimension,
@@ -248,7 +250,8 @@ export function createReadingMemorySemanticIndex(
     });
     if (activated) await retirePreviousModel(snapshot.generation, signal);
     indexingFailed = false;
-    return null;
+    // schedule() ignores notifications while this pass runs, so evidence added after the empty read needs another pass.
+    return evidenceRevision === revision ? null : 0;
   };
 
   const schedule = (delayMs = 0) => {
@@ -345,6 +348,7 @@ export function createReadingMemorySemanticIndex(
       await reconcileModels(reason);
     },
     notifyEvidenceChanged: () => {
+      evidenceRevision += 1;
       indexCursor = { generation: -1, afterId: '' };
       schedule();
     },
