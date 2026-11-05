@@ -17,6 +17,7 @@ import {
 } from '../components/ui/slide-to-unlock';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
 import { getDesktopApi } from '../shell/app-desktop-api';
+import { appToast } from '../shell/app-toast';
 
 type AppLockStep = 'slide' | 'pin';
 
@@ -99,7 +100,7 @@ export function useAppLockController({
       onStoreUpdated(rendererStoreForAppLockState(nextStore));
       playAppSoundEffect('app_lock.locked', nextStore.settings);
     } catch {
-      dispatch({ type: 'failed', error: t('appLock.verifyFailed') });
+      appToast.error(t('appLock.lockFailed'));
     }
   }
 
@@ -156,7 +157,6 @@ type AppLockState = {
 };
 
 type AppLockEvent =
-  | { type: 'failed'; error: string }
   | { type: 'lockRequested' }
   | { type: 'pinEdited'; pin: string }
   | { type: 'slideCompleted' }
@@ -174,8 +174,6 @@ const initialAppLockState: AppLockState = {
 
 function appLockReducer(state: AppLockState, event: AppLockEvent): AppLockState {
   switch (event.type) {
-    case 'failed':
-      return { ...state, error: event.error };
     case 'lockRequested':
       return { ...state, error: '', inputKey: state.inputKey + 1, pin: '', step: 'slide' };
     case 'pinEdited':
