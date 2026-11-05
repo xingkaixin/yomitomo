@@ -861,11 +861,13 @@ function ArticleImportDialog({
     importCloseTimerRef.current = null;
   }
 
-  function cancelImport() {
+  async function cancelImport() {
     if (importState.type !== 'submitting') return;
     const requestId = importRequestIdRef.current;
+    // Main refuses once the parsed article is handed to persistence; the pending result then reports the real outcome.
+    if (!(await onCancelArticleImport?.(articleImportRequestId(requestId)))) return;
+    if (importRequestIdRef.current !== requestId) return;
     importRequestIdRef.current += 1;
-    void onCancelArticleImport?.(articleImportRequestId(requestId));
     clearCancelDelayTimer();
     clearImportCloseTimer();
     onBusyChange(false);
