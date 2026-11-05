@@ -119,7 +119,7 @@ export function createReadingMemoryEmbeddingService(
     options.createProcess ?? ((url, forkOptions) => fork(url, [], forkOptions));
   let session: WorkerSession | null = null;
   let activeBatch: ActiveBatch | null = null;
-  let terminating: { promise: Promise<void>; reason: 'idle' | 'failure' } | null = null;
+  let terminating: Promise<void> | null = null;
   let idle: Fiber.Fiber<void> | null = null;
   let nextRequestId = 1;
   let disposePromise: Promise<void> | null = null;
@@ -129,27 +129,21 @@ export function createReadingMemoryEmbeddingService(
     idle = null;
   };
 
-  const terminateSession = (
-    current: WorkerSession,
-    reason: 'idle' | 'failure' = 'failure',
-  ): Promise<void> => {
+  const terminateSession = (current: WorkerSession): Promise<void> => {
     cancelIdle();
     if (session === current) session = null;
     detachSession(current);
-    const tracked = {
-      reason,
-      promise: (async () => {
-        try {
-          await killProcess(current.worker);
-        } finally {
-          current.worker.off('error', absorbWorkerError);
-        }
-      })().finally(() => {
-        if (terminating === tracked) terminating = null;
-      }),
-    };
+    const tracked: Promise<void> = (async () => {
+      try {
+        await killProcess(current.worker);
+      } finally {
+        current.worker.off('error', absorbWorkerError);
+      }
+    })().finally(() => {
+      if (terminating === tracked) terminating = null;
+    });
     terminating = tracked;
-    return tracked.promise;
+    return tracked;
   };
 
   const scheduleIdle = (current: WorkerSession) => {
@@ -159,7 +153,7 @@ export function createReadingMemoryEmbeddingService(
         Effect.flatMap(() => {
           idle = null;
           if (session !== current || activeBatch || disposePromise) return Effect.void;
-          return Effect.promise(() => terminateSession(current, 'idle'));
+          return Effect.promise(() => terminateSession(current));
         }),
       ),
     );
@@ -225,7 +219,7 @@ export function createReadingMemoryEmbeddingService(
     requestValue: ReadingMemoryEmbeddingRequest,
     { signal }: ReadingMemoryEmbeddingCallOptions = {},
   ) => {
-    if (terminating?.reason === 'idle') await terminating.promise;
+    if (terminating) await terminating;
     if (disposePromise) throw new ReadingMemoryEmbeddingError('READING_MEMORY_EMBEDDING_DISPOSED');
     if (activeBatch || terminating) {
       throw new ReadingMemoryEmbeddingError('READING_MEMORY_EMBEDDING_BUSY');
@@ -309,7 +303,7 @@ export function createReadingMemoryEmbeddingService(
         failBatch(batch, 'READING_MEMORY_EMBEDDING_DISPOSED');
         await Effect.runPromise(Fiber.await(batch.fiber));
       }
-      if (terminating) await terminating.promise;
+      if (terminating) await terminating;
       const current = session;
       if (!current) return;
       session = null;
