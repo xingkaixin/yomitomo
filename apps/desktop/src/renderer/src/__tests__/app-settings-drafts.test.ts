@@ -62,6 +62,20 @@ describe('settings draft store', () => {
     expect(drafts().provider).toMatchObject({ canSave: false, saveState: 'saved' });
   });
 
+  it('does not report a connection result for a provider draft edited during the test', async () => {
+    const pending = deferred<{ ok: boolean }>();
+    stubDesktop({ provider: { test: () => pending.promise } });
+    const { drafts } = startDrafts();
+    drafts().provider.create();
+    const request = drafts().provider.test(drafts().provider.value);
+    drafts().provider.update({ ...drafts().provider.value, apiKey: 'edited' });
+
+    pending.resolve({ ok: true });
+    await request;
+
+    expect(drafts().provider.testState.status).toBe('idle');
+  });
+
   it('persists the default model with route settings and preserves task overrides', async () => {
     const initial = makeStore({ settings: { reviewAssistantProviderId: 'review-provider' } });
     const saveSettings = vi.fn(async (patch: AppSettingsPatch) => ({
