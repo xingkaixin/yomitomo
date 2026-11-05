@@ -79,7 +79,8 @@ export function AddThoughtDialog({
     Boolean(draft.trim()) && !submitting && (mode === 'self' || mentionedAgents.length > 0);
   const showingAssistantRun = mode === 'assistant' && runningAgents.length > 0;
   const runIsActive = runningAgents.some((run) => run.status === 'active');
-  const canCancel = !showingAssistantRun || !runIsActive;
+  // The submission closes the dialog itself; closing early lets it close a reopened dialog.
+  const canCancel = !submitting && (!showingAssistantRun || !runIsActive);
   const handleSubmitKeyDown = useCompositionSubmit({
     messageSendShortcut: 'mod-enter',
     onCancel,
