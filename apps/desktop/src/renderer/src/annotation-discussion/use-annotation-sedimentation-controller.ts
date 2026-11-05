@@ -335,7 +335,8 @@ export function useAnnotationSedimentationController({
   }
 
   async function runOrganize() {
-    if (!activeAgent || busy) return;
+    // Starting resets the proposal workflow, which would drop a pending review preview.
+    if (!activeAgent || busy || hasPendingDraftPreview) return;
     recordOperation(annotation.id, 'organize', 'started');
     dispatchProposalWorkflow({ type: 'reset-organize-decisions' });
     const now = new Date().toISOString();
