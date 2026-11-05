@@ -227,6 +227,7 @@ export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSession
     }
 
     async function syncWeReadLibrary() {
+      if (get().weReadLibrarySyncing) return;
       set({ weReadLibrarySyncing: true });
       const state = await syncWeReadLibraryState();
       set({ weReadLibrarySyncing: false });
