@@ -227,10 +227,12 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     const trackKey = `${articleId}|${requestId}`;
     if (tracked.has(trackKey)) return;
     tracked.add(trackKey);
+    let tracking: AssistantRunRecord | undefined;
     try {
       await ports.store.use(articleId, async (harness) => {
         const run = (await harness.snapshot(ChannelRunsDoc, context))?.runs[requestId];
         if (!run) return;
+        tracking = run;
         const fork = await harness.conversation(run.forkId as ConversationId, context);
         if (!fork) return dropRun(harness, articleId, requestId, run, 'fork_missing');
         await watchProgress(harness, articleId, run);
@@ -249,6 +251,9 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
       });
     } catch (error) {
       ports.logError('assistant_channel.run_failed', error, { articleId, requestId });
+      // Windows keep a run's placeholder and block chat until a final event, including when
+      // removing the session closes the harness under the run.
+      if (tracking) publishFailed(articleId, tracking, 'run_failed');
     } finally {
       tracked.delete(trackKey);
     }
@@ -360,8 +365,11 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
       steps,
       ...(saved ? { commentId } : { error: 'channel_deleted' }),
     });
+    // The run already settled above, so a compaction error must not reach track() and fail it.
     if (main && identity?.provider) {
-      await compactWhenLarge(main, piModelRef(identity.provider, identity.agent));
+      await compactWhenLarge(main, piModelRef(identity.provider, identity.agent)).catch(
+        (error: unknown) => ports.logError('assistant_channel.compact_failed', error),
+      );
     }
   }
 
@@ -382,6 +390,10 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
       return Object.keys(state.runs).length;
     }, context);
     if (remaining === 0) await ports.markPending(articleId, false);
+    publishFailed(articleId, run, reason);
+  }
+
+  function publishFailed(articleId: string, run: AssistantRunRecord, reason: string) {
     const runKey = runKeyFor(articleId, run.forkId);
     stopProgress(runKey);
     publish({
@@ -521,9 +533,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     const view = await main.context(context);
     if (JSON.stringify(view.messages).length < MAIN_COMPACT_CHARS) return;
     await main.configure({ model }, context);
-    await main.compact(undefined, context).catch((error: unknown) => {
-      ports.logError('assistant_channel.compact_failed', error);
-    });
+    await main.compact(undefined, context);
   }
 
   return {
