@@ -303,7 +303,6 @@ function discussionShellReducer(
             : run,
         ),
         addThoughtCelebrating: false,
-        sendError: '',
         submittingThought: true,
       };
     case 'assistantThoughtRunsStarted':
@@ -363,7 +362,6 @@ function discussionShellReducer(
         newThoughtDraft: '',
         newThoughtMode: 'self',
         newThoughtOpen: true,
-        sendError: '',
       };
     case 'replyCaretMoved':
       return { ...state, replyCaretIndex: event.caretIndex };
@@ -391,7 +389,6 @@ function discussionShellReducer(
         newThoughtDraft: event.draft,
         newThoughtMode: 'self',
         newThoughtOpen: true,
-        sendError: '',
       };
     case 'thoughtPinToggled': {
       const pinnedThoughtIds = new Set(state.pinnedThoughtIds);
@@ -404,7 +401,7 @@ function discussionShellReducer(
     case 'thoughtSubmitSettled':
       return { ...state, submittingThought: false };
     case 'thoughtSubmitStarted':
-      return { ...state, sendError: '', submittingThought: true };
+      return { ...state, submittingThought: true };
   }
 }
 
@@ -689,10 +686,8 @@ function AnnotationDiscussionShell({
         annotationId: annotation.id,
         error,
       });
-      dispatch({
-        type: 'errorShown',
-        error: assistantRuntimeErrorMessage(error, 'discussion.addThought.failed'),
-      });
+      // The reply composer's status sits behind this modal, and is absent without a thread.
+      appToast.error(assistantRuntimeErrorMessage(error, 'discussion.addThought.failed'));
     } finally {
       dispatch({ type: 'thoughtSubmitSettled' });
     }
