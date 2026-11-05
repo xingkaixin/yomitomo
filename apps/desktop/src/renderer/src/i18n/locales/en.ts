@@ -684,6 +684,7 @@ export const enResources = {
       invalidPin: 'Incorrect PIN.',
       retryAfter: 'Too many incorrect attempts. Try again in {{seconds}} seconds.',
       verifyFailed: 'PIN verification failed. Try again.',
+      lockFailed: 'Could not lock the app. Try again.',
       verifying: 'Verifying',
       unlock: 'Unlock',
     },

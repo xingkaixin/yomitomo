@@ -649,6 +649,7 @@ export const zhCNResources = {
       invalidPin: 'PIN 不正确。',
       retryAfter: '错误次数过多，请在 {{seconds}} 秒后重试。',
       verifyFailed: 'PIN 校验失败，请重试。',
+      lockFailed: '应用未能锁定，请重试。',
       verifying: '校验中',
       unlock: '解锁',
     },

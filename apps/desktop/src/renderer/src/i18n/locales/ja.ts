@@ -691,6 +691,7 @@ export const jaResources = {
       invalidPin: 'PINが間違っています。',
       retryAfter: '間違った試行が多すぎます。 {{seconds}} 秒後にもう一度お試しください。',
       verifyFailed: 'PIN の検証に失敗しました。もう一度やり直してください。',
+      lockFailed: 'アプリをロックできませんでした。もう一度やり直してください。',
       verifying: '確認中',
       unlock: 'ロックを解除する',
     },
