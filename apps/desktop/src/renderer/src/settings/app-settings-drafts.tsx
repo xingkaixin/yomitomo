@@ -80,6 +80,7 @@ export function createSettingsDraftStore(desktopStore: DesktopStoreApi): Setting
   return createStore<SettingsDraftState>()((set, get) => {
     let providerEditor: symbol | undefined;
     let initialProviderSelected = false;
+    let activeTest: symbol | undefined;
     const currentStore = () => desktopStore.getState().store;
     const setStatus = (key: DraftKey) => (status: SaveStatusState) =>
       set((state) => ({ saves: { ...state.saves, [key]: status } }));
@@ -181,7 +182,10 @@ export function createSettingsDraftStore(desktopStore: DesktopStoreApi): Setting
         return savedProvider;
       },
       setStatus: setStatus('provider'),
-      setValue: (providerDraft) => set({ providerDraft, testState: idleTestState }),
+      setValue: (providerDraft) => {
+        activeTest = undefined;
+        set({ providerDraft, testState: idleTestState });
+      },
     });
 
     function openProviderEditor(selectedProviderId: string | null, draft: ProviderDraft) {
@@ -259,11 +263,15 @@ export function createSettingsDraftStore(desktopStore: DesktopStoreApi): Setting
           selectProvider(providers[0]);
         },
         testProvider: async (draft) => {
+          const request = Symbol();
+          activeTest = request;
           set({ testState: { status: 'testing' } });
           try {
             const result = await getDesktopApi().provider.test(draft);
+            if (activeTest !== request) return;
             set({ testState: { status: result.ok ? 'success' : 'error' } });
           } catch {
+            if (activeTest !== request) return;
             set({ testState: { status: 'error' } });
           }
         },
