@@ -334,7 +334,7 @@ async function createMeasurementEpub() {
       `<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><title>${section.id}</title></head><body>${section.body}</body></html>`,
     );
   }
-  return zip.generateAsync({ type: 'nodebuffer' });
+  return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
 }
 
 function createGradientPng(width: number, height: number) {
