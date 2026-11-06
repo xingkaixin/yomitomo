@@ -760,7 +760,7 @@ class Loader {
         } else this.#refCount.set(href, count)
     }
     // load manifest item, recursively loading all resources as needed
-    async loadItem(item, parents = []) {
+    async loadItem(item, parents = [], timing) {
         if (!item) return null
         const { href, mediaType } = item
 
@@ -778,7 +778,7 @@ class Loader {
             (isScript || [MIME.XHTML, MIME.HTML, MIME.CSS, MIME.SVG].includes(mediaType))
             // prevent circular references
             && parents.every(p => p !== href)
-        if (shouldReplace) return this.loadReplaced(item, parents)
+        if (shouldReplace) return this.loadReplaced(item, parents, timing)
         // NOTE: this can be replaced with `Promise.try()`
         const tryLoadBlob = Promise.resolve().then(() => this.loadBlob(href))
         return this.createURL(href, tryLoadBlob, mediaType, parent)
@@ -790,16 +790,24 @@ class Loader {
         if (!item) return href
         return this.loadItem(item, parents.concat(base))
     }
-    async loadReplaced(item, parents = []) {
+    async loadReplaced(item, parents = [], timing) {
         const { href, mediaType } = item
         const parent = parents.at(-1)
+        let lapStartedAt = performance.now()
+        const lap = key => {
+            const now = performance.now()
+            if (timing) timing[key] = now - lapStartedAt
+            lapStartedAt = now
+        }
         let str = ''
         try {
             str = await this.loadText(href)
         } catch (e) {
             return this.createURL(href, Promise.reject(e), mediaType, parent)
         }
+        lap('readMs')
         if (!str) return null
+        if (timing) timing.textLength = str.length
 
         // note that one can also just use `replaceString` for everything:
         // ```
@@ -820,6 +828,7 @@ class Loader {
                 item.mediaType = MIME.HTML
                 doc = new DOMParser().parseFromString(str, item.mediaType)
             }
+            lap('parseMs')
             // replace hrefs in XML processing instructions
             // this is mainly for SVGs that use xml-stylesheet
             if ([MIME.XHTML, MIME.SVG].includes(item.mediaType)) {
@@ -859,7 +868,9 @@ class Loader {
                 el.setAttribute('style',
                     await this.replaceCSS(el.getAttribute('style'), href, parents))
             // TODO: replace inline scripts? probably not worth the trouble
+            lap('resourceMs')
             const result = new XMLSerializer().serializeToString(doc)
+            lap('serializeMs')
             return this.createURL(href, result, item.mediaType, parent)
         }
 
@@ -985,7 +996,7 @@ ${doc.querySelector('parsererror').innerText}`)
             }
             return {
                 id: item.href,
-                load: () => this.#loader.loadItem(item),
+                load: timing => this.#loader.loadItem(item, [], timing),
                 unload: () => this.#loader.unloadItem(item),
                 createDocument: () => this.loadDocument(item),
                 size: this.getSize(item.href),

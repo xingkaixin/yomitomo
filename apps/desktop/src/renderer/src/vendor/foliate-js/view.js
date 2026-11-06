@@ -227,6 +227,8 @@ export class View extends HTMLElement {
             e.detail.attach(this.#createOverlayer(e.detail)))
         this.renderer.addEventListener('page-turn-start', e =>
             this.#emit('page-turn-start', e.detail))
+        this.renderer.addEventListener('section-load-timing', e =>
+            this.#emit('section-load-timing', e.detail))
         this.renderer.open(book)
         this.#root.append(this.renderer)
 
