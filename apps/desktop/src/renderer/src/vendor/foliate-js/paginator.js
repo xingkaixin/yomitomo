@@ -216,6 +216,7 @@ class View {
     #column = true
     #size
     #layout = {}
+    #imageSizeTiming = { imageCount: 0, ms: 0 }
     constructor({ container, onExpand }) {
         this.container = container
         this.onExpand = onExpand
@@ -248,18 +249,27 @@ class View {
     get document() {
         return this.#iframe.contentDocument
     }
-    async load(src, afterLoad, beforeRender) {
+    async load(src, afterLoad, beforeRender, timing = {}) {
         if (typeof src !== 'string') throw new Error(`${src} is not string`)
         return new Promise(resolve => {
+            let lapStartedAt = performance.now()
+            const lap = key => {
+                const now = performance.now()
+                timing[key] = now - lapStartedAt
+                lapStartedAt = now
+            }
             this.#iframe.addEventListener('load', () => {
+                lap('iframeMs')
                 const doc = this.document
                 afterLoad?.(doc)
+                lap('setupMs')
 
                 // it needs to be visible for Firefox to get computed style
                 this.#iframe.style.display = 'block'
                 const { vertical, rtl } = getDirection(doc)
                 const background = getBackground(doc)
                 this.#iframe.style.display = 'none'
+                lap('styleMs')
 
                 this.#vertical = vertical
                 this.#rtl = rtl
@@ -269,6 +279,9 @@ class View {
                 this.#iframe.style.display = 'block'
                 this.render(layout)
                 this.#observer.observe(doc.body)
+                lap('renderMs')
+                timing.imageCount = this.#imageSizeTiming.imageCount
+                timing.imageSizeMs = this.#imageSizeTiming.ms
 
                 // the resize observer above doesn't work in Firefox
                 // (see https://bugzilla.mozilla.org/show_bug.cgi?id=1832939)
@@ -337,10 +350,12 @@ class View {
         this.expand()
     }
     setImageSize() {
+        const startedAt = performance.now()
         const { width, height, margin } = this.#layout
         const vertical = this.#vertical
         const doc = this.document
-        for (const el of doc.body.querySelectorAll('img, svg, video')) {
+        const images = doc.body.querySelectorAll('img, svg, video')
+        for (const el of images) {
             // preserve max size if they are already set
             const { maxHeight, maxWidth } = doc.defaultView.getComputedStyle(el)
             setStylesImportant(el, {
@@ -356,6 +371,7 @@ class View {
                 'box-sizing': 'border-box',
             })
         }
+        this.#imageSizeTiming = { imageCount: images.length, ms: performance.now() - startedAt }
     }
     expand() {
         const documentElement = this.document?.documentElement
@@ -980,7 +996,7 @@ export class Paginator extends HTMLElement {
         this.dispatchEvent(new CustomEvent('relocate', { detail }))
     }
     async #display(promise) {
-        const { index, src, anchor, onLoad, select } = await promise
+        const { index, src, anchor, onLoad, select, timing } = await promise
         this.#index = index
         const hasFocus = this.#view?.document?.hasFocus()
         let staleView
@@ -999,7 +1015,7 @@ export class Paginator extends HTMLElement {
                 onLoad?.({ doc, index })
             }
             const beforeRender = this.#beforeRender.bind(this)
-            await view.load(src, afterLoad, beforeRender)
+            await view.load(src, afterLoad, beforeRender, timing)
             this.dispatchEvent(new CustomEvent('create-overlayer', {
                 detail: {
                     doc: view.document, index,
@@ -1008,8 +1024,10 @@ export class Paginator extends HTMLElement {
             }))
             this.#view = view
         }
+        const anchorStartedAt = performance.now()
         await this.scrollToAnchor((typeof anchor === 'function'
             ? anchor(this.#view.document) : anchor) ?? 0, select)
+        if (timing) timing.anchorMs = performance.now() - anchorStartedAt
         if (staleView) {
             Object.assign(this.#view.element.style, {
                 position: 'relative',
@@ -1033,13 +1051,21 @@ export class Paginator extends HTMLElement {
                 this.setStyles(this.#styles)
                 this.dispatchEvent(new CustomEvent('load', { detail }))
             }
-            await this.#display(Promise.resolve(this.sections[index].load())
-                .then(src => ({ index, src, anchor, onLoad, select }))
+            const timing = {}
+            const startedAt = performance.now()
+            await this.#display(Promise.resolve(this.sections[index].load(timing))
+                .then(src => {
+                    timing.loadMs = performance.now() - startedAt
+                    return { index, src, anchor, onLoad, select, timing }
+                })
                 .catch(e => {
                     console.warn(e)
                     console.warn(new Error(`Failed to load section ${index}`))
                     return {}
                 }))
+            if (timing.loadMs !== undefined) this.dispatchEvent(new CustomEvent('section-load-timing', {
+                detail: { index, totalMs: performance.now() - startedAt, ...timing },
+            }))
         }
     }
     async goTo(target) {

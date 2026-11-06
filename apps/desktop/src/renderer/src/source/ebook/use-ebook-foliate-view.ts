@@ -348,6 +348,18 @@ export function useEbookFoliateView({
         });
       };
 
+      const handleSectionLoadTiming = (event: Event) => {
+        const detail = (event as CustomEvent<Record<string, number>>).detail;
+        const size = view?.book?.sections?.[detail.index]?.size;
+        recordRendererPerformanceTiming('ebook_section_load', {
+          articleId: openedArticle.id,
+          sectionSize: typeof size === 'number' ? size : undefined,
+          ...Object.fromEntries(
+            Object.entries(detail).map(([key, value]) => [key, Number(value.toFixed(2))]),
+          ),
+        });
+      };
+
       const handlePageTurnStart = (event: Event) => {
         const detail = (event as CustomEvent<{ direction?: number; reason?: string }>).detail;
         const trace =
@@ -375,6 +387,7 @@ export function useEbookFoliateView({
           view.addEventListener('external-link', handleExternalLink);
           view.addEventListener('load', handleLoad);
           view.addEventListener('page-turn-start', handlePageTurnStart);
+          view.addEventListener('section-load-timing', handleSectionLoadTiming);
           hostElement.replaceChildren(view);
           await view.open(file);
           if (cancelled) return;
@@ -414,6 +427,7 @@ export function useEbookFoliateView({
         view?.removeEventListener('external-link', handleExternalLink);
         view?.removeEventListener('load', handleLoad);
         view?.removeEventListener('page-turn-start', handlePageTurnStart);
+        view?.removeEventListener('section-load-timing', handleSectionLoadTiming);
         cleanupDocumentListeners();
         closeFoliateView(view);
         view?.remove();

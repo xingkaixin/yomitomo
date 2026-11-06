@@ -37,9 +37,9 @@ export function useFoliateInputBridge({
   onFoliateSelectionShortcut,
 }: UseFoliateInputBridgeInput) {
   const observedViewsRef = useRef(new WeakSet<FoliateViewElement>());
-  const observedDocumentsRef = useRef(new WeakSet<Document>());
   const suppressedSelectionDocumentsRef = useRef(new WeakSet<Document>());
-  const listenerCleanupsRef = useRef<Array<() => void>>([]);
+  const viewListenerCleanupsRef = useRef<Array<() => void>>([]);
+  const documentListenerCleanupsRef = useRef(new Map<Document, () => void>());
   const selectionTimersRef = useRef(new Set<number>());
   const foliateClicked = useStableCallback(onFoliateClick);
   const foliatePageTurnClicked = useStableCallback(onFoliatePageTurnClick);
@@ -60,12 +60,13 @@ export function useFoliateInputBridge({
   );
 
   const cleanupFoliateDocumentListeners = useCallback(() => {
-    for (const cleanup of listenerCleanupsRef.current) cleanup();
-    listenerCleanupsRef.current = [];
+    for (const cleanup of viewListenerCleanupsRef.current) cleanup();
+    viewListenerCleanupsRef.current = [];
+    for (const cleanup of documentListenerCleanupsRef.current.values()) cleanup();
+    documentListenerCleanupsRef.current.clear();
     for (const timer of selectionTimersRef.current) window.clearTimeout(timer);
     selectionTimersRef.current.clear();
     observedViewsRef.current = new WeakSet<FoliateViewElement>();
-    observedDocumentsRef.current = new WeakSet<Document>();
     suppressedSelectionDocumentsRef.current = new WeakSet<Document>();
     const canvas = canvasRef.current;
     if (canvas) delete canvas.dataset.ebookClickPagingHover;
@@ -153,7 +154,7 @@ export function useFoliateInputBridge({
       view.addEventListener('mousemove', handleMouseMove);
       view.addEventListener('mouseleave', handleMouseLeave);
       view.addEventListener('pointerdown', handlePointerDown, true);
-      listenerCleanupsRef.current.push(() => {
+      viewListenerCleanupsRef.current.push(() => {
         view.removeEventListener('click', handleClick);
         view.removeEventListener('mousemove', handleMouseMove);
         view.removeEventListener('mouseleave', handleMouseLeave);
@@ -170,9 +171,17 @@ export function useFoliateInputBridge({
   const attachFoliateDocumentListeners = useCallback(
     (view: FoliateViewElement | null) => {
       attachFoliateViewListeners(view);
-      for (const { doc } of currentFoliateContents(view)) {
-        if (!doc || observedDocumentsRef.current.has(doc)) continue;
-        observedDocumentsRef.current.add(doc);
+      const documents = new Set(currentFoliateContents(view).flatMap(({ doc }) => doc ?? []));
+      const documentCleanups = documentListenerCleanupsRef.current;
+      // Foliate replaces the section iframe on each chapter change; holding the old cleanup
+      // would keep that section's whole DOM alive until the book closes.
+      for (const [doc, cleanup] of documentCleanups) {
+        if (documents.has(doc)) continue;
+        cleanup();
+        documentCleanups.delete(doc);
+      }
+      for (const doc of documents) {
+        if (documentCleanups.has(doc)) continue;
 
         const handleSelection = () => {
           const timer = window.setTimeout(() => {
@@ -230,7 +239,7 @@ export function useFoliateInputBridge({
         doc.addEventListener('mousemove', handleMouseMove);
         doc.addEventListener('mouseleave', handleMouseLeave);
         doc.addEventListener('pointerdown', handlePointerDown, true);
-        listenerCleanupsRef.current.push(() => {
+        documentCleanups.set(doc, () => {
           doc.removeEventListener('mousedown', handleMouseDown, true);
           doc.removeEventListener('mouseup', handleSelection);
           doc.removeEventListener('click', handleClick);
