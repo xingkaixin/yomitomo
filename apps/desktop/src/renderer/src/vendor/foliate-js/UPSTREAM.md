@@ -24,4 +24,6 @@ instead of kept compatible. Performance changes need a before/after run of
 - `epub.js`, `paginator.js`, `view.js`: `section-load-timing` reports per-stage section load times
   (zip read, parse, resource replacement, serialization, iframe load, style, layout, anchor). The
   reader records them as `performance.ebook_section_load`.
+- `view.js`: zip.js reads entries in 1 MiB chunks instead of 64 KiB. Each chunk is a separate Blob
+  read in the renderer, so image-heavy sections load faster.
 - `view.d.ts`: types for the parts of the API the reader calls.
