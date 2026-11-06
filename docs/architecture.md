@@ -89,6 +89,9 @@ telemetry → shared
 - source 差异止于各自的 adapter，不进入共享 session、IPC 或 AI transport。Web 与 EPUB 的定位、
   分页和选区差异是真实差异，不为减少重复合并成一个总控 hook。
 - EPUB/Kindle 导入解析在 worker thread 中执行，避免阻塞主进程；PDF 渲染与文本层使用 PDFium WASM。
+- EPUB/AZW3/MOBI 渲染使用 `apps/desktop/src/renderer/src/vendor/foliate-js`，这是自维护的 fork，
+  不再跟随上游。改动只服务 Electron 下的分页阅读，不保留其他浏览器的兼容分支；本地改动列在该目录的
+  `UPSTREAM.md`，性能改动用 `apps/desktop/e2e/performance/ebook-reader.test.ts` 做前后对比。
 
 ## AI 链路
 
