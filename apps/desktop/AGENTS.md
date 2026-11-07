@@ -5,14 +5,14 @@
 ## 模块边界
 
 - renderer 的设置业务放在 `apps/desktop/src/renderer/src/settings`，通用应用外壳和展示工具放在 `apps/desktop/src/renderer/src/shell` 等模块。
-- 文章导入逻辑放在 `apps/desktop/src/main/articles/article-import.ts`。
-- PDF 导入逻辑放在 `apps/desktop/src/main/pdf/pdf-import.ts`。PDF 阅读器 UI 和 PDFium 工具留在 desktop 或 `packages/reader-ui` 边界内，不要把 Electron 专用逻辑放进共享包。
+- PDF 阅读器 UI 和 PDFium 工具留在 desktop 或 `packages/reader-ui` 边界内，不要把 Electron 专用逻辑放进共享包。
 - 微信读书同步逻辑放在 `apps/desktop/src/main/weread`，共享包只承载微信读书协议类型。
 - 桌面端复用的阅读器 UI、样式、工具和 hooks 放在 `packages/reader-ui/src`。
+- `apps/desktop/src/renderer/src/vendor/foliate-js` 是自维护 fork，不跟随上游，lint 跳过该目录。改动后在同目录 `UPSTREAM.md` 的 Local changes 中记录。
 
 ## 数据与凭据
 
-- 持久化路径基于 Electron `app.getPath("userData")`。
+- 迁移只追加，写在 `apps/desktop/src/main/db/migrations.ts`。旧版本客户端读不了的迁移必须提升 `minReaderLevel`（`apps/desktop/src/main/db/compatibility.ts`）；不通过删除迁移记录或降低级别来降级。
 - 新写入的 provider API key 保存在系统 keyring，SQLite 只保存 key 引用。SQLite 中的旧明文列仅用于存量数据迁移兼容；不要为新流程写入明文密钥。
 
 ## IPC 与状态更新
