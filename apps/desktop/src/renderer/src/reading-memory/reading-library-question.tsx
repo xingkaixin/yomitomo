@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { Collection, ReadingEvidenceScope, ReadingJudgmentClaim } from '@yomitomo/shared';
 import type { ReadingLibraryAnswerResult, ReadingLibraryContext } from '../../../ipc-contract';
 import { Button } from '../components/ui/button';
+import { ShimmeringText } from '../components/ui/shimmering-text';
 import { Textarea } from '../components/ui/textarea';
 import type { ReadingEvidenceSourceTarget } from '../shell/app-reading-types';
 import { ReadingLibraryAnswer } from './reading-library-answer';
@@ -88,6 +89,8 @@ export function ReadingLibraryQuestion({
     : undefined;
 
   const remote = ready?.remote;
+  const motion =
+    state?.phase === 'searching' ? 'searching' : remote === 'answering' ? 'answering' : undefined;
   const leftFocusedRemote = useRef(false);
 
   // Attached to the root so it runs after the privacy, answering and submit elements commit.
@@ -102,235 +105,261 @@ export function ReadingLibraryQuestion({
   }, [remote]);
 
   return (
-    <div ref={moveFocusWithRemote} className="reading-library-question">
-      <div className="reading-library-question-inner">
-        <header className="reading-library-heading">
-          <h1>{t('readingMemory.library.title')}</h1>
-          <p>{t('readingMemory.library.description')}</p>
-          <p>{t('readingMemory.library.scopeHint')}</p>
-        </header>
-        <div className="reading-library-scope-controls">
-          <label>
-            <span>{t('readingMemory.library.scope')}</span>
-            <select
-              value={selection.kind}
-              onChange={(event) => dispatch({ type: 'scopeKindChosen', kind: event.target.value })}
-            >
-              <option value="library">{t('readingMemory.library.scopeLibrary')}</option>
-              <option value="collection">{t('readingMemory.library.scopeCollection')}</option>
-              <option value="sources">{t('readingMemory.library.scopeSources')}</option>
-            </select>
-          </label>
-          {selection.kind === 'collection' ? (
+    <div className="reading-library-frame" data-motion={motion}>
+      <div className="reading-library-aurora" aria-hidden="true">
+        <div className="reading-library-aurora-glow">
+          <span />
+          <span />
+          <span />
+        </div>
+        {output ? (
+          <>
+            <span className="reading-library-aurora-flood" />
+            <span className="reading-library-aurora-arc" />
+          </>
+        ) : null}
+      </div>
+      <div ref={moveFocusWithRemote} className="reading-library-question">
+        <div className="reading-library-question-inner">
+          <header className="reading-library-heading">
+            <h1>{t('readingMemory.library.title')}</h1>
+            <p>{t('readingMemory.library.description')}</p>
+            <p>{t('readingMemory.library.scopeHint')}</p>
+          </header>
+          <div className="reading-library-scope-controls">
             <label>
-              <span>{t('readingMemory.library.collection')}</span>
+              <span>{t('readingMemory.library.scope')}</span>
               <select
-                value={scope?.kind === 'collection' ? scope.collectionId : ''}
-                onChange={(event) => dispatch({ type: 'collectionChosen', id: event.target.value })}
+                value={selection.kind}
+                onChange={(event) =>
+                  dispatch({ type: 'scopeKindChosen', kind: event.target.value })
+                }
               >
-                <option value="">{t('readingMemory.library.collection')}</option>
-                {collections.map((collection) => (
-                  <option key={collection.id} value={collection.id}>
-                    {collection.name}
-                  </option>
-                ))}
+                <option value="library">{t('readingMemory.library.scopeLibrary')}</option>
+                <option value="collection">{t('readingMemory.library.scopeCollection')}</option>
+                <option value="sources">{t('readingMemory.library.scopeSources')}</option>
               </select>
             </label>
-          ) : null}
-          {selection.kind === 'sources' ? (
-            <div className="reading-library-source-selection">
-              <Button variant="secondary" onClick={() => dispatch({ type: 'sourcePickerOpened' })}>
-                {t('readingMemory.library.chooseSources')}
+            {selection.kind === 'collection' ? (
+              <label>
+                <span>{t('readingMemory.library.collection')}</span>
+                <select
+                  value={scope?.kind === 'collection' ? scope.collectionId : ''}
+                  onChange={(event) =>
+                    dispatch({ type: 'collectionChosen', id: event.target.value })
+                  }
+                >
+                  <option value="">{t('readingMemory.library.collection')}</option>
+                  {collections.map((collection) => (
+                    <option key={collection.id} value={collection.id}>
+                      {collection.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            {selection.kind === 'sources' ? (
+              <div className="reading-library-source-selection">
+                <Button
+                  variant="secondary"
+                  onClick={() => dispatch({ type: 'sourcePickerOpened' })}
+                >
+                  {t('readingMemory.library.chooseSources')}
+                </Button>
+                <span>
+                  {t('readingMemory.library.selectedSources', { count: selection.sources.length })}
+                </span>
+              </div>
+            ) : null}
+          </div>
+
+          <section
+            className="reading-library-context"
+            aria-label={t('readingMemory.library.context')}
+          >
+            <h2>{t('readingMemory.library.context')}</h2>
+            {!scope ? <p>{t('readingMemory.library.chooseCollection')}</p> : null}
+            {scope?.kind === 'sources' && scope.sources.length === 0 ? (
+              <p>{t('readingMemory.library.chooseSomeSources')}</p>
+            ) : null}
+            {contextState?.phase === 'loading' ? (
+              <p role="status">{t('readingMemory.library.contextLoading')}</p>
+            ) : null}
+            {contextState?.phase === 'failed' ? (
+              <div>
+                <p role="alert">{t('readingMemory.library.contextFailed')}</p>
+                <Button variant="secondary" onClick={reloadContext}>
+                  {t('readingMemory.library.reloadContext')}
+                </Button>
+              </div>
+            ) : null}
+            {context ? <LibraryContextSummary context={context} /> : null}
+            {context?.semantic.queryModelVersion === null || result?.mode === 'keyword' ? (
+              <p>{t('readingMemory.library.keywordHint')}</p>
+            ) : null}
+          </section>
+
+          <form
+            className="reading-library-query"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (canAsk) void ask(question);
+            }}
+          >
+            <label>
+              <span>{t('readingMemory.library.question')}</span>
+              <Textarea
+                value={question}
+                maxLength={10000}
+                disabled={busy}
+                placeholder={t('readingMemory.library.placeholder')}
+                onChange={(event) =>
+                  dispatch({ type: 'questionEdited', question: event.target.value })
+                }
+              />
+            </label>
+            <div className="reading-library-actions">
+              {busy ? (
+                <Button type="button" variant="secondary" onClick={cancel}>
+                  {t('common.cancel')}
+                </Button>
+              ) : null}
+              <Button ref={submitRef} type="submit" disabled={!canAsk}>
+                {t('readingMemory.library.ask')}
               </Button>
-              <span>
-                {t('readingMemory.library.selectedSources', { count: selection.sources.length })}
-              </span>
+            </div>
+          </form>
+
+          {state ? (
+            <blockquote
+              className="reading-library-submitted"
+              aria-label={t('readingMemory.library.submittedQuestion')}
+            >
+              {state.request.question}
+            </blockquote>
+          ) : null}
+          {state?.phase === 'searching' ? (
+            <p role="status">
+              <ShimmeringText text={t('readingMemory.relations.searching')} duration={1.6} />
+            </p>
+          ) : null}
+          {state?.phase === 'search-failed' ? (
+            <p role="alert">{t('readingMemory.relations.searchFailed')}</p>
+          ) : null}
+          {ready?.remote === 'answering' ? (
+            <p ref={answeringRef} tabIndex={-1} role="status">
+              <ShimmeringText text={t('readingMemory.library.answering')} duration={1.6} />
+            </p>
+          ) : null}
+          {ready?.remote === 'privacy' ? (
+            <section
+              ref={privacyRef}
+              tabIndex={-1}
+              className="reading-library-privacy"
+              aria-label={t('readingMemory.privacy.title')}
+            >
+              <h2>{t('readingMemory.privacy.title')}</h2>
+              <p>{t('readingMemory.privacy.content')}</p>
+              <p>{t('readingMemory.privacy.excluded')}</p>
+              <p>{t('readingMemory.privacy.control')}</p>
+              <p>{t('readingMemory.privacy.recipient', recipient)}</p>
+              <div className="reading-library-actions">
+                <Button variant="secondary" onClick={dismissPrivacy}>
+                  {t('readingMemory.privacy.stayLocal')}
+                </Button>
+                <Button onClick={() => void answer(true)}>
+                  {t('readingMemory.library.confirmPrivacy')}
+                </Button>
+              </div>
+            </section>
+          ) : null}
+          {result?.providerChanged ? (
+            <p role="alert">{t('readingMemory.providerChanged')}</p>
+          ) : null}
+          {ready?.remote === 'canceled' ? (
+            <p role="status">{t('readingMemory.library.canceled')}</p>
+          ) : null}
+          {ready?.remote === 'failed' ? (
+            <p role="alert">{t('readingMemory.library.generationFailed')}</p>
+          ) : null}
+          {judgment?.state === 'local' && !result?.providerChanged ? (
+            <p role="alert">{t(localFailureLabels[judgment.reason])}</p>
+          ) : null}
+          {canAnswer ? (
+            <div className="reading-library-actions">
+              <Button variant="secondary" onClick={() => void answer()}>
+                {canRetryAnswer
+                  ? t('readingMemory.library.retryAnswer')
+                  : t('readingMemory.library.answerWith', recipient)}
+              </Button>
             </div>
           ) : null}
-        </div>
-
-        <section
-          className="reading-library-context"
-          aria-label={t('readingMemory.library.context')}
-        >
-          <h2>{t('readingMemory.library.context')}</h2>
-          {!scope ? <p>{t('readingMemory.library.chooseCollection')}</p> : null}
-          {scope?.kind === 'sources' && scope.sources.length === 0 ? (
-            <p>{t('readingMemory.library.chooseSomeSources')}</p>
+          {judged ? (
+            <section
+              className="reading-library-receipt"
+              aria-label={t('readingMemory.library.receipt')}
+            >
+              <h2>{t('readingMemory.library.receipt')}</h2>
+              {judged.sentProvider ? (
+                <p>
+                  {t('readingMemory.privacy.recipient', {
+                    provider: judged.sentProvider.name,
+                    model: judged.sentProvider.modelName,
+                  })}
+                </p>
+              ) : null}
+              <p>{t('readingMemory.sentEvidence', { count: judged.judgment.sentEvidenceCount })}</p>
+              {judged.judgment.inputTruncated ? <p>{t('readingMemory.inputTruncated')}</p> : null}
+            </section>
           ) : null}
-          {contextState?.phase === 'loading' ? (
-            <p role="status">{t('readingMemory.library.contextLoading')}</p>
-          ) : null}
-          {contextState?.phase === 'failed' ? (
-            <div>
-              <p role="alert">{t('readingMemory.library.contextFailed')}</p>
-              <Button variant="secondary" onClick={reloadContext}>
-                {t('readingMemory.library.reloadContext')}
-              </Button>
-            </div>
-          ) : null}
-          {context ? <LibraryContextSummary context={context} /> : null}
-          {context?.semantic.queryModelVersion === null || result?.mode === 'keyword' ? (
-            <p>{t('readingMemory.library.keywordHint')}</p>
-          ) : null}
-        </section>
-
-        <form
-          className="reading-library-query"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (canAsk) void ask(question);
-          }}
-        >
-          <label>
-            <span>{t('readingMemory.library.question')}</span>
-            <Textarea
-              value={question}
-              maxLength={10000}
-              disabled={busy}
-              placeholder={t('readingMemory.library.placeholder')}
-              onChange={(event) =>
-                dispatch({ type: 'questionEdited', question: event.target.value })
+          {output && judged ? (
+            <ReadingLibraryAnswer
+              output={output}
+              evidence={evidence}
+              onOpenEvidenceSource={onOpenEvidenceSource}
+              onSaveThought={(claim) =>
+                dispatch({ type: 'thoughtDraftOpened', claim, result: judged })
               }
             />
-          </label>
-          <div className="reading-library-actions">
-            {busy ? (
-              <Button type="button" variant="secondary" onClick={cancel}>
-                {t('common.cancel')}
-              </Button>
-            ) : null}
-            <Button ref={submitRef} type="submit" disabled={!canAsk}>
-              {t('readingMemory.library.ask')}
-            </Button>
-          </div>
-        </form>
-
-        {state ? (
-          <blockquote
-            className="reading-library-submitted"
-            aria-label={t('readingMemory.library.submittedQuestion')}
-          >
-            {state.request.question}
-          </blockquote>
-        ) : null}
-        {state?.phase === 'searching' ? (
-          <p role="status">{t('readingMemory.relations.searching')}</p>
-        ) : null}
-        {state?.phase === 'search-failed' ? (
-          <p role="alert">{t('readingMemory.relations.searchFailed')}</p>
-        ) : null}
-        {ready?.remote === 'answering' ? (
-          <p ref={answeringRef} tabIndex={-1} role="status">
-            {t('readingMemory.library.answering')}
-          </p>
-        ) : null}
-        {ready?.remote === 'privacy' ? (
-          <section
-            ref={privacyRef}
-            tabIndex={-1}
-            className="reading-library-privacy"
-            aria-label={t('readingMemory.privacy.title')}
-          >
-            <h2>{t('readingMemory.privacy.title')}</h2>
-            <p>{t('readingMemory.privacy.content')}</p>
-            <p>{t('readingMemory.privacy.excluded')}</p>
-            <p>{t('readingMemory.privacy.control')}</p>
-            <p>{t('readingMemory.privacy.recipient', recipient)}</p>
-            <div className="reading-library-actions">
-              <Button variant="secondary" onClick={dismissPrivacy}>
-                {t('readingMemory.privacy.stayLocal')}
-              </Button>
-              <Button onClick={() => void answer(true)}>
-                {t('readingMemory.library.confirmPrivacy')}
-              </Button>
-            </div>
-          </section>
-        ) : null}
-        {result?.providerChanged ? <p role="alert">{t('readingMemory.providerChanged')}</p> : null}
-        {ready?.remote === 'canceled' ? (
-          <p role="status">{t('readingMemory.library.canceled')}</p>
-        ) : null}
-        {ready?.remote === 'failed' ? (
-          <p role="alert">{t('readingMemory.library.generationFailed')}</p>
-        ) : null}
-        {judgment?.state === 'local' && !result?.providerChanged ? (
-          <p role="alert">{t(localFailureLabels[judgment.reason])}</p>
-        ) : null}
-        {canAnswer ? (
-          <div className="reading-library-actions">
-            <Button variant="secondary" onClick={() => void answer()}>
-              {canRetryAnswer
-                ? t('readingMemory.library.retryAnswer')
-                : t('readingMemory.library.answerWith', recipient)}
-            </Button>
-          </div>
-        ) : null}
-        {judged ? (
-          <section
-            className="reading-library-receipt"
-            aria-label={t('readingMemory.library.receipt')}
-          >
-            <h2>{t('readingMemory.library.receipt')}</h2>
-            {judged.sentProvider ? (
-              <p>
-                {t('readingMemory.privacy.recipient', {
-                  provider: judged.sentProvider.name,
-                  model: judged.sentProvider.modelName,
-                })}
-              </p>
-            ) : null}
-            <p>{t('readingMemory.sentEvidence', { count: judged.judgment.sentEvidenceCount })}</p>
-            {judged.judgment.inputTruncated ? <p>{t('readingMemory.inputTruncated')}</p> : null}
-          </section>
-        ) : null}
-        {output && judged ? (
-          <ReadingLibraryAnswer
-            output={output}
-            evidence={evidence}
-            onOpenEvidenceSource={onOpenEvidenceSource}
-            onSaveThought={(claim) =>
-              dispatch({ type: 'thoughtDraftOpened', claim, result: judged })
-            }
-          />
-        ) : null}
-        {result ? (
-          <section
-            className="reading-library-evidence"
-            aria-label={t('readingMemory.library.localEvidence')}
-          >
-            <header>
-              <h2>{t('readingMemory.library.localEvidence')}</h2>
-              <p>
-                {t('readingMemory.library.evidenceCount', { count: evidence.length })} ·{' '}
-                {t(`readingMemory.mode.${result.mode}`)}
-              </p>
-            </header>
-            {evidence.length === 0 ? <p>{t('readingMemory.library.emptyEvidence')}</p> : null}
-            {evidence.map((item) => (
-              <ReadingMemoryEvidenceCard
-                key={item.id}
-                evidence={item}
-                onOpenEvidenceSource={onOpenEvidenceSource}
-              />
-            ))}
-          </section>
-        ) : null}
-        {sourcePickerOpen && selection.kind === 'sources' ? (
-          <ReadingMemorySourcePicker
-            catalogRevision={catalogRevision}
-            selectedSources={selection.sources}
-            onConfirm={(sources) => dispatch({ type: 'sourcesConfirmed', sources })}
-            onClose={() => dispatch({ type: 'sourcePickerClosed' })}
-          />
-        ) : null}
-        {draft && draft.result === judged ? (
-          <ReadingLibraryThoughtDraft
-            claim={draft.claim}
-            evidence={evidence}
-            onClose={() => dispatch({ type: 'thoughtDraftClosed' })}
-          />
-        ) : null}
+          ) : null}
+          {result ? (
+            <section
+              className="reading-library-evidence"
+              aria-label={t('readingMemory.library.localEvidence')}
+            >
+              <header>
+                <h2>{t('readingMemory.library.localEvidence')}</h2>
+                <p>
+                  {t('readingMemory.library.evidenceCount', { count: evidence.length })} ·{' '}
+                  {t(`readingMemory.mode.${result.mode}`)}
+                </p>
+              </header>
+              {evidence.length === 0 ? <p>{t('readingMemory.library.emptyEvidence')}</p> : null}
+              {evidence.map((item) => (
+                <ReadingMemoryEvidenceCard
+                  key={item.id}
+                  evidence={item}
+                  onOpenEvidenceSource={onOpenEvidenceSource}
+                />
+              ))}
+            </section>
+          ) : null}
+          {sourcePickerOpen && selection.kind === 'sources' ? (
+            <ReadingMemorySourcePicker
+              catalogRevision={catalogRevision}
+              selectedSources={selection.sources}
+              onConfirm={(sources) => dispatch({ type: 'sourcesConfirmed', sources })}
+              onClose={() => dispatch({ type: 'sourcePickerClosed' })}
+            />
+          ) : null}
+          {draft && draft.result === judged ? (
+            <ReadingLibraryThoughtDraft
+              claim={draft.claim}
+              evidence={evidence}
+              onClose={() => dispatch({ type: 'thoughtDraftClosed' })}
+            />
+          ) : null}
+        </div>
       </div>
     </div>
   );

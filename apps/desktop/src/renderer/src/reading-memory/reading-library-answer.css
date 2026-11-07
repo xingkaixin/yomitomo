@@ -1,9 +1,50 @@
 .reading-library-answer {
+  --word-reveal-accent: hsl(var(--accent-foreground));
+
   display: grid;
   min-width: 0;
   gap: 28px;
   color: hsl(var(--foreground));
   font-family: var(--font-ui);
+  transform-origin: 50% 0;
+  animation: reading-library-answer-veil 1.3s cubic-bezier(0.4, 0, 0.2, 1) backwards;
+}
+
+.reading-library-answer-section > h3,
+.reading-library-answer-empty,
+.reading-library-answer-citations,
+.reading-library-answer-save {
+  animation: reading-library-answer-follow 400ms ease var(--reveal-after, 0ms) backwards;
+}
+
+@keyframes reading-library-answer-veil {
+  0% {
+    opacity: 0;
+    filter: blur(6px);
+    transform: scale(0.99);
+  }
+
+  30% {
+    opacity: 1;
+    filter: blur(6px);
+  }
+}
+
+@keyframes reading-library-answer-follow {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reading-library-answer,
+  .reading-library-answer-section > h3,
+  .reading-library-answer-empty,
+  .reading-library-answer-citations,
+  .reading-library-answer-save {
+    animation: none;
+  }
 }
 
 .reading-library-answer-section {
