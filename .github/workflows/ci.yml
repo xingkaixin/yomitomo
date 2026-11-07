@@ -87,6 +87,11 @@ jobs:
     needs: preflight
     if: needs.preflight.outputs.code == 'true'
     runs-on: ubuntu-latest
+    env:
+      # `--ignore-scripts` skips Electron's binary download, so every test worker that loads
+      # `electron` downloads it into the same directory and concurrent downloads collide. Unit
+      # tests only need the module to load, never the binary.
+      ELECTRON_OVERRIDE_DIST_PATH: /nonexistent/electron
     strategy:
       fail-fast: false
       matrix:
