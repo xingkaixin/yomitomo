@@ -95,3 +95,21 @@ _Avoid_: resending the whole channel
 One agent working on one or more deliveries in a fork of its Assistant Session. It ends with a reply
 written back to the channel or with a failure; closing a window does not stop it.
 _Avoid_: request; stream
+
+# Chinese Product Terms
+
+Product docs, issues and the UI use Chinese terms. They map to these code names:
+
+| 中文 | Code |
+| --- | --- |
+| 书库 | Library Catalog Item |
+| 合集 | `Collection` |
+| 划线 | `Annotation` |
+| 想法 | A `Comment` on an Annotation with no `replyTo` |
+| 讨论 | `Comment` replies to a thought; together they form a `thread` Channel |
+| 助手 | `Agent` |
+| 沉淀 | `AnnotationDistillation` |
+| 问一问 | `ReaderChatSession`; the `chat` Channel |
+| 阅读记忆 | `reading-memory` modules and IPC channels |
+| 问书库 | `ReadingLibrary*`; `reading-memory:library:*` |
+| 重新审视 | `ReadingReview*`; `reading-memory:review:*` |

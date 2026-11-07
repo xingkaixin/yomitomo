@@ -1,7 +1,7 @@
 # 架构概览
 
 本文记录跨模块的边界、依赖方向和已定决策，用来判断新代码该放在哪里、哪些约束不能破坏。
-产品层取舍见 [产品方向](product.md)，目录职责见根目录 `AGENTS.md`，子系统细节见各专题文档。
+产品层取舍见 [产品方向](product.md)，工程取舍与门禁见根目录 `AGENTS.md`，子系统细节见各专题文档。
 
 ## 运行单元
 
@@ -161,10 +161,10 @@ telemetry → shared
 
 ## 已定决策
 
-- **拆分要有独立的变更原因。** 行数和复杂度指标不是拆分理由。持久化边界（SQLite row、
-  credential、legacy 迁移和 normalization 的转换）集中在 `apps/desktop/src/main/store` 是有意的。
-- **性能改动以测量为前提。** 观测脚本在 `apps/desktop/e2e/performance`，使用隔离数据，
-  不设机器相关阈值，不进入默认测试。结论只适用于测量时的数据形态。批注卡片脚本需要先构建桌面端，
+- **持久化转换集中在 `apps/desktop/src/main/store`。** SQLite row、credential、legacy 迁移和
+  normalization 的转换放在一起是有意的，不因行数拆开。
+- **性能观测脚本不进入默认测试。** 脚本在 `apps/desktop/e2e/performance`，使用隔离数据，
+  不设机器相关阈值。批注卡片脚本需要先构建桌面端，
   `YOMITOMO_ANNOTATION_PROFILE=1` 或 `font` 额外采集 CPU profile：
 
   ```bash

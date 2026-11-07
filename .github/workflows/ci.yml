@@ -37,7 +37,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          DOCUMENTATION_PATHS: '^(docs/|(README|README_zh|CHANGELOG|CHANGELOG_zh|CONTEXT|AGENTS|CLAUDE|PRIVACY)\.md$|\.github/pull_request_template\.md$|apps/desktop/AGENTS\.md$)'
+          DOCUMENTATION_PATHS: '^(docs/|(README|README_zh|CHANGELOG|CHANGELOG_zh|CONTEXT|AGENTS|CLAUDE)\.md$|\.github/pull_request_template\.md$|apps/desktop/AGENTS\.md$)'
           SPARKLE_PATHS: '^(apps/desktop/native/|apps/desktop/scripts/(prepare|smoke)-sparkle\.mjs$|apps/desktop/package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|\.github/workflows/ci\.yml$)'
         run: |
           code=true
@@ -87,6 +87,11 @@ jobs:
     needs: preflight
     if: needs.preflight.outputs.code == 'true'
     runs-on: ubuntu-latest
+    env:
+      # `--ignore-scripts` skips Electron's binary download, so every test worker that loads
+      # `electron` downloads it into the same directory and concurrent downloads collide. Unit
+      # tests only need the module to load, never the binary.
+      ELECTRON_OVERRIDE_DIST_PATH: /nonexistent/electron
     strategy:
       fail-fast: false
       matrix:
