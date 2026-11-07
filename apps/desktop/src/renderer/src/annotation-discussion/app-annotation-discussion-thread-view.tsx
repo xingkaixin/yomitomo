@@ -4,7 +4,7 @@ import { useCallback, useMemo, useReducer, useRef, type RefObject } from 'react'
 import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { useTranslation } from 'react-i18next';
 import type { PublicAgent, UserProfile } from '@yomitomo/shared';
-import { getMentionQuery } from '@yomitomo/core';
+import { commentPersona, getMentionQuery } from '@yomitomo/core';
 import { FloatingComposer } from '@yomitomo/reader-ui/floating-composer';
 import {
   matchesAgentMentionQuery,
@@ -20,6 +20,7 @@ import {
 import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
 import { useCompositionSubmit } from '@yomitomo/reader-ui/use-composition-submit';
 import type { AnnotationMessageLayoutMode } from './app-annotation-layout-control';
+import { useStreamingWordReveal, wordRevealAccent } from '../components/ui/word-reveal';
 import { AssistantRuntimeProgressList } from '../shell/app-assistant-runtime-progress';
 import { openAssistantReferenceFromClick } from '../shell/app-assistant-references';
 import {
@@ -84,6 +85,8 @@ export function DiscussionThreadView({
       renderDiscussionMessageMarkdown(thread.root.content, annotationAgents, thread.root.author),
     [annotationAgents, thread.root.author, thread.root.content],
   );
+  const rootStreaming = Boolean(thread.root.pending) && thread.root.author.kind === 'agent';
+  const rootRevealRef = useStreamingWordReveal(thread.root.id, rootStreaming);
   const rootVersion = `${thread.root.content}:${thread.root.pending ? 'pending' : 'ready'}`;
   const messagesVersion = messages
     .map((message) => `${message.id}:${message.content}:${message.pending ? 'pending' : 'ready'}`)
@@ -253,9 +256,20 @@ export function DiscussionThreadView({
             className="annotation-discussion-root-thought"
             aria-label={t('discussion.threadView.rootThought')}
           >
-            <div className="annotation-discussion-root-thought-content">
+            <div
+              className="annotation-discussion-root-thought-content"
+              style={
+                rootStreaming
+                  ? wordRevealAccent(commentPersona(thread.root, userProfile, personaAgents).color)
+                  : undefined
+              }
+            >
               <AssistantRuntimeProgressList progress={thread.root.assistantProgress} />
-              <div dangerouslySetInnerHTML={{ __html: rootThoughtHtml }} />
+              <div
+                key={rootThoughtHtml}
+                ref={rootRevealRef}
+                dangerouslySetInnerHTML={{ __html: rootThoughtHtml }}
+              />
             </div>
             <div className="annotation-discussion-thread-meta">
               <ReaderTooltip content={formatAbsoluteTime(thread.root.createdAt)}>
