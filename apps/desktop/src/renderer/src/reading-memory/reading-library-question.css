@@ -1,4 +1,183 @@
+.reading-library-frame {
+  --reading-library-aurora-1: color-mix(
+    in oklab,
+    hsl(var(--accent-foreground)) 50%,
+    hsl(var(--background))
+  );
+  --reading-library-aurora-2: oklch(
+    from var(--reading-library-aurora-1) calc(l + 0.06) c calc(h + 50)
+  );
+  --reading-library-flood-1: color-mix(
+    in oklab,
+    hsl(var(--accent-foreground)) 30%,
+    hsl(var(--background))
+  );
+  --reading-library-flood-2: oklch(from var(--reading-library-flood-1) l c calc(h + 50));
+
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.reading-library-aurora {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.reading-library-aurora-glow {
+  position: absolute;
+  right: -12%;
+  bottom: 0;
+  left: -12%;
+  height: 300px;
+  opacity: 0;
+  filter: blur(46px);
+  transform: scaleY(0.3);
+  transform-origin: 50% 100%;
+  transition:
+    opacity 600ms ease,
+    transform 900ms cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+
+.reading-library-frame[data-motion='searching'] .reading-library-aurora-glow {
+  opacity: 0.28;
+  transform: scaleY(0.22);
+}
+
+.reading-library-frame[data-motion='answering'] .reading-library-aurora-glow {
+  opacity: 0.62;
+  transform: scaleY(0.42);
+}
+
+.reading-library-aurora-glow span {
+  position: absolute;
+  bottom: -35%;
+  border-radius: 50%;
+  animation: reading-library-aurora-drift 5s ease-in-out infinite alternate paused;
+}
+
+.reading-library-frame[data-motion] .reading-library-aurora-glow span {
+  animation-play-state: running;
+}
+
+.reading-library-aurora-glow span:nth-child(1) {
+  --drift: 8%;
+
+  left: 6%;
+  width: 52%;
+  height: 95%;
+  background: radial-gradient(closest-side, var(--reading-library-aurora-1), transparent);
+}
+
+.reading-library-aurora-glow span:nth-child(2) {
+  --drift: -10%;
+
+  left: 44%;
+  width: 52%;
+  height: 105%;
+  background: radial-gradient(closest-side, var(--reading-library-aurora-2), transparent);
+  animation-duration: 6s;
+}
+
+.reading-library-aurora-glow span:nth-child(3) {
+  --drift: 6%;
+
+  left: 26%;
+  width: 48%;
+  height: 75%;
+  background: radial-gradient(closest-side, var(--reading-library-aurora-1), transparent);
+  animation-duration: 7s;
+  opacity: 0.8;
+}
+
+.reading-library-aurora-flood {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: radial-gradient(
+    130% 85% at 50% 112%,
+    var(--reading-library-flood-1) 0%,
+    color-mix(in srgb, var(--reading-library-flood-1) 55%, transparent) 32%,
+    color-mix(in srgb, var(--reading-library-flood-2) 35%, transparent) 55%,
+    transparent 80%
+  );
+  animation: reading-library-aurora-flood 1.3s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.reading-library-aurora-arc {
+  position: absolute;
+  top: 0;
+  left: -45%;
+  width: 190%;
+  height: 150%;
+  border-top: 1px solid color-mix(in srgb, hsl(var(--accent-foreground)) 20%, transparent);
+  border-radius: 50%;
+  opacity: 0;
+  box-shadow:
+    0 -30px 80px 10px color-mix(in srgb, var(--reading-library-flood-2) 70%, transparent),
+    inset 0 40px 80px color-mix(in srgb, var(--reading-library-flood-2) 55%, transparent);
+  animation: reading-library-aurora-arc 1.3s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes reading-library-aurora-drift {
+  to {
+    translate: var(--drift) 0;
+  }
+}
+
+@keyframes reading-library-aurora-flood {
+  0% {
+    opacity: 0;
+    transform: translateY(30%);
+  }
+
+  28% {
+    opacity: 0.35;
+    transform: none;
+  }
+
+  52% {
+    opacity: 0.21;
+  }
+
+  80%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* The arc is 1.5x the frame height, so these offsets move its top edge from 100% to -40% of the frame. */
+@keyframes reading-library-aurora-arc {
+  0%,
+  14% {
+    opacity: 0;
+    transform: translateY(66.7%);
+  }
+
+  45% {
+    opacity: 0.55;
+    transform: translateY(20%);
+  }
+
+  80%,
+  100% {
+    opacity: 0;
+    transform: translateY(-26.7%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reading-library-aurora {
+    display: none;
+  }
+}
+
 .reading-library-question {
+  position: relative;
   min-height: 0;
   height: 100%;
   overflow: auto;

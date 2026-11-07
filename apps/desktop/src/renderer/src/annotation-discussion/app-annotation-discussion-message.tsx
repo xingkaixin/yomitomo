@@ -5,6 +5,8 @@ import type { Comment, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { commentPersona } from '@yomitomo/core';
 import { useTranslation } from 'react-i18next';
 import { AvatarBadge, ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
+import { ShimmeringText } from '../components/ui/shimmering-text';
+import { useStreamingWordReveal, wordRevealAccent } from '../components/ui/word-reveal';
 import { AssistantRuntimeProgressList } from '../shell/app-assistant-runtime-progress';
 import { formatAbsoluteTime, formatRelativeTime } from './app-annotation-discussion-utils';
 import { renderDiscussionMessageMarkdown } from './app-annotation-discussion-mention-chips';
@@ -30,6 +32,8 @@ export function DiscussionMessage({
     () => renderDiscussionMessageMarkdown(message.content, agents, message.author),
     [agents, message.author, message.content],
   );
+  const streaming = Boolean(message.pending) && message.author.kind === 'agent';
+  const revealRef = useStreamingWordReveal(message.id, streaming);
   const className = [
     'annotation-discussion-message',
     message.author.kind === 'user' ? 'is-user' : 'is-assistant',
@@ -39,7 +43,7 @@ export function DiscussionMessage({
     .join(' ');
 
   return (
-    <article className={className}>
+    <article className={className} style={streaming ? wordRevealAccent(author.color) : undefined}>
       <AvatarBadge avatar={author.avatar} fallback={author.fallback} />
       <div className="annotation-discussion-message-bubble">
         <header>
@@ -49,7 +53,15 @@ export function DiscussionMessage({
               {formatRelativeTime(message.createdAt)}
             </time>
           </ReaderTooltip>
-          {message.pending ? <em>{t('discussion.replying')}</em> : null}
+          {message.pending ? (
+            <em>
+              {message.content ? (
+                t('discussion.replying')
+              ) : (
+                <ShimmeringText text={t('discussion.replying')} duration={1.6} />
+              )}
+            </em>
+          ) : null}
           <button
             className="annotation-discussion-message-delete"
             type="button"
@@ -62,6 +74,8 @@ export function DiscussionMessage({
         </header>
         <AssistantRuntimeProgressList progress={message.assistantProgress} />
         <div
+          key={html}
+          ref={revealRef}
           className="annotation-discussion-markdown"
           dangerouslySetInnerHTML={{ __html: html }}
         />
