@@ -190,10 +190,10 @@
 
 .reading-library-question-inner {
   display: grid;
-  gap: 24px;
-  width: min(100%, 820px);
+  gap: 20px;
+  width: min(100%, 784px);
   margin: 0 auto;
-  padding: 32px 28px 64px;
+  padding: 24px 32px 56px;
 }
 
 .reading-library-question h1,
@@ -202,16 +202,23 @@
   margin: 0;
 }
 
+.reading-library-heading {
+  display: grid;
+  gap: 4px;
+}
+
 .reading-library-heading h1 {
-  font-size: 26px;
+  font-family: var(--font-reader-serif);
+  font-size: 28px;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  line-height: 36px;
 }
 
 .reading-library-heading p {
-  margin-top: 8px;
   max-width: 66ch;
   color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  line-height: 21px;
 }
 
 .reading-library-question h2 {
@@ -223,26 +230,31 @@
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 16px;
+  gap: 12px;
 }
 
 .reading-library-scope-controls label,
 .reading-library-query label {
   display: grid;
   gap: 8px;
-  font-size: 13px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
 }
 
 .reading-library-scope-controls select {
   max-width: min(100%, 320px);
   min-width: 180px;
-  min-height: 40px;
-  border: 1px solid hsl(var(--input));
-  border-radius: calc(var(--radius) / 2);
-  padding: 8px 32px 8px 12px;
-  background: hsl(var(--background));
+  min-height: 34px;
+  border: 1px solid var(--app-edge);
+  border-radius: 10px;
+  padding: 6px 32px 6px 12px;
+  background-color: transparent;
+  background-image: var(--app-field);
+  box-shadow: var(--app-field-shadow);
   color: hsl(var(--foreground));
   font: inherit;
+  font-size: 13px;
 }
 
 .reading-library-source-selection,
@@ -250,7 +262,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .reading-library-source-selection span {
@@ -262,11 +274,14 @@
 .reading-library-privacy {
   display: grid;
   gap: 8px;
-  padding: 18px 20px;
-  border: 1px solid hsl(var(--border));
-  border-radius: var(--radius);
-  background: hsl(var(--card));
-  color: hsl(var(--card-foreground));
+  padding: 14px 16px;
+  border: 1px solid var(--app-edge);
+  border-radius: 12px;
+  background: var(--app-card-surface);
+  box-shadow: var(--app-card-shadow);
+  color: hsl(var(--foreground));
+  font-size: 13px;
+  line-height: 21px;
 }
 
 .reading-library-context {
@@ -279,26 +294,28 @@
 }
 
 .reading-library-coverage,
-.reading-library-receipt,
 .reading-library-evidence > header p {
   color: hsl(var(--muted-foreground));
   font-size: 12px;
 }
 
 .reading-library-sparse {
-  border-top: 1px solid hsl(var(--border));
+  border-top: 1px solid var(--app-edge-soft);
   padding-top: 10px;
 }
 
 .reading-library-query {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .reading-library-query textarea {
-  min-height: 120px;
-  font-size: 16px;
-  line-height: 1.6;
+  min-height: 112px;
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-family: var(--font-reader-serif);
+  font-size: 17px;
+  line-height: 28px;
 }
 
 .reading-library-actions {
@@ -314,29 +331,55 @@
 .reading-library-submitted,
 .reading-library-thought-text {
   margin: 0;
-  padding-left: 16px;
-  border-left: 2px solid var(--app-reader-accent-strong);
+  padding: 2px 0 2px 12px;
+  border-left: 2px solid var(--app-interactive-selected-border);
   font-family: var(--font-reader-serif);
-  font-size: 18px;
-  line-height: 1.7;
+  font-size: 17px;
+  line-height: 28px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
+.reading-library-receipt {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--app-well);
+  box-shadow: var(--app-well-shadow);
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.reading-library-question .reading-library-receipt h2 {
+  color: hsl(var(--foreground));
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
 .reading-library-evidence {
   display: grid;
-  gap: 16px;
+  gap: 10px;
 }
 
 .reading-library-evidence > header {
   display: grid;
-  gap: 4px;
+  gap: 2px;
+}
+
+.reading-library-question .reading-library-evidence > header h2 {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
 }
 
 .reading-library-question select:focus-visible,
 .reading-library-thought-citation:focus-within {
-  outline: 2px solid hsl(var(--ring));
-  outline-offset: 3px;
+  outline: 2px solid var(--app-interactive-focus-ring);
+  outline-offset: 2px;
 }
 
 .reading-library-question p,
@@ -363,11 +406,11 @@
   max-height: calc(var(--app-viewport-height, 100dvh) - 48px);
   overflow-y: auto;
   padding: 24px;
-  border: 1px solid hsl(var(--border));
-  border-radius: var(--radius);
-  background: hsl(var(--card));
-  color: hsl(var(--card-foreground));
-  box-shadow: var(--app-shell-panel-shadow);
+  border: 1px solid var(--app-edge);
+  border-radius: 14px;
+  background: var(--app-card-surface);
+  color: hsl(var(--foreground));
+  box-shadow: var(--app-dialog-shadow);
   font-family: var(--font-ui);
   font-size: 14px;
   line-height: 1.6;
@@ -379,13 +422,16 @@
 }
 
 .reading-library-thought-dialog h2 {
+  font-family: var(--font-reader-serif);
   font-size: 20px;
   font-weight: 600;
+  line-height: 28px;
 }
 
 .reading-library-thought-dialog header p {
-  margin-top: 8px;
+  margin-top: 6px;
   color: hsl(var(--muted-foreground));
+  font-size: 13px;
 }
 
 .reading-library-thought-citations {
@@ -399,23 +445,27 @@
 
 .reading-library-thought-citations legend {
   margin-bottom: 10px;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .reading-library-thought-citation {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 14px;
-  border: 1px solid hsl(var(--border));
-  border-radius: calc(var(--radius) / 2);
+  padding: 12px 14px;
+  border: 1px solid var(--app-edge);
+  border-radius: 12px;
+  background: var(--app-card-surface);
+  box-shadow: var(--app-card-shadow);
   cursor: pointer;
 }
 
 .reading-library-thought-citation:has(input:checked) {
-  background: hsl(var(--muted));
-  border-color: hsl(var(--ring));
+  border-color: var(--app-interactive-selected-border);
+  box-shadow:
+    var(--app-card-shadow),
+    0 0 0 3px var(--app-interactive-selected-bg);
 }
 
 .reading-library-thought-citation input {
@@ -423,7 +473,7 @@
   width: 16px;
   height: 16px;
   margin-top: 4px;
-  accent-color: hsl(var(--primary));
+  accent-color: var(--app-interactive-link);
 }
 
 .reading-library-thought-citation > span {
@@ -434,19 +484,19 @@
 
 .reading-library-thought-citation strong {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .reading-library-thought-citation span span {
   font-family: var(--font-reader-serif);
-  font-size: 16px;
-  line-height: 1.7;
+  font-size: 15px;
+  line-height: 26px;
   white-space: pre-wrap;
 }
 
 @media (max-width: 640px) {
   .reading-library-question-inner {
-    padding: 24px 16px 40px;
+    padding: 20px 16px 40px;
   }
 
   .reading-library-thought-overlay {

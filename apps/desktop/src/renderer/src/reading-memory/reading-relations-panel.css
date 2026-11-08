@@ -16,11 +16,11 @@
   max-height: calc(var(--app-viewport-height, 100dvh) - 48px);
   min-width: 0;
   overflow: hidden;
-  border: 1px solid hsl(var(--border));
-  border-radius: var(--radius);
-  background: hsl(var(--card));
-  color: hsl(var(--card-foreground));
-  box-shadow: var(--app-shell-panel-shadow);
+  border: 1px solid var(--app-edge);
+  border-radius: 14px;
+  background: var(--app-panel);
+  color: hsl(var(--foreground));
+  box-shadow: var(--app-dialog-shadow);
   font-family: var(--font-ui);
 }
 
@@ -35,13 +35,15 @@
   align-items: flex-start;
   gap: 16px;
   justify-content: space-between;
-  border-bottom: 1px solid hsl(var(--border));
+  border-bottom: 1px solid var(--app-edge-soft);
 }
 
 .reading-relations-header h2 {
   margin: 0;
+  font-family: var(--font-reader-serif);
   font-size: 20px;
   font-weight: 600;
+  line-height: 28px;
   outline: none;
 }
 
@@ -58,23 +60,23 @@
   display: grid;
   place-items: center;
   flex: none;
-  width: 36px;
-  height: 36px;
-  border: 1px solid hsl(var(--border));
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--app-edge);
   border-radius: 50%;
-  background: transparent;
+  background: var(--app-raised);
+  box-shadow: var(--app-raised-shadow);
   color: hsl(var(--muted-foreground));
 }
 
 .reading-relations-close:hover {
-  background: hsl(var(--muted));
   color: hsl(var(--foreground));
 }
 
 .reading-relations-close:focus-visible,
 .reading-relations-query input:focus-visible {
-  outline: 2px solid hsl(var(--ring));
-  outline-offset: 3px;
+  outline: 2px solid var(--app-interactive-focus-ring);
+  outline-offset: 2px;
 }
 
 .reading-relations-body {
@@ -89,10 +91,10 @@
   padding-left: 14px;
   max-height: 150px;
   overflow-y: auto;
-  border-left: 2px solid var(--app-reader-accent-strong);
+  border-left: 2px solid var(--app-interactive-selected-border);
   font-family: var(--font-reader-serif);
-  font-size: 16px;
-  line-height: 1.7;
+  font-size: 15px;
+  line-height: 26px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -115,12 +117,13 @@
 .reading-relations-query input {
   width: 100%;
   min-width: 0;
-  padding: 9px 12px;
-  border: 1px solid hsl(var(--input));
-  border-radius: calc(var(--radius) / 2);
-  background: hsl(var(--background));
+  padding: 8px 12px;
+  border: 1px solid var(--app-edge);
+  border-radius: 10px;
+  background: var(--app-field);
+  box-shadow: var(--app-field-shadow);
   color: hsl(var(--foreground));
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .reading-relations-coverage,
@@ -137,17 +140,18 @@
 
 .reading-relations-evidence {
   display: grid;
-  gap: 16px;
+  gap: 10px;
 }
 
 .reading-relations-privacy {
   margin-top: 20px;
-  padding: 18px;
-  border: 1px solid hsl(var(--border));
-  border-radius: var(--radius);
-  background: hsl(var(--muted));
+  padding: 14px 16px;
+  border: 1px solid var(--app-edge);
+  border-radius: 12px;
+  background: var(--app-card-surface);
+  box-shadow: var(--app-card-shadow);
   font-size: 13px;
-  line-height: 1.7;
+  line-height: 21px;
 }
 
 .reading-relations-privacy h3 {
@@ -175,7 +179,7 @@
 .reading-relations-footer {
   display: grid;
   gap: 12px;
-  border-top: 1px solid hsl(var(--border));
+  border-top: 1px solid var(--app-edge-soft);
 }
 
 .reading-relations-footer > .action-button {

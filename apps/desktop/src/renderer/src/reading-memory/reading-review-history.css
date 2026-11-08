@@ -1,9 +1,8 @@
 .reading-review-history,
 .reading-review-history-events,
-.reading-review-history-event,
 .reading-review-history-details {
   display: grid;
-  gap: 16px;
+  gap: 10px;
   min-width: 0;
 }
 
@@ -16,19 +15,69 @@
   margin: 0;
 }
 
-.reading-review-history h3,
-.reading-review-history h4,
-.reading-review-history-decision {
-  font-size: 14px;
-  font-weight: 600;
+.reading-review-history h3 {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
 }
 
-.reading-review-history-base {
+.reading-review-history h4,
+.reading-review-history-decision {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+/* A timeline: one dot per judgment, joined by a hairline. */
+.reading-review-history-base,
+.reading-review-history-event {
+  position: relative;
   display: grid;
-  gap: 8px;
+  gap: 4px;
+  min-width: 0;
+  padding: 0 0 6px 22px;
+}
+
+.reading-review-history-base::before,
+.reading-review-history-event::before {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: hsl(var(--foreground));
+  content: '';
+}
+
+.reading-review-history-base::before {
+  background: hsl(var(--muted-foreground));
+}
+
+.reading-review-history-base::after,
+.reading-review-history-event::after {
+  position: absolute;
+  top: 17px;
+  bottom: -6px;
+  left: 4px;
+  width: 1px;
+  background: hsl(var(--border));
+  content: '';
+}
+
+.reading-review-history-events li:last-child .reading-review-history-event::after {
+  display: none;
+}
+
+.reading-review-history-base:not(:has(+ .reading-review-history-events))::after {
+  display: none;
 }
 
 .reading-review-history-text {
+  color: hsl(var(--foreground) / 0.82);
+  font-size: 13px;
+  line-height: 21px;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
@@ -38,27 +87,20 @@
   padding: 0;
 }
 
-.reading-review-history-event {
-  gap: 12px;
-  padding-top: 16px;
-  border-top: 1px solid hsl(var(--border));
-}
-
 .reading-review-history-event-header {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 8px 16px;
+  gap: 4px 8px;
 }
 
 .reading-review-history-details {
-  gap: 12px;
+  gap: 6px;
 }
 
 .reading-review-history-details > div {
   display: grid;
-  gap: 4px;
+  gap: 2px;
 }
 
 .reading-review-history-event time,
@@ -66,6 +108,7 @@
 .reading-review-history-status {
   color: hsl(var(--muted-foreground));
   font-size: 12px;
+  line-height: 17px;
 }
 
 .reading-review-history-event time {
@@ -75,6 +118,6 @@
 .reading-review-history-more {
   justify-self: start;
   height: auto;
-  min-height: 40px;
+  min-height: 32px;
   white-space: normal;
 }

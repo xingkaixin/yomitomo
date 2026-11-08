@@ -11,10 +11,10 @@
 
 .reading-review-inner {
   display: grid;
-  gap: 28px;
-  width: min(100%, 880px);
+  gap: 22px;
+  width: min(100%, 784px);
   margin: 0 auto;
-  padding: 32px 28px 64px;
+  padding: 24px 32px 56px;
 }
 
 .reading-review h1,
@@ -32,19 +32,33 @@
   gap: 8px;
 }
 
+.reading-review-heading {
+  gap: 4px;
+}
+
 .reading-review-heading h1 {
-  font-size: 26px;
+  font-family: var(--font-reader-serif);
+  font-size: 28px;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  line-height: 36px;
+}
+
+.reading-review-heading p {
+  font-size: 13px;
+  line-height: 21px;
 }
 
 .reading-review h2 {
-  font-size: 19px;
+  font-family: var(--font-reader-serif);
+  font-size: 18px;
   font-weight: 600;
+  line-height: 26px;
 }
+
 .reading-review h3 {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
 }
 
 .reading-review-heading p,
@@ -57,21 +71,27 @@
 }
 
 .reading-review-progress,
+.reading-review-note,
 .reading-review-source-dates,
 .reading-review-queue-summary p {
   font-size: 12px;
+  line-height: 17px;
 }
 
 .reading-review-queue,
 .reading-review-stage,
 .reading-review-support {
   display: grid;
-  gap: 20px;
+  gap: 18px;
+}
+
+.reading-review-stage > button {
+  justify-self: start;
 }
 
 .reading-review-queue-list {
   display: grid;
-  gap: 16px;
+  gap: 12px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -80,24 +100,52 @@
 .reading-review-queue-item,
 .reading-review-view-pair > section {
   display: grid;
-  gap: 16px;
+  align-content: start;
+  gap: 10px;
   min-width: 0;
-  padding: 20px;
-  border: 1px solid hsl(var(--border));
-  border-radius: var(--radius);
-  background: hsl(var(--card));
-  color: hsl(var(--card-foreground));
+  padding: 14px 16px;
+  border: 1px solid var(--app-edge);
+  border-radius: 12px;
+  background: var(--app-card-surface);
+  box-shadow: var(--app-card-shadow);
+  color: hsl(var(--foreground));
+}
+
+/* The earlier effective judgment is a settled position, shown in the distillation material. */
+.reading-review-view-pair > section:last-child {
+  border-color: var(--app-distill-edge);
+  background: var(--app-distill);
 }
 
 .reading-review-source blockquote,
-.reading-review-view-pair blockquote,
 .reading-review-saved-answer {
   margin: 0;
-  padding-left: 16px;
-  border-left: 2px solid var(--app-reader-accent-strong);
+  padding: 2px 0 2px 12px;
+  border-left: 2px solid var(--app-interactive-selected-border);
   font-family: var(--font-reader-serif);
   font-size: 18px;
-  line-height: 1.7;
+  line-height: 32px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.reading-review-source > strong {
+  font-family: var(--font-reader-serif);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.reading-review-queue-item .reading-review-source blockquote {
+  font-size: 15px;
+  line-height: 26px;
+}
+
+.reading-review-view-pair blockquote {
+  margin: 0;
+  font-family: var(--font-reader-serif);
+  font-size: 15px;
+  line-height: 26px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -106,34 +154,45 @@
 .reading-review-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 8px;
 }
+
 .reading-review-actions {
   justify-content: flex-end;
 }
+
 .reading-review-actions button {
   white-space: normal;
   height: auto;
-  min-height: 40px;
+  min-height: 36px;
 }
+
 .reading-review-source-dates {
-  gap: 6px 16px;
+  gap: 4px 12px;
 }
 
 .reading-review-answer-label {
   display: grid;
   gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
 }
+
 .reading-review-answer-label textarea {
   min-height: 160px;
-  font-size: 16px;
-  line-height: 1.7;
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-family: var(--font-reader-serif);
+  font-size: 17px;
+  line-height: 28px;
 }
+
 .reading-review-view-pair {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 12px;
 }
+
 .reading-review-decision,
 .reading-review-support {
   min-width: 0;
@@ -141,17 +200,40 @@
   padding: 0;
   border: 0;
 }
+
+.reading-review-decision {
+  padding-top: 16px;
+  border-top: 1px solid var(--app-edge-soft);
+}
+
 .reading-review-decision legend {
-  margin-bottom: 12px;
-  font-size: 13px;
+  float: left;
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 500;
 }
+
+.reading-review-decision .reading-review-actions {
+  clear: both;
+  justify-content: flex-start;
+}
+
 .reading-review-empty {
-  padding: 20px 0;
+  padding: 32px 20px;
+  border-radius: 12px;
+  background: var(--app-well);
+  box-shadow: var(--app-well-shadow);
+  color: hsl(var(--muted-foreground));
+  text-align: center;
 }
+
 .reading-review [tabindex='-1']:focus-visible {
-  outline: 2px solid hsl(var(--ring));
+  outline: 2px solid var(--app-interactive-focus-ring);
   outline-offset: 4px;
 }
+
 .reading-review p,
 .reading-review strong {
   overflow-wrap: anywhere;
@@ -159,8 +241,9 @@
 
 @media (max-width: 680px) {
   .reading-review-inner {
-    padding: 24px 16px 40px;
+    padding: 20px 16px 40px;
   }
+
   .reading-review-view-pair {
     grid-template-columns: minmax(0, 1fr);
   }

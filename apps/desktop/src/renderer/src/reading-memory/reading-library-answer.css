@@ -52,27 +52,28 @@
 }
 
 .reading-library-answer-section + .reading-library-answer-section {
-  border-top: 1px solid hsl(var(--border) / 0.65);
-  padding-top: 24px;
+  border-top: 1px solid var(--app-edge-soft);
+  padding-top: 20px;
 }
 
 .reading-library-answer-section h3 {
-  margin: 0 0 14px;
-  font-size: 14px;
-  font-weight: 650;
-  line-height: 1.5;
+  margin: 0 0 8px;
+  font-family: var(--font-reader-serif);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
 }
 
 .reading-library-answer-empty {
   margin: 0;
   color: hsl(var(--muted-foreground));
   font-size: 13px;
-  line-height: 1.7;
+  line-height: 21px;
 }
 
 .reading-library-answer-claims {
   display: grid;
-  gap: 24px;
+  gap: 18px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -81,14 +82,14 @@
 .reading-library-answer-claim {
   display: grid;
   min-width: 0;
-  gap: 10px;
+  gap: 6px;
 }
 
 .reading-library-answer-text {
   margin: 0;
-  font-family: var(--font-reader-serif);
-  font-size: 17px;
-  line-height: 1.7;
+  color: hsl(var(--foreground) / 0.88);
+  font-size: 15px;
+  line-height: 26px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -100,35 +101,37 @@
 .reading-library-answer-citations summary {
   width: fit-content;
   max-width: 100%;
-  border-radius: calc(var(--radius) / 2);
+  border-radius: 6px;
   color: var(--app-interactive-link);
   font-size: 12px;
-  line-height: 1.7;
+  font-weight: 500;
+  line-height: 20px;
   cursor: pointer;
 }
 
 .reading-library-answer-evidence {
   display: grid;
-  gap: 12px;
-  padding: 12px 0 2px;
+  gap: 10px;
+  padding: 10px 0 2px;
 }
 
 .reading-library-answer-save {
   justify-self: start;
-  min-height: 34px;
-  border: 1px solid var(--app-action-secondary-border);
-  border-radius: calc(var(--radius) * 0.75);
-  background: var(--app-action-secondary-bg);
-  padding: 6px 10px;
-  color: var(--app-action-secondary-fg);
-  font: 600 12px/1.5 var(--font-ui);
+  min-height: 26px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  margin-left: -8px;
+  padding: 0 8px;
+  color: hsl(var(--muted-foreground));
+  font: 500 12px/16px var(--font-ui);
   cursor: pointer;
 }
 
 .reading-library-answer-citations summary:focus-visible,
 .reading-library-answer-save:focus-visible {
   outline: 2px solid var(--app-interactive-focus-ring);
-  outline-offset: 3px;
+  outline-offset: 2px;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -137,10 +140,7 @@
   }
 
   .reading-library-answer-save:hover {
-    background: var(--app-action-secondary-hover-bg);
+    background: var(--app-interactive-hover-bg);
+    color: hsl(var(--foreground));
   }
-}
-
-.reading-library-answer-save:active {
-  background: var(--app-action-secondary-active-bg);
 }

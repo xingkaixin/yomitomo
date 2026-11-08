@@ -28,6 +28,7 @@ export function ReadingMemoryEvidenceCard({
 
   return (
     <ReadingEvidenceCard
+      className={evidence.assetType === 'distillation' ? 'is-distillation' : undefined}
       evidence={{
         content: evidence.content,
         excerpt:

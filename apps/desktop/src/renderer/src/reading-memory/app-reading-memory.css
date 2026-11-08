@@ -5,7 +5,6 @@
   min-height: 0;
   height: 100%;
   color: hsl(var(--foreground));
-  background: hsl(var(--background));
 }
 
 .reading-memory-navigation {
@@ -15,14 +14,15 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 28px;
-  border-bottom: 1px solid hsl(var(--border));
+  padding: 28px 32px 0;
   font-family: var(--font-ui);
 }
 
 .reading-memory-navigation > span {
-  font-size: 14px;
+  font-family: var(--font-reader-serif);
+  font-size: 28px;
   font-weight: 600;
+  line-height: 36px;
 }
 
 .reading-memory-content {
@@ -32,8 +32,20 @@
   overflow: hidden;
 }
 
+/* The page title and the selected tab already name each view; the views keep their headings for assistive tech only. */
+.reading-memory .distillation-library-heading h1,
+.reading-memory .reading-library-heading h1,
+.reading-memory .reading-review-heading h1 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 @media (max-width: 640px) {
   .reading-memory-navigation {
-    padding: 12px 16px;
+    padding: 20px 16px 0;
   }
 }
