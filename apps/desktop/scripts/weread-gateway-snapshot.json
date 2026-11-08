@@ -1,0 +1,155 @@
+{
+  "/user/notebooks": {
+    "need_login": true,
+    "params": [
+      {
+        "name": "count",
+        "type": "int",
+        "required": false,
+        "default": "20"
+      },
+      {
+        "name": "lastSort",
+        "type": "int",
+        "required": false
+      }
+    ],
+    "response_fields": [
+      "synckey",
+      "totalBookCount",
+      "totalNoteCount",
+      "noBookReviewCount",
+      "hasMore",
+      "books"
+    ]
+  },
+  "/book/info": {
+    "need_login": false,
+    "params": [
+      {
+        "name": "bookId",
+        "type": "string",
+        "required": true
+      }
+    ],
+    "response_fields": [
+      "bookId",
+      "deepLink",
+      "readerLink",
+      "title",
+      "author",
+      "translator",
+      "cover",
+      "intro",
+      "category",
+      "publisher",
+      "publishTime",
+      "isbn",
+      "wordCount",
+      "newRating",
+      "newRatingCount",
+      "newRatingDetail"
+    ]
+  },
+  "/book/chapterinfo": {
+    "need_login": false,
+    "params": [
+      {
+        "name": "bookId",
+        "type": "string",
+        "required": true
+      }
+    ],
+    "response_fields": ["bookId", "synckey", "chapterUpdateTime", "chapters"]
+  },
+  "/book/getprogress": {
+    "need_login": true,
+    "params": [
+      {
+        "name": "bookId",
+        "type": "string",
+        "required": true
+      }
+    ],
+    "response_fields": ["bookId", "book", "timestamp"]
+  },
+  "/book/bookmarklist": {
+    "need_login": true,
+    "params": [
+      {
+        "name": "bookId",
+        "type": "string",
+        "required": true
+      }
+    ],
+    "response_fields": ["synckey", "updated", "removed", "chapters", "book"]
+  },
+  "/review/list/mine": {
+    "need_login": true,
+    "params": [
+      {
+        "name": "bookid",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "synckey",
+        "type": "int",
+        "required": false,
+        "default": "0"
+      },
+      {
+        "name": "count",
+        "type": "int",
+        "required": false,
+        "default": "20"
+      }
+    ],
+    "response_fields": ["reviews", "totalCount", "hasMore", "synckey", "removed"]
+  },
+  "/readdata/detail": {
+    "need_login": true,
+    "params": [
+      {
+        "name": "mode",
+        "type": "string",
+        "required": false,
+        "default": "monthly"
+      },
+      {
+        "name": "baseTime",
+        "type": "int",
+        "required": false,
+        "default": "0"
+      }
+    ],
+    "response_fields": [
+      "readTimes",
+      "readDays",
+      "totalReadTime",
+      "dayAverageReadTime",
+      "compare",
+      "baseTime",
+      "readLongest",
+      "readStat",
+      "preferCategory",
+      "preferCategoryWord",
+      "preferTime",
+      "preferTimeWord",
+      "preferAuthor",
+      "authorCount",
+      "preferPublisher",
+      "preferCp",
+      "readRate",
+      "wrReadTime",
+      "wrListenTime",
+      "rank",
+      "registTime",
+      "medals",
+      "preferBooks",
+      "recordReadingTime",
+      "readRecordsWord",
+      "readDistributionWord"
+    ]
+  }
+}
