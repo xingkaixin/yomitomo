@@ -1,10 +1,9 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { FloppyDiskIcon, Tick01Icon, Upload01Icon, UserIcon } from '@hugeicons/core-free-icons';
 import React from 'react';
-import { sanitizeUsernameInput, userAnnotationColors, type UserDraft } from './app-settings';
+import { sanitizeUsernameInput, type UserDraft } from './app-settings';
 import { readAvatarFile } from '../shell/app-avatar';
 import { AvatarImage } from '../shell/app-ui';
-import { ColorPicker } from './app-settings-color-picker';
 import { Button } from '../components/ui/button';
 import { Field } from '../components/ui/field';
 import { Input } from '../components/ui/input';
@@ -48,9 +47,6 @@ export function UserProfileSettingsDialog({
       : saveState === 'saved'
         ? t('settings.profile.saved')
         : t('settings.profile.save');
-  const selectedAnnotationColor = userAnnotationColors.includes(draft.annotationColor || '')
-    ? draft.annotationColor || userAnnotationColors[0]
-    : userAnnotationColors[0];
 
   return (
     <Dialog open onOpenChange={(nextOpen) => !nextOpen && onClose()}>
@@ -109,18 +105,6 @@ export function UserProfileSettingsDialog({
                   }
                 />
               </Field>
-              <Field className="col-span-2" label={t('settings.profile.annotationColor')}>
-                <AnnotationColorPreview
-                  avatar={draft.avatar || ''}
-                  color={selectedAnnotationColor}
-                  nickname={draft.nickname || t('settings.profile.selfFallback')}
-                />
-                <ColorPicker
-                  colors={userAnnotationColors}
-                  value={selectedAnnotationColor}
-                  onChange={(annotationColor) => onChange({ ...draft, annotationColor })}
-                />
-              </Field>
             </div>
 
             <footer>
@@ -154,43 +138,6 @@ export function UserProfileSettingsDialog({
         </DialogOverlay>
       </DialogPortal>
     </Dialog>
-  );
-}
-
-function AnnotationColorPreview({
-  avatar,
-  color,
-  nickname,
-}: {
-  avatar: string;
-  color: string;
-  nickname: string;
-}) {
-  const { t } = useTranslation();
-  return (
-    <div
-      className="annotation-color-preview"
-      style={{ '--annotation-color': color } as React.CSSProperties}
-    >
-      <div className="annotation-color-preview-text">
-        <p>
-          {t('settings.profile.previewTextBefore')}
-          <span>{t('settings.profile.previewTextHighlight')}</span>
-          {t('settings.profile.previewTextAfter')}
-        </p>
-      </div>
-      <div className="annotation-color-preview-card">
-        <AvatarImage
-          value={avatar}
-          className="size-8"
-          fallback={nickname.slice(0, 1) || t('settings.profile.selfFallback')}
-        />
-        <div>
-          <strong>{nickname}</strong>
-          <p>{t('settings.profile.previewComment')}</p>
-        </div>
-      </div>
-    </div>
   );
 }
 

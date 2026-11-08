@@ -229,13 +229,8 @@ function ReadyApp({
                   </button>
                 ) : null}
                 <ThemeSelector
-                  activeThemeId={theme.activeThemeId}
                   themePreference={theme.themePreference}
-                  open={session.themeDialogOpen}
-                  readerBackgroundColor={theme.readerBackgroundColor}
                   soundSettings={store.settings}
-                  onOpenChange={session.actions.setThemeDialogOpen}
-                  onSelectReaderBackground={theme.selectReaderBackground}
                   onSelectThemePreference={(preference) =>
                     void theme.selectThemePreference(preference)
                   }

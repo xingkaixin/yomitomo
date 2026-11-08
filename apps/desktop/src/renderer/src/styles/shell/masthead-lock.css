@@ -239,7 +239,6 @@
 }
 
 .app-nav-lock-button,
-.app-nav-theme-button,
 .app-nav-profile-button {
   position: relative;
   display: grid;
@@ -259,21 +258,17 @@
 
 .app-nav-lock-button:hover,
 .app-nav-lock-button:focus-visible,
-.app-nav-theme-button:hover,
-.app-nav-theme-button:focus-visible,
 .app-nav-profile-button:hover,
 .app-nav-profile-button:focus-visible {
   background-color: var(--app-interactive-hover-bg);
 }
 
 .app-nav-lock-button:active,
-.app-nav-theme-button:active,
 .app-nav-profile-button:active {
   transform: scale(0.96);
 }
 
 .app-nav-lock-button::after,
-.app-nav-theme-button::after,
 .app-nav-profile-button::after {
   position: absolute;
   bottom: calc(100% + 8px);
@@ -299,12 +294,54 @@
 
 .app-nav-lock-button:hover::after,
 .app-nav-lock-button:focus-visible::after,
-.app-nav-theme-button:hover::after,
-.app-nav-theme-button:focus-visible::after,
 .app-nav-profile-button:hover::after,
 .app-nav-profile-button:focus-visible::after {
   opacity: 1;
   transform: translateY(0);
+}
+
+.segmented-control.app-nav-theme-switch {
+  --segmented-padding: 2px;
+  --segmented-radius: 999px;
+  --segmented-indicator-radius: 999px;
+
+  /* The hover labels sit above the capsule; the indicator never leaves the padding box. */
+  overflow: visible;
+}
+
+.app-nav-theme-switch .segmented-control-option {
+  width: 28px;
+  min-height: 26px;
+  padding: 0;
+}
+
+.app-nav-theme-switch .segmented-control-option::after {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  z-index: 2;
+  opacity: 0;
+  border-radius: 999px;
+  background: var(--app-action-primary-bg);
+  box-shadow: var(--app-float-shadow);
+  color: var(--app-action-primary-fg);
+  content: attr(aria-label);
+  font-size: 12px;
+  font-weight: 760;
+  line-height: 1;
+  padding: 7px 10px;
+  pointer-events: none;
+  transform: translate(-50%, 4px);
+  transition:
+    opacity 150ms ease,
+    transform 150ms ease;
+  white-space: nowrap;
+}
+
+.app-nav-theme-switch .segmented-control-option:hover::after,
+.app-nav-theme-switch .segmented-control-option:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 .app-lock-overlay {

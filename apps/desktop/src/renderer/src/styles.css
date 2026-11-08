@@ -11,6 +11,5 @@
 @import './styles/source-reader.css';
 @import './styles/source-ebook.css';
 @import './styles/source-pdf.css';
-@import './styles/shell/theme-dialog.css';
 @import './styles/popup-motion.css';
 @config "../../../tailwind.config.ts";

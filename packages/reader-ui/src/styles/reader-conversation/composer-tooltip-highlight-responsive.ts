@@ -1,3 +1,5 @@
+import { handDrawnLineMask } from '../hand-drawn-line';
+
 export const composerTooltipHighlightResponsiveStyles = `.reader-composer textarea:focus,
 .reader-composer textarea:focus-visible {
   outline:0;
@@ -267,8 +269,8 @@ export const composerTooltipHighlightResponsiveStyles = `.reader-composer textar
   border-radius:999px;
   background:var(--highlight-line);
   opacity:var(--highlight-opacity,.62);
-  -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 8' preserveAspectRatio='none'%3E%3Cpath d='M0 4.4C10 3.6 22 3.4 34 4.1S58 5.3 72 4.6 100 3.3 120 4.4' stroke='black' stroke-width='3.4' fill='none'/%3E%3C/svg%3E");
-  mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 8' preserveAspectRatio='none'%3E%3Cpath d='M0 4.4C10 3.6 22 3.4 34 4.1S58 5.3 72 4.6 100 3.3 120 4.4' stroke='black' stroke-width='3.4' fill='none'/%3E%3C/svg%3E");
+  -webkit-mask-image:${handDrawnLineMask};
+  mask-image:${handDrawnLineMask};
   -webkit-mask-repeat:repeat-x;
   mask-repeat:repeat-x;
   -webkit-mask-size:120px 100%;

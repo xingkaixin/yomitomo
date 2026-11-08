@@ -1,3 +1,5 @@
+import { handDrawnLineMask } from '../hand-drawn-line';
+
 export const toolbarStyles = `.reader-main {
   grid-template-columns:minmax(0,1fr)
 }
@@ -144,15 +146,15 @@ export const toolbarStyles = `.reader-main {
   width:1px;
   background:var(--reader-ink-subtle)
 }
+/* Separated items are usually the buttons themselves; padding would push their icon off center. */
 .reader-floating-toolbar-controls>*+* {
   position:relative;
-  margin-left:5px;
-  padding-left:9px
+  margin-left:14px
 }
 .reader-floating-toolbar-controls>*+*::before {
   content:"";
   position:absolute;
-  left:0;
+  left:-8px;
   top:6px;
   bottom:6px;
   width:1px;
@@ -530,6 +532,8 @@ export const toolbarStyles = `.reader-main {
   appearance:none
 }
 .reader-appearance-popover {
+  display:grid;
+  gap:14px;
   width:auto;
   padding:12px
 }
@@ -558,10 +562,14 @@ export const toolbarStyles = `.reader-main {
 }
 .reader-appearance-line::after {
   content:"";
-  width:22px;
-  height:3px;
+  width:28px;
+  height:6px;
   border-radius:999px;
-  background:var(--reader-swatch)
+  background:var(--reader-swatch);
+  -webkit-mask-image:${handDrawnLineMask};
+  mask-image:${handDrawnLineMask};
+  -webkit-mask-size:100% 100%;
+  mask-size:100% 100%
 }
 .reader-appearance-line:hover {
   background:var(--app-reader-toolbar-control-hover-bg)
@@ -573,4 +581,27 @@ export const toolbarStyles = `.reader-main {
 .reader-appearance-line:focus-visible {
   outline:2px solid var(--app-reader-focus-ring);
   outline-offset:1px
+}
+.reader-appearance-paper {
+  display:grid;
+  width:32px;
+  height:32px;
+  place-items:center;
+  border:1px solid var(--app-reader-toolbar-border);
+  border-radius:8px;
+  font-family:var(--font-reader-serif,serif);
+  font-size:14px;
+  padding:0;
+  transition:transform .15s ease
+}
+.reader-appearance-paper:hover {
+  transform:translateY(-1px)
+}
+.reader-appearance-paper[aria-checked="true"] {
+  outline:1.5px solid var(--app-reader-ink);
+  outline-offset:2px
+}
+.reader-appearance-paper:focus-visible {
+  outline:2px solid var(--app-reader-focus-ring);
+  outline-offset:3px
 }`;
