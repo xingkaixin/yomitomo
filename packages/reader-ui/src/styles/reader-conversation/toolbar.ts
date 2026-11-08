@@ -144,15 +144,15 @@ export const toolbarStyles = `.reader-main {
   width:1px;
   background:var(--reader-ink-subtle)
 }
+/* Separated items are usually the buttons themselves; padding would push their icon off center. */
 .reader-floating-toolbar-controls>*+* {
   position:relative;
-  margin-left:5px;
-  padding-left:9px
+  margin-left:14px
 }
 .reader-floating-toolbar-controls>*+*::before {
   content:"";
   position:absolute;
-  left:0;
+  left:-8px;
   top:6px;
   bottom:6px;
   width:1px;
