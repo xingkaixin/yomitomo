@@ -2,12 +2,19 @@
 .reading-review-evidence-heading,
 .reading-review-evidence-cards {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
 }
 
+.reading-review-evidence {
+  border-radius: 12px;
+  background: var(--app-well);
+  box-shadow: var(--app-well-shadow);
+  padding: 12px 14px;
+}
+
 .reading-review-evidence-heading {
-  gap: 6px;
+  gap: 2px;
 }
 
 .reading-review-evidence h3,
@@ -19,32 +26,37 @@
 
 .reading-review-evidence h3,
 .reading-review-evidence h4 {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
 }
 
+.reading-review-evidence > p,
 .reading-review-evidence-heading > p,
 .reading-review-evidence-coverage,
 .reading-review-evidence-receipt {
   color: hsl(var(--muted-foreground));
   font-size: 12px;
-  line-height: 1.6;
+  line-height: 17px;
 }
 
 .reading-review-evidence-coverage,
 .reading-review-evidence-receipt {
   display: grid;
-  gap: 4px;
+  gap: 2px;
 }
 
 .reading-review-evidence-privacy {
   display: grid;
   gap: 8px;
-  padding: 16px;
-  border: 1px solid hsl(var(--border));
-  border-radius: var(--radius);
-  background: hsl(var(--card));
-  color: hsl(var(--card-foreground));
+  padding: 14px 16px;
+  border: 1px solid var(--app-edge);
+  border-radius: 12px;
+  background: var(--app-card-surface);
+  box-shadow: var(--app-card-shadow);
+  color: hsl(var(--foreground));
+  font-size: 13px;
+  line-height: 21px;
 }
 
 .reading-review-evidence-actions {
@@ -56,11 +68,11 @@
 
 .reading-review-evidence-actions button {
   height: auto;
-  min-height: 40px;
+  min-height: 32px;
   white-space: normal;
 }
 
 .reading-review-evidence [tabindex='-1']:focus-visible {
-  outline: 2px solid hsl(var(--ring));
-  outline-offset: 3px;
+  outline: 2px solid var(--app-interactive-focus-ring);
+  outline-offset: 2px;
 }

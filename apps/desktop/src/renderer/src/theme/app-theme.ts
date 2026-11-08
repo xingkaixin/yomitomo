@@ -57,6 +57,7 @@ export type AppTheme = {
     ink: SurfaceMaterial & { edge: string; foreground: string };
     floatShadow: string;
     dialogShadow: string;
+    distill: { top: string; bottom: string; edge: string };
   };
   action: {
     primary: ThemeControlState;
@@ -300,6 +301,7 @@ export const lightTheme: AppTheme = {
       'inset 0 1px 0 #ffffff, 0 2px 6px rgba(28, 26, 23, 0.08), 0 12px 28px -8px rgba(28, 26, 23, 0.2)',
     dialogShadow:
       'inset 0 1px 0 #ffffff, 0 4px 16px rgba(28, 26, 23, 0.12), 0 24px 48px -12px rgba(28, 26, 23, 0.2)',
+    distill: { top: '#fffaf2', bottom: '#fbf1e4', edge: 'rgba(178, 50, 35, 0.24)' },
   },
   action: {
     primary: {
@@ -517,6 +519,7 @@ export const darkTheme: AppTheme = {
     floatShadow:
       'inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.4), 0 14px 32px -8px rgba(0, 0, 0, 0.65)',
     dialogShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 24px 56px -12px rgba(0, 0, 0, 0.6)',
+    distill: { top: '#2c2622', bottom: '#241f1b', edge: 'rgba(232, 115, 95, 0.32)' },
   },
   action: {
     primary: {
@@ -630,6 +633,8 @@ export function themeToCssVariables(theme: AppTheme): CssVariableMap {
     '--app-ink-shadow': theme.surface.ink.shadow,
     '--app-float-shadow': theme.surface.floatShadow,
     '--app-dialog-shadow': theme.surface.dialogShadow,
+    '--app-distill': surfaceGradient(theme.surface.distill),
+    '--app-distill-edge': theme.surface.distill.edge,
     '--app-z-sticky': theme.effect.zIndex.sticky,
     '--app-z-floating': theme.effect.zIndex.floating,
     '--app-z-dropdown': theme.effect.zIndex.dropdown,
@@ -682,7 +687,7 @@ export function themeToCssVariables(theme: AppTheme): CssVariableMap {
   };
 }
 
-function surfaceGradient(material: SurfaceMaterial) {
+function surfaceGradient(material: Pick<SurfaceMaterial, 'top' | 'bottom'>) {
   return `linear-gradient(to bottom, ${material.top}, ${material.bottom})`;
 }
 
