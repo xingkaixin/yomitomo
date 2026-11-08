@@ -376,8 +376,8 @@
 }
 
 .annotation-sedimentation-draft-anchor-mark.is-drifted {
-  background: color-mix(in srgb, var(--app-interactive-success-fg) 16%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--app-interactive-success-fg) 30%, transparent);
+  background: var(--app-success-a16);
+  box-shadow: 0 0 0 1px var(--app-success-a32);
 }
 
 .annotation-sedimentation-draft-anchor-point {
@@ -414,7 +414,7 @@
 
 .annotation-sedimentation-draft-preview-insert,
 .proposal-diff-insert {
-  background: color-mix(in srgb, var(--app-interactive-success-fg) 18%, transparent);
+  background: var(--app-success-a16);
   color: inherit;
   text-decoration: none;
 }
@@ -765,7 +765,7 @@
   border: 1px solid var(--app-edge-soft);
   border-radius: 12px;
   background: var(--app-panel);
-  box-shadow: var(--app-shell-panel-shadow);
+  box-shadow: var(--app-panel-shadow);
 }
 
 .annotation-sedimentation-review-panel > header {

@@ -158,7 +158,7 @@
   color: inherit;
   cursor: pointer;
   text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, var(--app-reader-ink) 32%, transparent);
+  text-decoration-color: var(--app-reader-ink-a32);
   text-decoration-thickness: 1px;
   text-underline-offset: 0.16em;
 }
@@ -175,7 +175,7 @@
 
 .annotation-discussion-markdown code {
   border-radius: 5px;
-  background: color-mix(in srgb, var(--app-reader-ink) 8%, transparent);
+  background: var(--app-reader-ink-a8);
   font-family: var(--font-mono);
   font-size: 12px;
   padding: 1px 4px;
@@ -188,9 +188,8 @@
   max-width: 100%;
   transform: translateY(-1px);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--mention-accent, var(--app-reader-accent)) 18%, transparent);
-  box-shadow: inset 0 0 0 1px
-    color-mix(in srgb, var(--mention-accent, var(--app-reader-accent)) 28%, transparent);
+  background: var(--app-reader-accent-a16);
+  box-shadow: inset 0 0 0 1px var(--app-reader-accent-a24);
   color: color-mix(
     in srgb,
     var(--mention-accent, var(--app-reader-accent)) 76%,
