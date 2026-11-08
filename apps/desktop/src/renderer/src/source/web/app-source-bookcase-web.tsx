@@ -19,6 +19,7 @@ import {
 } from '@yomitomo/reader-ui/reader-app-view';
 import { ReaderSettingsToolbarControls } from '@yomitomo/reader-ui/reader-toolbar-controls';
 import { readerPaperDisplayName } from '../../i18n/app-i18n-labels';
+import { useReaderAnnotationLine } from '../bookcase/use-reader-annotation-line';
 import { getDesktopApi } from '../../shell/app-desktop-api';
 import { readerDesktopEmbeddedBundleStyles } from '@yomitomo/reader-ui/reader-styles';
 import {
@@ -65,6 +66,7 @@ function WebSourceReader({
   },
   readerControl: { focusAnnotationId, onClose, onOpenEvidenceSource, selectedAnnotationId },
 }: WebSourceBookcaseProps) {
+  const annotationLine = useReaderAnnotationLine(userProfile);
   const { saveArticleReadingProgress } = articleActions;
   const sourceReaderApp = useSourceReaderApp({
     articleActions,
@@ -496,7 +498,9 @@ function WebSourceReader({
         <>
           {bilingualTranslation.toolbar}
           <ReaderSettingsToolbarControls
+            annotationLine={annotationLine}
             labels={{
+              annotationColor: labels.annotationLineColor,
               appearance: labels.readerAppearance,
               articleWidth: labels.articleWidth,
               distillationColor: labels.distillationColor,

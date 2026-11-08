@@ -99,8 +99,7 @@ export function userDraftHasChanges(draft: UserDraft, user: UserProfile) {
   return (
     (draft.nickname || '').trim() !== user.nickname ||
     (draft.username || '').trim() !== user.username ||
-    (draft.avatar || '') !== user.avatar ||
-    (draft.annotationColor || '') !== user.annotationColor
+    (draft.avatar || '') !== user.avatar
   );
 }
 

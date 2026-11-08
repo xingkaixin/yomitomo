@@ -30,7 +30,10 @@ import {
 } from '@yomitomo/shared';
 import { activeTocIndexForOffset, selectionActionPosition, type TocItem } from '@yomitomo/core';
 import { ReaderAppView } from '@yomitomo/reader-ui/reader-app-view';
-import { ReaderToolbarSliderPopover } from '@yomitomo/reader-ui/reader-toolbar-controls';
+import {
+  ReaderToolbarAppearancePopover,
+  ReaderToolbarSliderPopover,
+} from '@yomitomo/reader-ui/reader-toolbar-controls';
 import { ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
 import { readerDesktopEmbeddedBundleStyles } from '@yomitomo/reader-ui/reader-styles';
 import { selectionActionShortcut } from '@yomitomo/reader-ui/reader-shortcuts';
@@ -38,6 +41,8 @@ import type { SourceBookcaseProps } from '../bookcase/source-bookcase-types';
 import { saveAssistantArticleText } from '../bookcase/assistant-article-text';
 import { useAssistantPassageReveal } from '../bookcase/use-assistant-passage-reveal';
 import { useSourceReaderApp } from '../bookcase/use-source-reader-app';
+import { useReaderAnnotationLine } from '../bookcase/use-reader-annotation-line';
+import { useDesktopReaderSettings } from '../../settings/app-reader-settings';
 import { getOptionalDesktopApi } from '../../shell/app-desktop-api';
 import {
   useReaderPageTurnKeys,
@@ -330,6 +335,8 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     pdfTextDocument,
     pdfTextIndexPreparing,
   } = documentText;
+  const [readerSettings, updateReaderSettings] = useDesktopReaderSettings();
+  const annotationLine = useReaderAnnotationLine(userProfile);
   const sourceReaderApp = useSourceReaderApp({
     articleActions,
     onOpenEvidenceSource,
@@ -796,6 +803,20 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
               disableAutoZoom();
               zoomControls?.requestZoom(value / 100);
             }}
+          />
+          <ReaderToolbarAppearancePopover
+            annotationLine={annotationLine}
+            labels={{
+              annotationColor: t('readerUi.annotationLineColor'),
+              appearance: t('readerUi.readerAppearance'),
+              articleWidth: t('readerUi.articleWidth'),
+              distillationColor: t('readerUi.distillationColor'),
+              fontSize: t('readerUi.fontSize'),
+              paper: t('readerUi.readerPaper'),
+            }}
+            settings={readerSettings}
+            showPaper={false}
+            onChange={updateReaderSettings}
           />
         </>
       ),

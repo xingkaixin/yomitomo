@@ -12,6 +12,7 @@ import type {
   EbookBookcaseProps,
 } from '../source/bookcase/app-source-bookcase';
 import { lightTheme } from '../theme/app-theme';
+import { createDesktopStore, DesktopStoreProvider } from '../shell/app-desktop-store';
 import { articleActionStubs } from './article-actions-test-utils';
 
 const mocks = vi.hoisted(() => ({
@@ -223,7 +224,12 @@ function ebookArticle(overrides: Partial<EbookArticleRecord> = {}): EbookArticle
 }
 
 function renderEbookBookcase(sourceArticle: EbookArticleRecord, annotations: Annotation[]) {
-  return render(<EbookBookcase {...ebookBookcaseProps(sourceArticle, annotations)} />);
+  const store = createDesktopStore();
+  return render(<EbookBookcase {...ebookBookcaseProps(sourceArticle, annotations)} />, {
+    wrapper: ({ children }) => (
+      <DesktopStoreProvider store={store}>{children}</DesktopStoreProvider>
+    ),
+  });
 }
 
 describe('EbookBookcase', () => {

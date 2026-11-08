@@ -31,6 +31,7 @@ import {
 import { ebookArticleText } from './ebook-text-anchor';
 import { EbookReaderShell } from './app-source-ebook-reader-shell';
 import { readerPaperDisplayName } from '../../i18n/app-i18n-labels';
+import { useReaderAnnotationLine } from '../bookcase/use-reader-annotation-line';
 import type { EbookBookcaseProps } from '../bookcase/source-bookcase-types';
 import { useEbookFoliateView } from './use-ebook-foliate-view';
 import { useEbookBilingualTranslation } from './use-ebook-bilingual-translation';
@@ -68,6 +69,7 @@ function EbookReader({
   },
   readerControl: { focusAnnotationId, onClose, onOpenEvidenceSource, selectedAnnotationId },
 }: EbookBookcaseProps) {
+  const annotationLine = useReaderAnnotationLine(userProfile);
   const { saveArticleReadingProgress } = articleActions;
   const { t } = useTranslation();
   const pageTurnTraceRef = useRef<EbookPageTurnTrace | null>(null);
@@ -607,7 +609,9 @@ function EbookReader({
           </div>
           {ebookTranslation.toolbar}
           <ReaderSettingsToolbarControls
+            annotationLine={annotationLine}
             labels={{
+              annotationColor: labels.annotationLineColor,
               appearance: labels.readerAppearance,
               articleWidth: labels.articleWidth,
               distillationColor: labels.distillationColor,

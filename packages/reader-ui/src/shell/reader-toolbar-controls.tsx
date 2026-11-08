@@ -17,11 +17,19 @@ import type { ReaderSettings } from '../reader-types';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { ReaderTooltip } from '../shared/reader-component-primitives';
 
+export type ReaderAnnotationLineControl = {
+  colors: readonly string[];
+  value: string;
+  onChange: (color: string) => void;
+};
+
 export function ReaderSettingsToolbarControls({
+  annotationLine,
   labels = defaultToolbarLabels,
   settings,
   onChange,
 }: {
+  annotationLine?: ReaderAnnotationLineControl;
   labels?: ReaderToolbarLabels;
   settings: ReaderSettings;
   onChange: (settings: ReaderSettings) => void;
@@ -48,12 +56,18 @@ export function ReaderSettingsToolbarControls({
         value={settings.contentWidth}
         onChange={(contentWidth) => onChange({ ...settings, contentWidth })}
       />
-      <ReaderToolbarAppearancePopover labels={labels} settings={settings} onChange={onChange} />
+      <ReaderToolbarAppearancePopover
+        annotationLine={annotationLine}
+        labels={labels}
+        settings={settings}
+        onChange={onChange}
+      />
     </>
   );
 }
 
 export type ReaderToolbarLabels = {
+  annotationColor: string;
   appearance: string;
   articleWidth: string;
   distillationColor: string;
@@ -63,6 +77,7 @@ export type ReaderToolbarLabels = {
 };
 
 const defaultToolbarLabels: ReaderToolbarLabels = {
+  annotationColor: '批注划线',
   appearance: '阅读外观',
   articleWidth: '文章宽度',
   distillationColor: '沉淀划线',
@@ -70,12 +85,16 @@ const defaultToolbarLabels: ReaderToolbarLabels = {
   paper: '纸张',
 };
 
-function ReaderToolbarAppearancePopover({
-  labels,
+export function ReaderToolbarAppearancePopover({
+  annotationLine,
+  labels = defaultToolbarLabels,
+  showPaper = true,
   settings,
   onChange,
 }: {
-  labels: ReaderToolbarLabels;
+  annotationLine?: ReaderAnnotationLineControl;
+  labels?: ReaderToolbarLabels;
+  showPaper?: boolean;
   settings: ReaderSettings;
   onChange: (settings: ReaderSettings) => void;
 }) {
@@ -103,50 +122,77 @@ function ReaderToolbarAppearancePopover({
         </PopoverTrigger>
       </ReaderTooltip>
       <PopoverContent className="reader-toolbar-popover reader-appearance-popover" id={popoverId}>
-        <div className="reader-appearance-section">
-          <span className="reader-appearance-label">{labels.paper}</span>
-          <div className="reader-appearance-swatches" role="radiogroup" aria-label={labels.paper}>
-            {readerBackgroundOptions
-              .filter((paper) => paper.tone === tone)
-              .map((paper) => (
-                <button
-                  aria-checked={settings.backgroundColor === paper.value}
-                  aria-label={paperName(paper.label)}
-                  className="reader-appearance-paper"
-                  key={paper.value}
-                  role="radio"
-                  style={{ background: paper.value, color: paper.ink }}
-                  type="button"
-                  onClick={() => onChange({ ...settings, backgroundColor: paper.value })}
-                >
-                  文
-                </button>
-              ))}
+        {showPaper ? (
+          <div className="reader-appearance-section">
+            <span className="reader-appearance-label">{labels.paper}</span>
+            <div className="reader-appearance-swatches" role="radiogroup" aria-label={labels.paper}>
+              {readerBackgroundOptions
+                .filter((paper) => paper.tone === tone)
+                .map((paper) => (
+                  <button
+                    aria-checked={settings.backgroundColor === paper.value}
+                    aria-label={paperName(paper.label)}
+                    className="reader-appearance-paper"
+                    key={paper.value}
+                    role="radio"
+                    style={{ background: paper.value, color: paper.ink }}
+                    type="button"
+                    onClick={() => onChange({ ...settings, backgroundColor: paper.value })}
+                  >
+                    文
+                  </button>
+                ))}
+            </div>
           </div>
-        </div>
-        <div className="reader-appearance-section">
-          <span className="reader-appearance-label">{labels.distillationColor}</span>
-          <div
-            className="reader-appearance-swatches"
-            role="radiogroup"
-            aria-label={labels.distillationColor}
-          >
-            {readerDistillationColorOptions.map((color, index) => (
-              <button
-                aria-checked={settings.distillationColor === color}
-                aria-label={`${labels.distillationColor} ${index + 1}`}
-                className="reader-appearance-line"
-                key={color}
-                role="radio"
-                style={{ '--reader-swatch': color } as React.CSSProperties}
-                type="button"
-                onClick={() => onChange({ ...settings, distillationColor: color })}
-              />
-            ))}
-          </div>
-        </div>
+        ) : null}
+        {annotationLine ? (
+          <ReaderLineColorSection
+            colors={annotationLine.colors}
+            label={labels.annotationColor}
+            value={annotationLine.value}
+            onChange={annotationLine.onChange}
+          />
+        ) : null}
+        <ReaderLineColorSection
+          colors={readerDistillationColorOptions}
+          label={labels.distillationColor}
+          value={settings.distillationColor}
+          onChange={(distillationColor) => onChange({ ...settings, distillationColor })}
+        />
       </PopoverContent>
     </Popover>
+  );
+}
+
+function ReaderLineColorSection({
+  colors,
+  label,
+  value,
+  onChange,
+}: {
+  colors: readonly string[];
+  label: string;
+  value: string;
+  onChange: (color: string) => void;
+}) {
+  return (
+    <div className="reader-appearance-section">
+      <span className="reader-appearance-label">{label}</span>
+      <div className="reader-appearance-swatches" role="radiogroup" aria-label={label}>
+        {colors.map((color, index) => (
+          <button
+            aria-checked={value === color}
+            aria-label={`${label} ${index + 1}`}
+            className="reader-appearance-line"
+            key={color}
+            role="radio"
+            style={{ '--reader-swatch': color } as React.CSSProperties}
+            type="button"
+            onClick={() => onChange(color)}
+          />
+        ))}
+      </div>
+    </div>
   );
 }
 
