@@ -547,14 +547,11 @@ export function normalizeWeReadReadingStats(value: unknown, mode: unknown): WeRe
     readStat: arrayField(data.readStat).map(normalizeWeReadReadingStatsItem),
     readTimes: numberRecordField(data.readTimes),
     readLongest: arrayField(data.readLongest).map(normalizeWeReadReadingStatsBook),
-    preferCategory: arrayField(data.preferCategory).map(normalizeWeReadReadingStatsItem),
     preferCategoryWord: stringField(data.preferCategoryWord) || undefined,
     preferTimeWord: stringField(data.preferTimeWord) || undefined,
     preferTime: arrayField(data.preferTime)
       .map(numberField)
       .filter((item): item is number => item !== undefined),
-    preferAuthor: stringField(data.preferAuthor) || undefined,
-    preferPublisher: stringField(data.preferPublisher) || undefined,
     authorCount: numberField(data.authorCount),
     registTime: numberField(data.registTime),
   };

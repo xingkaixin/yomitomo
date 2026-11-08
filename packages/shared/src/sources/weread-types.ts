@@ -113,12 +113,9 @@ export type WeReadReadingStats = {
   readStat: WeReadReadingStatsItem[];
   readTimes: Record<string, number>;
   readLongest: WeReadReadingStatsBook[];
-  preferCategory: WeReadReadingStatsItem[];
   preferCategoryWord?: string;
   preferTimeWord?: string;
   preferTime?: number[];
-  preferAuthor?: string;
-  preferPublisher?: string;
   authorCount?: number;
   registTime?: number;
 };

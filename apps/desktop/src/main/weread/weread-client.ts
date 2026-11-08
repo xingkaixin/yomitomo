@@ -459,12 +459,9 @@ function readingStatsFromResponse(
     readStat: arrayValue(response.readStat).map(readingStatsItemFromResponse),
     readTimes: numberMapFromResponse(response.readTimes),
     readLongest: arrayValue(response.readLongest).map(readingStatsBookFromResponse),
-    preferCategory: arrayValue(response.preferCategory).map(readingStatsItemFromResponse),
     preferCategoryWord: stringValue(response.preferCategoryWord) || undefined,
     preferTimeWord: stringValue(response.preferTimeWord) || undefined,
     preferTime: numberArrayFromResponse(response.preferTime),
-    preferAuthor: stringValue(response.preferAuthor) || undefined,
-    preferPublisher: stringValue(response.preferPublisher) || undefined,
     authorCount: optionalNumber(response.authorCount),
     registTime: optionalNumber(response.registTime),
   };
