@@ -9,11 +9,7 @@ import {
 } from '@hugeicons/core-free-icons';
 import React, { useMemo, useReducer, useRef } from 'react';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
-import {
-  annotationCommentThreads,
-  annotationPersona as annotationAuthor,
-  commentPersona,
-} from '@yomitomo/core';
+import { annotationCommentThreads, commentPersona } from '@yomitomo/core';
 import { AvatarBadge, ReaderTooltip } from '../shared/reader-component-primitives';
 import { formatRelativeTime, formatTime } from '../reader-date-utils';
 import type { AnnotationRailSide } from './annotation-rail-layout';
@@ -294,9 +290,11 @@ const AnnotationCardContent = React.memo(function AnnotationCardContent({
     () => [...agents, ...extraPersonaAgents],
     [agents, extraPersonaAgents],
   );
-  const author = annotationAuthor(annotation, userProfile, personaAgents);
   const discussionThreads = useMemo(() => annotationDiscussionThreads(annotation), [annotation]);
-  const firstThought = discussionThreads.find((thread) => thread.root.content.trim())?.root.content;
+  const thoughts = discussionThreads.filter((thread) => thread.root.content.trim());
+  const firstThought = (
+    thoughts.find((thread) => thread.root.author.kind === 'user') ?? thoughts[0]
+  )?.root.content;
   const visibleThoughtCount = discussionThreads.length + pendingAgents.length;
   const assistantParticipants = useMemo(
     () => uniqueAssistantParticipants(annotation.comments, userProfile, personaAgents),
@@ -333,11 +331,14 @@ const AnnotationCardContent = React.memo(function AnnotationCardContent({
           <header className="reader-note-meta">
             {ordinal === undefined ? null : <span className="reader-note-num">{ordinal}</span>}
             <span className="reader-note-meta-copy">
-              <strong>{author.nickname}</strong>
               <ReaderRelativeTime fullTime={fullTime} value={timestamp} text={timeLabel} />
             </span>
           </header>
-          {firstThought ? <p className="reader-note-text">{firstThought}</p> : null}
+          {firstThought ? (
+            <p className="reader-note-text">{firstThought}</p>
+          ) : (
+            <p className="reader-note-text reader-note-highlight-text">{annotation.anchor.exact}</p>
+          )}
           <DeleteActionMenu
             ariaLabel={labels.openHighlightActions}
             className="reader-note-action-menu"

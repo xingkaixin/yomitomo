@@ -185,6 +185,15 @@ export const surfaceStyles = `.reader-article {
   filter:blur(2px);
   pointer-events:none
 }
+.reader-annotation-rail>.reader-note.has-discussion:not(.is-active,.is-stacked,.is-filtering-out,:hover,:focus-within) {
+  opacity:.6
+}
+.reader-annotation-rail>.reader-note.is-stacked .reader-note-body {
+  transition:opacity .18s ease
+}
+.reader-annotation-rail>.reader-note.is-stacked.has-discussion:not(.is-active,:hover,:focus-within) .reader-note-body {
+  opacity:.6
+}
 .reader-annotation-rail>.reader-note.is-stacked {
   clip-path:inset(-36px -80px var(--stack-clip-bottom,-80px) -80px);
   transform:rotate(var(--stack-rotate,0deg));
