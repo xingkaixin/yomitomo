@@ -58,6 +58,8 @@ export type AppTheme = {
     floatShadow: string;
     dialogShadow: string;
     distill: { top: string; bottom: string; edge: string };
+    bubbleMe: BubbleMaterial;
+    bubbleThem: BubbleMaterial;
   };
   action: {
     primary: ThemeControlState;
@@ -96,6 +98,13 @@ export type SurfaceMaterial = {
   top: string;
   bottom: string;
   shadow: string;
+};
+
+type BubbleMaterial = SurfaceMaterial & {
+  edge: string;
+  foreground: string;
+  textShadow: string;
+  chip: string;
 };
 
 export type ThemeControlState = {
@@ -302,6 +311,26 @@ export const lightTheme: AppTheme = {
     dialogShadow:
       'inset 0 1px 0 #ffffff, 0 4px 16px rgba(28, 26, 23, 0.12), 0 24px 48px -12px rgba(28, 26, 23, 0.2)',
     distill: { top: '#fffaf2', bottom: '#fbf1e4', edge: 'rgba(178, 50, 35, 0.24)' },
+    bubbleMe: {
+      top: '#4a453e',
+      bottom: '#282521',
+      edge: '#12100e',
+      foreground: '#ffffff',
+      textShadow: '0 -1px 0 rgba(0, 0, 0, 0.28)',
+      chip: 'rgba(255, 255, 255, 0.14)',
+      shadow:
+        'inset 0 1px 0 rgba(255, 255, 255, 0.18), inset 0 1px 5px rgba(255, 255, 255, 0.07), inset 0 -1px 0 rgba(0, 0, 0, 0.22), 0 1px 3px rgba(28, 26, 23, 0.18), 0 8px 18px -8px rgba(28, 26, 23, 0.36)',
+    },
+    bubbleThem: {
+      top: '#ffffff',
+      bottom: '#f3f1ec',
+      edge: 'rgba(28, 26, 23, 0.14)',
+      foreground: '#1c1a17',
+      textShadow: '0 1px 0 #ffffff',
+      chip: '#efede8',
+      shadow:
+        'inset 0 1px 0 #ffffff, inset 0 -1px 0 rgba(28, 26, 23, 0.05), 0 1px 3px rgba(28, 26, 23, 0.06), 0 6px 14px -6px rgba(28, 26, 23, 0.16)',
+    },
   },
   action: {
     primary: {
@@ -520,6 +549,26 @@ export const darkTheme: AppTheme = {
       'inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.4), 0 14px 32px -8px rgba(0, 0, 0, 0.65)',
     dialogShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 24px 56px -12px rgba(0, 0, 0, 0.6)',
     distill: { top: '#2c2622', bottom: '#241f1b', edge: 'rgba(232, 115, 95, 0.32)' },
+    bubbleMe: {
+      top: '#f3efe8',
+      bottom: '#d9d3c9',
+      edge: 'rgba(0, 0, 0, 0.6)',
+      foreground: '#1a1917',
+      textShadow: '0 1px 0 rgba(255, 255, 255, 0.5)',
+      chip: 'rgba(0, 0, 0, 0.08)',
+      shadow:
+        'inset 0 1px 0 rgba(255, 255, 255, 0.8), inset 0 -1px 0 rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.5), 0 8px 18px -8px rgba(0, 0, 0, 0.6)',
+    },
+    bubbleThem: {
+      top: '#2f2c28',
+      bottom: '#262320',
+      edge: 'rgba(0, 0, 0, 0.55)',
+      foreground: '#ece8e1',
+      textShadow: '0 -1px 0 rgba(0, 0, 0, 0.4)',
+      chip: '#2a2825',
+      shadow:
+        'inset 0 1px 0 rgba(255, 255, 255, 0.07), inset 0 -1px 0 rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.4), 0 8px 18px -8px rgba(0, 0, 0, 0.6)',
+    },
   },
   action: {
     primary: {
@@ -635,6 +684,8 @@ export function themeToCssVariables(theme: AppTheme): CssVariableMap {
     '--app-dialog-shadow': theme.surface.dialogShadow,
     '--app-distill': surfaceGradient(theme.surface.distill),
     '--app-distill-edge': theme.surface.distill.edge,
+    ...bubbleVariables('me', theme.surface.bubbleMe),
+    ...bubbleVariables('them', theme.surface.bubbleThem),
     '--app-z-sticky': theme.effect.zIndex.sticky,
     '--app-z-floating': theme.effect.zIndex.floating,
     '--app-z-dropdown': theme.effect.zIndex.dropdown,
@@ -684,6 +735,17 @@ export function themeToCssVariables(theme: AppTheme): CssVariableMap {
     '--chart-3': theme.dataColor.chart3,
     '--app-reader-agent-fallback': theme.dataColor.readerAgentFallback,
     ...readerThemeToCssVariables(theme.reader),
+  };
+}
+
+function bubbleVariables(side: 'me' | 'them', bubble: BubbleMaterial) {
+  return {
+    [`--app-bubble-${side}`]: surfaceGradient(bubble),
+    [`--app-bubble-${side}-edge`]: bubble.edge,
+    [`--app-bubble-${side}-fg`]: bubble.foreground,
+    [`--app-bubble-${side}-shadow`]: bubble.shadow,
+    [`--app-bubble-${side}-text-shadow`]: bubble.textShadow,
+    [`--app-bubble-${side}-chip`]: bubble.chip,
   };
 }
 
