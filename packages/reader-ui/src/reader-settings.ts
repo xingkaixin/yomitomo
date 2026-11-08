@@ -1,3 +1,4 @@
+import { defaultUserAnnotationColor } from '@yomitomo/shared';
 import type { ReaderSettings } from './reader-types';
 
 export const defaultReaderBackgroundColor = '#fffdf8';
@@ -92,14 +93,20 @@ export function defaultReaderBackgroundForTone(tone: ReaderBackgroundTone): stri
   );
 }
 
-// Distilled highlights need a line color the user's own annotation colors never use.
-export const readerDistillationColorOptions = ['#8ab6d6', '#6fa48f', '#b99ac8', '#d58b63'] as const;
+// Annotation and distillation lines share one palette; their defaults differ so a distilled
+// highlight stands apart until the reader picks otherwise.
+export const readerLineColorOptions = [
+  defaultUserAnnotationColor,
+  '#8ab6d6',
+  '#6fa48f',
+  '#b99ac8',
+] as const;
 
 export const defaultReaderSettings: ReaderSettings = {
   fontSize: 20,
   contentWidth: 860,
   backgroundColor: defaultReaderBackgroundColor,
-  distillationColor: readerDistillationColorOptions[0],
+  distillationColor: readerLineColorOptions[1],
 };
 
 export function clampNumber(value: number | undefined, min: number, max: number, fallback: number) {
@@ -114,7 +121,7 @@ export function normalizeReaderBackgroundColor(value: string | undefined): strin
 
 export function normalizeReaderDistillationColor(value: string | undefined): string {
   return (
-    readerDistillationColorOptions.find((option) => option === value) ??
+    readerLineColorOptions.find((option) => option === value) ??
     defaultReaderSettings.distillationColor
   );
 }

@@ -1,13 +1,13 @@
 import type { ReaderAnnotationLineControl } from '@yomitomo/reader-ui/reader-toolbar-controls';
+import { readerLineColorOptions } from '@yomitomo/reader-ui/reader-settings';
 import type { UserProfile } from '@yomitomo/shared';
-import { userAnnotationColors } from '../../settings/app-settings';
 import { getDesktopApi } from '../../shell/app-desktop-api';
 import { useDesktopStoreApi } from '../../shell/app-desktop-store';
 
 export function useReaderAnnotationLine(userProfile: UserProfile): ReaderAnnotationLineControl {
   const desktopStore = useDesktopStoreApi();
   return {
-    colors: userAnnotationColors,
+    colors: readerLineColorOptions,
     value: userProfile.annotationColor,
     onChange: (annotationColor) => {
       void getDesktopApi()

@@ -39,8 +39,6 @@ export const annotationColors = [
   '#c8b88a',
 ];
 
-export const userAnnotationColors = [annotationColors[0], annotationColors[1]];
-
 export const annotationDensityOptions: Array<{
   value: AgentAnnotationDensity;
 }> = [{ value: 'low' }, { value: 'medium' }, { value: 'high' }];

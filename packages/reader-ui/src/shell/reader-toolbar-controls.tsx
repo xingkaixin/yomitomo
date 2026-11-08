@@ -11,7 +11,7 @@ import { useId, useReducer } from 'react';
 import {
   readerBackgroundOptions,
   readerBackgroundTone,
-  readerDistillationColorOptions,
+  readerLineColorOptions,
 } from '../reader-settings';
 import type { ReaderSettings } from '../reader-types';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
@@ -154,7 +154,7 @@ export function ReaderToolbarAppearancePopover({
           />
         ) : null}
         <ReaderLineColorSection
-          colors={readerDistillationColorOptions}
+          colors={readerLineColorOptions}
           label={labels.distillationColor}
           value={settings.distillationColor}
           onChange={(distillationColor) => onChange({ ...settings, distillationColor })}

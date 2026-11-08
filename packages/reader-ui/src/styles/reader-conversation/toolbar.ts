@@ -1,3 +1,5 @@
+import { handDrawnLineMask } from '../hand-drawn-line';
+
 export const toolbarStyles = `.reader-main {
   grid-template-columns:minmax(0,1fr)
 }
@@ -560,10 +562,14 @@ export const toolbarStyles = `.reader-main {
 }
 .reader-appearance-line::after {
   content:"";
-  width:22px;
-  height:3px;
+  width:28px;
+  height:6px;
   border-radius:999px;
-  background:var(--reader-swatch)
+  background:var(--reader-swatch);
+  -webkit-mask-image:${handDrawnLineMask};
+  mask-image:${handDrawnLineMask};
+  -webkit-mask-size:100% 100%;
+  mask-size:100% 100%
 }
 .reader-appearance-line:hover {
   background:var(--app-reader-toolbar-control-hover-bg)
