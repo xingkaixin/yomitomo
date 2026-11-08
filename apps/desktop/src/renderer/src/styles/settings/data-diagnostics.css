@@ -185,8 +185,6 @@
 .ui-popover-content,
 .ui-select-content {
   -webkit-app-region: no-drag;
-  background: hsl(var(--popover));
-  color: hsl(var(--popover-foreground));
   opacity: 1;
 }
 
