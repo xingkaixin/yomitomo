@@ -97,6 +97,11 @@
   overflow: hidden;
 }
 
+.library-search-typed:has(.library-search-field input:focus-visible) {
+  outline: 2px solid var(--app-interactive-focus-ring);
+  outline-offset: 2px;
+}
+
 .library-search-typed > svg {
   margin-left: 14px;
   color: hsl(var(--muted-foreground));
@@ -166,6 +171,7 @@
 .library-search-field input:focus {
   background: transparent;
   box-shadow: none;
+  outline: 0;
 }
 
 .library-search-field input::-webkit-search-cancel-button {
