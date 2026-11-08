@@ -1,27 +1,5 @@
 .provider-select-trigger {
-  height: 52px;
-  border-color: hsl(var(--border) / 0.78);
-  background:
-    linear-gradient(180deg, hsl(40 100% 97% / 0.96), hsl(38 42% 93% / 0.86)), hsl(var(--card));
-  box-shadow:
-    0 10px 24px hsl(31 34% 24% / 0.08),
-    inset 0 1px 0 hsl(40 100% 98% / 0.82);
-  transition:
-    transform 150ms ease,
-    border-color 150ms ease,
-    box-shadow 150ms ease,
-    background 150ms ease;
-}
-
-.provider-select-trigger:hover:not(:disabled),
-.provider-select-trigger[data-state='open'] {
-  border-color: hsl(8 45% 48% / 0.42);
-  background:
-    linear-gradient(180deg, hsl(40 100% 98% / 0.98), hsl(38 50% 94% / 0.94)), hsl(var(--card));
-  box-shadow:
-    0 14px 30px hsl(31 34% 24% / 0.12),
-    0 0 0 3px hsl(8 45% 46% / 0.08),
-    inset 0 1px 0 hsl(40 100% 98% / 0.9);
+  height: 48px;
 }
 
 .provider-select-trigger:active:not(:disabled) {
@@ -64,8 +42,8 @@
   height: 9px;
   flex: none;
   border-radius: 999px;
-  background: hsl(83 24% 35%);
-  box-shadow: 0 0 0 4px hsl(83 24% 35% / 0.12);
+  background: var(--app-interactive-success-fg);
+  box-shadow: 0 0 0 4px var(--app-interactive-success-bg);
 }
 
 .provider-select-logo {
@@ -85,7 +63,7 @@
 .provider-select-item-copy strong {
   overflow: hidden;
   font-size: 13px;
-  font-weight: 880;
+  font-weight: 600;
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -95,7 +73,7 @@
   overflow: hidden;
   color: hsl(var(--muted-foreground));
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;

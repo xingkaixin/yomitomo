@@ -24,7 +24,7 @@
 
 .onboarding-brand {
   margin: 0;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .onboarding-language {
@@ -53,7 +53,7 @@
 .onboarding-start h1 {
   font-family: var(--font-reader-serif);
   font-size: clamp(30px, 3.4vw, 44px);
-  font-weight: 750;
+  font-weight: 500;
   line-height: 1.2;
   outline: none;
 }
@@ -135,7 +135,7 @@
 }
 
 .onboarding-demo-reply strong {
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .onboarding-demo figcaption {

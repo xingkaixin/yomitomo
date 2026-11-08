@@ -2,7 +2,7 @@
   margin: 0;
   color: hsl(var(--foreground));
   font-size: 18px;
-  font-weight: 900;
+  font-weight: 600;
   line-height: 1.2;
 }
 
@@ -40,14 +40,10 @@
 }
 
 .diagnostics-filter-panel {
-  border: 1px solid hsl(var(--border) / 0.56);
-  border-radius: 8px;
-  background:
-    linear-gradient(180deg, hsl(var(--card) / 0.92), hsl(var(--background) / 0.68)),
-    hsl(var(--card));
-  box-shadow:
-    0 1px 0 hsl(0 0% 100% / 0.62) inset,
-    0 10px 24px hsl(31 20% 18% / 0.06);
+  border: 1px solid var(--app-edge);
+  border-radius: 12px;
+  background: var(--app-card-surface);
+  box-shadow: var(--app-card-shadow);
   padding: 12px;
 }
 
@@ -67,7 +63,7 @@
 .diagnostics-filter-field > span {
   color: hsl(var(--muted-foreground));
   font-size: 11px;
-  font-weight: 860;
+  font-weight: 600;
   line-height: 1;
 }
 
@@ -77,26 +73,11 @@
 
 .diagnostics-select-trigger,
 .diagnostics-toolbar .diagnostics-date-trigger {
-  height: 44px;
-  border-color: hsl(var(--border) / 0.58);
-  border-radius: 8px;
-  background: hsl(var(--background) / 0.86);
-  box-shadow:
-    0 1px 0 hsl(0 0% 100% / 0.72) inset,
-    0 5px 12px hsl(31 20% 18% / 0.04);
-  transition:
-    border-color 140ms ease,
-    background-color 140ms ease,
-    box-shadow 140ms ease;
-}
-
-.diagnostics-select-trigger:hover,
-.diagnostics-toolbar .diagnostics-date-trigger:hover {
-  border-color: hsl(var(--primary) / 0.32);
-  background: hsl(var(--background));
-  box-shadow:
-    0 1px 0 hsl(0 0% 100% / 0.78) inset,
-    0 8px 18px hsl(31 20% 18% / 0.07);
+  height: 38px;
+  border-color: var(--app-edge);
+  border-radius: 12px;
+  background: var(--app-field);
+  box-shadow: var(--app-field-shadow);
 }
 
 .diagnostics-toolbar .diagnostics-date-trigger {
@@ -106,20 +87,17 @@
 }
 
 .diagnostics-select-content {
-  border-color: hsl(var(--border) / 0.58);
-  border-radius: 8px;
-  background:
-    linear-gradient(180deg, hsl(var(--popover)), hsl(var(--card) / 0.98)), hsl(var(--popover));
-  box-shadow:
-    0 1px 0 hsl(0 0% 100% / 0.72) inset,
-    0 14px 34px hsl(31 22% 18% / 0.14);
+  border-color: var(--app-edge);
+  border-radius: 12px;
+  background: var(--app-card-surface);
+  box-shadow: var(--app-float-shadow);
 }
 
 .diagnostics-select-item {
   min-height: 36px;
   border-radius: 6px;
   font-size: 13px;
-  font-weight: 760;
+  font-weight: 500;
 }
 
 .diagnostics-select-item[data-highlighted] {
@@ -168,10 +146,10 @@
   border: 1px solid rgb(0 0 0 / 0.1);
   border-radius: 999px;
   background: hsl(var(--card));
-  box-shadow: 0 2px 6px hsl(31 22% 18% / 0.08);
+  box-shadow: var(--app-card-shadow);
   color: hsl(var(--muted-foreground));
   font-size: 11px;
-  font-weight: 900;
+  font-weight: 600;
   object-fit: cover;
 }
 
@@ -224,14 +202,14 @@
 .diagnostics-summary-card span {
   color: hsl(var(--muted-foreground));
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .diagnostics-summary-card strong {
   overflow: hidden;
   color: hsl(var(--foreground));
   font-size: 18px;
-  font-weight: 920;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -319,7 +297,7 @@
 .diagnostics-agent-copy strong {
   overflow: hidden;
   font-size: 13px;
-  font-weight: 900;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -381,7 +359,7 @@
 .diagnostics-usage-grid strong {
   color: hsl(var(--foreground));
   font-size: 13px;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .diagnostics-step-list {
@@ -435,7 +413,7 @@
 
 .diagnostics-table th {
   color: hsl(var(--muted-foreground));
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .diagnostics-table tr:last-child td {

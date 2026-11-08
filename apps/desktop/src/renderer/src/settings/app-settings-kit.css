@@ -24,8 +24,8 @@
   gap: 2px;
   min-height: 0;
   overflow-y: auto;
-  padding: 6px 8px 6px 4px;
-  border-right: 1px solid hsl(var(--border) / 0.55);
+  padding: 12px 12px 12px 8px;
+  border-right: 1px solid var(--app-edge-soft);
   scrollbar-width: thin;
 }
 
@@ -33,13 +33,14 @@
   position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  border: 0;
+  min-height: 32px;
+  border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
-  color: hsl(var(--foreground));
-  padding: 9px 12px;
+  color: hsl(var(--muted-foreground));
+  padding: 0 10px;
   cursor: pointer;
   text-align: left;
   font: inherit;
@@ -51,16 +52,14 @@
 .settings-side-nav-icon {
   display: inline-flex;
   flex-shrink: 0;
-  color: hsl(var(--muted-foreground));
-  transition: color 140ms ease;
+  color: inherit;
 }
 
 .settings-side-nav-label {
   flex: 1;
   min-width: 0;
-  font-size: 14px;
-  font-weight: 640;
-  line-height: 1.2;
+  font-size: 13px;
+  line-height: 20px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -68,36 +67,23 @@
 
 .settings-side-nav-item:hover {
   background: var(--app-interactive-hover-bg);
+  color: hsl(var(--foreground));
 }
 
 .settings-side-nav-item.is-active {
-  background: var(--app-interactive-selected-bg);
-  color: var(--app-interactive-selected-fg);
-}
-
-.settings-side-nav-item.is-active .settings-side-nav-icon {
-  color: var(--app-interactive-selected-fg);
+  border-color: var(--app-edge);
+  background: var(--app-raised);
+  box-shadow: var(--app-raised-shadow);
+  color: hsl(var(--foreground));
 }
 
 .settings-side-nav-item.is-active .settings-side-nav-label {
-  font-weight: 760;
-}
-
-.settings-side-nav-item.is-active::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 18px;
-  border-radius: 0 3px 3px 0;
-  background: var(--app-interactive-selected-fg);
+  font-weight: 500;
 }
 
 .settings-side-nav-item:focus-visible {
-  outline: 2px solid hsl(var(--ring) / 0.42);
-  outline-offset: -2px;
+  outline: 2px solid var(--app-interactive-focus-ring);
+  outline-offset: 2px;
 }
 
 /* tooltip 默认隐藏，仅在 icon rail 档启用 */
@@ -130,17 +116,13 @@
   }
 
   .settings-side-nav-item {
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
     justify-content: center;
     padding: 0;
   }
 
   .settings-side-nav-label {
-    display: none;
-  }
-
-  .settings-side-nav-item.is-active::before {
     display: none;
   }
 
@@ -157,7 +139,7 @@
     border-radius: 6px;
     background: var(--app-action-primary-bg);
     color: var(--app-action-primary-fg);
-    box-shadow: 0 8px 18px hsl(31 34% 24% / 0.16);
+    box-shadow: var(--app-float-shadow);
     font-size: 12px;
     font-weight: 600;
     line-height: 1;
@@ -192,7 +174,7 @@
     overflow-y: hidden;
     padding: 0 0 10px;
     border-right: 0;
-    border-bottom: 1px solid hsl(var(--border) / 0.55);
+    border-bottom: 1px solid var(--app-edge-soft);
     scrollbar-width: none;
   }
 
@@ -206,21 +188,13 @@
     flex: 0 0 auto;
     justify-content: flex-start;
     gap: 6px;
-    padding: 7px 13px;
+    padding: 0 12px;
     border-radius: 999px;
-    background: hsl(var(--secondary));
-    color: hsl(var(--muted-foreground));
   }
 
   .settings-side-nav-label {
     display: inline;
     flex: 0 0 auto;
-    font-size: 13px;
-  }
-
-  .settings-side-nav-item.is-active {
-    background: var(--app-interactive-selected-bg);
-    color: var(--app-interactive-selected-fg);
   }
 
   .settings-side-nav-item[data-tooltip]::after {
@@ -230,8 +204,8 @@
 
 /* ---- 页面骨架：面包屑 + 分组 + 卡片 + 设置行 ---- */
 .settings-page {
-  width: min(100%, 660px);
-  padding: 20px 24px 48px;
+  width: min(100%, 680px);
+  padding: 24px 32px 48px;
 }
 
 .settings-breadcrumb {
@@ -239,32 +213,28 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 
 .settings-breadcrumb-trail {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0 0 4px;
-  font-size: 13px;
-  color: hsl(var(--muted-foreground) / 0.75);
-}
-
-.settings-breadcrumb-trail span:last-child {
+  margin: 0;
   color: hsl(var(--foreground));
-  font-weight: 700;
+  font-family: var(--font-reader-serif);
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 36px;
 }
 
+/* The app sidebar already marks Settings as current, so only the page name is shown. */
+.settings-breadcrumb-trail > span:not(:last-child),
 .settings-breadcrumb-sep {
-  flex-shrink: 0;
-  color: hsl(var(--muted-foreground) / 0.55);
+  display: none;
 }
 
 .settings-breadcrumb-desc {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.5;
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 20px;
   color: hsl(var(--muted-foreground));
 }
 
@@ -287,16 +257,15 @@
   gap: 12px;
   /* 预留 aside（保存状态）高度，避免状态出现/消失时卡片上下跳动 */
   min-height: 24px;
-  margin: 0 0 8px;
+  margin: 0 0 6px;
 }
 
 .settings-group-label > p {
   margin: 0;
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: hsl(var(--muted-foreground) / 0.8);
+  font-weight: 500;
+  line-height: 16px;
+  color: hsl(var(--muted-foreground));
 }
 
 .settings-group-aside {
@@ -312,25 +281,26 @@
 
 .settings-group-note {
   margin: 0 0 10px;
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 12px;
+  line-height: 17px;
   color: hsl(var(--muted-foreground));
 }
 
 .settings-hint {
   font-size: 12px;
-  color: hsl(var(--muted-foreground) / 0.8);
+  color: hsl(var(--muted-foreground));
 }
 
 .settings-card {
   overflow: hidden;
-  border: 1px solid hsl(var(--border) / 0.6);
+  border: 1px solid var(--app-edge);
   border-radius: 12px;
-  background: hsl(var(--card));
+  background: var(--app-card-surface);
+  box-shadow: var(--app-card-shadow);
 }
 
 .settings-card > * + * {
-  border-top: 1px solid hsl(var(--border) / 0.5);
+  border-top: 1px solid hsl(var(--border));
 }
 
 /* 表单型卡片：内边距布局、不画行分隔线 */
@@ -348,9 +318,11 @@
 /* 分段控件 */
 .settings-segmented {
   display: inline-flex;
-  overflow: hidden;
-  border: 1px solid hsl(var(--border));
-  border-radius: 8px;
+  gap: 2px;
+  border-radius: 10px;
+  background: var(--app-well);
+  padding: 3px;
+  box-shadow: var(--app-well-shadow);
 }
 
 .settings-segmented.is-block {
@@ -364,23 +336,22 @@
 }
 
 .settings-segmented-option {
-  border: 0;
-  border-left: 1px solid hsl(var(--border));
+  min-height: 28px;
+  border: 1px solid transparent;
+  border-radius: 8px;
   background: transparent;
   color: hsl(var(--muted-foreground));
   font: inherit;
-  font-size: 13px;
-  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 0 12px;
   cursor: pointer;
   white-space: nowrap;
-  transition:
-    background 120ms ease,
-    color 120ms ease;
+  transition: color 120ms ease;
 }
 
 .settings-segmented.is-wrapped .settings-segmented-option {
   min-width: 0;
-  border-top: 1px solid hsl(var(--border));
 }
 
 .settings-segmented.is-block .settings-segmented-option {
@@ -388,43 +359,38 @@
   text-align: center;
 }
 
-.settings-segmented-option:first-child {
-  border-left: 0;
-}
-
-.settings-segmented.is-wrapped .settings-segmented-option:nth-child(-n + 2) {
-  border-top: 0;
-}
-
-.settings-segmented.is-wrapped .settings-segmented-option:nth-child(odd) {
-  border-left: 0;
-}
-
 .settings-segmented-option:hover:not(.is-active):not(:disabled) {
   color: hsl(var(--foreground));
 }
 
 .settings-segmented-option.is-active {
-  background: var(--app-interactive-selected-bg);
-  color: var(--app-interactive-selected-fg);
-  font-weight: 700;
+  border-color: var(--app-edge);
+  background: var(--app-raised);
+  box-shadow: var(--app-raised-shadow);
+  color: hsl(var(--foreground));
 }
 
 .settings-segmented-option:disabled {
   cursor: default;
-  opacity: 0.6;
+  opacity: 0.55;
+}
+
+.settings-segmented-option:focus-visible {
+  outline: 2px solid var(--app-interactive-focus-ring);
+  outline-offset: 2px;
 }
 
 /* 信息提示条（如数据库备份说明） */
 .settings-callout {
   display: flex;
   gap: 8px;
-  border-radius: 8px;
-  background: var(--app-interactive-selected-bg);
-  color: var(--app-interactive-selected-fg);
+  border-radius: 10px;
+  background: var(--app-well);
+  box-shadow: var(--app-well-shadow);
+  color: hsl(var(--muted-foreground));
   padding: 10px 12px;
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 17px;
 }
 
 .settings-callout svg {
@@ -442,6 +408,11 @@
 
 .settings-card-actions .weread-help-link {
   margin-left: auto;
+  color: var(--app-interactive-link);
+}
+
+.settings-card-actions .weread-help-link:is(:hover, :focus-visible) {
+  color: var(--app-interactive-link-hover);
 }
 
 /* 卡片内表单字段 */
@@ -452,7 +423,8 @@
 }
 
 .settings-field-label {
-  font-size: 13px;
+  font-size: 12px;
+  font-weight: 500;
   color: hsl(var(--muted-foreground));
 }
 
@@ -472,7 +444,7 @@
 /* 错误提示文字 */
 .settings-error-text {
   margin: 0;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.5;
   color: hsl(var(--destructive));
 }
@@ -510,9 +482,9 @@
 }
 
 .settings-row-copy > strong {
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1.3;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
   color: hsl(var(--foreground));
 }
 
@@ -532,11 +504,11 @@
   display: inline-grid;
   flex: 0 0 auto;
   place-items: center;
-  width: 21px;
-  height: 21px;
+  width: 20px;
+  height: 20px;
   margin-left: 1px;
   border-radius: 999px;
-  color: hsl(var(--muted-foreground) / 0.72);
+  color: hsl(var(--muted-foreground));
   cursor: help;
   transition:
     background 120ms ease,
@@ -551,8 +523,8 @@
 }
 
 .settings-row-info-trigger:focus-visible {
-  outline: 2px solid hsl(var(--ring) / 0.42);
-  outline-offset: 1px;
+  outline: 2px solid var(--app-interactive-focus-ring);
+  outline-offset: 2px;
 }
 
 .settings-row-info-trigger.is-decorative {
@@ -567,8 +539,8 @@
 
 .settings-row-copy > p {
   margin: 0;
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 12px;
+  line-height: 17px;
   color: hsl(var(--muted-foreground));
 }
 
@@ -593,7 +565,7 @@
   font-size: 12px;
   white-space: nowrap;
   text-overflow: ellipsis;
-  color: hsl(var(--muted-foreground) / 0.85);
+  color: hsl(var(--muted-foreground));
 }
 
 /* 行尾纯图标按钮（复制 / 打开等） */
@@ -603,9 +575,9 @@
   width: 30px;
   height: 30px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 999px;
   background: transparent;
-  color: hsl(var(--muted-foreground) / 0.8);
+  color: hsl(var(--muted-foreground));
   cursor: pointer;
   transition:
     background 120ms ease,
@@ -623,13 +595,13 @@
 }
 
 .settings-icon-button:focus-visible {
-  outline: 2px solid hsl(var(--ring) / 0.42);
-  outline-offset: -2px;
+  outline: 2px solid var(--app-interactive-focus-ring);
+  outline-offset: 2px;
 }
 
 /* about「资源」整行链接：trailing 外链图标弱化 */
 .settings-row-button .settings-row-control {
-  color: hsl(var(--muted-foreground) / 0.7);
+  color: hsl(var(--muted-foreground));
 }
 
 /* about 版本组的开发者模拟按钮行 */
@@ -658,7 +630,7 @@
 }
 
 .settings-row-button:focus-visible {
-  outline: 2px solid hsl(var(--ring) / 0.42);
+  outline: 2px solid var(--app-interactive-focus-ring);
   outline-offset: -2px;
 }
 
@@ -683,45 +655,52 @@
 
 .settings-switch-track {
   position: relative;
-  width: 42px;
-  height: 24px;
+  width: 36px;
+  height: 20px;
   border-radius: 999px;
-  background: hsl(var(--muted));
-  box-shadow: inset 0 0 0 1px hsl(var(--border));
-  transition:
-    background 140ms ease,
-    box-shadow 140ms ease;
+  background: var(--app-well);
+  box-shadow:
+    var(--app-well-shadow),
+    inset 0 0 0 1px var(--app-edge-soft);
 }
 
 .settings-switch-track::after {
   content: '';
   position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 18px;
-  height: 18px;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  background: hsl(var(--background));
-  box-shadow: 0 2px 6px hsl(31 34% 24% / 0.22);
-  transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  background: var(--app-raised);
+  box-shadow:
+    0 0 0 0.5px var(--app-edge),
+    var(--app-raised-shadow);
+  transition: transform 150ms cubic-bezier(0.22, 0.8, 0.36, 1);
 }
 
 .settings-switch input:checked + .settings-switch-track {
-  background: hsl(var(--primary));
-  box-shadow: inset 0 0 0 1px hsl(var(--primary));
+  background: var(--app-ink);
+  box-shadow: var(--app-ink-shadow);
 }
 
 .settings-switch input:checked + .settings-switch-track::after {
-  transform: translateX(18px);
+  transform: translateX(16px);
 }
 
 .settings-switch input:disabled + .settings-switch-track {
-  opacity: 0.5;
+  opacity: 0.55;
 }
 
 .settings-switch input:focus-visible + .settings-switch-track {
-  outline: 2px solid hsl(var(--ring) / 0.42);
+  outline: 2px solid var(--app-interactive-focus-ring);
   outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-switch-track::after {
+    transition: none;
+  }
 }
 
 .settings-slider-control {
@@ -733,7 +712,7 @@
 
 .settings-slider-control input {
   width: 100%;
-  accent-color: hsl(var(--primary));
+  accent-color: hsl(var(--foreground));
 }
 
 .settings-slider-control input:disabled {
@@ -753,39 +732,35 @@
 }
 
 .settings-elastic-slider {
-  --settings-elastic-slider-track: hsl(var(--muted));
-  --settings-elastic-slider-fill: hsl(var(--primary) / 0.14);
+  --settings-elastic-slider-track: var(--app-well);
+  --settings-elastic-slider-fill: hsl(var(--foreground) / 0.08);
   --settings-elastic-slider-handle: hsl(var(--foreground));
   --settings-elastic-slider-label: hsl(var(--muted-foreground));
   position: relative;
   width: calc(100% + var(--settings-elastic-slider-stretch, 0px));
-  height: 36px;
+  height: 32px;
   overflow: hidden;
-  border: 1px solid hsl(var(--border) / 0.7);
   border-radius: 10px;
   background: var(--settings-elastic-slider-track);
+  box-shadow: var(--app-well-shadow);
   color: hsl(var(--foreground));
   cursor: pointer;
   outline: none;
   touch-action: none;
   user-select: none;
   transition:
-    border-color 0.16s ease,
-    box-shadow 0.16s ease,
     opacity 0.16s ease,
     width 0.18s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .settings-elastic-slider:focus-visible {
-  border-color: hsl(var(--ring) / 0.52);
-  box-shadow:
-    0 0 0 2px hsl(var(--ring) / 0.16),
-    0 8px 22px hsl(var(--foreground) / 0.08);
+  outline: 2px solid var(--app-interactive-focus-ring);
+  outline-offset: 2px;
 }
 
 .settings-elastic-slider[data-disabled='true'] {
   cursor: not-allowed;
-  opacity: 0.48;
+  opacity: 0.55;
 }
 
 .settings-elastic-slider-fill {
@@ -799,7 +774,7 @@
 }
 
 .settings-elastic-slider[data-active='true'] .settings-elastic-slider-fill {
-  background: hsl(var(--primary) / 0.2);
+  background: hsl(var(--foreground) / 0.12);
 }
 
 .settings-elastic-slider-handle {
@@ -846,7 +821,7 @@
   z-index: 1;
   color: var(--settings-elastic-slider-label);
   font-size: 12px;
-  font-weight: 760;
+  font-weight: 500;
   line-height: 1;
   pointer-events: none;
   transform: translateY(-50%);
@@ -880,9 +855,10 @@
 .settings-text-input {
   width: min(240px, 100%);
   min-height: 36px;
-  border: 1px solid hsl(var(--border));
-  border-radius: 10px;
-  background: hsl(var(--background));
+  border: 1px solid var(--app-edge);
+  border-radius: 12px;
+  background: var(--app-field);
+  box-shadow: var(--app-field-shadow);
   color: hsl(var(--foreground));
   font: inherit;
   font-size: 13px;
@@ -891,8 +867,8 @@
 }
 
 .settings-text-input:focus-visible {
-  border-color: hsl(var(--ring));
-  box-shadow: 0 0 0 3px hsl(var(--ring) / 0.18);
+  outline: 2px solid var(--app-interactive-focus-ring);
+  outline-offset: 2px;
 }
 
 .settings-text-input::placeholder {
@@ -915,43 +891,46 @@
 
 .settings-action-button {
   display: inline-flex;
-  min-height: 36px;
+  min-height: 30px;
   align-items: center;
   justify-content: center;
-  border: 1px solid hsl(var(--border));
-  border-radius: 10px;
-  background: hsl(var(--foreground));
-  color: hsl(var(--background));
+  border: 1px solid var(--app-ink-edge);
+  border-radius: 999px;
+  background: var(--app-ink);
+  box-shadow: var(--app-ink-shadow);
+  color: var(--app-ink-fg);
   font: inherit;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 500;
   padding: 0 12px;
   cursor: pointer;
   transition:
-    opacity 140ms ease,
-    transform 140ms ease;
+    filter 120ms ease,
+    transform 120ms ease;
 }
 
 .settings-action-button:hover:not(:disabled) {
-  opacity: 0.88;
+  filter: brightness(0.98);
 }
 
 .settings-action-button:active:not(:disabled) {
-  transform: scale(0.97);
+  transform: translateY(1px);
 }
 
 .settings-action-button:disabled {
   cursor: default;
-  opacity: 0.45;
+  opacity: 0.55;
 }
 
 .settings-action-button:focus-visible {
-  outline: 2px solid hsl(var(--ring) / 0.42);
+  outline: 2px solid var(--app-interactive-focus-ring);
   outline-offset: 2px;
 }
 
 .settings-action-button.is-secondary {
-  background: hsl(var(--background));
+  border-color: var(--app-edge);
+  background: var(--app-raised);
+  box-shadow: var(--app-raised-shadow);
   color: hsl(var(--foreground));
 }
 
@@ -961,16 +940,17 @@
   inset: 0;
   display: grid;
   place-items: center;
-  background: hsl(var(--background) / 0.64);
+  background: var(--app-overlay-scrim);
   padding: 24px;
 }
 
 .app-lock-settings-dialog {
   width: min(420px, 100%);
-  border: 1px solid hsl(var(--border) / 0.76);
-  border-radius: 12px;
-  background: hsl(var(--card));
-  box-shadow: 0 24px 70px hsl(var(--foreground) / 0.16);
+  border: 1px solid var(--app-edge);
+  border-radius: 16px;
+  background: var(--app-card-surface);
+  box-shadow: var(--app-dialog-shadow);
+  color: hsl(var(--foreground));
   padding: 0;
 }
 
@@ -993,17 +973,19 @@
   width: 38px;
   height: 38px;
   place-items: center;
-  border: 1px solid hsl(var(--border) / 0.76);
   border-radius: 999px;
-  background: hsl(var(--background));
+  background: var(--app-well);
+  box-shadow: var(--app-well-shadow);
   color: hsl(var(--foreground));
 }
 
 .app-lock-settings-dialog h2 {
   margin: 0;
   color: hsl(var(--foreground));
-  font-size: 18px;
-  line-height: 1.24;
+  font-family: var(--font-reader-serif);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 28px;
 }
 
 .app-lock-settings-dialog-title-copy {
@@ -1016,7 +998,7 @@
   margin: 6px 0 0;
   color: hsl(var(--muted-foreground));
   font-size: 13px;
-  line-height: 1.55;
+  line-height: 20px;
 }
 
 .app-lock-settings-dialog-fields {
@@ -1028,7 +1010,7 @@
 
 .app-lock-settings-dialog-error {
   color: hsl(var(--destructive)) !important;
-  font-weight: 760;
+  font-weight: 500;
 }
 
 .app-lock-settings-dialog footer {
@@ -1044,32 +1026,20 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border: 1px solid hsl(var(--border));
-  border-radius: 10px;
-  background: hsl(var(--background));
+  border: 1px solid var(--app-edge);
+  border-radius: 12px;
+  background: var(--app-field);
+  box-shadow: var(--app-field-shadow);
   color: hsl(var(--foreground));
   font: inherit;
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 400;
   padding: 0 10px 0 12px;
-  transition:
-    border-color 140ms ease,
-    box-shadow 140ms ease,
-    transform 140ms ease;
-}
-
-.settings-combobox-trigger:hover {
-  border-color: hsl(var(--primary) / 0.45);
-}
-
-.settings-combobox-trigger:active {
-  transform: scale(0.96);
 }
 
 .settings-combobox-trigger:focus-visible {
-  border-color: hsl(var(--ring));
-  box-shadow: 0 0 0 3px hsl(var(--ring) / 0.18);
-  outline: none;
+  outline: 2px solid var(--app-interactive-focus-ring);
+  outline-offset: 2px;
 }
 
 .settings-combobox-popover {
@@ -1094,15 +1064,17 @@
   color: hsl(var(--foreground));
   font: inherit;
   font-size: 13px;
-  font-weight: 650;
-  padding: 0 9px;
+  padding: 0 8px;
   text-align: left;
 }
 
-.settings-combobox-option:hover,
+.settings-combobox-option:hover {
+  background: var(--app-interactive-hover-bg);
+}
+
 .settings-combobox-option.is-selected {
-  background: hsl(var(--accent));
-  color: hsl(var(--accent-foreground));
+  background: var(--app-interactive-hover-bg);
+  font-weight: 500;
 }
 
 .settings-translation-style-row {
@@ -1139,12 +1111,9 @@
   width: 100%;
   gap: 8px;
   padding: 12px 14px;
-  border: 1px solid hsl(var(--border) / 0.62);
-  border-radius: 14px;
-  background: hsl(var(--card) / 0.72);
-  box-shadow:
-    0 8px 18px hsl(var(--foreground) / 0.04),
-    inset 0 1px 0 hsl(var(--background) / 0.75);
+  border-radius: 12px;
+  background: var(--app-well);
+  box-shadow: var(--app-well-shadow);
 }
 
 @media (max-width: 760px) {
@@ -1175,17 +1144,16 @@
 .settings-translation-style-preview p {
   margin: 0;
   color: hsl(var(--foreground));
-  font-size: 13px;
-  font-weight: 620;
-  line-height: 1.65;
+  font-family: var(--font-reader-serif);
+  font-size: 14px;
+  line-height: 22px;
   text-align: left;
   text-wrap: pretty;
 }
 
 .settings-translation-style-preview [data-translation-preview='true'] {
   color: hsl(var(--muted-foreground));
-  font-size: 12px;
-  font-weight: 650;
+  font-size: 13px;
 }
 
 .settings-translation-style-preview[data-style='dashedLine'] [data-translation-preview='true'] {
@@ -1225,20 +1193,29 @@
 }
 
 .settings-radio-dot {
+  position: relative;
   display: inline-block;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   box-sizing: border-box;
-  border: 1.5px solid hsl(var(--border));
+  border: 1px solid var(--app-edge);
   border-radius: 50%;
-  transition:
-    border-color 140ms ease,
-    border-width 140ms ease;
+  background: var(--app-field);
+  box-shadow: var(--app-field-shadow);
 }
 
 .settings-radio-dot.is-checked {
-  border-width: 5px;
-  border-color: var(--app-interactive-selected-fg);
+  border-color: var(--app-ink-edge);
+  background: var(--app-ink);
+  box-shadow: var(--app-ink-shadow);
+}
+
+.settings-radio-dot.is-checked::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: var(--app-ink-fg);
 }
 
 .settings-current-badge {
@@ -1249,9 +1226,10 @@
   border-radius: 999px;
   background: var(--app-interactive-badge-bg);
   color: var(--app-interactive-badge-fg);
-  font-size: 12px;
-  font-weight: 700;
-  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+  padding: 2px 8px;
   white-space: nowrap;
 }
 
@@ -1275,10 +1253,11 @@
 .settings-keycap.settings-keycap {
   height: auto;
   min-width: 0;
-  border-color: hsl(var(--border));
+  border-color: var(--app-edge);
   border-radius: 6px;
-  background: hsl(var(--secondary));
-  color: hsl(var(--foreground) / 0.85);
+  background: var(--app-raised);
+  box-shadow: var(--app-raised-shadow);
+  color: hsl(var(--foreground));
   font-family: var(--font-mono);
   font-size: 13px;
   font-weight: 500;
@@ -1292,60 +1271,57 @@
 
 .settings-key-button {
   display: inline-flex;
+  min-height: 30px;
   align-items: center;
   gap: 8px;
-  border: 1px solid hsl(var(--border));
-  border-radius: 8px;
-  background: hsl(var(--card));
-  color: hsl(var(--muted-foreground));
+  border: 1px solid var(--app-edge);
+  border-radius: 999px;
+  background: var(--app-raised);
+  box-shadow: var(--app-raised-shadow);
+  color: hsl(var(--foreground));
   font: inherit;
-  font-size: 13px;
-  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 0 10px;
   cursor: pointer;
-  transition:
-    border-color 140ms ease,
-    color 140ms ease;
 }
 
 .settings-key-button:hover {
-  border-color: hsl(var(--foreground) / 0.28);
-  color: hsl(var(--foreground));
+  filter: brightness(0.98);
 }
 
 .settings-key-button.is-recording {
-  border-color: var(--app-interactive-selected-fg);
+  border-color: var(--app-interactive-selected-border);
   color: var(--app-interactive-selected-fg);
 }
 
 .settings-key-button:focus-visible {
-  outline: 2px solid hsl(var(--ring) / 0.42);
+  outline: 2px solid var(--app-interactive-focus-ring);
   outline-offset: 2px;
 }
 
 .settings-reset-button {
   display: inline-flex;
+  min-height: 26px;
   align-items: center;
   gap: 5px;
-  border: 1px solid hsl(var(--border) / 0.7);
+  border: 0;
   border-radius: 999px;
   background: transparent;
   color: hsl(var(--muted-foreground));
   font: inherit;
   font-size: 12px;
   font-weight: 500;
-  padding: 5px 10px;
+  padding: 0 10px;
   cursor: pointer;
-  transition:
-    border-color 140ms ease,
-    color 140ms ease;
 }
 
 .settings-reset-button:hover {
-  border-color: hsl(var(--foreground) / 0.24);
+  background: var(--app-interactive-hover-bg);
   color: hsl(var(--foreground));
 }
 
 .settings-reset-button:focus-visible {
-  outline: 2px solid hsl(var(--ring) / 0.42);
+  outline: 2px solid var(--app-interactive-focus-ring);
   outline-offset: 2px;
 }
