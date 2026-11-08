@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
 import type { WeReadOpenMethod, WeReadReadingStatsMode } from '@yomitomo/shared';
 
+export const WEREAD_SKILL_VERSION = '1.0.5';
+
 export function buildWeReadOpenUrl(
   target: { bookId: string; chapterUid?: number; range?: string; userVid?: number },
   method: WeReadOpenMethod,

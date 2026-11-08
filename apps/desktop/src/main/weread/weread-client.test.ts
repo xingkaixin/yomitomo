@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { fetchWeReadBookDetail, fetchWeReadNotebooks, WEREAD_SKILL_VERSION } from './weread-client';
+import { fetchWeReadBookDetail, fetchWeReadNotebooks } from './weread-client';
+import { WEREAD_SKILL_VERSION } from './weread-protocol';
 
 function response(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status });
@@ -134,6 +135,24 @@ describe('weread client', () => {
     expect(reviewRequestBodies(fetchMock)).toMatchObject([
       { api_name: '/review/list/mine', bookid: 'book_1', count: 100 },
       { api_name: '/review/list/mine', bookid: 'book_1', count: 100, synckey: 0 },
+    ]);
+  });
+
+  it('retries with the skill version the gateway asks for and keeps using it', async () => {
+    const upgradeInfo = { latest_version: '9.9.9', current_version: WEREAD_SKILL_VERSION };
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(response({ upgrade_info: upgradeInfo, hasMore: 0, books: [] }))
+      .mockResolvedValueOnce(response({ hasMore: 0, books: [{ bookId: 'book_1', sort: 1 }] }))
+      .mockResolvedValueOnce(response({ hasMore: 0, books: [] }));
+
+    await expect(fetchWeReadNotebooks('secret')).resolves.toMatchObject([{ bookId: 'book_1' }]);
+    await fetchWeReadNotebooks('secret');
+
+    expect(fetchMock.mock.calls.map((call) => requestBody(call).skill_version)).toEqual([
+      WEREAD_SKILL_VERSION,
+      '9.9.9',
+      '9.9.9',
     ]);
   });
 });

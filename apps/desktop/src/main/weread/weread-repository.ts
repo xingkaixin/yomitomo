@@ -32,9 +32,9 @@ import {
   upsertWeReadBookRows,
   type WeReadDetailRows,
 } from './weread-detail-row-writes';
+import { WEREAD_SKILL_VERSION } from './weread-protocol';
 
 const WEREAD_ACCOUNT_ID = 'default';
-const WEREAD_SKILL_VERSION = '1.0.3';
 let pendingSettingsSave = Promise.resolve();
 
 type WeReadRepositoryLogInfo = (event: string, data?: Record<string, unknown>) => void;
