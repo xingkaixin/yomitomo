@@ -746,6 +746,16 @@ export const weReadIpcInvokeDescriptors = {
     roles: mainOnly,
     validation: 'schema',
   }),
+  'weread:get-web-login': desktopIpcInvoke<[], boolean>()({
+    route: ['weRead', 'getWebLogin'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+  }),
+  'weread:clear-web-login': desktopIpcInvoke<[], void>()({
+    route: ['weRead', 'clearWebLogin'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+  }),
   'weread:get-reading-stats': desktopIpcInvoke<[], WeReadReadingStatsState>()({
     route: ['weRead', 'getReadingStats'],
     roles: mainOnly,

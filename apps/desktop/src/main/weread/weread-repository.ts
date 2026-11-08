@@ -514,7 +514,7 @@ function rowToWeReadThought(row: typeof schema.wereadThoughts.$inferSelect): WeR
 }
 
 function normalizeWeReadOpenMethod(value: unknown): WeReadOpenMethod {
-  return value === 'web' ? 'web' : 'deeplink';
+  return value === 'web' || value === 'in-app' ? value : 'deeplink';
 }
 
 function normalizeWeReadSyncMode(value: unknown): WeReadSyncMode {

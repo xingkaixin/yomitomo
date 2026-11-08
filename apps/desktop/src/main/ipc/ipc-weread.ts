@@ -85,7 +85,18 @@ export function registerWeReadIpc(context: WeReadIpcContext) {
   handleDesktopIpc('weread:open', async (_event, target) => {
     const { weReadRepository: weReadPersistence } = await context.getPersistenceModules();
     const settings = await weReadPersistence.readWeReadSettings();
-    return context.openExternalUrl(buildWeReadOpenUrl(target, settings.openMethod));
+    const url = buildWeReadOpenUrl(target, settings.openMethod);
+    if (settings.openMethod !== 'in-app') return context.openExternalUrl(url);
+    const { openWeReadReaderWindow } = await import('../windows/weread-reader-window');
+    return openWeReadReaderWindow(url, context.openExternalUrl);
+  });
+  handleDesktopIpc('weread:get-web-login', async () => {
+    const { hasWeReadWebLogin } = await import('../windows/weread-reader-window');
+    return hasWeReadWebLogin();
+  });
+  handleDesktopIpc('weread:clear-web-login', async () => {
+    const { clearWeReadWebLogin } = await import('../windows/weread-reader-window');
+    return clearWeReadWebLogin();
   });
   handleDesktopIpc('weread:get-reading-stats', async () => {
     const { weReadRepository: weReadPersistence } = await context.getPersistenceModules();

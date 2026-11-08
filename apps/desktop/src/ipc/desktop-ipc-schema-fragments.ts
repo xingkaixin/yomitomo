@@ -229,7 +229,7 @@ export const wereadIpcInvokeSchemas = {
   'weread:save-settings': z.tuple([
     z.object({
       apiKey: z.string().max(4096).optional(),
-      openMethod: z.enum(['deeplink', 'web']).optional(),
+      openMethod: z.enum(['deeplink', 'web', 'in-app']).optional(),
       removeApiKey: z.boolean().optional(),
       syncMode: z.enum(['manual', 'auto']).optional(),
     }),

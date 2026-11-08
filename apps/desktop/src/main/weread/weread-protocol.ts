@@ -7,7 +7,7 @@ export function buildWeReadOpenUrl(
   target: { bookId: string; chapterUid?: number; range?: string; userVid?: number },
   method: WeReadOpenMethod,
 ) {
-  if (method === 'web') {
+  if (method !== 'deeplink') {
     const webBookId = buildWeReadWebBookId(target.bookId);
     const webReaderId =
       target.chapterUid !== undefined
@@ -33,6 +33,15 @@ export function buildWeReadOpenUrl(
   if (target.chapterUid !== undefined)
     url.searchParams.set('chapterUid', String(target.chapterUid));
   return url.href;
+}
+
+export function isWeReadReaderUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && url.hostname === 'weread.qq.com' && !url.port;
+  } catch {
+    return false;
+  }
 }
 
 export function getWeReadStatsPeriodStart(mode: WeReadReadingStatsMode, baseTime?: number) {
