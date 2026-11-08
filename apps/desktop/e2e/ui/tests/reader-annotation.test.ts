@@ -46,12 +46,12 @@ This second sentence keeps the article body long enough for the reader surface.
         .getByRole('button', { name: /Record thought/ })
         .click();
       await page.locator('.reader-composer').getByRole('button', { name: 'Highlight' }).click();
-      await waitForReaderAnnotation(page, annotationQuote);
+      await waitForReaderAnnotation(page);
 
       await page.getByRole('button', { name: 'Back to library' }).click();
       await waitForLibraryArticle(page, annotationTitle);
       await openReaderArticle(page, annotationTitle);
-      await waitForReaderAnnotation(page, annotationQuote);
+      await waitForReaderAnnotation(page);
 
       await page.evaluate(async () => {
         const desktop = (window as Window & { yomitomoDesktop?: DesktopApiForE2e }).yomitomoDesktop;
@@ -76,7 +76,7 @@ This second sentence keeps the article body long enough for the reader surface.
       await page
         .getByRole('button', { name: `記事を開く: ${annotationTitle}`, exact: true })
         .click();
-      await page.locator('.reader-note-tab', { hasText: '注釈' }).waitFor();
+      await page.getByRole('button', { name: 'オープンディスカッション' }).waitFor();
     });
   });
 });
@@ -143,10 +143,8 @@ async function selectReaderQuote(page: Page, quote: string) {
   await page.locator('.reader-selection-menu').waitFor({ timeout: 15_000 });
 }
 
-async function waitForReaderAnnotation(page: Page, quote: string) {
-  await page.locator('.reader-note-quote-text').getByText(quote, { exact: true }).waitFor({
-    timeout: 15_000,
-  });
+async function waitForReaderAnnotation(page: Page) {
+  await page.locator('.reader-footnote-mark', { hasText: '1' }).waitFor({ timeout: 15_000 });
   await page.locator('.reader-highlight:not(.is-temporary):not(.is-search)').first().waitFor({
     timeout: 15_000,
   });

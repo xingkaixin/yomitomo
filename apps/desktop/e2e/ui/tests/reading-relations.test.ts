@@ -15,6 +15,8 @@ const quote = 'Reading memory connects saved judgments';
 const reference: RelationSource = { kind: 'web', title: 'RD970 Reference', quote };
 const referenceThought =
   'Reading memory connects saved judgments when the original evidence stays available.';
+const sourceThought =
+  'Reading memory connects saved judgments but similarity alone cannot prove agreement.';
 
 describe('reading relations', () => {
   it.each(['web', 'ebook', 'pdf'] as const)(
@@ -32,11 +34,7 @@ describe('reading relations', () => {
             await saveRelationJudgment(page, reference, referenceThought);
             await page.getByRole('button', { name: 'Back to library' }).click();
             await openRelationSource(page, source);
-            const saved = await saveRelationJudgment(
-              page,
-              source,
-              'Reading memory connects saved judgments but similarity alone cannot prove agreement.',
-            );
+            const saved = await saveRelationJudgment(page, source, sourceThought);
             expect(saved.anchor.exact).toBe(quote);
             if (kind === 'pdf')
               expect(saved.anchor).toMatchObject({ kind: 'pdf-text', pageIndex: 0 });
@@ -83,8 +81,8 @@ describe('reading relations', () => {
             await panel.waitFor({ state: 'detached' });
             await waitForRelationSource(page, reference);
             await page
-              .locator('.reader-note-quote-text')
-              .getByText(quote, { exact: true })
+              .locator('.reader-note-text')
+              .getByText(referenceThought, { exact: true })
               .waitFor();
             const returnPanel = await findReadingRelations(page, reference);
             await returnPanel
@@ -96,8 +94,8 @@ describe('reading relations', () => {
             await returnPanel.waitFor({ state: 'detached' });
             await waitForRelationSource(page, source);
             await page
-              .locator('.reader-note-quote-text')
-              .getByText(quote, { exact: true })
+              .locator('.reader-note-text')
+              .getByText(sourceThought, { exact: true })
               .waitFor();
             expect(provider.requests).toHaveLength(1);
             console.info('reading-relations navigation', {

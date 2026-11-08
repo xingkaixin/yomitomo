@@ -92,6 +92,7 @@ type AnnotationCardProps = {
   isStackFront?: boolean;
   labels?: AnnotationCardLabels;
   noteRef: (element: HTMLElement | null) => void;
+  ordinal?: number;
   railSide?: AnnotationRailSide;
   personaAgents?: PublicAgent[];
   stackCount?: number;
@@ -281,6 +282,7 @@ const AnnotationCardContent = React.memo(function AnnotationCardContent({
   onDelete,
   onFocus,
   onOpenDiscussion,
+  ordinal,
   pendingAgents = emptyAgents,
   face,
   displayedText,
@@ -294,6 +296,7 @@ const AnnotationCardContent = React.memo(function AnnotationCardContent({
   );
   const author = annotationAuthor(annotation, userProfile, personaAgents);
   const discussionThreads = useMemo(() => annotationDiscussionThreads(annotation), [annotation]);
+  const firstThought = discussionThreads.find((thread) => thread.root.content.trim())?.root.content;
   const visibleThoughtCount = discussionThreads.length + pendingAgents.length;
   const assistantParticipants = useMemo(
     () => uniqueAssistantParticipants(annotation.comments, userProfile, personaAgents),
@@ -325,30 +328,16 @@ const AnnotationCardContent = React.memo(function AnnotationCardContent({
   function renderAnnotationSurface() {
     return (
       <>
-        <span className="reader-note-tab">{labels.annotationCardTab}</span>
+        <span className="reader-note-tab">{ordinal ?? labels.annotationCardTab}</span>
         <div className="reader-note-body">
-          <header className="reader-note-card-header">
-            <button
-              className="reader-note-quote"
-              type="button"
-              onClick={() => onFocus(annotation.id)}
-            >
-              <span className="reader-note-quote-text">{annotation.anchor.exact}</span>
-            </button>
-          </header>
-          <div className="reader-note-meta">
-            <span
-              className="reader-note-owner"
-              style={avatarColorStyle(author.color)}
-              aria-hidden="true"
-            >
-              <AvatarBadge avatar={author.avatar} fallback={author.fallback} />
-            </span>
+          <header className="reader-note-meta">
+            {ordinal === undefined ? null : <span className="reader-note-num">{ordinal}</span>}
             <span className="reader-note-meta-copy">
               <strong>{author.nickname}</strong>
               <ReaderRelativeTime fullTime={fullTime} value={timestamp} text={timeLabel} />
             </span>
-          </div>
+          </header>
+          {firstThought ? <p className="reader-note-text">{firstThought}</p> : null}
           <DeleteActionMenu
             ariaLabel={labels.openHighlightActions}
             className="reader-note-action-menu"
@@ -395,18 +384,17 @@ const AnnotationCardContent = React.memo(function AnnotationCardContent({
       <>
         <span className="reader-note-tab">
           <HugeiconsIcon icon={Layers02Icon} size={13} strokeWidth={2} />
-          <span>{labels.distillations}</span>
+          <span>{ordinal ?? labels.distillations}</span>
         </span>
         <div className="reader-note-body">
-          <header className="reader-note-card-header">
-            <button
-              className="reader-note-quote"
-              type="button"
-              onClick={() => onFocus(annotation.id)}
-            >
-              <span className="reader-note-quote-text">{content}</span>
-            </button>
+          <header className="reader-note-meta">
+            {ordinal === undefined ? null : <span className="reader-note-num">{ordinal}</span>}
+            <span className="reader-note-distillation-tag">
+              <HugeiconsIcon icon={Layers02Icon} size={11} strokeWidth={2} />
+              {labels.distillations}
+            </span>
           </header>
+          <p className="reader-note-text">{content}</p>
           <DeleteActionMenu
             ariaLabel={labels.openDistillationActions}
             className="reader-note-action-menu reader-note-distillation-menu"

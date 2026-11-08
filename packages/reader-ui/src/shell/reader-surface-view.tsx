@@ -434,6 +434,7 @@ export function ReaderSurfaceView({
                   key={annotation.id}
                   labels={labels}
                   noteRef={noteRefForAnnotation(annotation.id)}
+                  ordinal={annotationOrdinalById.get(annotation.id)}
                   pendingAgents={pendingAnnotationAgents[annotation.id]}
                   stackCount={stackCount}
                   stackIndex={stackIndex}

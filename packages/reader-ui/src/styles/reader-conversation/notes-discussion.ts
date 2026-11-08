@@ -82,19 +82,18 @@ export const notesDiscussionStyles = `.reader-notes-header {
 .reader-note.has-discussion,.reader-note.has-distillation {
   position:relative;
   overflow:visible;
-  padding:11px;
-  border:1px solid var(--app-reader-note-annotation-border);
-  border-radius:14px 0 14px 0;
-  background:var(--app-reader-note-annotation-mat);
-  box-shadow:var(--app-reader-note-shadow);
+  padding:0;
+  border:1px solid var(--app-edge);
+  border-radius:12px;
+  background:var(--app-card-surface);
+  box-shadow:var(--app-card-shadow);
   --reader-note-accent:var(--app-reader-note-annotation-accent);
   --reader-note-border:var(--app-reader-note-annotation-border);
   --reader-note-surface:var(--app-reader-note-annotation-surface)
 }
 .reader-note.has-distillation {
-  padding-bottom:0;
-  border-color:var(--app-reader-note-distillation-border);
-  background:var(--app-reader-note-distillation-mat);
+  border-color:var(--app-distill-edge);
+  background:var(--app-distill);
   --reader-note-accent:var(--app-reader-note-distillation-accent);
   --reader-note-border:var(--app-reader-note-distillation-border);
   --reader-note-surface:var(--app-reader-note-distillation-surface)
@@ -103,49 +102,40 @@ export const notesDiscussionStyles = `.reader-notes-header {
   position:absolute
 }
 .reader-note.has-discussion.is-active,.reader-note.has-distillation.is-active {
-  border-color:var(--reader-note-accent);
-  box-shadow:0 0 0 3px color-mix(in srgb,var(--reader-note-accent) 18%,transparent),var(--app-reader-note-shadow)
+  border-color:var(--app-interactive-selected-border);
+  box-shadow:var(--app-card-shadow),0 0 0 3px var(--app-interactive-selected-bg)
 }
 .reader-note-tab {
   position:absolute;
-  left:20px;
-  top:-13px;
+  left:14px;
+  top:-21px;
   z-index:3;
   display:inline-flex;
-  height:26px;
+  min-width:32px;
+  height:22px;
   align-items:center;
-  gap:6px;
+  justify-content:center;
+  gap:4px;
   border-radius:7px 7px 0 0;
-  font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);
-  font-size:10.5px;
-  font-weight:850;
-  letter-spacing:.1em;
+  font-family:var(--font-reader-serif, Charter, Georgia, Cambria, "Times New Roman", serif);
+  font-size:13px;
+  font-weight:600;
+  font-variant-numeric:tabular-nums;
   line-height:1;
-  padding:0 13px;
-  white-space:nowrap;
-  text-transform:uppercase
+  padding:0 8px;
+  white-space:nowrap
 }
 .reader-note.has-discussion .reader-note-tab {
-  border:1px solid var(--app-reader-note-annotation-border);
+  border:1px solid var(--app-edge);
   border-bottom:0;
-  background:var(--reader-note-surface);
-  color:color-mix(in srgb,var(--reader-note-accent) 76%,var(--reader-ink))
-}
-.reader-note.has-discussion .reader-note-tab::after {
-  content:"";
-  position:absolute;
-  left:11px;
-  right:11px;
-  bottom:-1px;
-  height:2px;
-  border-radius:999px;
-  background:var(--reader-note-accent)
+  background:var(--app-card-surface);
+  color:var(--app-interactive-link)
 }
 .reader-note.has-distillation .reader-note-tab {
-  top:-14px;
-  border:1px solid var(--reader-note-accent);
-  background:var(--reader-note-accent);
-  color:var(--app-reader-note-distillation-tab-fg)
+  border:1px solid var(--app-interactive-link);
+  border-bottom:0;
+  background:var(--app-interactive-link);
+  color:var(--app-ink-fg)
 }
 .reader-note.has-distillation .reader-note-tab svg {
   width:13px;
@@ -157,20 +147,21 @@ export const notesDiscussionStyles = `.reader-notes-header {
   padding:16px 16px 0;
   background:var(--reader-paper)
 }
+/* A literal radius instead of inherit: inherit keeps Chromium from reusing matched styles and doubled style recalc for long annotation lists. */
 .reader-note.has-discussion .reader-note-body,.reader-note.has-distillation .reader-note-body {
   position:relative;
   min-width:0;
   overflow:visible;
-  border-radius:10px 0 10px 0;
-  background:var(--reader-note-surface);
-  box-shadow:0 2px 5px color-mix(in srgb,var(--reader-ink) 7%,transparent)
+  border-radius:11px;
+  background:transparent;
+  box-shadow:none
 }
 .reader-note.has-discussion .reader-note-body {
-  padding:18px 19px 12px
+  padding:14px 14px 12px
 }
 .reader-note.has-distillation .reader-note-body {
   display:block;
-  padding:22px 22px 18px
+  padding:14px 14px 12px
 }
 .reader-note-toolbar {
   position:relative;
@@ -551,30 +542,6 @@ export const notesDiscussionStyles = `.reader-notes-header {
 .reader-action-delete:hover {
   background:var(--reader-paper-hover,color-mix(in srgb,var(--app-reader-ink,#251d16) 6%,var(--app-reader-paper,#fffaf0)))
 }
-.reader-annotation-connection {
-  position:fixed;
-  inset:0;
-  z-index:4;
-  width:100vw;
-  height:var(--app-viewport-height);
-  overflow:visible;
-  pointer-events:none
-}
-.reader-annotation-connection-line {
-  fill:none;
-  stroke-width:2.15;
-  stroke-linecap:round;
-  stroke-linejoin:round;
-  filter:drop-shadow(0 4px 8px rgba(55,42,24,.18));
-  opacity:.9
-}
-.reader-annotation-arrowhead {
-  fill:none;
-  stroke-width:2.15;
-  stroke-linecap:round;
-  stroke-linejoin:round;
-  opacity:.94
-}
 .reader-note-anchor>span {
   padding:0;
   margin:0;
@@ -615,11 +582,53 @@ export const notesDiscussionStyles = `.reader-notes-header {
 .reader-note-meta {
   display:flex;
   min-width:0;
+  min-height:20px;
   align-items:center;
   gap:8px;
-  margin-top:15px;
+  padding-right:28px;
   color:var(--reader-muted);
   font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif)
+}
+.reader-note-num {
+  flex:0 0 auto;
+  color:var(--app-interactive-link);
+  font-family:var(--font-reader-serif, Charter, Georgia, Cambria, "Times New Roman", serif);
+  font-size:16px;
+  font-weight:600;
+  font-variant-numeric:tabular-nums;
+  line-height:20px
+}
+.reader-note.is-stacked .reader-note-num,.reader-note:not(.is-stacked) .reader-note-tab {
+  display:none
+}
+.reader-note-distillation-tag {
+  display:inline-flex;
+  height:20px;
+  align-items:center;
+  gap:4px;
+  border-radius:6px;
+  background:var(--app-interactive-link);
+  color:var(--app-ink-fg);
+  font-size:11px;
+  font-weight:500;
+  line-height:16px;
+  padding:0 7px;
+  white-space:nowrap
+}
+.reader-note-text {
+  display:-webkit-box;
+  margin:8px 0 0;
+  overflow:hidden;
+  overflow-wrap:anywhere;
+  color:var(--reader-ink);
+  font-size:15px;
+  line-height:26px;
+  text-wrap:pretty;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:6
+}
+.reader-note.has-distillation .reader-note-text,.reader-note-dual-face-distillation .reader-note-text {
+  font-family:var(--font-reader-serif, Charter, Georgia, Cambria, "Times New Roman", serif)
 }
 .reader-note.has-discussion .reader-note-meta {
   padding-left:0
@@ -635,20 +644,17 @@ export const notesDiscussionStyles = `.reader-notes-header {
   overflow:hidden;
   color:var(--reader-ink);
   font-size:12px;
-  font-weight:820;
+  font-weight:500;
   text-overflow:ellipsis;
   white-space:nowrap
 }
 .reader-note-meta time {
   flex:0 0 auto;
   color:var(--reader-muted);
-  font-size:11px;
-  font-weight:760;
+  font-size:12px;
+  font-weight:400;
   font-variant-numeric:tabular-nums;
   white-space:nowrap
-}
-.reader-note-meta-copy time {
-  margin-left:auto
 }
 .reader-comment-count {
   display:inline-flex;
@@ -729,16 +735,6 @@ export const notesDiscussionStyles = `.reader-notes-header {
   text-wrap:pretty;
   word-break:break-word
 }
-.reader-note.has-distillation .reader-note-quote {
-  align-items:center;
-  padding-right:22px
-}
-.reader-note.has-distillation .reader-note-quote-text {
-  font-size:15px;
-  font-weight:600;
-  letter-spacing:0;
-  line-height:1.75
-}
 .reader-note.has-discussion .reader-note-action-menu,.reader-note-distillation-menu {
   position:absolute;
   right:12px;
@@ -746,8 +742,8 @@ export const notesDiscussionStyles = `.reader-notes-header {
   z-index:5
 }
 .reader-note.has-discussion .reader-action-menu-button,.reader-note-distillation-menu .reader-action-menu-button {
-  width:32px;
-  height:32px;
+  width:24px;
+  height:24px;
   background:transparent;
   color:var(--reader-muted)
 }
@@ -795,54 +791,44 @@ export const notesDiscussionStyles = `.reader-notes-header {
   backface-visibility:hidden
 }
 .reader-note-dual-face-annotation {
-  padding:11px;
-  border:1px solid var(--app-reader-note-annotation-border);
-  border-radius:14px 0 14px 0;
-  background:var(--app-reader-note-annotation-mat);
-  box-shadow:var(--app-reader-note-shadow);
+  padding:0;
+  border:1px solid var(--app-edge);
+  border-radius:12px;
+  background:var(--app-card-surface);
+  box-shadow:var(--app-card-shadow);
   --reader-note-accent:var(--app-reader-note-annotation-accent);
   --reader-note-border:var(--app-reader-note-annotation-border);
   --reader-note-surface:var(--app-reader-note-annotation-surface)
 }
 .reader-note-dual-face-distillation {
-  padding:11px 11px 0;
-  border:1px solid var(--app-reader-note-distillation-border);
-  border-radius:14px 0 14px 0;
-  background:var(--app-reader-note-distillation-mat);
-  box-shadow:var(--app-reader-note-shadow);
+  padding:0;
+  border:1px solid var(--app-distill-edge);
+  border-radius:12px;
+  background:var(--app-distill);
+  box-shadow:var(--app-card-shadow);
   transform:rotateY(180deg);
   --reader-note-accent:var(--app-reader-note-distillation-accent);
   --reader-note-border:var(--app-reader-note-distillation-border);
   --reader-note-surface:var(--app-reader-note-distillation-surface)
 }
 .reader-note.is-active .reader-note-dual-face {
-  border-color:var(--reader-note-accent);
-  box-shadow:0 0 0 3px color-mix(in srgb,var(--reader-note-accent) 18%,transparent),var(--app-reader-note-shadow)
+  border-color:var(--app-interactive-selected-border);
+  box-shadow:var(--app-card-shadow),0 0 0 3px var(--app-interactive-selected-bg)
 }
 .reader-note.is-dual-show-anno .reader-note-dual-face-annotation,.reader-note.is-dual-show-dist .reader-note-dual-face-distillation {
   pointer-events:auto
 }
 .reader-note-dual-face-annotation .reader-note-tab {
-  border:1px solid var(--app-reader-note-annotation-border);
+  border:1px solid var(--app-edge);
   border-bottom:0;
-  background:var(--reader-note-surface);
-  color:color-mix(in srgb,var(--reader-note-accent) 76%,var(--reader-ink))
-}
-.reader-note-dual-face-annotation .reader-note-tab::after {
-  content:"";
-  position:absolute;
-  left:11px;
-  right:11px;
-  bottom:-1px;
-  height:2px;
-  border-radius:999px;
-  background:var(--reader-note-accent)
+  background:var(--app-card-surface);
+  color:var(--app-interactive-link)
 }
 .reader-note-dual-face-distillation .reader-note-tab {
-  top:-14px;
-  border:1px solid var(--reader-note-accent);
-  background:var(--reader-note-accent);
-  color:var(--app-reader-note-distillation-tab-fg)
+  border:1px solid var(--app-interactive-link);
+  border-bottom:0;
+  background:var(--app-interactive-link);
+  color:var(--app-ink-fg)
 }
 .reader-note-dual-face-distillation .reader-note-tab svg {
   width:13px;
@@ -852,16 +838,16 @@ export const notesDiscussionStyles = `.reader-notes-header {
   position:relative;
   min-width:0;
   overflow:visible;
-  border-radius:10px 0 10px 0;
-  background:var(--reader-note-surface);
-  box-shadow:0 2px 5px color-mix(in srgb,var(--reader-ink) 7%,transparent)
+  border-radius:11px;
+  background:transparent;
+  box-shadow:none
 }
 .reader-note-dual-face-annotation .reader-note-body {
-  padding:18px 19px 12px
+  padding:14px 14px 12px
 }
 .reader-note-dual-face-distillation .reader-note-body {
   display:block;
-  padding:22px 22px 18px
+  padding:14px 14px 12px
 }
 .reader-note-dual-face-annotation .reader-note-toolbar {
   align-items:center;
@@ -874,18 +860,6 @@ export const notesDiscussionStyles = `.reader-notes-header {
 .reader-note-dual-face-annotation .reader-note-meta {
   padding-left:0
 }
-.reader-note-dual-face-annotation .reader-note-quote,.reader-note-dual-face-distillation .reader-note-quote {
-  padding-right:22px
-}
-.reader-note-dual-face-distillation .reader-note-quote {
-  align-items:center
-}
-.reader-note-dual-face-distillation .reader-note-quote-text {
-  font-size:15px;
-  font-weight:600;
-  letter-spacing:0;
-  line-height:1.75
-}
 .reader-note-dual-face-annotation .reader-note-action-menu,.reader-note-dual-face-distillation .reader-note-distillation-menu {
   position:absolute;
   right:12px;
@@ -893,8 +867,8 @@ export const notesDiscussionStyles = `.reader-notes-header {
   z-index:5
 }
 .reader-note-dual-face-annotation .reader-action-menu-button,.reader-note-dual-face-distillation .reader-action-menu-button {
-  width:32px;
-  height:32px;
+  width:24px;
+  height:24px;
   background:transparent;
   color:var(--reader-muted)
 }
@@ -910,7 +884,7 @@ export const notesDiscussionStyles = `.reader-notes-header {
   will-change:transform;
   animation:reader-distillation-update-breathe 400ms cubic-bezier(.22,1,.36,1) both
 }
-.reader-note.is-distillation-update .reader-note-quote-text {
+.reader-note.is-distillation-update .reader-note-text {
   animation:reader-distillation-fade .82s cubic-bezier(.22,1,.36,1)
 }
 .reader-note.is-distillation-update::after {
@@ -965,7 +939,7 @@ export const notesDiscussionStyles = `.reader-notes-header {
 }
 @media (prefers-reduced-motion: reduce) {
   .reader-note.is-distillation-update .reader-note-body,
-  .reader-note.is-distillation-update .reader-note-quote-text,
+  .reader-note.is-distillation-update .reader-note-text,
   .reader-note.is-distillation-update::after {
     animation:none;
     filter:none;

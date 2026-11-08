@@ -185,7 +185,7 @@ export async function saveRelationJudgment(page: Page, source: RelationSource, t
     .getByRole('button', { name: /Record thought/ })
     .click();
   await page.locator('.reader-composer').getByRole('button', { name: 'Highlight' }).click();
-  await page.locator('.reader-note-quote-text').getByText(source.quote, { exact: true }).waitFor();
+  await page.locator('.reader-footnote-mark', { hasText: '1' }).waitFor();
   await page.locator('.reader-composer').waitFor({ state: 'detached' });
   return page.evaluate(
     async ({ title, content }) => {
