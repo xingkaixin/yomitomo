@@ -5,21 +5,17 @@
   min-height: 210px;
   place-items: center;
   align-content: center;
-  border: 1px dashed hsl(var(--border));
-  border-radius: 16px;
+  border: 1px dashed var(--app-edge);
+  border-radius: 12px;
   color: hsl(var(--muted-foreground));
   padding: 22px;
   text-align: center;
 }
 
-.agent-list-empty svg {
-  color: hsl(8 45% 38%);
-}
-
 .agent-list-empty strong {
   color: hsl(var(--foreground));
-  font-size: 15px;
-  font-weight: 900;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .agent-list-empty p {
@@ -44,7 +40,7 @@
   min-width: fit-content;
   color: hsl(var(--destructive));
   font-size: 12px;
-  font-weight: 780;
+  font-weight: 500;
 }
 
 .agent-route-notice {
@@ -55,9 +51,10 @@
   width: 100%;
   max-width: 860px;
   margin: 0 auto;
-  border: 1px solid hsl(var(--primary) / 0.24);
-  border-radius: 8px;
-  background: hsl(38 44% 90% / 0.5);
+  border: 1px solid var(--app-edge);
+  border-radius: 12px;
+  background: var(--app-card-surface);
+  box-shadow: var(--app-card-shadow);
   padding: 14px 16px;
 }
 
@@ -65,12 +62,13 @@
   display: grid;
   grid-column: 1;
   grid-row: 1;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   place-items: center;
-  border-radius: 8px;
-  background: hsl(var(--primary) / 0.1);
-  color: hsl(var(--primary));
+  border-radius: 999px;
+  background: var(--app-well);
+  box-shadow: var(--app-well-shadow);
+  color: hsl(var(--foreground));
 }
 
 .agent-route-notice > div {
@@ -80,16 +78,16 @@
 
 .agent-route-notice strong {
   color: hsl(var(--foreground));
-  font-size: 14px;
-  font-weight: 900;
-  line-height: 1.25;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
 }
 
 .agent-route-notice p {
-  margin: 4px 0 0;
+  margin: 2px 0 0;
   color: hsl(var(--muted-foreground));
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 17px;
   text-wrap: pretty;
 }
 
@@ -112,43 +110,15 @@
   position: relative;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid hsl(var(--border) / 0.46);
-  border-radius: 16px;
-  background:
-    linear-gradient(180deg, hsl(210 18% 94% / 0.92), hsl(40 20% 92% / 0.84)), hsl(var(--card));
-  box-shadow: 0 8px 22px hsl(31 24% 24% / 0.055);
-  filter: saturate(0.82) brightness(0.96);
-  transition:
-    border-color 160ms ease,
-    background 160ms ease,
-    box-shadow 160ms ease,
-    filter 160ms ease;
+  border: 1px solid var(--app-edge);
+  border-radius: 12px;
+  background: var(--app-card-surface);
+  box-shadow: var(--app-card-shadow);
+  transition: box-shadow 160ms ease;
 }
 
 .agent-list-card:hover {
-  filter: saturate(0.9) brightness(0.99);
-  box-shadow: 0 12px 30px hsl(31 24% 24% / 0.075);
-}
-
-.agent-list-card.needs-route {
-  filter: saturate(0.92) brightness(0.98);
-}
-
-.agent-list-card.is-enabled {
-  border-color: color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 30%, transparent);
-  background:
-    linear-gradient(180deg, hsl(var(--card) / 0.97), hsl(45 41% 94% / 0.92)), hsl(var(--card));
-  box-shadow:
-    0 22px 54px hsl(31 34% 24% / 0.12),
-    0 0 0 1px color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 5%, transparent);
-  filter: saturate(1) brightness(1);
-}
-
-.agent-list-card.is-enabled:hover {
-  filter: saturate(1) brightness(1);
-  box-shadow:
-    0 22px 54px hsl(31 34% 24% / 0.12),
-    0 0 0 1px color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 5%, transparent);
+  box-shadow: var(--app-float-shadow);
 }
 
 .agent-list-photo {
@@ -203,10 +173,11 @@
 
 .agent-list-name {
   color: #fff;
+  font-family: var(--font-reader-serif);
   font-size: 20px;
-  font-weight: 880;
-  letter-spacing: 0.04em;
-  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 28px;
 }
 
 .agent-list-pinyin {
@@ -214,7 +185,7 @@
   font-family: var(--font-ui);
   font-size: 12px;
   font-style: italic;
-  font-weight: 620;
+  font-weight: 500;
   letter-spacing: 0.04em;
 }
 
@@ -230,23 +201,15 @@
   right: 12px;
   align-items: center;
   max-width: calc(100% - 24px);
-  border: 1px solid color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 22%, transparent);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 12%, hsl(var(--card)) 88%);
-  box-shadow: 0 8px 18px hsl(31 34% 24% / 0.08);
-  color: color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 80%, hsl(var(--foreground)) 20%);
-  font-size: 12px;
-  font-weight: 880;
-  letter-spacing: 0.02em;
-  line-height: 1;
-  padding: 7px 11px;
+  border-radius: 6px;
+  background: var(--app-card-surface);
+  box-shadow: var(--app-card-shadow);
+  color: hsl(var(--foreground));
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+  padding: 2px 7px;
   white-space: nowrap;
-}
-
-.agent-list-card:not(.is-enabled) .agent-list-role-badge {
-  border-color: hsl(34 9% 70% / 0.52);
-  background: hsl(40 14% 94% / 0.86);
-  color: hsl(31 7% 42%);
 }
 
 .agent-list-line-bubble {
@@ -257,13 +220,11 @@
   max-width: calc(100% - 24px);
   border: 1px solid color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 18%, transparent);
   border-radius: 12px;
-  background: hsl(var(--card) / 0.96);
-  box-shadow:
-    0 16px 36px hsl(31 34% 24% / 0.22),
-    0 0 0 1px hsl(var(--card) / 0.58);
-  color: hsl(26 18% 22%);
-  font-size: 11px;
-  font-weight: 780;
+  background: var(--app-card-surface);
+  box-shadow: var(--app-float-shadow);
+  color: hsl(var(--foreground));
+  font-size: 12px;
+  font-weight: 500;
   line-height: 1.4;
   padding: 8px 12px;
   pointer-events: none;
@@ -276,9 +237,7 @@
 }
 
 .agent-list-line-bubble.is-resting {
-  border-color: hsl(34 18% 67% / 0.48);
-  background: hsl(40 18% 94% / 0.94);
-  color: hsl(29 12% 31%);
+  color: hsl(var(--muted-foreground));
 }
 
 .agent-list-text {
@@ -297,13 +256,12 @@
   max-width: 100%;
   margin: 0;
   color: hsl(var(--foreground));
-  font-size: 14px;
-  font-weight: 720;
-  line-height: 1.5;
+  font-size: 13px;
+  line-height: 20px;
 }
 
 .agent-list-card:not(.is-enabled) .agent-list-motto {
-  color: hsl(31 9% 48%);
+  color: hsl(var(--muted-foreground));
 }
 
 .agent-list-footer {
@@ -311,8 +269,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border-top: 1px solid hsl(var(--border) / 0.46);
-  padding-top: 14px;
+  border-top: 1px solid hsl(var(--border));
+  padding-top: 12px;
 }
 
 .agent-list-detail-button {
@@ -323,9 +281,9 @@
   border: 0;
   background: transparent;
   padding: 4px 0;
-  color: color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 70%, hsl(var(--foreground)) 30%);
+  color: hsl(var(--foreground));
   font-size: 12px;
-  font-weight: 760;
+  font-weight: 500;
 }
 
 .agent-list-detail-button svg {
@@ -338,7 +296,7 @@
 }
 
 .agent-list-detail-button:focus-visible {
-  outline: 2px solid hsl(var(--ring) / 0.55);
+  outline: 2px solid var(--app-interactive-focus-ring);
   outline-offset: 2px;
 }
 
@@ -357,12 +315,12 @@
   flex: 0 0 auto;
   color: hsl(var(--muted-foreground));
   font-size: 12px;
-  font-weight: 820;
+  font-weight: 500;
 }
 
 .agent-card-toggle.is-disabled {
   cursor: default;
-  opacity: 0.56;
+  opacity: 0.55;
 }
 
 .agent-card-toggle input {
@@ -382,29 +340,15 @@
 .agent-card-toggle .settings-toggle-switch {
   --toggle-spring-dur: 320ms;
   --toggle-spring-ease: cubic-bezier(0.34, 1.68, 0.64, 1);
-
-  width: 36px;
-  height: 20px;
 }
 
 .agent-card-toggle .settings-toggle-switch::after {
-  top: 3px;
-  left: 3px;
-  width: 14px;
-  height: 14px;
   transition: transform var(--toggle-spring-dur) var(--toggle-spring-ease);
 }
 
-.agent-card-toggle input:disabled + .settings-toggle-switch {
-  background: hsl(var(--muted));
-  box-shadow: inset 0 0 0 1px hsl(var(--border));
-}
-
 .agent-card-toggle input:checked + .settings-toggle-switch {
-  background: color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 74%, hsl(var(--card)) 26%);
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 82%, transparent),
-    0 6px 14px color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 18%, transparent);
+  background: var(--app-ink);
+  box-shadow: var(--app-ink-shadow);
 }
 
 .agent-card-toggle input:checked + .settings-toggle-switch::after {
@@ -412,9 +356,8 @@
 }
 
 .agent-card-toggle input:focus-visible + .settings-toggle-switch {
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 82%, transparent),
-    0 0 0 3px hsl(var(--ring) / 0.28);
+  outline: 2px solid var(--app-interactive-focus-ring);
+  outline-offset: 2px;
 }
 
 .agent-detail-overlay {
@@ -423,7 +366,7 @@
   z-index: var(--app-z-modal);
   display: grid;
   place-items: center;
-  background: hsl(24 22% 10% / 0.34);
+  background: var(--app-overlay-scrim);
   padding: 24px;
   -webkit-app-region: no-drag;
 }
@@ -435,10 +378,10 @@
   max-height: min(800px, calc(var(--app-viewport-height) - 48px));
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid hsl(var(--border) / 0.82);
+  border: 1px solid var(--app-edge);
   border-radius: 16px;
-  background: hsl(var(--card));
-  box-shadow: 0 30px 110px hsl(31 34% 18% / 0.28);
+  background: var(--app-card-surface);
+  box-shadow: var(--app-dialog-shadow);
 }
 
 .agent-detail-close {
@@ -454,7 +397,7 @@
   border-radius: 999px;
   background: hsl(0 0% 100% / 0.86);
   color: hsl(26 18% 22%);
-  box-shadow: 0 6px 16px hsl(31 34% 24% / 0.18);
+  box-shadow: var(--app-card-shadow);
 }
 
 .agent-detail-close:hover {
@@ -509,7 +452,6 @@
     gap: 14px;
   }
 
-  .agent-filter-tabs,
   .agent-library-toolbar {
     grid-template-columns: minmax(0, 1fr);
   }
