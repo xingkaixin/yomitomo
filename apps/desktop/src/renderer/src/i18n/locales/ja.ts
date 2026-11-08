@@ -1524,7 +1524,7 @@ export const jaResources = {
       openWeRead: 'WeRead を開く',
       weReadFallback: 'WeRead',
       nativeAppMissing:
-        'WeRead アプリが見つかりませんでした。設定 / WeRead で、「Web バージョンを使用」に切り替えるか、WeRead アプリをインストールして再試行してください。',
+        'WeRead アプリが見つかりませんでした。設定 / WeRead でウェブ版で開く方法に切り替えるか、WeRead アプリをインストールして再試行してください。',
       openFailed: 'WeReadを開けませんでした。後でもう一度試してください。',
       syncing: '同期中',
       syncBook: '同期ブック',
@@ -1889,8 +1889,22 @@ export const jaResources = {
         deeplinkLabel: 'WeRead アプリを開く',
         deeplinkDescription:
           'アプリのインストールが必要です。一致するハイライトや考えを見つけることができます。',
-        webLabel: 'ウェブ版を使用する',
+        webLabel: 'ブラウザでウェブ版を開く',
         webDescription: 'アプリは必要ありません。一致する章のみを開きます。',
+        inAppLabel: 'Yomitomo でウェブ版を開く',
+        inAppDescription:
+          'アプリは必要ありません。アプリ内のウィンドウで該当する章を開きます。開いた位置は WeRead の読書進捗として同期されます。',
+        webLoginGroup: 'ウェブ版のログイン',
+        webLoginSignedIn: 'ログイン済み',
+        webLoginSignedInDescription:
+          'ログイン状態はこの端末にのみ保存され、API キーとは関係ありません。',
+        webLoginSignedOut: '未ログイン',
+        webLoginSignedOutDescription:
+          'Yomitomo で初めて WeRead を開くときに、ウィンドウ内でログインします。',
+        webLogout: 'ウェブ版からログアウト',
+        webLogoutConfirmTitle: 'WeRead ウェブ版からログアウトしますか？',
+        webLogoutConfirmDescription:
+          'アプリ内ウィンドウに保存されたログイン状態を削除します。次回はもう一度ログインが必要です。同期済みの本、ハイライト、考え、API キーには影響しません。',
         syncModeGroup: '同期モード',
         syncModeAria: 'WeRead 同期モード',
         manualSyncLabel: 'マニュアル',

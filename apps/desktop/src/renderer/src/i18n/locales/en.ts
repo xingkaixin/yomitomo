@@ -1503,7 +1503,7 @@ export const enResources = {
       openWeRead: 'Open WeRead',
       weReadFallback: 'WeRead',
       nativeAppMissing:
-        'WeRead app was not found. In Settings / WeRead, switch to "Use web version", or install the WeRead app and try again.',
+        'WeRead app was not found. In Settings / WeRead, switch to a web version, or install the WeRead app and try again.',
       openFailed: 'Failed to open WeRead. Try again later.',
       syncing: 'Syncing',
       syncBook: 'Sync book',
@@ -1864,8 +1864,22 @@ export const enResources = {
         deeplinkLabel: 'Open the WeRead app',
         deeplinkDescription:
           'Requires the app to be installed. Can locate the matching highlight or thought.',
-        webLabel: 'Use the web version',
+        webLabel: 'Open the web version in your browser',
         webDescription: 'Does not require the app. Opens the matching chapter only.',
+        inAppLabel: 'Open the web version in Yomitomo',
+        inAppDescription:
+          'Does not require the app. Opens the matching chapter in an in-app window. The opened position becomes your WeRead reading progress.',
+        webLoginGroup: 'Web sign-in',
+        webLoginSignedIn: 'Signed in',
+        webLoginSignedInDescription:
+          'Your sign-in is stored only on this device and is separate from the API key.',
+        webLoginSignedOut: 'Not signed in',
+        webLoginSignedOutDescription:
+          'Sign in inside the window the first time you open WeRead in Yomitomo.',
+        webLogout: 'Sign out of the web version',
+        webLogoutConfirmTitle: 'Sign out of the WeRead web version?',
+        webLogoutConfirmDescription:
+          'Clears the sign-in saved by the in-app window. You will need to sign in again next time. Synced books, highlights, thoughts, and the API key are not affected.',
         syncModeGroup: 'Sync mode',
         syncModeAria: 'WeRead sync mode',
         manualSyncLabel: 'Manual',
