@@ -45,20 +45,8 @@ Tailwind 用于局部、一次性的布局和间距。以下情况应进入 CSS 
 - 尚未拆分完成的大型模块文件。
 - 跨 source reader、library、settings 的响应式集合。
 - 已记录但等待独立 issue 迁移的小型补丁。
-- 主题专属的视觉层（`shadlingo.css`、`lanmo.css`），规则必须限定在 `:root[data-theme='…']` 下。
 
 不得新增 `legacy-*` 文件。迁移 legacy 规则时，应把选择器拆回实际拥有语义的目标模块；跨模块 grouped selector 需要拆开，不要原样搬入单个 partial。
-
-### 蓝墨手绘层
-
-`lanmo.css` 用 CSS Paint Worklet（`apps/desktop/src/renderer/src/theme/lanmo-sketch-worklet.ts`）绘制铅笔描边和排线，通过 `--sketch-*` 变量配置。约束：
-
-- 绘制规则限定在 `[data-sketch='ready']` 下。Worklet 加载失败时主题保留普通边框。
-- `--sketch-*` 用 `@property` 声明为不继承，否则子元素会沿用父级的单边横线或排线。
-- 书籍正文不接手绘。阅读器 UI 通过选择器覆盖，不改 `packages/reader-ui`。
-- 不用 SVG filter 做描边。它在批注滚动中增加 GPU 开销和掉帧；Worklet 在 500 张批注滚动时与无描边基本一致。
-- 笔迹由元素尺寸决定，同尺寸元素画法相同。不要给手绘元素的宽高加过渡动画，否则线条会逐帧变化。
-- 图片或填充层盖住背景的元素（助手卡、设置滑块）用 `::after` 把描边画在内容上方。
 
 ## Reader UI 边界
 
