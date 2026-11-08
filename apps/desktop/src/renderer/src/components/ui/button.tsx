@@ -2,16 +2,22 @@ import React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../../lib/utils';
 
+const raisedSurface =
+  'border-[color:var(--app-edge)] bg-[image:var(--app-raised)] text-[hsl(var(--foreground))] shadow-[var(--app-raised-shadow)]';
+
 export const buttonVariants = cva(
-  'inline-flex min-h-10 items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold shadow-sm transition-[background-color,border-color,color,box-shadow,transform] hover:-translate-y-0.5 hover:shadow-md active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none disabled:hover:translate-y-0 disabled:active:scale-100',
+  'inline-flex min-h-10 items-center justify-center gap-2 whitespace-nowrap rounded-full border text-sm font-medium transition-[transform,filter,box-shadow,background-color,color] duration-[120ms] ease-out motion-reduce:transition-none motion-reduce:active:translate-y-0 hover:brightness-[0.98] active:translate-y-px active:shadow-[var(--app-well-shadow)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--app-interactive-focus-ring)] disabled:pointer-events-none disabled:opacity-55',
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hover:bg-primary/90',
-        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-        destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
-        outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
-        ghost: 'hover:bg-accent hover:text-accent-foreground',
+        default:
+          'border-[color:var(--app-ink-edge)] bg-[image:var(--app-ink)] text-[color:var(--app-ink-fg)] shadow-[var(--app-ink-shadow)]',
+        secondary: raisedSurface,
+        outline: raisedSurface,
+        destructive:
+          'border-[color:var(--app-action-danger-border)] bg-[var(--app-action-danger-bg)] text-[color:var(--app-action-danger-fg)] shadow-[var(--app-ink-shadow)]',
+        ghost:
+          'border-transparent bg-transparent text-[hsl(var(--muted-foreground))] shadow-none hover:bg-[var(--app-interactive-hover-bg)] hover:text-[hsl(var(--foreground))] hover:brightness-100 active:shadow-none',
       },
       size: {
         default: 'h-10 px-4 py-2',

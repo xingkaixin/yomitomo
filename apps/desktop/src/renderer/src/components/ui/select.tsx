@@ -35,7 +35,7 @@ const SelectTrigger = React.forwardRef<
   <SelectPrimitive.Trigger
     data-slot="select-trigger"
     className={cn(
-      'flex h-11 w-full items-center justify-between gap-2 rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1',
+      'flex h-11 w-full items-center justify-between gap-2 rounded-xl border px-3 py-2 text-sm border-[color:var(--app-edge)] bg-[image:var(--app-field)] text-[hsl(var(--foreground))] shadow-[var(--app-field-shadow)] placeholder:text-[hsl(var(--muted-foreground))] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--app-interactive-focus-ring)] disabled:cursor-not-allowed disabled:opacity-55 [&>span]:line-clamp-1',
       className,
     )}
     ref={ref}
@@ -75,7 +75,7 @@ const SelectContent = React.forwardRef<
       >
         <SelectPrimitive.Popup
           className={composePopupClassName(
-            'ui-popup-content ui-select-content t-dropdown relative max-h-96 min-w-[var(--anchor-width)] overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-lg',
+            'ui-popup-content ui-select-content t-dropdown relative max-h-96 min-w-[var(--anchor-width)] overflow-hidden rounded-xl border border-[color:var(--app-edge)] bg-[image:var(--app-card-surface)] text-[hsl(var(--foreground))] shadow-[var(--app-float-shadow)]',
             className,
           )}
           ref={ref}
@@ -102,7 +102,7 @@ const SelectItem = React.forwardRef<
 >(({ className, children, ...props }, ref) => (
   <SelectPrimitive.Item
     className={cn(
-      'relative flex w-full cursor-default select-none items-center gap-2 rounded-lg py-2 pr-8 pl-3 text-sm outline-none transition-colors data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+      'relative flex w-full cursor-default select-none items-center gap-2 rounded-lg py-2 pr-8 pl-3 text-sm outline-none transition-colors data-[highlighted]:bg-[var(--app-interactive-hover-bg)] data-[disabled]:pointer-events-none data-[disabled]:opacity-55',
       className,
     )}
     ref={ref}

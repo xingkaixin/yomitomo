@@ -44,10 +44,19 @@ export type AppTheme = {
     resizeEase: string;
     shellBackground: string;
     shellPanelShadow: string;
-    subtlePanelShadow: string;
-    cardShadow: string;
     overlayScrim: string;
     zIndex: AppThemeZIndex;
+  };
+  surface: {
+    edge: string;
+    edgeSoft: string;
+    raised: SurfaceMaterial;
+    card: SurfaceMaterial;
+    well: SurfaceMaterial;
+    field: SurfaceMaterial;
+    ink: SurfaceMaterial & { edge: string; foreground: string };
+    floatShadow: string;
+    dialogShadow: string;
   };
   action: {
     primary: ThemeControlState;
@@ -80,6 +89,13 @@ export type AppTheme = {
 };
 
 export type AppThemeTone = 'light' | 'dark';
+
+// Skeuomorphic surfaces are a faint two-stop vertical gradient; the 1px top highlight lives in the shadow.
+export type SurfaceMaterial = {
+  top: string;
+  bottom: string;
+  shadow: string;
+};
 
 export type ThemeControlState = {
   background: string;
@@ -236,12 +252,46 @@ export const lightTheme: AppTheme = {
     resizeEase: 'cubic-bezier(0.22, 1, 0.36, 1)',
     shellBackground: '#f1efeb',
     shellPanelShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 2px rgba(28, 26, 23, 0.04)',
-    subtlePanelShadow:
-      'inset 0 1px 0 #ffffff, 0 1px 0 rgba(28, 26, 23, 0.04), 0 1px 3px rgba(28, 26, 23, 0.08)',
-    cardShadow:
-      'inset 0 1px 0 #ffffff, 0 1px 2px rgba(28, 26, 23, 0.05), 0 6px 16px -6px rgba(28, 26, 23, 0.1)',
     overlayScrim: 'rgba(28, 26, 23, 0.32)',
     zIndex: appThemeZIndex,
+  },
+  surface: {
+    edge: 'rgba(28, 26, 23, 0.13)',
+    edgeSoft: 'rgba(28, 26, 23, 0.07)',
+    raised: {
+      top: '#ffffff',
+      bottom: '#f7f6f2',
+      shadow:
+        'inset 0 1px 0 #ffffff, 0 1px 0 rgba(28, 26, 23, 0.04), 0 1px 3px rgba(28, 26, 23, 0.08)',
+    },
+    card: {
+      top: '#ffffff',
+      bottom: '#fbfaf7',
+      shadow:
+        'inset 0 1px 0 #ffffff, 0 1px 2px rgba(28, 26, 23, 0.05), 0 6px 16px -6px rgba(28, 26, 23, 0.1)',
+    },
+    well: {
+      top: '#e8e5df',
+      bottom: '#efede8',
+      shadow: 'inset 0 1px 2px rgba(28, 26, 23, 0.12), 0 1px 0 rgba(255, 255, 255, 0.85)',
+    },
+    field: {
+      top: '#f9f8f5',
+      bottom: '#ffffff',
+      shadow: 'inset 0 1px 2px rgba(28, 26, 23, 0.08), 0 1px 0 rgba(255, 255, 255, 0.85)',
+    },
+    ink: {
+      top: '#403b35',
+      bottom: '#1c1a17',
+      edge: '#0f0e0c',
+      foreground: '#ffffff',
+      shadow:
+        'inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 1px 2px rgba(28, 26, 23, 0.24), 0 3px 8px -3px rgba(28, 26, 23, 0.35)',
+    },
+    floatShadow:
+      'inset 0 1px 0 #ffffff, 0 2px 6px rgba(28, 26, 23, 0.08), 0 12px 28px -8px rgba(28, 26, 23, 0.2)',
+    dialogShadow:
+      'inset 0 1px 0 #ffffff, 0 4px 16px rgba(28, 26, 23, 0.12), 0 24px 48px -12px rgba(28, 26, 23, 0.2)',
   },
   action: {
     primary: {
@@ -281,7 +331,7 @@ export const lightTheme: AppTheme = {
     currentBackground: '#efede8',
     hoverBackground: '#efede8',
     hoverBorder: 'rgba(178, 50, 35, 0.45)',
-    focusRing: 'rgba(178, 50, 35, 0.38)',
+    focusRing: '#b23223',
     badgeBackground: 'rgba(178, 50, 35, 0.08)',
     badgeForeground: '#b23223',
     badgeBorder: 'rgba(178, 50, 35, 0.45)',
@@ -414,10 +464,43 @@ export const darkTheme: AppTheme = {
     resizeEase: lightTheme.effect.resizeEase,
     shellBackground: '#121110',
     shellPanelShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.04)',
-    subtlePanelShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 1px 2px rgba(0, 0, 0, 0.45)',
-    cardShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 2px 10px -2px rgba(0, 0, 0, 0.5)',
     overlayScrim: 'rgba(0, 0, 0, 0.5)',
     zIndex: appThemeZIndex,
+  },
+  surface: {
+    edge: 'rgba(0, 0, 0, 0.55)',
+    edgeSoft: 'rgba(0, 0, 0, 0.4)',
+    raised: {
+      top: '#2e2b27',
+      bottom: '#252320',
+      shadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 1px 2px rgba(0, 0, 0, 0.45)',
+    },
+    card: {
+      top: '#272522',
+      bottom: '#211f1c',
+      shadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 2px 10px -2px rgba(0, 0, 0, 0.5)',
+    },
+    well: {
+      top: '#131211',
+      bottom: '#1a1917',
+      shadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(255, 255, 255, 0.05)',
+    },
+    field: {
+      top: '#181715',
+      bottom: '#1e1c1a',
+      shadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 255, 255, 0.05)',
+    },
+    ink: {
+      top: '#f6f3ee',
+      bottom: '#d9d4cb',
+      edge: 'rgba(0, 0, 0, 0.6)',
+      foreground: '#1a1917',
+      shadow:
+        'inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 1px 2px rgba(0, 0, 0, 0.5), 0 3px 8px -3px rgba(0, 0, 0, 0.6)',
+    },
+    floatShadow:
+      'inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.4), 0 14px 32px -8px rgba(0, 0, 0, 0.65)',
+    dialogShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 24px 56px -12px rgba(0, 0, 0, 0.6)',
   },
   action: {
     primary: {
@@ -457,7 +540,7 @@ export const darkTheme: AppTheme = {
     currentBackground: '#2a2825',
     hoverBackground: '#2a2825',
     hoverBorder: 'rgba(232, 115, 95, 0.5)',
-    focusRing: 'rgba(232, 115, 95, 0.4)',
+    focusRing: '#e8735f',
     badgeBackground: 'rgba(232, 115, 95, 0.12)',
     badgeForeground: '#e8735f',
     badgeBorder: 'rgba(232, 115, 95, 0.5)',
@@ -512,9 +595,24 @@ export function themeToCssVariables(theme: AppTheme): CssVariableMap {
     '--resize-ease': theme.effect.resizeEase,
     '--app-shell-background': theme.effect.shellBackground,
     '--app-shell-panel-shadow': theme.effect.shellPanelShadow,
-    '--app-subtle-panel-shadow': theme.effect.subtlePanelShadow,
-    '--app-card-shadow': theme.effect.cardShadow,
+    '--app-subtle-panel-shadow': theme.surface.raised.shadow,
     '--app-overlay-scrim': theme.effect.overlayScrim,
+    '--app-edge': theme.surface.edge,
+    '--app-edge-soft': theme.surface.edgeSoft,
+    '--app-raised': surfaceGradient(theme.surface.raised),
+    '--app-raised-shadow': theme.surface.raised.shadow,
+    '--app-card-surface': surfaceGradient(theme.surface.card),
+    '--app-card-shadow': theme.surface.card.shadow,
+    '--app-well': surfaceGradient(theme.surface.well),
+    '--app-well-shadow': theme.surface.well.shadow,
+    '--app-field': surfaceGradient(theme.surface.field),
+    '--app-field-shadow': theme.surface.field.shadow,
+    '--app-ink': surfaceGradient(theme.surface.ink),
+    '--app-ink-edge': theme.surface.ink.edge,
+    '--app-ink-fg': theme.surface.ink.foreground,
+    '--app-ink-shadow': theme.surface.ink.shadow,
+    '--app-float-shadow': theme.surface.floatShadow,
+    '--app-dialog-shadow': theme.surface.dialogShadow,
     '--app-z-sticky': theme.effect.zIndex.sticky,
     '--app-z-floating': theme.effect.zIndex.floating,
     '--app-z-dropdown': theme.effect.zIndex.dropdown,
@@ -565,6 +663,10 @@ export function themeToCssVariables(theme: AppTheme): CssVariableMap {
     '--app-reader-agent-fallback': theme.dataColor.readerAgentFallback,
     ...readerThemeToCssVariables(theme.reader),
   };
+}
+
+function surfaceGradient(material: SurfaceMaterial) {
+  return `linear-gradient(to bottom, ${material.top}, ${material.bottom})`;
 }
 
 export function applyAppTheme(theme: AppTheme, root: HTMLElement = document.documentElement) {
