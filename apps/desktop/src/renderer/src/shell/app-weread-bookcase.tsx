@@ -1,22 +1,16 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowLeft01Icon, LinkSquare01Icon, Refresh01Icon } from '@hugeicons/core-free-icons';
 import React, { useMemo, useReducer } from 'react';
-import i18next from 'i18next';
 import type {
-  UserProfile,
   WeReadBookDetail,
   WeReadChapter,
   WeReadHighlight,
   WeReadThought,
 } from '@yomitomo/shared';
-import type {
-  ReadonlyAnnotationCardAuthor,
-  ReadonlyAnnotationCardThought,
-} from '@yomitomo/reader-ui/reader-readonly-annotation-card';
-import { ReadonlyAnnotationCard } from '@yomitomo/reader-ui/reader-readonly-annotation-card';
 import { WeReadCover } from '../reading-library/app-reading-library-covers';
 import { useTranslation } from 'react-i18next';
-import { readerUiLabels } from '../i18n/app-i18n-labels';
+import type { WeReadReaderEvent, WeReadReaderMode } from './app-weread-reader-pane';
+import { closeWeReadReader, WeReadReaderCompact, WeReadReaderFull } from './app-weread-reader-pane';
 
 export type WeReadNoteGroup = {
   key: string;
@@ -27,37 +21,46 @@ export type WeReadNoteGroup = {
   createTime: number;
 };
 
-type WeReadNoteAuthor = {
-  avatar?: string;
-  color: string;
-  fallback: string;
-  name: string;
-};
-
-export type WeReadReadonlyNoteCardModel = {
-  author: ReadonlyAnnotationCardAuthor;
-  createdAt: string;
-  id: string;
-  quote?: string;
-  thoughts: ReadonlyAnnotationCardThought[];
+type WeReadOpenTarget = {
+  chapterUid?: number;
+  range?: string;
+  text?: string;
+  userVid?: number;
 };
 
 export function WeReadBookcase({
+  currentNoteKey,
   detail,
+  inAppReader,
+  readerMode,
   syncing,
-  userProfile,
   onClose,
   onOpenExternal,
+  onReaderEvent,
   onSync,
 }: {
+  currentNoteKey: string | null;
   detail: WeReadBookDetail;
+  inAppReader: boolean;
+  readerMode: WeReadReaderMode | null;
   syncing: boolean;
-  userProfile: UserProfile;
   onClose: () => void;
-  onOpenExternal: (target: { chapterUid?: number; range?: string; userVid?: number }) => void;
+  onOpenExternal: (target: WeReadOpenTarget) => void;
+  onReaderEvent: (event: WeReadReaderEvent) => void;
   onSync: () => void;
 }) {
   const { t } = useTranslation();
+  const openTarget = (target: WeReadOpenTarget, mode: WeReadReaderMode, noteKey: string | null) => {
+    if (inAppReader) {
+      onReaderEvent({ type: 'readerOpened', bookId: detail.book.bookId, mode, noteKey });
+    }
+    onOpenExternal(target);
+  };
+  const closeReader = () => {
+    onReaderEvent({ type: 'readerClosed' });
+    closeWeReadReader();
+  };
+  const reading = readerMode === 'full';
   const chapters = useChaptersWithCounts(detail, t);
   const [activeChapterUid, dispatch] = useReducer(
     activeChapterReducer,
@@ -72,10 +75,6 @@ export function WeReadBookcase({
     () => detail.thoughts.find((thought) => thought.userVid !== undefined)?.userVid,
     [detail.thoughts],
   );
-  const bookAuthor = useMemo(() => {
-    const thought = detail.thoughts.find((item) => item.author?.name || item.author?.avatar);
-    return thoughtAuthorProfile(thought, userProfile, t('common.me'));
-  }, [detail.thoughts, t, userProfile]);
   const readingTimeLabel = formatWeReadReadingTime(
     detail.book.readingTime ?? detail.book.recordReadingTime,
     t,
@@ -85,25 +84,40 @@ export function WeReadBookcase({
   const visibleGroups = activeChapterUid
     ? groups.filter((group) => group.chapterUid === activeChapterUid)
     : groups;
+  const activeChapter = chapters.find((chapter) => chapter.chapterUid === activeChapterUid);
 
   return (
-    <section className="weread-bookcase">
+    <section
+      className={['weread-bookcase', readerMode === 'compact' ? 'is-reader-compact' : '']
+        .filter(Boolean)
+        .join(' ')}
+    >
       <header className="weread-bookcase-header">
-        <button
-          className="reader-back weread-bookcase-back"
-          type="button"
-          aria-label={t('common.backToLibrary')}
-          onClick={onClose}
-        >
-          <HugeiconsIcon icon={ArrowLeft01Icon} size={18} />
-          <span>{t('readerUi.readerLibrary')}</span>
-        </button>
+        {reading ? (
+          <button
+            className="reader-back weread-bookcase-back"
+            type="button"
+            aria-label={t('wereadBook.readerBackToNotes')}
+            onClick={() => onReaderEvent({ type: 'readerCompacted' })}
+          >
+            <HugeiconsIcon icon={ArrowLeft01Icon} size={18} />
+            <span>{t('wereadBook.notesBackLabel')}</span>
+          </button>
+        ) : (
+          <button
+            className="reader-back weread-bookcase-back"
+            type="button"
+            aria-label={t('common.backToLibrary')}
+            onClick={onClose}
+          >
+            <HugeiconsIcon icon={ArrowLeft01Icon} size={18} />
+            <span>{t('readerUi.readerLibrary')}</span>
+          </button>
+        )}
         <div className="weread-bookcase-title">
           <WeReadCover book={detail.book} variant="cover" />
           <div>
-            <div className="weread-bookcase-heading">
-              <h2>{detail.book.title}</h2>
-            </div>
+            <h2>{detail.book.title}</h2>
             <p>
               {[detail.book.author || t('wereadBook.weReadFallback'), readingTimeLabel]
                 .filter(Boolean)
@@ -112,19 +126,27 @@ export function WeReadBookcase({
           </div>
         </div>
         <div className="weread-bookcase-actions">
-          <button
-            className="weread-open-book-button"
-            type="button"
-            aria-label={t('wereadBook.openWeRead')}
-            title={t('wereadBook.openWeRead')}
-            onClick={() => onOpenExternal({})}
-          >
-            <HugeiconsIcon icon={LinkSquare01Icon} size={15} />
-          </button>
-          <button type="button" disabled={syncing} onClick={onSync}>
-            <HugeiconsIcon icon={Refresh01Icon} size={15} />
-            {syncing ? t('wereadBook.syncing') : t('wereadBook.syncBook')}
-          </button>
+          {reading ? null : (
+            <>
+              <button
+                className="weread-icon-button"
+                type="button"
+                aria-label={t('wereadBook.openWeRead')}
+                title={t('wereadBook.openWeRead')}
+                onClick={() =>
+                  readerMode === 'compact'
+                    ? onReaderEvent({ type: 'readerExpanded' })
+                    : openTarget({}, 'full', null)
+                }
+              >
+                <HugeiconsIcon icon={LinkSquare01Icon} size={16} />
+              </button>
+              <button type="button" disabled={syncing} onClick={onSync}>
+                <HugeiconsIcon icon={Refresh01Icon} size={15} />
+                {syncing ? t('wereadBook.syncing') : t('wereadBook.syncBook')}
+              </button>
+            </>
+          )}
         </div>
         <div
           className="weread-bookcase-progress"
@@ -137,7 +159,8 @@ export function WeReadBookcase({
           <span style={{ width: `${readingProgressPercent}%` }} />
         </div>
       </header>
-      <div className="weread-bookcase-body">
+      {reading ? <WeReadReaderFull /> : null}
+      <div className="weread-bookcase-body" hidden={reading}>
         <aside className="weread-toc" aria-label={t('wereadBook.tocLabel')}>
           {chapters.map((chapter) => (
             <button
@@ -145,40 +168,60 @@ export function WeReadBookcase({
               className={chapter.chapterUid === activeChapterUid ? 'is-active' : undefined}
               style={{ '--toc-level': Math.max(0, chapter.level - 1) } as React.CSSProperties}
               key={chapter.chapterUid}
-              onClick={() => dispatch({ type: 'chapterSelected', chapterUid: chapter.chapterUid })}
+              onClick={() => {
+                dispatch({ type: 'chapterSelected', chapterUid: chapter.chapterUid });
+                if (readerMode === 'compact') {
+                  openTarget({ chapterUid: chapter.chapterUid }, 'compact', null);
+                }
+              }}
             >
               <span>{chapter.title}</span>
               {chapter.count > 0 ? <em>{chapter.count}</em> : null}
             </button>
           ))}
         </aside>
-        <main
-          className={['weread-note-wall', visibleGroups.length === 0 ? 'is-empty' : '']
-            .filter(Boolean)
-            .join(' ')}
-          aria-label={t('wereadBook.notesLabel')}
-        >
+        <main className="weread-note-list" aria-label={t('wereadBook.notesLabel')}>
+          {activeChapter ? (
+            <header className="weread-note-list-header">
+              <h3>{activeChapter.title}</h3>
+              <span>{t('wereadBook.noteCount', { count: visibleGroups.length })}</span>
+            </header>
+          ) : null}
           {visibleGroups.length > 0 ? (
-            visibleGroups.map((group) => (
-              <WeReadNoteCard
-                group={group}
-                key={group.key}
-                fallbackAuthor={bookAuthor}
-                userProfile={userProfile}
-                onOpenExternal={() =>
-                  onOpenExternal({
-                    chapterUid: group.chapterUid,
-                    range: group.range,
-                    userVid: group.thoughts[0]?.userVid ?? bookUserVid,
-                  })
-                }
-              />
-            ))
+            <ol>
+              {visibleGroups.map((group, index) => (
+                <li key={group.key}>
+                  <WeReadNoteRow
+                    current={group.key === currentNoteKey}
+                    group={group}
+                    index={index + 1}
+                    onOpen={() =>
+                      openTarget(
+                        {
+                          chapterUid: group.chapterUid,
+                          range: group.range,
+                          text: noteQuote(group),
+                          userVid: group.thoughts[0]?.userVid ?? bookUserVid,
+                        },
+                        'compact',
+                        group.key,
+                      )
+                    }
+                  />
+                </li>
+              ))}
+            </ol>
           ) : (
             <div className="weread-empty-chapter">{t('wereadBook.emptyChapter')}</div>
           )}
         </main>
       </div>
+      {readerMode === 'compact' ? (
+        <WeReadReaderCompact
+          onClose={closeReader}
+          onExpand={() => onReaderEvent({ type: 'readerExpanded' })}
+        />
+      ) : null}
     </section>
   );
 }
@@ -196,76 +239,53 @@ function clampWeReadReadingProgress(value: number | undefined) {
   return Math.min(1, Math.max(0, value / 100));
 }
 
-function WeReadNoteCard({
-  fallbackAuthor,
+function WeReadNoteRow({
+  current,
   group,
-  userProfile,
-  onOpenExternal,
+  index,
+  onOpen,
 }: {
-  fallbackAuthor: WeReadNoteAuthor;
+  current: boolean;
   group: WeReadNoteGroup;
-  userProfile: UserProfile;
-  onOpenExternal: () => void;
+  index: number;
+  onOpen: () => void;
 }) {
-  const { t } = useTranslation();
-  const labels = readerUiLabels();
-  const model = weReadReadonlyNoteCardModel(group, fallbackAuthor, userProfile, t('common.me'));
+  const { t, i18n } = useTranslation();
+  const quote = noteQuote(group);
+  const createdAt = timestampDate(group.createTime);
   return (
-    <ReadonlyAnnotationCard
-      action={{
-        icon: <HugeiconsIcon icon={LinkSquare01Icon} size={13} />,
-        label: t('wereadBook.locateAnnotation'),
-        onClick: onOpenExternal,
-      }}
-      author={model.author}
-      className="weread-note-card"
-      createdAt={model.createdAt}
-      id={model.id}
-      labels={labels}
-      quote={model.quote}
-      thoughts={model.thoughts}
-    />
+    <button
+      className="weread-note-row"
+      type="button"
+      aria-current={current ? 'true' : undefined}
+      onClick={onOpen}
+    >
+      <span className="weread-note-index">{index}</span>
+      <span className="weread-note-text">
+        {quote ? <span className="weread-note-quote">{quote}</span> : null}
+        {group.thoughts.map((thought) => (
+          <span className="weread-note-thought" key={thought.reviewId}>
+            <span>{t('wereadBook.thoughtLabel')}</span>
+            {thought.content}
+          </span>
+        ))}
+      </span>
+      <time dateTime={createdAt.toISOString()}>{formatNoteDate(createdAt, i18n.language)}</time>
+    </button>
   );
 }
 
-function thoughtAuthorProfile(
-  thought: WeReadThought | undefined,
-  userProfile: UserProfile,
-  selfLabel = i18next.t('common.me'),
-): WeReadNoteAuthor {
-  const name = thought?.author?.name || userProfile.nickname || selfLabel;
-  return {
-    avatar: thought?.author?.avatar || userProfile.avatar,
-    color: userProfile.annotationColor,
-    fallback: name.slice(0, 1) || selfLabel,
-    name,
-  };
+function noteQuote(group: WeReadNoteGroup) {
+  return group.highlight?.markText || group.thoughts[0]?.abstract || undefined;
 }
 
-export function weReadReadonlyNoteCardModel(
-  group: WeReadNoteGroup,
-  fallbackAuthor: WeReadNoteAuthor,
-  userProfile: UserProfile,
-  selfLabel = i18next.t('common.me'),
-): WeReadReadonlyNoteCardModel {
-  const owner = group.thoughts[0]
-    ? thoughtAuthorProfile(group.thoughts[0], userProfile, selfLabel)
-    : fallbackAuthor;
-  return {
-    author: owner,
-    createdAt: timestampDate(group.createTime).toISOString(),
-    id: group.highlight?.bookmarkId || group.thoughts[0]?.reviewId || group.key,
-    quote: group.highlight?.markText || group.thoughts[0]?.abstract || undefined,
-    thoughts: group.thoughts.map((thought) => {
-      const author = thoughtAuthorProfile(thought, userProfile, selfLabel);
-      return {
-        author,
-        content: thought.content,
-        createdAt: timestampDate(thought.createTime).toISOString(),
-        id: thought.reviewId,
-      };
-    }),
-  };
+function formatNoteDate(date: Date, locale: string) {
+  const sameYear = date.getFullYear() === new Date().getFullYear();
+  return new Intl.DateTimeFormat(locale, {
+    year: sameYear ? undefined : 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+  }).format(date);
 }
 
 function activeChapterReducer(

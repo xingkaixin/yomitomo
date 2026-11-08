@@ -33,7 +33,7 @@ import { DatabaseTooNewError } from './db/errors';
 import { registerAnnotationDiscussionWindowIpc } from './windows/annotation-discussion-window';
 import { registerAnnotationSedimentationWindowIpc } from './windows/annotation-sedimentation-window';
 import { closeAllAnnotationWindows } from './windows/annotation-window-lifecycle';
-import { closeWeReadReaderWindow } from './windows/weread-reader-window';
+import { closeWeReadReader } from './windows/weread-reader-view';
 import { registerAgentIpc } from './ipc/ipc-agent';
 import { registerAssistantIpc } from './ipc/ipc-assistant';
 import { registerAppLockIpc } from './ipc/ipc-app-lock';
@@ -490,7 +490,7 @@ function setSensitiveRendererEventsLocked(locked: boolean) {
     readingLibraryRuntime?.cancelAll();
     readingReviewRuntime?.cancelAll();
     closeAllAnnotationWindows();
-    closeWeReadReaderWindow();
+    closeWeReadReader();
   }
 }
 

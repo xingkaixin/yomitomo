@@ -1444,7 +1444,13 @@ export const zhCNResources = {
       notesLabel: '微信读书划线和想法',
       emptyChapter: '这一章暂无同步到的划线或想法。',
       readingTime: '累计阅读 {{minutes}} 分钟',
-      locateAnnotation: '定位到批注',
+      noteCount: '{{count}} 条',
+      noteCount_other: '{{count}} 条',
+      thoughtLabel: '想法',
+      notesBackLabel: '划线',
+      readerBackToNotes: '返回划线和想法',
+      readerExpand: '展开',
+      readerClose: '关闭',
       chapterFallback: '章节 {{chapterUid}}',
     },
     startup: {
@@ -1782,7 +1788,7 @@ export const zhCNResources = {
         webDescription: '无需安装 App，只能打开到对应章节。',
         inAppLabel: '在 Yomitomo 中打开网页版',
         inAppDescription:
-          '无需安装 App，在应用内窗口打开到对应章节。打开的位置会同步为微信读书的阅读进度。',
+          '无需安装 App，在书架页内打开，并尝试定位到对应划线。打开的位置会同步为微信读书的阅读进度。',
         webLoginGroup: '网页登录',
         webLoginSignedIn: '已登录',
         webLoginSignedInDescription: '登录状态只保存在本机，和 API Key 互不影响。',

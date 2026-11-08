@@ -7,7 +7,6 @@
     "./reader-app-view": "./src/shell/reader-app-view.tsx",
     "./reader-toolbar-controls": "./src/shell/reader-toolbar-controls.tsx",
     "./reader-annotations": "./src/annotations/reader-annotations.ts",
-    "./reader-readonly-annotation-card": "./src/annotations/reader-readonly-annotation-card.tsx",
     "./reading-evidence-card": "./src/evidence/reading-evidence-card.tsx",
     "./reader-bilingual-translation-styles": "./src/reader-bilingual-translation-styles.ts",
     "./reader-navigation": "./src/reader-navigation.ts",

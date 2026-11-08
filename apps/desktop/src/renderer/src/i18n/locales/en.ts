@@ -1511,7 +1511,13 @@ export const enResources = {
       notesLabel: 'WeRead highlights and thoughts',
       emptyChapter: 'No synced highlights or thoughts in this chapter.',
       readingTime: '{{minutes}} minutes read',
-      locateAnnotation: 'Locate annotation',
+      noteCount: '{{count}} note',
+      noteCount_other: '{{count}} notes',
+      thoughtLabel: 'Thought',
+      notesBackLabel: 'Notes',
+      readerBackToNotes: 'Back to highlights and thoughts',
+      readerExpand: 'Expand',
+      readerClose: 'Close',
       chapterFallback: 'Chapter {{chapterUid}}',
     },
     startup: {
@@ -1868,7 +1874,7 @@ export const enResources = {
         webDescription: 'Does not require the app. Opens the matching chapter only.',
         inAppLabel: 'Open the web version in Yomitomo',
         inAppDescription:
-          'Does not require the app. Opens the matching chapter in an in-app window. The opened position becomes your WeRead reading progress.',
+          'Does not require the app. Opens inside the book page and tries to find the matching highlight. The opened position becomes your WeRead reading progress.',
         webLoginGroup: 'Web sign-in',
         webLoginSignedIn: 'Signed in',
         webLoginSignedInDescription:

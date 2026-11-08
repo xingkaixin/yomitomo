@@ -1532,7 +1532,13 @@ export const jaResources = {
       notesLabel: 'WeRead ハイライトと感想',
       emptyChapter: 'この章には同期されたハイライトや感想はありません。',
       readingTime: '{{minutes}} 分読みました',
-      locateAnnotation: '注釈の検索',
+      noteCount: '{{count}} 件',
+      noteCount_other: '{{count}} 件',
+      thoughtLabel: '感想',
+      notesBackLabel: 'ノート',
+      readerBackToNotes: 'ハイライトと感想に戻る',
+      readerExpand: '拡大',
+      readerClose: '閉じる',
       chapterFallback: '章 {{chapterUid}}',
     },
     startup: {
@@ -1893,7 +1899,7 @@ export const jaResources = {
         webDescription: 'アプリは必要ありません。一致する章のみを開きます。',
         inAppLabel: 'Yomitomo でウェブ版を開く',
         inAppDescription:
-          'アプリは必要ありません。アプリ内のウィンドウで該当する章を開きます。開いた位置は WeRead の読書進捗として同期されます。',
+          'アプリは必要ありません。本棚のページ内で開き、該当するハイライトの位置を探します。開いた位置は WeRead の読書進捗として同期されます。',
         webLoginGroup: 'ウェブ版のログイン',
         webLoginSignedIn: 'ログイン済み',
         webLoginSignedInDescription:
