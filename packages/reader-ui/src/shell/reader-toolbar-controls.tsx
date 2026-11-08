@@ -8,7 +8,11 @@ import {
 } from '@hugeicons/core-free-icons';
 import type React from 'react';
 import { useId, useReducer } from 'react';
-import { readerDistillationColorOptions } from '../reader-settings';
+import {
+  readerBackgroundOptions,
+  readerBackgroundTone,
+  readerDistillationColorOptions,
+} from '../reader-settings';
 import type { ReaderSettings } from '../reader-types';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { ReaderTooltip } from '../shared/reader-component-primitives';
@@ -54,6 +58,8 @@ export type ReaderToolbarLabels = {
   articleWidth: string;
   distillationColor: string;
   fontSize: string;
+  paper: string;
+  paperName?: (label: string) => string;
 };
 
 const defaultToolbarLabels: ReaderToolbarLabels = {
@@ -61,6 +67,7 @@ const defaultToolbarLabels: ReaderToolbarLabels = {
   articleWidth: '文章宽度',
   distillationColor: '沉淀划线',
   fontSize: '字号',
+  paper: '纸张',
 };
 
 function ReaderToolbarAppearancePopover({
@@ -74,6 +81,8 @@ function ReaderToolbarAppearancePopover({
 }) {
   const [open, dispatch] = useReducer(sliderPopoverReducer, false);
   const popoverId = useId();
+  const tone = readerBackgroundTone(settings.backgroundColor);
+  const paperName = labels.paperName ?? ((label: string) => label);
 
   return (
     <Popover
@@ -94,6 +103,27 @@ function ReaderToolbarAppearancePopover({
         </PopoverTrigger>
       </ReaderTooltip>
       <PopoverContent className="reader-toolbar-popover reader-appearance-popover" id={popoverId}>
+        <div className="reader-appearance-section">
+          <span className="reader-appearance-label">{labels.paper}</span>
+          <div className="reader-appearance-swatches" role="radiogroup" aria-label={labels.paper}>
+            {readerBackgroundOptions
+              .filter((paper) => paper.tone === tone)
+              .map((paper) => (
+                <button
+                  aria-checked={settings.backgroundColor === paper.value}
+                  aria-label={paperName(paper.label)}
+                  className="reader-appearance-paper"
+                  key={paper.value}
+                  role="radio"
+                  style={{ background: paper.value, color: paper.ink }}
+                  type="button"
+                  onClick={() => onChange({ ...settings, backgroundColor: paper.value })}
+                >
+                  文
+                </button>
+              ))}
+          </div>
+        </div>
         <div className="reader-appearance-section">
           <span className="reader-appearance-label">{labels.distillationColor}</span>
           <div

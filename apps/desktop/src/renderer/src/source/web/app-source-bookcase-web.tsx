@@ -18,6 +18,7 @@ import {
   type AnnotationNavigationDirection,
 } from '@yomitomo/reader-ui/reader-app-view';
 import { ReaderSettingsToolbarControls } from '@yomitomo/reader-ui/reader-toolbar-controls';
+import { readerPaperDisplayName } from '../../i18n/app-i18n-labels';
 import { getDesktopApi } from '../../shell/app-desktop-api';
 import { readerDesktopEmbeddedBundleStyles } from '@yomitomo/reader-ui/reader-styles';
 import {
@@ -500,6 +501,8 @@ function WebSourceReader({
               articleWidth: labels.articleWidth,
               distillationColor: labels.distillationColor,
               fontSize: labels.fontSize,
+              paper: labels.readerPaper,
+              paperName: readerPaperDisplayName,
             }}
             settings={readerSettings}
             onChange={updateReaderSettings}

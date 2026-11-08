@@ -8,7 +8,7 @@
 
 - Tailwind 与基础字体、base 样式先加载。
 - `styles/shell.css`、`styles/settings.css`、`styles/library.css`、`styles/source-*.css` 承载各功能区域样式。
-- 最后两个 import 依赖加载顺序：`styles/shell/theme-dialog.css` 的外观预览内嵌了 `.source-reader-shell`，必须排在 source reader 样式之后；`styles/popup-motion.css` 持有全局 popup/dropdown 的动效变量和开合状态，排在所有模块之后。
+- 最后一个 import 依赖加载顺序：`styles/popup-motion.css` 持有全局 popup/dropdown 的动效变量和开合状态，排在所有模块之后。
 
 不要把具体组件规则直接写进入口文件。新增全局 import 时，应先判断它是否属于已有功能模块；只有确实跨模块且需要固定加载顺序时，才在入口新增 import。
 
@@ -16,7 +16,7 @@
 
 `apps/desktop/src/renderer/src/styles/` 下的模块拥有对应 UI 区域的最终样式：
 
-- `shell.css` 及 `styles/shell/*`：应用外壳、侧栏、导航、profile 入口、平台 titlebar 与锁屏状态、主题对话框。
+- `shell.css` 及 `styles/shell/*`：应用外壳、侧栏、导航、profile 入口、平台 titlebar、锁屏状态与主题开关。
 - `settings.css` 及 `styles/settings/*`：设置页 panel、provider、agent、表单、统计、日志等设置域样式。
 - `library.css` 及 `styles/library/*`：资料库首页、搜索过滤、卡片、书架、封面、空状态和 notebook 相关样式。
 - `annotation-discussion.css` 及其 partial：批注讨论窗口和 composer。

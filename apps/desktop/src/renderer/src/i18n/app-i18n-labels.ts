@@ -11,6 +11,7 @@ export function readerUiLabels(): ReaderUiLabels {
     articleWidth: i18next.t('readerUi.articleWidth'),
     distillationColor: i18next.t('readerUi.distillationColor'),
     readerAppearance: i18next.t('readerUi.readerAppearance'),
+    readerPaper: i18next.t('readerUi.readerPaper'),
     adjustSelectionEnd: i18next.t('readerUi.adjustSelectionEnd'),
     adjustSelectionStart: i18next.t('readerUi.adjustSelectionStart'),
     askSelection: i18next.t('readerUi.askSelection'),

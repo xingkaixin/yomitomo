@@ -30,6 +30,7 @@ import {
 } from './ebook-foliate-view';
 import { ebookArticleText } from './ebook-text-anchor';
 import { EbookReaderShell } from './app-source-ebook-reader-shell';
+import { readerPaperDisplayName } from '../../i18n/app-i18n-labels';
 import type { EbookBookcaseProps } from '../bookcase/source-bookcase-types';
 import { useEbookFoliateView } from './use-ebook-foliate-view';
 import { useEbookBilingualTranslation } from './use-ebook-bilingual-translation';
@@ -611,6 +612,8 @@ function EbookReader({
               articleWidth: labels.articleWidth,
               distillationColor: labels.distillationColor,
               fontSize: labels.fontSize,
+              paper: labels.readerPaper,
+              paperName: readerPaperDisplayName,
             }}
             settings={readerSettings}
             onChange={updateEbookReaderSettings}

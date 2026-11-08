@@ -131,7 +131,6 @@ export type AppSessionActions = {
   setLibraryImportBusy: (busy: boolean) => void;
   setPendingArticleOpened: () => void;
   setReaderOpen: (open: boolean) => void;
-  setThemeDialogOpen: (open: boolean) => void;
   startOnboarding: () => void;
   syncWeReadLibrary: () => Promise<void>;
 };
@@ -146,7 +145,6 @@ export type AppSessionState = {
   statsNavigationStartedAt: number | undefined;
   profileDialogOpen: boolean;
   profileDialogSourceRect: DialogSourceRect | undefined;
-  themeDialogOpen: boolean;
   updateDialog: UpdateDialogState;
   weReadLibrarySyncing: boolean;
   actions: AppSessionActions;
@@ -286,7 +284,6 @@ export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSession
       statsNavigationStartedAt: undefined,
       profileDialogOpen: false,
       profileDialogSourceRect: undefined,
-      themeDialogOpen: false,
       updateDialog: initialUpdateDialogState,
       weReadLibrarySyncing: false,
       actions: {
@@ -346,7 +343,6 @@ export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSession
             profileDialogSourceRect: undefined,
             statsArticles: null,
             statsNavigationStartedAt: undefined,
-            themeDialogOpen: false,
           });
           dispatchUpdateDialog({ type: 'closed' });
         },
@@ -356,7 +352,6 @@ export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSession
         },
         setPendingArticleOpened: () => navigate({ type: 'article-opened' }),
         setReaderOpen: (open) => navigate({ type: 'set-reader-open', open }),
-        setThemeDialogOpen: (themeDialogOpen) => set({ themeDialogOpen }),
         startOnboarding: () =>
           set((state) => ({
             onboardingForced: true,
@@ -419,7 +414,6 @@ export function useAppSession(input: {
     statsArticles: state.statsArticles,
     statsNavigationStartedAt: state.statsNavigationStartedAt,
     surface: navigation.surface,
-    themeDialogOpen: state.themeDialogOpen,
     actions: sessionStore.getState().actions,
   };
 }

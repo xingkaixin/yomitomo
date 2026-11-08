@@ -68,7 +68,6 @@ describe('app session store', () => {
     const { actions } = sessionStore.getState();
     await actions.openStats();
     actions.openProfileDialog();
-    actions.setThemeDialogOpen(true);
     actions.openEvidenceSource({ articleId: 'article_1' });
     actions.setReaderOpen(true);
 
@@ -79,7 +78,6 @@ describe('app session store', () => {
       profileDialogOpen: false,
       statsArticles: null,
       statsNavigationStartedAt: undefined,
-      themeDialogOpen: false,
     });
     expect(queryClient.getQueryCache().getAll()).toHaveLength(0);
   });

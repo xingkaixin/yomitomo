@@ -187,6 +187,7 @@ export type ReaderUiLabels = {
   articleWidth: string;
   distillationColor: string;
   readerAppearance: string;
+  readerPaper: string;
   adjustSelectionEnd: string;
   adjustSelectionStart: string;
   askSelection: string;
@@ -267,6 +268,7 @@ export const defaultReaderUiLabels: ReaderUiLabels = {
   articleWidth: '文章宽度',
   distillationColor: '沉淀划线',
   readerAppearance: '阅读外观',
+  readerPaper: '纸张',
   adjustSelectionEnd: '调整选区终点',
   adjustSelectionStart: '调整选区起点',
   askSelection: '问一下',

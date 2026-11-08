@@ -26,16 +26,11 @@ import { getDesktopApi } from '../shell/app-desktop-api';
 
 const startupThemePreference = readCachedThemePreference();
 const startupThemeId = themeIdForPreference(startupThemePreference);
-const startupReaderSettings = readDesktopReaderSettings();
-const startupReaderBackgroundsByTone = readDesktopReaderBackgroundsByTone();
 applyAppTheme(themeRegistry[startupThemeId]);
 
 type ReaderThemeState = {
   activeThemeId: AppThemeId;
   themePreference: ThemePreference;
-  readerBackgroundColor: string;
-  readerBackgroundsByTone: Record<ReaderBackgroundTone, string>;
-  selectReaderBackground: (backgroundColor: string) => void;
   selectThemePreference: (preference: ThemePreference) => Promise<void>;
   syncFromSettings: (settings: ResolvedAppSettings) => void;
 };
@@ -45,10 +40,7 @@ export type ReaderThemeStoreApi = StoreApi<ReaderThemeState>;
 type ReaderThemeController = {
   activeThemeId: AppThemeId;
   themePreference: ThemePreference;
-  readerBackgroundColor: string;
-  readerBackgroundsByTone: Record<ReaderBackgroundTone, string>;
   readerTheme: ReaderTheme;
-  selectReaderBackground: (backgroundColor: string) => void;
   selectThemePreference: (preference: ThemePreference) => Promise<void>;
   tone: AppThemeTone;
 };
@@ -67,24 +59,15 @@ export function createReaderThemeStore(input: {
       const nextBackgroundColor = readerBackgroundForTone(
         themeRegistry[themeId].meta.tone,
         currentBackgroundColor,
-        get().readerBackgroundsByTone,
+        readDesktopReaderBackgroundsByTone(),
       );
-      if (nextBackgroundColor !== currentBackgroundColor) saveReaderBackground(nextBackgroundColor);
-    }
-
-    function saveReaderBackground(backgroundColor: string) {
-      const nextSettings = normalizeDesktopReaderSettings({
-        ...readDesktopReaderSettings(),
-        backgroundColor,
-      });
-      set((state) => ({
-        readerBackgroundColor: nextSettings.backgroundColor,
-        readerBackgroundsByTone: {
-          ...state.readerBackgroundsByTone,
-          [readerBackgroundTone(nextSettings.backgroundColor)]: nextSettings.backgroundColor,
-        },
-      }));
-      writeDesktopReaderSettings(nextSettings);
+      if (nextBackgroundColor === currentBackgroundColor) return;
+      writeDesktopReaderSettings(
+        normalizeDesktopReaderSettings({
+          ...readDesktopReaderSettings(),
+          backgroundColor: nextBackgroundColor,
+        }),
+      );
     }
 
     // The store lives as long as the window, so the system listener is never removed.
@@ -95,13 +78,6 @@ export function createReaderThemeStore(input: {
     return {
       activeThemeId: startupThemeId,
       themePreference: startupThemePreference,
-      readerBackgroundColor: readerBackgroundForTone(
-        themeRegistry[startupThemeId].meta.tone,
-        startupReaderSettings.backgroundColor,
-        startupReaderBackgroundsByTone,
-      ),
-      readerBackgroundsByTone: startupReaderBackgroundsByTone,
-      selectReaderBackground: saveReaderBackground,
       selectThemePreference: async (preference) => {
         showPreference(preference);
         writeCachedThemePreference(preference);
@@ -139,18 +115,13 @@ export function useReaderThemeController(): ReaderThemeController {
   if (!themeStore) throw new Error('ReaderThemeStoreProvider is missing');
   const activeThemeId = useStore(themeStore, (state) => state.activeThemeId);
   const themePreference = useStore(themeStore, (state) => state.themePreference);
-  const readerBackgroundColor = useStore(themeStore, (state) => state.readerBackgroundColor);
-  const readerBackgroundsByTone = useStore(themeStore, (state) => state.readerBackgroundsByTone);
-  const { selectReaderBackground, selectThemePreference } = themeStore.getState();
+  const { selectThemePreference } = themeStore.getState();
   const activeTheme = themeRegistry[activeThemeId];
 
   return {
     activeThemeId,
     themePreference,
-    readerBackgroundColor,
-    readerBackgroundsByTone,
     readerTheme: activeTheme.reader,
-    selectReaderBackground,
     selectThemePreference,
     tone: activeTheme.meta.tone,
   };

@@ -530,6 +530,8 @@ export const toolbarStyles = `.reader-main {
   appearance:none
 }
 .reader-appearance-popover {
+  display:grid;
+  gap:14px;
   width:auto;
   padding:12px
 }
@@ -573,4 +575,27 @@ export const toolbarStyles = `.reader-main {
 .reader-appearance-line:focus-visible {
   outline:2px solid var(--app-reader-focus-ring);
   outline-offset:1px
+}
+.reader-appearance-paper {
+  display:grid;
+  width:32px;
+  height:32px;
+  place-items:center;
+  border:1px solid var(--app-reader-toolbar-border);
+  border-radius:8px;
+  font-family:var(--font-reader-serif,serif);
+  font-size:14px;
+  padding:0;
+  transition:transform .15s ease
+}
+.reader-appearance-paper:hover {
+  transform:translateY(-1px)
+}
+.reader-appearance-paper[aria-checked="true"] {
+  outline:1.5px solid var(--app-reader-ink);
+  outline-offset:2px
+}
+.reader-appearance-paper:focus-visible {
+  outline:2px solid var(--app-reader-focus-ring);
+  outline-offset:3px
 }`;
