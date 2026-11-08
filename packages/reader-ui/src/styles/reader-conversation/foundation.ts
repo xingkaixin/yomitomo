@@ -1,70 +1,23 @@
 export const foundationStyles = `.reader-app {
   --app-viewport-height:100vh;
-  --reader-z-toolbar:var(--app-z-dropdown,140);
-  --reader-z-popover:var(--app-z-popover,160);
-  --reader-z-panel:var(--app-z-panel,190);
-  --reader-z-modal:var(--app-z-modal,320);
-  --reader-z-tooltip:var(--app-z-tooltip,340);
   --dropdown-open-dur:190ms;
   --dropdown-close-dur:120ms;
   --dropdown-pre-scale:.97;
   --dropdown-closing-scale:.99;
   --dropdown-ease:cubic-bezier(.22,1,.36,1);
-  --reader-ink-weak:color-mix(in srgb,var(--reader-ink) 34%,transparent);
-  --reader-ink-subtle:color-mix(in srgb,var(--reader-ink) 12%,transparent);
-  --reader-ink-hairline:color-mix(in srgb,var(--reader-ink) 8%,transparent);
-  --reader-paper-hover:color-mix(in srgb,var(--reader-ink) 6%,var(--reader-paper));
-  --reader-paper-panel:color-mix(in srgb,var(--app-reader-note-bg) 74%,var(--reader-paper));
-  --reader-focus-ring:var(--app-interactive-focus-ring,color-mix(in srgb,var(--reader-ink) 42%,transparent));
-  --reader-code-bg:color-mix(in srgb,var(--reader-ink) 92%,var(--reader-paper));
-  --reader-code-fg:var(--reader-paper);
-  --reader-review-support-fg:var(--app-interactive-success-fg,#356f51);
-  --reader-review-support-bg:var(--app-interactive-success-bg,color-mix(in srgb,var(--reader-review-support-fg) 12%,transparent));
-  --reader-review-support-border:color-mix(in srgb,var(--reader-review-support-fg) 22%,transparent);
-  --reader-review-challenge-fg:var(--reader-red,var(--app-reader-danger,#8a3f32));
-  --reader-review-challenge-bg:color-mix(in srgb,var(--reader-review-challenge-fg) 11%,transparent);
-  --reader-review-challenge-border:color-mix(in srgb,var(--reader-review-challenge-fg) 22%,transparent);
-  --reader-review-supplement-fg:#3f6d8b;
-  --reader-review-supplement-bg:color-mix(in srgb,var(--reader-review-supplement-fg) 11%,transparent);
-  --reader-review-supplement-border:color-mix(in srgb,var(--reader-review-supplement-fg) 22%,transparent);
-  --reader-focus-card-hover-bg:var(--reader-paper-hover);
-  --reader-focus-card-icon-bg:var(--reader-ink-hairline);
-  --reader-focus-card-icon-fg:var(--reader-muted);
-  --reader-focus-card-active-icon-fg:var(--reader-paper);
-  --reader-search-highlight:color-mix(in srgb,var(--reader-green) 20%,transparent);
-  --reader-search-highlight-active:color-mix(in srgb,var(--reader-green) 34%,transparent);
-  --reader-elevated-shadow:0 18px 48px color-mix(in srgb,var(--reader-ink) 16%,transparent);
-  --reader-soft-shadow:0 8px 20px color-mix(in srgb,var(--reader-ink) 6%,transparent)
-}
+  --reader-focus-ring:var(--app-reader-focus-ring);
+  --reader-code-bg:var(--app-reader-code-bg);
+  --reader-code-fg:var(--app-reader-code-fg);
+  --reader-search-highlight:var(--app-reader-primary-a20);
+  --reader-search-highlight-active:var(--app-reader-primary-a32)}
 @supports (height:100dvh) {
   .reader-app {
     --app-viewport-height:100dvh
   }
 }
 .reader-app {
-  --clear-dur:1000ms;
-  --clear-out-dur:400ms;
-  --clear-in-dur:400ms;
-  --clear-out-fly:12px;
-  --clear-in-fly:12px;
   --clear-out-ease:cubic-bezier(.22,1,.36,1);
-  --clear-in-ease:cubic-bezier(.22,1,.36,1);
-  --clear-blur:2px;
-  --glow-delay:50ms;
-  --glow-peak-at:.15;
-  --glow-opacity:.42;
-  --glow-spread:1.5
-}
-.reader-app.is-reader-background-dark {
-  --glow-opacity:.85;
-  --reader-focus-ring:color-mix(in srgb,var(--reader-paper) 18%,var(--reader-ink));
-  --reader-code-bg:color-mix(in srgb,var(--reader-paper) 84%,var(--reader-ink));
-  --reader-code-fg:var(--reader-ink);
-  --reader-review-supplement-fg:#8fc4df;
-  --reader-focus-card-hover-bg:color-mix(in srgb,var(--reader-ink) 8%,var(--reader-paper));
-  --reader-focus-card-icon-bg:color-mix(in srgb,var(--reader-ink) 9%,var(--reader-paper));
-  --reader-focus-card-active-icon-fg:var(--reader-paper)
-}
+  --clear-in-ease:cubic-bezier(.22,1,.36,1)}
 .t-clear {
   position:relative;
   overflow:hidden
@@ -117,7 +70,7 @@ export const foundationStyles = `.reader-app {
   font-size:11px;
   padding:0
 }
-.reader-add-comment span,.reader-composer .floating-composer-actions button>span {
+.reader-composer .floating-composer-actions button>span {
   font-size:10px;
   font-weight:730
 }

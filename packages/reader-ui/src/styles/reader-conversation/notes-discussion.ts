@@ -1,82 +1,10 @@
-export const notesDiscussionStyles = `.reader-notes-header {
-  display:grid;
-  gap:10px;
-  margin:0 -16px 14px;
-  padding:14px 16px;
-  border-bottom:1px solid rgba(40,35,29,.08);
-  background:var(--app-reader-toc-bg);
-  box-shadow:0 8px 18px color-mix(in srgb,var(--reader-ink) 5%,transparent)
-}
-.reader-notes-title-row {
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px
-}
-.reader-notes-title-row strong {
-  font-size:22px;
-  font-weight:900;
-  letter-spacing:0
-}
-.reader-notes-title-row span {
-  display:inline-flex;
-  align-items:center;
-  height:28px;
-  border:1px solid var(--reader-ink-subtle);
-  border-radius:999px;
-  background:rgba(255,250,240,.76);
-  color:var(--reader-muted);
-  font-size:12px;
-  font-weight:820;
-  padding:0 10px
-}
-.reader-note-tabs [data-slot="tabs-list"] {
-  display:grid;
-  width:100%;
-  height:38px;
-  grid-template-columns:repeat(3,minmax(0,1fr));
-  gap:3px;
-  padding:3px;
-  border:1px solid rgba(37,29,22,.12);
-  border-radius:999px;
-  background:var(--app-reader-agent-panel-bg);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.72)
-}
-.reader-note-tabs [data-slot="tabs-trigger"] {
-  height:30px;
-  border:0;
-  border-radius:999px;
-  background:transparent;
-  color:var(--reader-muted);
-  font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);
-  font-size:12px;
-  font-weight:850;
-  letter-spacing:0;
-  padding:0 8px
-}
-.reader-note-tabs [data-slot="tabs-trigger"][data-state="active"] {
-  background:var(--reader-paper);
-  color:var(--reader-ink);
-  box-shadow:0 5px 14px rgba(40,35,29,.08)
-}
-.reader-note-tabs [data-slot="tabs-trigger"]:focus-visible {
-  outline:2px solid var(--reader-focus-ring);
-  outline-offset:2px
-}
-.reader-note {
+export const notesDiscussionStyles = `.reader-note {
   overflow:hidden;
   padding:0;
   --reader-note-accent:var(--app-reader-note-annotation-accent)
 }
 .reader-note:has(.reader-agent-menu),.reader-note:has(.reader-comment-agent-more-menu),.reader-note:has(.reader-action-menu-panel) {
   z-index:26;
-  overflow:visible
-}
-.reader-note.has-review-menu {
-  z-index:24;
-  overflow:visible
-}
-.reader-note.has-review-burst {
   overflow:visible
 }
 .reader-note.has-discussion,.reader-note.has-distillation {
@@ -168,8 +96,8 @@ export const notesDiscussionStyles = `.reader-notes-header {
   display:flex;
   align-items:stretch;
   margin:14px -16px 0;
-  border-top:1px solid rgba(40,35,29,.12);
-  background:var(--reader-paper-panel)
+  border-top:1px solid var(--app-reader-ink-a12);
+  background:var(--app-reader-paper)
 }
 .reader-note.has-discussion .reader-note-toolbar {
   align-items:center;
@@ -179,45 +107,11 @@ export const notesDiscussionStyles = `.reader-notes-header {
   border-top:0;
   background:transparent
 }
-.reader-note-thread-toggle {
-  display:flex;
-  width:100%;
-  min-width:0;
-  min-height:44px;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  border:0;
-  background:transparent;
-  color:var(--reader-muted);
-  font:inherit;
-  padding:0 14px 0 16px;
-  text-align:left;
-  transition:background .14s ease,color .14s ease
-}
-.reader-note-thread-toggle:hover {
-  background:var(--app-reader-agent-panel-hover-bg);
-  color:var(--reader-ink)
-}
-.reader-note-thread-toggle:active {
-  background:color-mix(in srgb,var(--reader-note-accent) 14%,var(--reader-paper))
-}
 .reader-note-thread-toggle-main {
   display:inline-flex;
   min-width:0;
   align-items:center;
   gap:10px
-}
-.reader-note-thread-toggle-side {
-  display:inline-flex;
-  min-width:0;
-  align-items:center;
-  justify-content:flex-end;
-  color:var(--reader-muted)
-}
-.reader-note-toolbar.has-review-action .reader-note-thread-toggle {
-  width:auto;
-  flex:1 1 auto
 }
 .reader-note-summary-toolbar {
   min-width:0
@@ -235,20 +129,6 @@ export const notesDiscussionStyles = `.reader-notes-header {
 }
 .reader-note-discussion-summary .reader-note-thread-toggle-main {
   gap:9px
-}
-.reader-note-assistant-summary {
-  display:block;
-  min-width:0;
-  overflow:hidden;
-  color:var(--reader-muted);
-  font-size:11px;
-  font-weight:760;
-  line-height:1.25;
-  text-overflow:ellipsis;
-  white-space:nowrap
-}
-.reader-note-discussion-summary.is-busy .reader-note-assistant-summary {
-  color:var(--reader-ink)
 }
 .reader-note-discussion-entry {
   position:relative;
@@ -291,177 +171,6 @@ export const notesDiscussionStyles = `.reader-notes-header {
   background:transparent;
   color:var(--reader-muted)
 }
-.reader-review-invite-wrap {
-  position:relative;
-  display:flex;
-  flex:0 0 auto;
-  align-items:stretch;
-  border-left:1px solid var(--reader-ink-subtle)
-}
-.reader-review-invite {
-  display:inline-flex;
-  min-width:78px;
-  align-items:center;
-  justify-content:center;
-  gap:5px;
-  border:0;
-  background:var(--reader-paper);
-  color:var(--reader-muted);
-  font:inherit;
-  font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);
-  font-size:11px;
-  font-weight:860;
-  padding:0 11px;
-  transition:background .14s ease,color .14s ease
-}
-.reader-review-invite:hover,.reader-review-invite.is-active {
-  background:var(--reader-paper-hover);
-  color:var(--reader-ink)
-}
-.reader-review-invite:disabled {
-  cursor:not-allowed;
-  opacity:.58
-}
-.reader-review-invite.is-reviewing svg {
-  animation:reader-review-scale 1.05s ease-in-out infinite
-}
-.reader-review-active-avatars {
-  display:inline-flex;
-  align-items:center;
-  margin-left:1px
-}
-.reader-review-active-avatars>span {
-  display:grid;
-  width:20px;
-  height:20px;
-  place-items:center;
-  border-radius:999px;
-  animation:reader-review-avatar-float .9s ease-in-out infinite
-}
-.reader-review-active-avatars .reader-avatar-badge {
-  width:18px;
-  height:18px;
-  overflow:hidden;
-  border-radius:999px;
-  background:var(--reader-avatar-color,var(--reader-green));
-  font-size:8px
-}
-.reader-review-active-avatars .reader-avatar-badge.is-image {
-  background:transparent
-}
-.reader-review-menu {
-  position:absolute;
-  right:8px;
-  bottom:calc(100% + 8px);
-  z-index:30;
-  display:grid;
-  gap:4px;
-  width:238px;
-  padding:8px;
-  border:1px solid var(--app-reader-selection-menu-border);
-  border-radius:14px;
-  background:var(--reader-paper);
-  box-shadow:var(--reader-elevated-shadow);
-  font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);
-  transform-origin:bottom right
-}
-.reader-review-menu>button {
-  display:grid;
-  width:100%;
-  grid-template-columns:20px 30px minmax(0,1fr);
-  align-items:center;
-  gap:8px;
-  border:0;
-  border-radius:10px;
-  background:transparent;
-  color:var(--reader-ink);
-  padding:8px;
-  text-align:left
-}
-.reader-review-menu>button:hover,.reader-review-menu>button.is-selected {
-  background:var(--app-reader-toolbar-control-hover-bg)
-}
-.reader-review-menu button:disabled {
-  cursor:not-allowed;
-  opacity:.54
-}
-.reader-review-menu-check {
-  display:grid;
-  width:18px;
-  height:18px;
-  place-items:center;
-  border:1px solid rgba(40,35,29,.16);
-  border-radius:999px;
-  color:var(--reader-red)
-}
-.reader-review-menu .reader-avatar-badge {
-  width:28px;
-  height:28px;
-  overflow:hidden;
-  border-radius:999px;
-  background:var(--reader-green);
-  font-size:10px
-}
-.reader-review-menu>button>span:last-child {
-  display:grid;
-  min-width:0;
-  gap:2px
-}
-.reader-review-menu strong {
-  overflow:hidden;
-  font-size:12px;
-  font-weight:900;
-  text-overflow:ellipsis;
-  white-space:nowrap
-}
-.reader-review-menu em {
-  overflow:hidden;
-  color:var(--reader-muted);
-  font-size:11px;
-  font-style:normal;
-  font-weight:760;
-  text-overflow:ellipsis;
-  white-space:nowrap
-}
-.reader-review-menu footer {
-  display:flex;
-  align-items:center;
-  justify-content:flex-end;
-  gap:7px;
-  margin:4px -2px -2px;
-  padding:8px 2px 0;
-  border-top:1px solid rgba(40,35,29,.1)
-}
-.reader-review-menu footer button {
-  display:inline-flex;
-  width:auto;
-  height:30px;
-  align-items:center;
-  justify-content:center;
-  border:0;
-  border-radius:999px;
-  background:#e7dac9;
-  color:var(--reader-ink);
-  font:inherit;
-  font-size:11px;
-  font-weight:860;
-  padding:0 11px
-}
-.reader-review-menu footer button:last-child {
-  background:var(--reader-ink);
-  color:#fffaf0
-}
-.reader-review-menu footer button:disabled {
-  cursor:not-allowed;
-  opacity:.48
-}
-.reader-note-review-burst {
-  position:absolute;
-  inset:0;
-  z-index:6;
-  overflow:visible;
-  pointer-events:none
-}
 .reader-note-toolbar .reader-delete-note {
   height:26px;
   margin-right:0;
@@ -502,11 +211,11 @@ export const notesDiscussionStyles = `.reader-notes-header {
   display:grid;
   min-width:132px;
   padding:4px;
-  border:1px solid var(--app-reader-selection-menu-border,color-mix(in srgb,var(--app-reader-ink,#251d16) 12%,transparent));
+  border:1px solid var(--app-reader-selection-menu-border,var(--app-reader-ink-a12));
   border-radius:10px;
-  background:var(--reader-paper,var(--app-reader-paper,#fffaf0));
-  box-shadow:var(--reader-soft-shadow,0 8px 20px color-mix(in srgb,var(--app-reader-ink,#251d16) 10%,transparent));
-  color:var(--reader-ink,var(--app-reader-ink,#251d16));
+  background:var(--app-reader-paper);
+  box-shadow:var(--reader-soft-shadow,0 8px 20px var(--app-reader-ink-a8));
+  color:var(--app-reader-ink);
   font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);
   transform-origin:top right
 }
@@ -520,14 +229,14 @@ export const notesDiscussionStyles = `.reader-notes-header {
   border:0;
   border-radius:7px;
   background:transparent;
-  color:var(--reader-ink,var(--app-reader-ink,#251d16));
+  color:var(--app-reader-ink);
   font:inherit;
   font-size:12px;
   font-weight:760;
   padding:0 9px
 }
 .reader-action-menu-item:hover {
-  background:var(--reader-paper-hover,color-mix(in srgb,var(--app-reader-ink,#251d16) 6%,var(--app-reader-paper,#fffaf0)))
+  background:var(--app-reader-paper-hover)
 }
 .reader-action-delete {
   width:100%;
@@ -540,13 +249,7 @@ export const notesDiscussionStyles = `.reader-notes-header {
   padding:0 9px
 }
 .reader-action-delete:hover {
-  background:var(--reader-paper-hover,color-mix(in srgb,var(--app-reader-ink,#251d16) 6%,var(--app-reader-paper,#fffaf0)))
-}
-.reader-note-anchor>span {
-  padding:0;
-  margin:0;
-  background:transparent;
-  border-radius:0
+  background:var(--app-reader-paper-hover)
 }
 .reader-note-card-header {
   position:relative;
@@ -671,27 +374,6 @@ export const notesDiscussionStyles = `.reader-notes-header {
 .reader-comment-count svg {
   color:var(--reader-note-accent)
 }
-.reader-note-type,.reader-note-intent {
-  display:inline-flex;
-  width:fit-content;
-  align-items:center;
-  gap:4px;
-  border:1px solid rgba(159,91,80,.16);
-  border-radius:999px;
-  background:rgba(159,91,80,.07);
-  color:var(--reader-red);
-  font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);
-  font-size:11px;
-  font-weight:850;
-  line-height:1;
-  padding:4px 7px;
-  white-space:nowrap
-}
-.reader-note-intent {
-  border-color:color-mix(in srgb,var(--reader-ink) 12%,transparent);
-  background:color-mix(in srgb,var(--reader-ink) 6%,transparent);
-  color:var(--reader-muted)
-}
 .reader-note-quote {
   position:relative;
   z-index:1;
@@ -709,18 +391,6 @@ export const notesDiscussionStyles = `.reader-notes-header {
 }
 .reader-note.has-discussion .reader-note-quote {
   padding-right:22px
-}
-.reader-note-quote-mark {
-  display:block;
-  color:var(--reader-note-accent);
-  font-family:var(--font-reader-serif, Georgia, Cambria, "Times New Roman", serif);
-  font-size:28px;
-  font-style:normal;
-  font-weight:900;
-  line-height:.78
-}
-.reader-note.has-discussion .reader-note-quote-mark {
-  display:none
 }
 .reader-note-quote-text {
   display:block;
@@ -893,7 +563,7 @@ export const notesDiscussionStyles = `.reader-notes-header {
   inset:0;
   z-index:6;
   border-radius:14px 0 14px 0;
-  background:linear-gradient(105deg,transparent 42%,color-mix(in srgb,var(--reader-note-surface,var(--reader-paper)) 60%,transparent) 50%,transparent 58%);
+  background:linear-gradient(105deg,transparent 42%,var(--app-reader-paper-a56) 50%,transparent 58%);
   pointer-events:none;
   animation:reader-distillation-shimmer 800ms cubic-bezier(.22,1,.36,1) both
 }

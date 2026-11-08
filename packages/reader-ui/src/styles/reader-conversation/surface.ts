@@ -12,7 +12,7 @@ export const surfaceStyles = `.reader-article {
   position:absolute;
   inset:4px;
   border-radius:5px;
-  background:color-mix(in srgb,var(--reader-ink) 8%,transparent);
+  background:var(--app-reader-ink-a8);
   opacity:0;
   transform:scale(.74);
   transition:opacity .18s ease,transform .2s var(--reader-toc-motion)
@@ -78,13 +78,6 @@ export const surfaceStyles = `.reader-article {
   background:var(--app-reader-scrim);
   backdrop-filter:blur(2px);
   padding:0
-}
-.reader-highlight {
-  background:rgba(234,216,157,.28);
-  box-shadow:0 0 0 1px rgba(199,164,94,.18)
-}
-.reader-highlight.is-active {
-  background:rgba(234,216,157,.42)
 }
 .reader-surface-frame {
   position:relative;
@@ -153,9 +146,7 @@ export const surfaceStyles = `.reader-article {
   opacity:.2
 }
 .reader-app {
-  --reader-annotation-rail-width:360px;
-  --reader-annotation-rail-gap:20px
-}
+  --reader-annotation-rail-width:360px}
 .reader-canvas {
   position:relative;
   width:100%;

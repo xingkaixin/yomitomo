@@ -43,28 +43,6 @@ export const readerBilingualTranslationStyles = `
   min-height: 1.8em;
 }
 
-.reader-bilingual-translation-loading,.reader-bilingual-translation-retry {
-  display: inline-flex;
-  width: 28px;
-  height: 28px;
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  border-radius: 999px;
-  background: color-mix(in srgb,var(--reader-green) 9%,transparent);
-  color: var(--reader-green);
-  vertical-align: middle;
-}
-
-.reader-bilingual-translation-retry {
-  cursor: pointer;
-}
-
-.reader-bilingual-translation-retry:hover {
-  background: color-mix(in srgb,var(--reader-red) 10%,transparent);
-  color: var(--reader-red);
-}
-
 .reader-bilingual-translation-indicator {
   display: inline-flex;
   width: 1.35em;
