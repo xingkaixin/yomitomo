@@ -209,11 +209,17 @@ export const surfaceStyles = `.reader-article {
 }
 .reader-annotation-rail>.reader-note.is-stack-front {
   --reader-note-move-duration:.28s;
-  box-shadow:var(--reader-elevated-shadow)
+  box-shadow:var(--app-float-shadow)
+}
+.reader-annotation-rail>.reader-note.is-stack-front.is-active {
+  box-shadow:var(--app-float-shadow),0 0 0 3px var(--app-interactive-selected-bg)
 }
 .reader-annotation-rail>.reader-note.is-stacked:not(.is-stack-front) {
-  box-shadow:var(--reader-soft-shadow);
+  box-shadow:var(--app-card-shadow);
   filter:brightness(.985)
+}
+.reader-annotation-rail>.reader-note.has-discussion.is-stacked:not(.is-stack-front) .reader-note-tab {
+  color:var(--reader-muted)
 }
 .reader-annotation-rail>.reader-note.is-stacked:not(.is-stack-front)[data-rail-offscreen] {
   visibility:hidden

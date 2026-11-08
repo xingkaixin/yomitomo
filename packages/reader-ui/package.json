@@ -19,7 +19,6 @@
     "./reader-styles": "./src/reader-styles.ts",
     "./reader-theme": "./src/reader-theme.ts",
     "./reader-shortcuts": "./src/reader-shortcuts.ts",
-    "./reader-connection-path": "./src/reader-connection-path.ts",
     "./reader-types": "./src/reader-types.ts",
     "./reader-search-clear-dissolve-core": "./src/shell/reader-search-clear-dissolve-core.ts",
     "./ui-dialog": "./src/components/ui/dialog.tsx",

@@ -187,8 +187,8 @@ describe('reconsider reading judgments', () => {
           await foldedEvidence.getByRole('button', { name: 'Back to source', exact: true }).click();
           await waitForRelationSource(page, ebook);
           await page
-            .locator('.reader-note-quote-text')
-            .getByText(ebook.quote, { exact: true })
+            .locator('.reader-note-text')
+            .getByText(ebook.judgment, { exact: true })
             .waitFor();
           expect(readReviewFacts(userDataDir).comments).toEqual(before.comments);
           expect(readReviewFacts(userDataDir).reviews).toHaveLength(7);
