@@ -10,6 +10,7 @@
     "dist:verify": "node scripts/verify-desktop-dist.mjs",
     "embedding:smoke:packaged": "node scripts/smoke-packaged-embedding.mjs",
     "startup:benchmark": "node scripts/startup-benchmark.mjs",
+    "weread:check": "node scripts/check-weread-gateway.mjs",
     "reading-memory:test-fixtures": "vitest run --config e2e/packaged/unit.vitest.config.ts",
     "reading-memory:acceptance": "node scripts/reading-memory-acceptance.mjs",
     "make:mac-arm": "pnpm run build && pnpm run make:mac-arm:from-dist",

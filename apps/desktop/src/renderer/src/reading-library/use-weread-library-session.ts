@@ -102,7 +102,8 @@ export function useWeReadLibrarySession({ onOpenBook }: UseWeReadLibrarySessionI
   );
 
   const syncBook = useCallback(
-    (bookId: string) => onOpenBook(bookId, () => readSyncedBook(bookId)),
+    (bookId: string) =>
+      onOpenBook(bookId, () => readSyncedBook(bookId)).catch(notifyWeReadSyncFailed),
     [onOpenBook, readSyncedBook],
   );
 
@@ -117,7 +118,7 @@ export function useWeReadLibrarySession({ onOpenBook }: UseWeReadLibrarySessionI
           return cached;
         }
         return readSyncedBook(book.bookId);
-      });
+      }).catch(notifyWeReadSyncFailed);
     },
     [onOpenBook, readSyncedBook],
   );
@@ -160,11 +161,15 @@ export async function syncWeReadLibraryState(): Promise<WeReadState | null> {
     });
     return { settings: result.settings, books: result.books };
   } catch (error) {
-    appToast.error(i18next.t('library.weReadSyncFailed'), {
-      description: errorMessageOrFallback(error, i18next.t('library.weReadSyncFailed')),
-    });
-    return null;
+    return notifyWeReadSyncFailed(error);
   }
+}
+
+function notifyWeReadSyncFailed(error: unknown) {
+  appToast.error(i18next.t('library.weReadSyncFailed'), {
+    description: errorMessageOrFallback(error, i18next.t('library.weReadSyncFailed')),
+  });
+  return null;
 }
 
 function weReadAvailable(state: WeReadState | undefined) {

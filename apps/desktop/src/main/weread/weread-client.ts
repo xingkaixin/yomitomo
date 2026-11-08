@@ -13,10 +13,11 @@ import type {
 import { errorMessage, isRecord } from '@yomitomo/shared';
 import { Effect, Schema } from 'effect';
 import { withTimeoutAbortSignalEffect } from '../effect-abort-signal';
+import { WEREAD_SKILL_VERSION } from './weread-protocol';
 
 const WEREAD_GATEWAY_URL = 'https://i.weread.qq.com/api/agent/gateway';
 export const WEREAD_REQUEST_TIMEOUT_MS = 30_000;
-export const WEREAD_SKILL_VERSION = '1.0.3';
+let skillVersion = WEREAD_SKILL_VERSION;
 
 type WeReadGatewayResponse = Record<string, unknown>;
 const gatewayResponseSchema = Schema.Record(Schema.String, Schema.Unknown);
@@ -271,6 +272,33 @@ function requestWeReadEffect(
   apiName: string,
   params: Record<string, unknown> = {},
 ): Effect.Effect<WeReadGatewayResponse, WeReadClientError> {
+  return Effect.gen(function* () {
+    const sentVersion = skillVersion;
+    let data = yield* postWeReadGatewayEffect(apiKey, apiName, params, sentVersion);
+    const latestVersion = stringValue(objectValue(data.upgrade_info)?.latest_version);
+    // The gateway only gates on skill_version; field changes are caught by `weread:check`.
+    if (latestVersion && latestVersion !== sentVersion) {
+      skillVersion = latestVersion;
+      data = yield* postWeReadGatewayEffect(apiKey, apiName, params, latestVersion);
+    }
+    const upgradeInfo = objectValue(data.upgrade_info);
+    if (upgradeInfo) {
+      return yield* Effect.fail(new WeReadUpgradeError(stringValue(upgradeInfo.message)));
+    }
+    const errcode = numberValue(data.errcode);
+    if (errcode) {
+      return yield* Effect.fail(new WeReadApiError(errcode, stringValue(data.errmsg)));
+    }
+    return data;
+  });
+}
+
+function postWeReadGatewayEffect(
+  apiKey: string,
+  apiName: string,
+  params: Record<string, unknown>,
+  version: string,
+): Effect.Effect<WeReadGatewayResponse, WeReadClientError> {
   return withTimeoutAbortSignalEffect(WEREAD_REQUEST_TIMEOUT_MS, [], (timeoutSignal) =>
     Effect.gen(function* () {
       const response = yield* Effect.tryPromise({
@@ -284,7 +312,7 @@ function requestWeReadEffect(
             signal: AbortSignal.any([timeoutSignal, effectSignal]),
             body: JSON.stringify({
               api_name: apiName,
-              skill_version: WEREAD_SKILL_VERSION,
+              skill_version: version,
               ...params,
             }),
           }),
@@ -302,18 +330,9 @@ function requestWeReadEffect(
             ? new WeReadTimeoutError(apiName)
             : new WeReadGatewayDecodeError(error),
       });
-      const data = yield* Schema.decodeUnknownEffect(gatewayResponseSchema)(value).pipe(
+      return yield* Schema.decodeUnknownEffect(gatewayResponseSchema)(value).pipe(
         Effect.mapError((error) => new WeReadGatewayDecodeError(error)),
       );
-      if (data.upgrade_info && typeof data.upgrade_info === 'object') {
-        const message = stringValue(objectValue(data.upgrade_info)?.message);
-        return yield* Effect.fail(new WeReadUpgradeError(message));
-      }
-      const errcode = numberValue(data.errcode);
-      if (errcode) {
-        return yield* Effect.fail(new WeReadApiError(errcode, stringValue(data.errmsg)));
-      }
-      return data;
     }),
   );
 }

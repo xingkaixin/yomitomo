@@ -78,6 +78,13 @@ telemetry → shared
   事务外执行，失败只记录警告，不回滚文章（`apps/desktop/src/main/articles/article-row-writes.ts`）；
   删除路径在同一事务内完成（`apps/desktop/src/main/articles/article-repository-lifecycle.ts`）。
   改成原子写入需要单独讨论失败语义。
+- **微信读书 skill 版本在运行时跟随服务端。** 网关请求带 `skill_version`，代码里的基线是
+  `apps/desktop/src/main/weread/weread-protocol.ts` 的 `WEREAD_SKILL_VERSION`。回包带
+  `upgrade_info.latest_version` 时，客户端改用该版本重试一次，并在进程内沿用。自动升版本会让
+  接口字段变化不再表现为同步失败，所以开发时用 `pnpm --filter @yomitomo/desktop weread:check`
+  检查基线版本是否过期、所用接口的参数和返回字段是否偏离
+  `apps/desktop/scripts/weread-gateway-snapshot.json`。脚本从环境变量 `WEREAD_API_KEY` 读取 key，
+  未设置时报错退出。适配完成后提升基线版本，再用 `weread:check --update` 刷新快照。
 
 批注、评论的持久化链路见 [批注、想法与 AI 数据流](annotation-data-flow.md)。
 
