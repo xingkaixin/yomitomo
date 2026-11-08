@@ -635,7 +635,6 @@
 }
 
 .annotation-discussion-idea-actions button,
-.annotation-discussion-message-bubble header button,
 .annotation-layout-control button {
   display: inline-grid;
   place-items: center;
@@ -652,8 +651,7 @@
 }
 
 .annotation-discussion-idea-actions button:hover,
-.annotation-discussion-idea-actions button.is-active,
-.annotation-discussion-message-bubble header button:hover {
+.annotation-discussion-idea-actions button.is-active {
   border-color: var(--app-reader-toolbar-border);
   background: var(--app-reader-toolbar-control-bg);
   color: var(--app-reader-ink);

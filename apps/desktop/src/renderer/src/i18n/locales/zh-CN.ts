@@ -1156,9 +1156,6 @@ export const zhCNResources = {
         agentAdding: '{{name}} 正在添加想法',
       },
       threadView: {
-        rootThought: '想法内容',
-        assistantReplying: '助手回复中',
-        expanded: '讨论展开',
         noDiscussionTitle: '当前没有讨论',
         noDiscussionDescription: '这条想法还没有回复。',
         scrollBottom: '滚动到底部',

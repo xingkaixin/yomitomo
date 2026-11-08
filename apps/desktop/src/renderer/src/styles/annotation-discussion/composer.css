@@ -264,3 +264,41 @@
   font-size: 12px;
   line-height: 1.2;
 }
+
+.annotation-discussion-composer .floating-composer {
+  gap: 10px;
+  border: 1px solid var(--app-edge);
+  border-radius: 16px;
+  background: var(--app-field);
+  box-shadow: var(--app-field-shadow);
+  padding: 12px 14px;
+}
+
+.annotation-discussion-composer .floating-composer-textarea,
+.annotation-discussion-composer .floating-composer-mention-overlay {
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 24px;
+}
+
+.annotation-discussion-composer .floating-composer-bar {
+  align-items: center;
+}
+
+.annotation-discussion-composer .floating-composer-submit {
+  height: 32px;
+  border-color: var(--app-ink-edge);
+  background: var(--app-ink);
+  box-shadow: var(--app-ink-shadow);
+  color: var(--app-ink-fg);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0 16px;
+}
+
+.annotation-discussion-composer .floating-composer-submit:disabled {
+  border-color: var(--app-edge);
+  background: var(--app-well);
+  box-shadow: var(--app-well-shadow);
+  color: var(--app-reader-muted);
+}

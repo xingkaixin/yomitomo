@@ -1212,9 +1212,6 @@ export const enResources = {
         agentAdding: '{{name}} is adding a thought',
       },
       threadView: {
-        rootThought: 'Thought content',
-        assistantReplying: 'Assistant replying',
-        expanded: 'Discussion expanded',
         noDiscussionTitle: 'No discussion yet',
         noDiscussionDescription: 'This thought has no replies yet.',
         scrollBottom: 'Scroll to bottom',

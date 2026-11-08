@@ -1227,9 +1227,6 @@ export const jaResources = {
         agentAdding: '{{name}} さんが意見を追加しています',
       },
       threadView: {
-        rootThought: '考えた内容',
-        assistantReplying: 'アシスタントが返信中',
-        expanded: 'ディスカッションの拡大',
         noDiscussionTitle: 'まだ議論はありません',
         noDiscussionDescription: 'この考えにはまだ返答がありません。',
         scrollBottom: '一番下までスクロール',
