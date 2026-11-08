@@ -17,7 +17,7 @@ const PopoverContent = React.forwardRef<
 >((props, ref) => (
   <PopoverSurface
     align="start"
-    baseClassName="ui-popup-content ui-popover-content t-dropdown z-[var(--app-z-popover)] rounded-xl border border-border bg-popover p-4 text-popover-foreground shadow-lg outline-none"
+    baseClassName="ui-popup-content ui-popover-content t-dropdown z-[var(--app-z-popover)] rounded-xl border border-[color:var(--app-edge)] bg-[image:var(--app-card-surface)] text-[hsl(var(--foreground))] shadow-[var(--app-float-shadow)] p-4 outline-none"
     positionerStyle={{ zIndex: 'var(--app-z-popover, 160)' }}
     ref={ref}
     sideOffset={8}

@@ -59,10 +59,10 @@
   --segmented-feedback-dur: 150ms;
   --segmented-feedback-ease: var(--segmented-slide-ease);
   --segmented-padding: 3px;
-  --segmented-radius: 8px;
-  --segmented-indicator-radius: 6px;
-  --segmented-indicator-bg: hsl(var(--background));
-  --segmented-indicator-shadow: 0 4px 12px hsl(var(--foreground) / 0.08);
+  --segmented-radius: 10px;
+  --segmented-indicator-radius: 8px;
+  --segmented-indicator-bg: var(--app-raised);
+  --segmented-indicator-shadow: 0 0 0 1px var(--app-edge), var(--app-raised-shadow);
   --segmented-slide-dur: 250ms;
   --segmented-slide-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
@@ -73,9 +73,9 @@
   isolation: isolate;
   overflow: hidden;
   border-radius: var(--segmented-radius);
-  background: hsl(var(--muted) / 0.72);
+  background: var(--app-well);
   padding: var(--segmented-padding);
-  box-shadow: inset 0 0 0 1px hsl(var(--border) / 0.56);
+  box-shadow: var(--app-well-shadow);
 }
 
 .segmented-control-indicator {
@@ -106,7 +106,7 @@
   background: transparent;
   color: hsl(var(--muted-foreground));
   font-size: 13px;
-  font-weight: 850;
+  font-weight: 500;
   padding: 0 12px;
   transition:
     color var(--segmented-feedback-dur) var(--segmented-feedback-ease),
@@ -130,7 +130,7 @@
 
 .segmented-control-option:disabled {
   cursor: not-allowed;
-  opacity: 0.44;
+  opacity: 0.55;
 }
 
 .segmented-control-option:focus-visible {
