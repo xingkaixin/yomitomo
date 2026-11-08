@@ -2,7 +2,7 @@
   display: grid;
   min-height: 0;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  background: hsl(var(--background));
+  background: transparent;
 }
 
 .settings-content {
@@ -23,7 +23,7 @@
   flex-wrap: nowrap;
   gap: 14px;
   border-top: 0;
-  border-bottom: 1px solid hsl(var(--foreground));
+  border-bottom: 0;
   padding: 0 0 12px;
 }
 
@@ -36,31 +36,26 @@
   flex: 0 0 auto;
   align-items: center;
   gap: 6px;
-  border: 1px solid hsl(var(--foreground));
-  border-radius: 0;
-  background: hsl(var(--card));
+  border: 1px solid var(--app-edge);
+  border-radius: 999px;
+  background: var(--app-raised);
+  box-shadow: var(--app-raised-shadow);
   color: hsl(var(--foreground));
-  font-family: var(--font-reader-serif);
-  font-size: 15px;
-  font-weight: 780;
-  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0 14px 0 10px;
   transition:
-    background-color 150ms ease,
-    border-color 150ms ease,
-    color 150ms ease,
-    transform 150ms ease;
+    filter 120ms ease-out,
+    transform 120ms ease-out;
 }
 
-.library-collection-inline-back:hover,
-.library-collection-inline-back:focus-visible {
-  border-color: var(--app-action-primary-border);
-  background: var(--app-action-primary-bg);
-  color: var(--app-action-primary-fg);
-  outline: 0;
+.library-collection-inline-back:hover {
+  filter: brightness(0.98);
 }
 
 .library-collection-inline-back:active {
-  transform: scale(0.96);
+  transform: translateY(1px);
+  box-shadow: var(--app-well-shadow);
 }
 
 .library-home-header h2 {
@@ -74,48 +69,37 @@
 }
 
 .library-search-combo {
-  flex: 0 1 clamp(340px, 34vw, 480px);
-  width: clamp(340px, 34vw, 480px);
   min-width: 0;
-  border-color: hsl(var(--foreground));
-  border-radius: 0;
-  background: hsl(var(--card));
-  box-shadow: none;
+  border-color: var(--app-edge);
+  border-radius: 12px;
+  background: var(--app-field);
+  box-shadow: var(--app-field-shadow);
 }
 
 .library-search-combo input {
   height: 38px;
   border: 0;
   background: transparent;
+  outline: 0;
+}
+
+.library-search-combo:focus-within {
+  outline: 2px solid var(--app-interactive-focus-ring);
+  outline-offset: 2px;
 }
 
 .library-search-combo .library-type-filter-trigger {
   width: 108px;
   height: 38px;
-  border-color: hsl(var(--foreground) / 0.42);
+  border-color: var(--app-edge-soft);
   color: hsl(var(--foreground));
 }
 
 .library-home-actions .library-add-trigger {
   width: 54px;
-  height: 38px;
-  border: 1px solid hsl(var(--foreground));
-  border-radius: 0;
-  background: hsl(var(--foreground));
-  color: hsl(var(--card));
-  padding: 0;
-  box-shadow: none;
-}
-
-.library-home-actions .library-add-trigger {
   min-width: 54px;
-}
-
-.library-home-actions .library-add-trigger:hover,
-.library-home-actions .library-add-trigger:focus-visible {
-  border-color: var(--app-interactive-link);
-  background: var(--app-interactive-link);
-  color: hsl(var(--card));
+  height: 38px;
+  padding: 0;
 }
 
 .library-source-tabs {
@@ -151,7 +135,9 @@
   gap: 20px;
   min-height: 0;
   overflow: auto;
-  padding: 2px 4px 4px 0;
+  /* Room for the card hover shadow, which overflow: auto would clip. */
+  margin: 0 -10px;
+  padding: 4px 10px 16px;
 }
 
 .library-entity-grid {
@@ -162,9 +148,8 @@
   );
   grid-auto-rows: minmax(156px, auto);
   align-content: start;
-  gap: 0;
+  gap: 12px;
   overflow: visible;
-  border-left: 1px solid hsl(var(--border) / 0.72);
   padding: 0;
 }
 
@@ -318,7 +303,7 @@
   color: hsl(var(--muted-foreground));
   font-size: 13px;
   font-variant-numeric: tabular-nums;
-  font-weight: 760;
+  font-weight: 500;
   line-height: 1.2;
 }
 
@@ -471,7 +456,7 @@
   color: hsl(var(--muted-foreground));
   font-size: 13px;
   font-variant-numeric: tabular-nums;
-  font-weight: 760;
+  font-weight: 500;
   line-height: 1.2;
 }
 
@@ -521,14 +506,17 @@
   grid-template-columns: 126px minmax(0, 1fr);
   align-items: start;
   gap: 18px;
-  border-right: 1px solid hsl(var(--border) / 0.72);
-  background: transparent;
+  border: 1px solid var(--app-edge);
+  border-radius: 12px;
+  background: var(--app-card-surface);
+  box-shadow: var(--app-card-shadow);
   padding: 14px 68px 14px 16px;
+  transition: box-shadow 150ms ease-out;
 }
 
 .library-article-list-item:hover,
 .library-article-list-item:focus-within {
-  background: hsl(var(--muted) / 0.26);
+  box-shadow: var(--app-float-shadow);
 }
 
 .library-article-list-item .library-item-actions {
@@ -549,32 +537,6 @@
 .library-article-list-item .library-card-pin-indicator svg {
   width: 10px;
   height: 10px;
-}
-
-.library-article-list-item .library-card-more {
-  background: hsl(var(--card) / 0.9);
-}
-
-.library-article-list-item .library-card-more:hover,
-.library-article-list-item .library-card-more.is-active {
-  border-color: var(--app-action-primary-border);
-  background: var(--app-action-primary-bg);
-  color: var(--app-action-primary-fg);
-}
-
-.library-article-list-item .library-card-menu-popover {
-  border-color: hsl(var(--border) / 0.82);
-  background: hsl(var(--popover) / 0.98);
-  box-shadow: var(--app-shell-panel-shadow);
-}
-
-.library-article-list-item .library-card-menu-popover button {
-  color: hsl(var(--popover-foreground));
-}
-
-.library-article-list-item .library-card-menu-popover button:hover,
-.library-article-list-item .library-card-menu-popover button:focus-visible {
-  background: hsl(var(--muted) / 0.72);
 }
 
 .library-article-list-item .library-card-menu-popover .library-item-delete {
@@ -605,7 +567,7 @@
   color: hsl(var(--foreground));
   font-family: var(--font-reader-serif);
   font-size: clamp(19px, 1.35vw, 23px);
-  font-weight: 760;
+  font-weight: 600;
   line-height: 1.16;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -659,16 +621,6 @@
 .library-article-list-item .library-count-value {
   min-width: 1ch;
   text-align: left;
-}
-
-.library-article-list-item .library-source-badge {
-  flex: none;
-  border-color: hsl(var(--border) / 0.82);
-  background: hsl(var(--muted) / 0.62);
-  color: hsl(var(--muted-foreground));
-  padding: 4px 7px;
-  font-size: 10px;
-  line-height: 1;
 }
 
 .library-article-list-item .library-web-item-cover,

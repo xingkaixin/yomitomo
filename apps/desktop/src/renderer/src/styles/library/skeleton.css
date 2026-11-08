@@ -70,9 +70,8 @@
     minmax(min(100%, var(--library-entity-card-min-width)), 1fr)
   );
   align-content: start;
+  gap: 12px;
   min-height: 0;
-  border-top: 1px solid hsl(var(--foreground));
-  border-left: 1px solid hsl(var(--border) / 0.72);
 }
 
 .library-skeleton-card {
@@ -82,8 +81,9 @@
   min-height: 156px;
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 12px;
-  border-right: 1px solid hsl(var(--border) / 0.72);
-  border-bottom: 1px solid hsl(var(--border) / 0.72);
+  border: 1px solid var(--app-edge-soft);
+  border-radius: 12px;
+  background: var(--app-card-surface);
   padding: 22px 26px 20px;
 }
 
