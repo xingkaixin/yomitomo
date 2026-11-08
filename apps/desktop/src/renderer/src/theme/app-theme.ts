@@ -1,5 +1,7 @@
 import { normalizeThemePreference, type ThemePreference } from '@yomitomo/shared';
 import {
+  alphaVariables,
+  mixColors,
   readerThemeToCssVariables,
   type CssVariableMap,
   type ReaderTheme,
@@ -55,6 +57,7 @@ export type AppTheme = {
     well: SurfaceMaterial;
     field: SurfaceMaterial;
     ink: SurfaceMaterial & { edge: string; foreground: string };
+    shadowColor: string;
     floatShadow: string;
     dialogShadow: string;
     distill: { top: string; bottom: string; edge: string };
@@ -62,8 +65,7 @@ export type AppTheme = {
     bubbleThem: BubbleMaterial;
   };
   action: {
-    primary: ThemeControlState;
-    secondary: ThemeControlState;
+    primary: PrimaryControlState;
     danger: ThemeControlState;
   };
   interactive: {
@@ -72,7 +74,6 @@ export type AppTheme = {
     selectedBackground: string;
     selectedForeground: string;
     selectedBorder: string;
-    currentBackground: string;
     hoverBackground: string;
     hoverBorder: string;
     focusRing: string;
@@ -81,12 +82,12 @@ export type AppTheme = {
     badgeBorder: string;
     successForeground: string;
     successBackground: string;
+    warningForeground: string;
   };
   dataColor: {
     chart1: string;
     chart2: string;
     chart3: string;
-    readerAgentFallback: string;
   };
   reader: ReaderTheme;
 };
@@ -111,14 +112,15 @@ export type ThemeControlState = {
   background: string;
   foreground: string;
   border: string;
+};
+
+type PrimaryControlState = ThemeControlState & {
   hoverBackground: string;
-  activeBackground: string;
   disabledBackground: string;
   disabledForeground: string;
 };
 
 export type AppThemeZIndex = {
-  sticky: string;
   floating: string;
   dropdown: string;
   popover: string;
@@ -130,7 +132,6 @@ export type AppThemeZIndex = {
 };
 
 const appThemeZIndex: AppThemeZIndex = {
-  sticky: '20',
   floating: '80',
   dropdown: '130',
   popover: '160',
@@ -141,19 +142,33 @@ const appThemeZIndex: AppThemeZIndex = {
   topOverlay: '360',
 };
 
-const lightReaderTheme: ReaderTheme = {
-  background: '#f6f2ea',
+const lightReader = {
   paper: '#fffaf3',
   ink: '#2f2720',
-  muted: '#766c61',
-  line: '#ded5c9',
   primary: '#8f4037',
   accent: '#f1d8d1',
   accentStrong: '#9b463b',
+  noteBorder: 'rgba(47,39,32,.12)',
+};
+
+const lightReaderTheme: ReaderTheme = {
+  background: '#f6f2ea',
+  paper: lightReader.paper,
+  ink: lightReader.ink,
+  muted: '#766c61',
+  line: '#ded5c9',
+  primary: lightReader.primary,
+  accent: lightReader.accent,
+  accentStrong: lightReader.accentStrong,
   danger: '#a13e36',
   paperEdge: 'rgba(28, 26, 23, 0.07)',
   paperShadow:
     'inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 1px 2px rgba(28, 26, 23, 0.06), 0 10px 28px -10px rgba(28, 26, 23, 0.18), 0 28px 56px -28px rgba(28, 26, 23, 0.2)',
+  paperHover: mixColors(lightReader.ink, 0.06, lightReader.paper),
+  codeBackground: mixColors(lightReader.ink, 0.92, lightReader.paper),
+  codeForeground: lightReader.paper,
+  focusRing: '#b23223',
+  selection: 'rgba(77, 155, 114, 0.18)',
   ribbon: 'linear-gradient(90deg, #8f2519, #b23223 45%, #c64636)',
   toolbar: {
     background: 'rgba(255,250,243,.92)',
@@ -166,27 +181,23 @@ const lightReaderTheme: ReaderTheme = {
   toc: {
     background: 'rgba(246,242,234,.72)',
     itemHoverBackground: 'rgba(255,250,243,.84)',
+    itemActiveBackground: mixColors(lightReader.primary, 0.1, 'rgba(255,250,243,.84)'),
   },
   note: {
-    annotationAccent: 'var(--app-reader-accent-strong)',
-    annotationBorder:
-      'color-mix(in srgb,var(--app-reader-accent-strong) 18%,var(--app-reader-note-border))',
-    annotationMat: 'color-mix(in srgb,var(--app-reader-accent) 18%,var(--app-reader-paper))',
-    annotationSurface: 'var(--app-reader-paper)',
+    annotationAccent: lightReader.accentStrong,
+    annotationBorder: mixColors(lightReader.accentStrong, 0.18, lightReader.noteBorder),
+    annotationMat: mixColors(lightReader.accent, 0.18, lightReader.paper),
+    annotationSurface: lightReader.paper,
     background: 'rgba(255,250,243,.92)',
-    border: 'rgba(47,39,32,.12)',
-    distillationAccent: 'var(--app-reader-accent-strong)',
-    distillationBorder:
-      'color-mix(in srgb,var(--app-reader-accent-strong) 46%,var(--app-reader-note-border))',
-    distillationMat: 'color-mix(in srgb,var(--app-reader-accent) 42%,var(--app-reader-note-bg))',
-    distillationSurface: 'var(--app-reader-paper)',
-    distillationTabForeground: '#fffaf3',
+    border: lightReader.noteBorder,
+    distillationAccent: lightReader.accentStrong,
+    distillationBorder: mixColors(lightReader.accentStrong, 0.46, lightReader.noteBorder),
+    distillationSurface: lightReader.paper,
     shadow: '0 10px 30px rgba(47,39,32,.09)',
     quoteBackground: 'rgba(225,191,105,.16)',
     quoteText: '#46392f',
   },
   selectionMenu: {
-    background: 'rgba(47,39,32,.94)',
     foreground: '#fffaf3',
     border: 'rgba(47,39,32,.14)',
     shadow: '0 12px 34px rgba(47,39,32,.26)',
@@ -207,7 +218,7 @@ const lightReaderTheme: ReaderTheme = {
     contextBackground: 'rgba(225,191,105,.18)',
     contextBorder: 'rgba(168,126,48,.2)',
     contextForeground: '#5b4d41',
-    composerBackground: 'color-mix(in srgb,#fffaf3 78%,rgba(246,242,234,.9))',
+    composerBackground: mixColors(lightReader.paper, 0.78, 'rgba(246,242,234,.9)'),
     composerBorder: 'rgba(47,39,32,.1)',
     sendBackground: '#9b463b',
     sendForeground: '#fffaf3',
@@ -215,7 +226,6 @@ const lightReaderTheme: ReaderTheme = {
     sendDisabledForeground: 'rgba(47,39,32,.46)',
   },
   agentPanel: {
-    background: 'rgba(250,244,235,.94)',
     border: 'rgba(47,39,32,.13)',
     hoverBackground: '#eee3d7',
   },
@@ -306,6 +316,7 @@ export const lightTheme: AppTheme = {
       shadow:
         'inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 1px 2px rgba(28, 26, 23, 0.24), 0 3px 8px -3px rgba(28, 26, 23, 0.35)',
     },
+    shadowColor: '#1c1a17',
     floatShadow:
       'inset 0 1px 0 #ffffff, 0 2px 6px rgba(28, 26, 23, 0.08), 0 12px 28px -8px rgba(28, 26, 23, 0.2)',
     dialogShadow:
@@ -338,27 +349,13 @@ export const lightTheme: AppTheme = {
       foreground: '#ffffff',
       border: '#0f0e0c',
       hoverBackground: '#403b35',
-      activeBackground: '#0f0e0c',
       disabledBackground: '#e4e0d8',
-      disabledForeground: '#75706a',
-    },
-    secondary: {
-      background: '#ffffff',
-      foreground: '#1c1a17',
-      border: 'rgba(28, 26, 23, 0.13)',
-      hoverBackground: '#f7f6f2',
-      activeBackground: '#efede8',
-      disabledBackground: '#efede8',
       disabledForeground: '#75706a',
     },
     danger: {
       background: '#c0352b',
       foreground: '#ffffff',
       border: '#c0352b',
-      hoverBackground: '#a72e25',
-      activeBackground: '#8e2720',
-      disabledBackground: '#e4e0d8',
-      disabledForeground: '#75706a',
     },
   },
   interactive: {
@@ -367,7 +364,6 @@ export const lightTheme: AppTheme = {
     selectedBackground: 'rgba(178, 50, 35, 0.08)',
     selectedForeground: '#b23223',
     selectedBorder: 'rgba(178, 50, 35, 0.45)',
-    currentBackground: '#efede8',
     hoverBackground: '#efede8',
     hoverBorder: 'rgba(178, 50, 35, 0.45)',
     focusRing: '#b23223',
@@ -376,29 +372,43 @@ export const lightTheme: AppTheme = {
     badgeBorder: 'rgba(178, 50, 35, 0.45)',
     successForeground: 'hsl(142 44% 30%)',
     successBackground: 'hsl(142 42% 92%)',
+    warningForeground: 'hsl(36 87% 52%)',
   },
   dataColor: {
     chart1: 'hsl(83 24% 35%)',
     chart2: 'hsl(8 45% 46%)',
     chart3: 'hsl(205 30% 38%)',
-    readerAgentFallback: '#2f2720',
   },
   reader: lightReaderTheme,
 };
 
-const darkReaderTheme: ReaderTheme = {
+const darkReader = {
   background: '#1a1815',
   paper: '#242019',
   ink: '#e0d9cc',
+  primary: '#e0844f',
+  accentStrong: '#e0844f',
+  noteBorder: 'rgba(224,217,204,.12)',
+};
+
+const darkReaderTheme: ReaderTheme = {
+  background: darkReader.background,
+  paper: darkReader.paper,
+  ink: darkReader.ink,
   muted: '#8c8576',
   line: '#464139',
-  primary: '#e0844f',
+  primary: darkReader.primary,
   accent: '#3d241b',
-  accentStrong: '#e0844f',
+  accentStrong: darkReader.accentStrong,
   danger: '#e56f65',
   paperEdge: 'rgba(0, 0, 0, 0.4)',
   paperShadow:
     'inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 0 1px rgba(0, 0, 0, 0.3), 0 12px 32px -10px rgba(0, 0, 0, 0.65)',
+  paperHover: mixColors(darkReader.ink, 0.06, darkReader.paper),
+  codeBackground: mixColors(darkReader.paper, 0.84, darkReader.ink),
+  codeForeground: darkReader.ink,
+  focusRing: mixColors(darkReader.paper, 0.18, darkReader.ink),
+  selection: 'rgba(77, 155, 114, 0.18)',
   ribbon: 'linear-gradient(90deg, #c9584a, #e8735f 45%, #f08b79)',
   toolbar: {
     background: 'rgba(26,24,21,.88)',
@@ -411,28 +421,23 @@ const darkReaderTheme: ReaderTheme = {
   toc: {
     background: 'rgba(36,32,25,.62)',
     itemHoverBackground: 'rgba(48,42,34,.82)',
+    itemActiveBackground: mixColors(darkReader.primary, 0.1, 'rgba(48,42,34,.82)'),
   },
   note: {
-    annotationAccent: 'var(--app-reader-accent-strong)',
-    annotationBorder:
-      'color-mix(in srgb,var(--app-reader-accent-strong) 24%,var(--app-reader-note-border))',
-    annotationMat: 'color-mix(in srgb,var(--app-reader-accent-strong) 8%,var(--app-reader-bg))',
-    annotationSurface: 'color-mix(in srgb,var(--app-reader-paper) 86%,var(--app-reader-ink) 14%)',
+    annotationAccent: darkReader.accentStrong,
+    annotationBorder: mixColors(darkReader.accentStrong, 0.24, darkReader.noteBorder),
+    annotationMat: mixColors(darkReader.accentStrong, 0.08, darkReader.background),
+    annotationSurface: mixColors(darkReader.paper, 0.86, darkReader.ink),
     background: 'rgba(36,32,25,.9)',
-    border: 'rgba(224,217,204,.12)',
-    distillationAccent: 'var(--app-reader-accent-strong)',
-    distillationBorder:
-      'color-mix(in srgb,var(--app-reader-accent-strong) 46%,var(--app-reader-note-border))',
-    distillationMat: 'color-mix(in srgb,var(--app-reader-accent-strong) 13%,var(--app-reader-bg))',
-    distillationSurface:
-      'color-mix(in srgb,var(--app-reader-paper) 88%,var(--app-reader-accent-strong) 12%)',
-    distillationTabForeground: '#1a1815',
+    border: darkReader.noteBorder,
+    distillationAccent: darkReader.accentStrong,
+    distillationBorder: mixColors(darkReader.accentStrong, 0.46, darkReader.noteBorder),
+    distillationSurface: mixColors(darkReader.paper, 0.88, darkReader.accentStrong),
     shadow: '0 18px 44px rgba(0,0,0,.42)',
     quoteBackground: 'rgba(224,132,79,.16)',
     quoteText: '#e0d9cc',
   },
   selectionMenu: {
-    background: 'rgba(36,32,25,.94)',
     foreground: '#e0d9cc',
     border: 'rgba(224,217,204,.14)',
     shadow: '0 18px 48px rgba(0,0,0,.52)',
@@ -461,7 +466,6 @@ const darkReaderTheme: ReaderTheme = {
     sendDisabledForeground: 'rgba(224,217,204,.42)',
   },
   agentPanel: {
-    background: 'rgba(36,32,25,.94)',
     border: 'rgba(224,217,204,.14)',
     hoverBackground: '#302a22',
   },
@@ -545,6 +549,7 @@ export const darkTheme: AppTheme = {
       shadow:
         'inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 1px 2px rgba(0, 0, 0, 0.5), 0 3px 8px -3px rgba(0, 0, 0, 0.6)',
     },
+    shadowColor: '#000000',
     floatShadow:
       'inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.4), 0 14px 32px -8px rgba(0, 0, 0, 0.65)',
     dialogShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 24px 56px -12px rgba(0, 0, 0, 0.6)',
@@ -576,27 +581,13 @@ export const darkTheme: AppTheme = {
       foreground: '#1a1917',
       border: 'rgba(0, 0, 0, 0.6)',
       hoverBackground: '#f6f3ee',
-      activeBackground: '#d6d1c8',
       disabledBackground: '#33302b',
-      disabledForeground: '#8f897f',
-    },
-    secondary: {
-      background: '#2e2b27',
-      foreground: '#ece8e1',
-      border: 'rgba(0, 0, 0, 0.55)',
-      hoverBackground: '#2a2825',
-      activeBackground: '#252320',
-      disabledBackground: '#2a2825',
       disabledForeground: '#8f897f',
     },
     danger: {
       background: '#c4392e',
       foreground: '#ffffff',
       border: '#c4392e',
-      hoverBackground: '#ab3228',
-      activeBackground: '#922b22',
-      disabledBackground: '#33302b',
-      disabledForeground: '#8f897f',
     },
   },
   interactive: {
@@ -605,7 +596,6 @@ export const darkTheme: AppTheme = {
     selectedBackground: 'rgba(232, 115, 95, 0.12)',
     selectedForeground: '#e8735f',
     selectedBorder: 'rgba(232, 115, 95, 0.5)',
-    currentBackground: '#2a2825',
     hoverBackground: '#2a2825',
     hoverBorder: 'rgba(232, 115, 95, 0.5)',
     focusRing: '#e8735f',
@@ -614,12 +604,12 @@ export const darkTheme: AppTheme = {
     badgeBorder: 'rgba(232, 115, 95, 0.5)',
     successForeground: 'hsl(140 50% 72%)',
     successBackground: 'hsl(142 32% 18%)',
+    warningForeground: 'hsl(36 87% 52%)',
   },
   dataColor: {
     chart1: 'hsl(140 30% 52%)',
     chart2: 'hsl(8 56% 60%)',
     chart3: 'hsl(205 46% 60%)',
-    readerAgentFallback: '#e0d9cc',
   },
   reader: darkReaderTheme,
 };
@@ -662,12 +652,11 @@ export function themeToCssVariables(theme: AppTheme): CssVariableMap {
     '--resize-dur': theme.effect.resizeDuration,
     '--resize-ease': theme.effect.resizeEase,
     '--app-shell-background': theme.effect.shellBackground,
-    '--app-shell-panel-shadow': theme.surface.panel.shadow,
-    '--app-subtle-panel-shadow': theme.surface.raised.shadow,
     '--app-overlay-scrim': theme.effect.overlayScrim,
     '--app-edge': theme.surface.edge,
     '--app-edge-soft': theme.surface.edgeSoft,
     '--app-panel': surfaceGradient(theme.surface.panel),
+    '--app-panel-shadow': theme.surface.panel.shadow,
     '--app-raised': surfaceGradient(theme.surface.raised),
     '--app-raised-shadow': theme.surface.raised.shadow,
     '--app-card-surface': surfaceGradient(theme.surface.card),
@@ -686,7 +675,6 @@ export function themeToCssVariables(theme: AppTheme): CssVariableMap {
     '--app-distill-edge': theme.surface.distill.edge,
     ...bubbleVariables('me', theme.surface.bubbleMe),
     ...bubbleVariables('them', theme.surface.bubbleThem),
-    '--app-z-sticky': theme.effect.zIndex.sticky,
     '--app-z-floating': theme.effect.zIndex.floating,
     '--app-z-dropdown': theme.effect.zIndex.dropdown,
     '--app-z-popover': theme.effect.zIndex.popover,
@@ -699,29 +687,16 @@ export function themeToCssVariables(theme: AppTheme): CssVariableMap {
     '--app-action-primary-fg': theme.action.primary.foreground,
     '--app-action-primary-border': theme.action.primary.border,
     '--app-action-primary-hover-bg': theme.action.primary.hoverBackground,
-    '--app-action-primary-active-bg': theme.action.primary.activeBackground,
     '--app-action-primary-disabled-bg': theme.action.primary.disabledBackground,
     '--app-action-primary-disabled-fg': theme.action.primary.disabledForeground,
-    '--app-action-secondary-bg': theme.action.secondary.background,
-    '--app-action-secondary-fg': theme.action.secondary.foreground,
-    '--app-action-secondary-border': theme.action.secondary.border,
-    '--app-action-secondary-hover-bg': theme.action.secondary.hoverBackground,
-    '--app-action-secondary-active-bg': theme.action.secondary.activeBackground,
-    '--app-action-secondary-disabled-bg': theme.action.secondary.disabledBackground,
-    '--app-action-secondary-disabled-fg': theme.action.secondary.disabledForeground,
     '--app-action-danger-bg': theme.action.danger.background,
     '--app-action-danger-fg': theme.action.danger.foreground,
     '--app-action-danger-border': theme.action.danger.border,
-    '--app-action-danger-hover-bg': theme.action.danger.hoverBackground,
-    '--app-action-danger-active-bg': theme.action.danger.activeBackground,
-    '--app-action-danger-disabled-bg': theme.action.danger.disabledBackground,
-    '--app-action-danger-disabled-fg': theme.action.danger.disabledForeground,
     '--app-interactive-link': theme.interactive.link,
     '--app-interactive-link-hover': theme.interactive.linkHover,
     '--app-interactive-selected-bg': theme.interactive.selectedBackground,
     '--app-interactive-selected-fg': theme.interactive.selectedForeground,
     '--app-interactive-selected-border': theme.interactive.selectedBorder,
-    '--app-interactive-current-bg': theme.interactive.currentBackground,
     '--app-interactive-hover-bg': theme.interactive.hoverBackground,
     '--app-interactive-hover-border': theme.interactive.hoverBorder,
     '--app-interactive-focus-ring': theme.interactive.focusRing,
@@ -730,10 +705,18 @@ export function themeToCssVariables(theme: AppTheme): CssVariableMap {
     '--app-interactive-badge-border': theme.interactive.badgeBorder,
     '--app-interactive-success-fg': theme.interactive.successForeground,
     '--app-interactive-success-bg': theme.interactive.successBackground,
+    '--app-interactive-warning-fg': theme.interactive.warningForeground,
+    ...alphaVariables('--app-ink', theme.action.primary.background, [4, 6, 8, 16]),
+    ...alphaVariables('--app-shadow', theme.surface.shadowColor, [6, 12, 16, 24]),
+    ...alphaVariables('--app-danger', theme.action.danger.background, [8, 12]),
+    ...alphaVariables('--app-brand', theme.interactive.link, [8, 24]),
+    '--app-brand-surface': mixColors(theme.interactive.link, 0.06, theme.palette.card),
+    '--app-danger-line': mixColors(theme.action.danger.background, 0.5, theme.palette.border),
+    '--app-danger-surface': mixColors(theme.action.danger.background, 0.06, theme.palette.card),
+    ...alphaVariables('--app-success', theme.interactive.successForeground, [16, 32]),
     '--chart-1': theme.dataColor.chart1,
     '--chart-2': theme.dataColor.chart2,
     '--chart-3': theme.dataColor.chart3,
-    '--app-reader-agent-fallback': theme.dataColor.readerAgentFallback,
     ...readerThemeToCssVariables(theme.reader),
   };
 }
