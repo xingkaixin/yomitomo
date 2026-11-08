@@ -17,16 +17,16 @@
   height: 34px;
   place-items: center;
   transform: translateX(-50%);
-  border: 1px solid var(--app-reader-toolbar-border);
+  border: 1px solid var(--app-edge);
   border-radius: 999px;
-  background: var(--app-reader-toolbar-bg);
+  background: var(--app-raised);
   box-shadow: var(--app-raised-shadow);
-  color: var(--app-reader-ink);
+  color: hsl(var(--foreground));
 }
 
 .annotation-discussion-scroll-bottom:hover {
-  border-color: var(--app-reader-accent-strong);
-  background: var(--app-reader-note-bg);
+  border-color: var(--app-interactive-hover-border);
+  background: var(--app-interactive-hover-bg);
 }
 
 .annotation-discussion-agent-dock {
@@ -57,10 +57,10 @@
   place-items: center;
   margin-left: -8px;
   appearance: none;
-  border: 2px solid var(--app-reader-paper);
+  border: 2px solid hsl(var(--card));
   border-radius: 999px;
-  background: var(--app-reader-paper);
-  box-shadow: 0 2px 7px var(--app-reader-ink-a12);
+  background: hsl(var(--card));
+  box-shadow: 0 2px 7px hsl(var(--foreground) / 0.12);
   color: inherit;
   line-height: 1;
   overflow: visible;
@@ -82,7 +82,7 @@
 .annotation-discussion-agent-dock .reader-agent-avatar-stack-item:focus-visible,
 .annotation-discussion-agent-dock .reader-agent-avatar-stack-item.is-revealed {
   z-index: 2;
-  box-shadow: 0 8px 18px var(--app-reader-ink-a16);
+  box-shadow: 0 8px 18px hsl(var(--foreground) / 0.16);
 }
 
 .annotation-discussion-agent-dock .reader-agent-avatar-stack-item:focus-visible,
@@ -113,11 +113,11 @@
   max-width: 132px;
   overflow: hidden;
   transform: translateX(-50%);
-  border: 1px solid var(--app-reader-selection-menu-border);
+  border: 1px solid var(--app-edge);
   border-radius: 10px;
-  background: var(--app-reader-paper);
+  background: var(--app-raised);
   box-shadow: var(--app-raised-shadow);
-  color: var(--app-reader-ink);
+  color: hsl(var(--foreground));
   font-size: 11px;
   font-weight: 760;
   line-height: 1.25;
@@ -137,12 +137,12 @@
   grid-template-rows: minmax(0, auto) auto;
   min-width: 0;
   gap: 8px;
-  border: 1px solid var(--app-reader-toolbar-border);
+  border: 1px solid var(--app-edge);
   border-radius: 10px;
-  background: var(--app-reader-paper);
+  background: var(--app-field);
   box-shadow:
-    0 18px 54px var(--app-reader-ink-a12),
-    0 2px 10px var(--app-reader-ink-a6);
+    0 18px 54px hsl(var(--foreground) / 0.12),
+    0 2px 10px hsl(var(--foreground) / 0.06);
   padding: 10px;
 }
 
@@ -161,7 +161,7 @@
   resize: none;
   border: 0;
   background: transparent;
-  color: var(--app-reader-ink);
+  color: hsl(var(--foreground));
   font: inherit;
   font-size: 13px;
   font-weight: 430;
@@ -172,7 +172,7 @@
 
 .floating-composer.has-mention-overlay .floating-composer-textarea {
   color: transparent;
-  caret-color: var(--app-reader-ink);
+  caret-color: hsl(var(--foreground));
 }
 
 .floating-composer.has-mention-overlay .floating-composer-textarea::selection {
@@ -185,7 +185,7 @@
   inset: 0;
   z-index: 0;
   overflow: hidden;
-  color: var(--app-reader-ink);
+  color: hsl(var(--foreground));
   font: inherit;
   font-size: 13px;
   font-weight: 430;
@@ -208,7 +208,7 @@
   color: color-mix(
     in srgb,
     var(--mention-accent, var(--app-reader-accent)) 76%,
-    var(--app-reader-ink)
+    hsl(var(--foreground))
   );
   font: inherit;
   font-size: inherit;
@@ -255,10 +255,10 @@
   max-height: 280px;
   gap: 3px;
   overflow: auto;
-  border: 1px solid var(--app-reader-composer-border);
+  border: 1px solid var(--app-edge);
   border-radius: 12px;
-  background: var(--app-reader-paper);
-  box-shadow: var(--app-reader-composer-shadow);
+  background: var(--app-raised);
+  box-shadow: var(--app-float-shadow);
   padding: 6px;
   font-size: 12px;
   line-height: 1.2;
@@ -299,5 +299,5 @@
   border-color: var(--app-edge);
   background: var(--app-well);
   box-shadow: var(--app-well-shadow);
-  color: var(--app-reader-muted);
+  color: hsl(var(--muted-foreground));
 }

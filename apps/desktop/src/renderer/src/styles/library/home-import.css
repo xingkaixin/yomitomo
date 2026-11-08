@@ -1066,7 +1066,7 @@
 }
 
 .library-import-dialog.is-duplicate .library-import-progress-track span {
-  background: var(--app-reader-accent-strong);
+  background: var(--app-interactive-warning-fg);
 }
 
 .library-file-import-result {
@@ -1106,7 +1106,7 @@
 }
 
 .library-article-duplicate-callout > svg {
-  color: var(--app-reader-accent-strong);
+  color: var(--app-interactive-warning-fg);
 }
 
 .library-article-duplicate-callout strong {
