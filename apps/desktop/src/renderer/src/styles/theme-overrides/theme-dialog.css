@@ -86,13 +86,6 @@
   box-shadow: var(--app-subtle-panel-shadow);
 }
 
-.theme-card-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.theme-card,
 .theme-reader-paper-option {
   position: relative;
   display: grid;
@@ -106,7 +99,6 @@
   text-align: center;
 }
 
-.theme-card strong,
 .theme-reader-paper-option strong {
   font-size: 13px;
   font-weight: 680;
@@ -131,7 +123,7 @@
   pointer-events: none;
 }
 
-:is(.theme-card, .theme-reader-paper-option):hover .appearance-preview {
+.theme-reader-paper-option:hover .appearance-preview {
   border-color: var(--app-interactive-hover-border);
 }
 
@@ -148,14 +140,14 @@
   margin-top: 12px;
 }
 
-:is(.theme-card, .theme-reader-paper-option) strong {
+.theme-reader-paper-option strong {
   position: relative;
   min-width: 60px;
   justify-self: center;
   color: hsl(var(--muted-foreground));
 }
 
-:is(.theme-card, .theme-reader-paper-option).is-active strong {
+.theme-reader-paper-option.is-active strong {
   color: hsl(var(--foreground));
 }
 
@@ -178,7 +170,7 @@
   vector-effect: non-scaling-stroke;
 }
 
-:is(.theme-card, .theme-reader-paper-option).is-active .theme-choice-scribble path {
+.theme-reader-paper-option.is-active .theme-choice-scribble path {
   stroke-dashoffset: 0;
   animation: theme-choice-circle-draw 320ms ease-out;
 }
@@ -197,12 +189,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :is(.theme-card, .theme-reader-paper-option).is-active .theme-choice-scribble path {
+  .theme-reader-paper-option.is-active .theme-choice-scribble path {
     animation: none;
   }
 }
 
-:is(.theme-tone-option, .theme-card, .theme-reader-paper-option):focus-visible {
+:is(.theme-tone-option, .theme-reader-paper-option):focus-visible {
   outline: 2px solid var(--app-interactive-focus-ring);
   outline-offset: 3px;
 }
@@ -262,10 +254,6 @@
 }
 
 @media (max-width: 600px) {
-  .theme-card-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .theme-reader-paper-options {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }

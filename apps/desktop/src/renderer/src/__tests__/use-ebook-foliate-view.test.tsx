@@ -16,7 +16,7 @@ import type {
   FoliatePageInfo,
   FoliateViewElement,
 } from '../source/ebook/ebook-foliate-view';
-import { defaultTheme } from '../theme/app-theme';
+import { lightTheme } from '../theme/app-theme';
 
 vi.mock('../vendor/foliate-js/view.js', () => ({}));
 
@@ -92,7 +92,7 @@ function FoliateViewProbe({
   latestViewState = useEbookFoliateView({
     article,
     maxColumnCount,
-    readerTheme: defaultTheme.reader,
+    readerTheme: lightTheme.reader,
     readerSettings: { fontSize, contentWidth: 720, backgroundColor: '#fffdf8' },
     onSaveArticleReadingProgress,
     onAttachFoliateDocumentListeners,

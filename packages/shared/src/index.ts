@@ -9,6 +9,7 @@ export {
   EPUB_TITLE_CLEANUP_VERSION,
   normalizeLibraryContentSources,
   normalizeSoundEffectsVolume,
+  normalizeThemePreference,
   normalizeUiLanguage,
 } from './types';
 export { ARTICLE_SOURCE_TYPES, normalizeArticleSourceType } from './sources/article-types';
@@ -177,6 +178,7 @@ export type {
   TextSourceMetadata,
   TextSummary,
   TextSummaryScope,
+  ThemePreference,
   TraceItem,
   TraceItemType,
   UiLanguage,

@@ -150,7 +150,7 @@ describe('desktop store settings', () => {
         {
           defaultProviderId: 'provider_1',
           uiLanguage: 'en',
-          themeId: 'ink-paper',
+          themeId: 'dark',
           libraryPageSize: 18,
           libraryContentSources: [
             { id: 'web', enabled: true },
@@ -175,7 +175,7 @@ describe('desktop store settings', () => {
     ).toEqual({
       defaultProviderId: undefined,
       uiLanguage: 'en',
-      themeId: 'ink-paper',
+      themeId: 'dark',
       libraryPageSize: 18,
       libraryContentSources: [
         { id: 'web', enabled: true },

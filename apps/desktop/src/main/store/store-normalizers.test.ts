@@ -21,6 +21,18 @@ describe('store normalizers settings', () => {
     });
   });
 
+  it('keeps the tone of themes saved before the light and dark redesign', () => {
+    const row = {
+      ...settingsToRow(mergeSettingsForUpsert({}, {})),
+      annotationMemoryBackfillVersion: null,
+    };
+    const themeFor = (themeId: string | null) => rowToSettings({ ...row, themeId }).themeId;
+
+    expect(themeFor('lanmo')).toBe('light');
+    expect(themeFor('dusk-indigo')).toBe('dark');
+    expect(themeFor(null)).toBe('system');
+  });
+
   it('round trips normalized settings through the persistence row mapping', () => {
     const settings = mergeSettingsForUpsert(
       { appLockEnabled: false, themeId: undefined },
@@ -33,7 +45,7 @@ describe('store normalizers settings', () => {
     );
     const row = settingsToRow(settings, '2026-08-24T00:00:00.000Z');
 
-    expect(row.themeId).toBeNull();
+    expect(row.themeId).toBe('system');
     expect(row.updatedAt).toBe('2026-08-24T00:00:00.000Z');
     expect(rowToSettings({ ...row, annotationMemoryBackfillVersion: null })).toEqual(settings);
   });

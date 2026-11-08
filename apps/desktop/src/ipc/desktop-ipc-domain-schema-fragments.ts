@@ -226,7 +226,7 @@ const providerPatchSchema = checkedSchema<Partial<LlmProvider>>(providerShapeSch
 const settingsSchema = checkedSchema<AppSettingsPatch>(
   z.object({
     uiLanguage: z.enum(['zh-CN', 'en', 'ja']).optional(),
-    themeId: idSchema.optional(),
+    themeId: z.enum(['light', 'dark', 'system']).optional(),
     soundEffectsEnabled: z.boolean().optional(),
     soundEffectsVolume: z.number().min(0).max(1).optional(),
     appLockEnabled: z.boolean().optional(),
