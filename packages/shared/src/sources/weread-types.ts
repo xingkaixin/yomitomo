@@ -1,4 +1,4 @@
-export type WeReadOpenMethod = 'deeplink' | 'web';
+export type WeReadOpenMethod = 'deeplink' | 'web' | 'in-app';
 export type WeReadSyncMode = 'manual' | 'auto';
 
 export type WeReadSettings = {

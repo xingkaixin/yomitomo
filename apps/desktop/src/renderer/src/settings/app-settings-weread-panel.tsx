@@ -27,6 +27,7 @@ import {
   SettingsGroup,
   SettingsPage,
   SettingsRadioDot,
+  SettingsRow,
   SettingsRowCopy,
   SettingsRowDescriptionTooltip,
 } from './app-settings-kit';
@@ -51,6 +52,7 @@ type WeReadPanelState = {
   lastOpenMethod: WeReadOpenMethod;
   lastSyncMode: WeReadSyncMode;
   removeConfirmOpen: boolean;
+  webLogoutConfirmOpen: boolean;
   revealLoading: boolean;
   revealedStoredApiKey: string;
   testMessage: string;
@@ -71,6 +73,8 @@ type WeReadPanelEvent =
   | { type: 'revealSucceeded'; apiKey: string; message: string }
   | { type: 'storedApiKeyRemoved' }
   | { type: 'syncModeChosen'; syncMode: WeReadSyncMode }
+  | { type: 'webLogoutConfirmClosed' }
+  | { type: 'webLogoutConfirmOpened' }
   | { type: 'testFinished'; message: string; ok: boolean }
   | { type: 'testReset' }
   | { type: 'testStarted' };
@@ -82,6 +86,7 @@ const initialWeReadPanelState: WeReadPanelState = {
   lastOpenMethod: 'deeplink',
   lastSyncMode: 'manual',
   removeConfirmOpen: false,
+  webLogoutConfirmOpen: false,
   revealLoading: false,
   revealedStoredApiKey: '',
   testMessage: '',
@@ -137,6 +142,10 @@ function weReadPanelReducer(state: WeReadPanelState, event: WeReadPanelEvent): W
       return { ...state, lastSyncMode: event.syncMode };
     case 'testFinished':
       return { ...state, testMessage: event.message, testState: event.ok ? 'success' : 'error' };
+    case 'webLogoutConfirmClosed':
+      return { ...state, webLogoutConfirmOpen: false };
+    case 'webLogoutConfirmOpened':
+      return { ...state, webLogoutConfirmOpen: true };
     case 'testReset':
       return { ...state, testState: 'idle' };
     case 'testStarted':
@@ -155,10 +164,19 @@ const weReadSettingsQuery = queryOptions({
   queryFn: async () => (await getDesktopApi().weRead.getState()).settings,
 });
 
+const weReadWebLoginQuery = queryOptions({
+  queryKey: ['weread', 'web-login'],
+  queryFn: () => getDesktopApi().weRead.getWebLogin(),
+});
+
 export function WeReadSettingsPanel() {
   const { i18n, t } = useTranslation();
   const queryClient = useQueryClient();
   const { data: settings = defaultWeReadSettings } = useQuery(weReadSettingsQuery);
+  const { data: webLoggedIn = false } = useQuery({
+    ...weReadWebLoginQuery,
+    enabled: settings.openMethod === 'in-app',
+  });
   const [panel, dispatch] = useReducer(weReadPanelReducer, initialWeReadPanelState);
   const {
     apiKey,
@@ -171,6 +189,7 @@ export function WeReadSettingsPanel() {
     revealedStoredApiKey,
     testMessage,
     testState,
+    webLogoutConfirmOpen,
   } = panel;
   const revealRequestRef = useRef(0);
   const testRequestRef = useRef(0);
@@ -311,6 +330,12 @@ export function WeReadSettingsPanel() {
       onError: () => setSettings((current) => ({ ...current, syncMode: previous })),
       onSaved: (state) => setSettings(state.settings),
     });
+  }
+
+  async function clearWebLogin() {
+    dispatch({ type: 'webLogoutConfirmClosed' });
+    await getDesktopApi().weRead.clearWebLogin();
+    queryClient.setQueryData(weReadWebLoginQuery.queryKey, false);
   }
 
   async function openWeReadApiKeyHelp() {
@@ -514,6 +539,43 @@ export function WeReadSettingsPanel() {
         })}
       </SettingsGroup>
 
+      {settings.openMethod === 'in-app' ? (
+        <SettingsGroup label={t('settings.weread.webLoginGroup')}>
+          <SettingsRow
+            title={
+              webLoggedIn
+                ? t('settings.weread.webLoginSignedIn')
+                : t('settings.weread.webLoginSignedOut')
+            }
+            description={
+              webLoggedIn
+                ? t('settings.weread.webLoginSignedInDescription')
+                : t('settings.weread.webLoginSignedOutDescription')
+            }
+          >
+            {webLoggedIn ? (
+              <Button
+                className="action-button"
+                type="button"
+                variant="secondary"
+                onClick={() => dispatch({ type: 'webLogoutConfirmOpened' })}
+              >
+                {t('settings.weread.webLogout')}
+              </Button>
+            ) : null}
+          </SettingsRow>
+        </SettingsGroup>
+      ) : null}
+      <SettingsConfirmDialog
+        cancelLabel={t('settings.confirm.cancel')}
+        confirmLabel={t('settings.weread.webLogout')}
+        description={t('settings.weread.webLogoutConfirmDescription')}
+        open={webLogoutConfirmOpen}
+        title={t('settings.weread.webLogoutConfirmTitle')}
+        onCancel={() => dispatch({ type: 'webLogoutConfirmClosed' })}
+        onConfirm={() => void clearWebLogin()}
+      />
+
       <SettingsGroup
         label={t('settings.weread.syncModeGroup')}
         aside={
@@ -581,6 +643,11 @@ const wereadOpenMethods: Array<{
     value: 'web',
     labelKey: 'settings.weread.webLabel',
     descriptionKey: 'settings.weread.webDescription',
+  },
+  {
+    value: 'in-app',
+    labelKey: 'settings.weread.inAppLabel',
+    descriptionKey: 'settings.weread.inAppDescription',
   },
 ];
 

@@ -217,6 +217,7 @@ export const wereadIpcInvokeSchemas = {
       bookId: idSchema,
       chapterUid: z.number().int().nonnegative().optional(),
       range: z.string().min(1).max(256).optional(),
+      text: z.string().min(1).max(4000).optional(),
       userVid: z.number().int().nonnegative().optional(),
     }),
   ]),
@@ -229,11 +230,23 @@ export const wereadIpcInvokeSchemas = {
   'weread:save-settings': z.tuple([
     z.object({
       apiKey: z.string().max(4096).optional(),
-      openMethod: z.enum(['deeplink', 'web']).optional(),
+      openMethod: z.enum(['deeplink', 'web', 'in-app']).optional(),
       removeApiKey: z.boolean().optional(),
       syncMode: z.enum(['manual', 'auto']).optional(),
     }),
   ]),
+  'weread:set-reader-bounds': z.tuple([
+    z
+      .object({
+        x: z.number().finite(),
+        y: z.number().finite(),
+        width: z.number().finite().nonnegative(),
+        height: z.number().finite().nonnegative(),
+        compact: z.boolean(),
+      })
+      .nullable(),
+  ]),
+  'weread:turn-reader-page': z.tuple([z.enum(['left', 'right'])]),
   'weread:sync-book': z.tuple([idSchema]),
   'weread:test': z.tuple([z.string().max(4096).optional()]),
 };

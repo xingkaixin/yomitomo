@@ -126,7 +126,7 @@ export function useWeReadLibrarySession({ onOpenBook }: UseWeReadLibrarySessionI
   const openExternal = useCallback(
     async (
       book: WeReadBook,
-      target: { chapterUid?: number; range?: string; userVid?: number } = {},
+      target: { chapterUid?: number; range?: string; text?: string; userVid?: number } = {},
     ) => {
       dispatch({ type: 'externalOpenStarted' });
       try {

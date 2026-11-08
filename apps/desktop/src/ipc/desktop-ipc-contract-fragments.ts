@@ -746,6 +746,37 @@ export const weReadIpcInvokeDescriptors = {
     roles: mainOnly,
     validation: 'schema',
   }),
+  'weread:set-reader-bounds': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'weread:set-reader-bounds'>,
+    void
+  >()({
+    route: ['weRead', 'setReaderBounds'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'weread:turn-reader-page': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'weread:turn-reader-page'>,
+    void
+  >()({
+    route: ['weRead', 'turnReaderPage'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'weread:close-reader': desktopIpcInvoke<[], void>()({
+    route: ['weRead', 'closeReader'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+  }),
+  'weread:get-web-login': desktopIpcInvoke<[], boolean>()({
+    route: ['weRead', 'getWebLogin'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+  }),
+  'weread:clear-web-login': desktopIpcInvoke<[], void>()({
+    route: ['weRead', 'clearWebLogin'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+  }),
   'weread:get-reading-stats': desktopIpcInvoke<[], WeReadReadingStatsState>()({
     route: ['weRead', 'getReadingStats'],
     roles: mainOnly,

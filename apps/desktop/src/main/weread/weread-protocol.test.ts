@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { buildWeReadOpenUrl, getWeReadStatsPeriodStart } from './weread-protocol';
+import {
+  buildWeReadOpenUrl,
+  getWeReadStatsPeriodStart,
+  isWeReadReaderUrl,
+} from './weread-protocol';
 
 describe('WeRead open URLs', () => {
   it('encodes numeric book and chapter ids for the web reader', () => {
@@ -15,6 +19,22 @@ describe('WeRead open URLs', () => {
         'deeplink',
       ),
     ).toBe('weread://bestbookmark?bookId=book_1&chapterUid=7&rangeStart=10&rangeEnd=24&userVid=9');
+  });
+});
+
+describe('WeRead in-app reader navigation', () => {
+  it('keeps the login redirect back to the reader inside the window', () => {
+    expect(isWeReadReaderUrl('https://weread.qq.com/?code=abc&state=')).toBe(true);
+  });
+
+  it.each([
+    'https://open.weixin.qq.com/connect/qrconnect',
+    'https://weread.qq.com.evil.example/web/reader/x',
+    'http://weread.qq.com/web/reader/x',
+    'https://weread.qq.com:8443/web/reader/x',
+    'javascript:alert(1)',
+  ])('sends %s out of the logged-in window', (url) => {
+    expect(isWeReadReaderUrl(url)).toBe(false);
   });
 });
 

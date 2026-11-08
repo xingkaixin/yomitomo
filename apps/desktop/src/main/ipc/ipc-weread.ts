@@ -2,10 +2,23 @@ import type { DesktopMainIpcContext } from './ipc';
 import { handleDesktopIpc } from './ipc';
 import { buildWeReadOpenUrl, getWeReadStatsPeriodStart } from '../weread/weread-protocol';
 import { syncWeReadLibrary } from '../weread/weread-sync';
+import {
+  clearWeReadWebLogin,
+  closeWeReadReader,
+  hasWeReadWebLogin,
+  openWeReadReader,
+  setWeReadReaderBounds,
+  turnWeReadReaderPage,
+} from '../windows/weread-reader-view';
 
 type WeReadIpcContext = Pick<
   DesktopMainIpcContext,
-  'configureWeReadAutoSync' | 'elapsedMs' | 'logError' | 'logInfo' | 'openExternalUrl'
+  | 'configureWeReadAutoSync'
+  | 'elapsedMs'
+  | 'getMainWindow'
+  | 'logError'
+  | 'logInfo'
+  | 'openExternalUrl'
 > & {
   getPersistenceModules: () => Promise<{
     weReadRepository: Pick<
@@ -85,8 +98,19 @@ export function registerWeReadIpc(context: WeReadIpcContext) {
   handleDesktopIpc('weread:open', async (_event, target) => {
     const { weReadRepository: weReadPersistence } = await context.getPersistenceModules();
     const settings = await weReadPersistence.readWeReadSettings();
-    return context.openExternalUrl(buildWeReadOpenUrl(target, settings.openMethod));
+    const url = buildWeReadOpenUrl(target, settings.openMethod);
+    if (settings.openMethod !== 'in-app') return context.openExternalUrl(url);
+    const window = context.getMainWindow();
+    if (!window || window.isDestroyed()) return;
+    return openWeReadReader(window, url, context.openExternalUrl, target.text);
   });
+  handleDesktopIpc('weread:set-reader-bounds', (_event, bounds) => setWeReadReaderBounds(bounds));
+  handleDesktopIpc('weread:turn-reader-page', (_event, direction) =>
+    turnWeReadReaderPage(direction),
+  );
+  handleDesktopIpc('weread:close-reader', () => closeWeReadReader());
+  handleDesktopIpc('weread:get-web-login', () => hasWeReadWebLogin());
+  handleDesktopIpc('weread:clear-web-login', () => clearWeReadWebLogin());
   handleDesktopIpc('weread:get-reading-stats', async () => {
     const { weReadRepository: weReadPersistence } = await context.getPersistenceModules();
     return weReadPersistence.readWeReadReadingStatsState();

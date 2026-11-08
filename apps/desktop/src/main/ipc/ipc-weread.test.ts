@@ -63,6 +63,7 @@ function weReadIpcContext(
   return {
     configureWeReadAutoSync: vi.fn(),
     elapsedMs: () => 1,
+    getMainWindow: () => null,
     getPersistenceModules: async () => ({
       weReadRepository: {
         readStoredWeReadApiKey: vi.fn(),

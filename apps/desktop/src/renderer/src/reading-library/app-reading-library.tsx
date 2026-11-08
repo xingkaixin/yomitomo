@@ -30,6 +30,7 @@ import { publicPersonaAgents } from '../source/bookcase/source-public-agents';
 import type { ReadingEvidenceSourceTarget } from '../shell/app-reading-types';
 import { LibraryHome } from './app-reading-library-home';
 import { WeReadBookcase } from '../shell/app-weread-bookcase';
+import { weReadReaderState } from '../shell/app-weread-reader-pane';
 import { appToast } from '../shell/app-toast';
 import { groupLibraryArticles, type LibrarySort } from './app-reading-library-utils';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
@@ -126,6 +127,7 @@ export function ReadingLibrary({
     onReadArticle: readArticle,
   });
   const sourceJumpRef = useRef<ReadingEvidenceSourceTarget | null>(null);
+  const [weReadReader, dispatchWeReadReader] = useReducer(weReadReaderState, null);
   const reportArticleLoadError = useCallback(() => {
     appToast.error(t('library.articleLoadFailed'));
   }, [t]);
@@ -366,8 +368,27 @@ export function ReadingLibrary({
       onOpenWeReadBook: (book: WeReadBook) => {
         sourceJumpRef.current = null;
         void weRead.openBook(book);
+        if (weRead.settings.openMethod !== 'in-app' || weReadReader?.bookId === book.bookId) return;
+        dispatchWeReadReader({
+          type: 'readerOpened',
+          bookId: book.bookId,
+          mode: 'compact',
+          noteKey: null,
+        });
+        void weRead.openExternal(book);
       },
-      onOpenWeReadExternal: (book: WeReadBook) => void weRead.openExternal(book),
+      onOpenWeReadExternal: (book: WeReadBook) => {
+        if (weRead.settings.openMethod !== 'in-app') return void weRead.openExternal(book);
+        sourceJumpRef.current = null;
+        dispatchWeReadReader({
+          type: 'readerOpened',
+          bookId: book.bookId,
+          mode: 'full',
+          noteKey: null,
+        });
+        void weRead.openBook(book);
+        void weRead.openExternal(book);
+      },
       onSetLibraryPin: setLibraryPin,
     },
     querySession: libraryQuerySession,
@@ -403,13 +424,22 @@ export function ReadingLibrary({
           <div className="library-shelf-content">
             {selectedWeReadBook ? (
               <WeReadBookcase
+                currentNoteKey={
+                  weReadReader?.bookId === selectedWeReadBook.book.bookId
+                    ? weReadReader.noteKey
+                    : null
+                }
                 detail={selectedWeReadBook}
+                inAppReader={weRead.settings.openMethod === 'in-app'}
+                readerMode={
+                  weReadReader?.bookId === selectedWeReadBook.book.bookId ? weReadReader.mode : null
+                }
                 syncing={weRead.bookSyncing}
-                userProfile={userProfile}
                 onClose={openLibraryShelf}
                 onOpenExternal={(target) =>
                   void weRead.openExternal(selectedWeReadBook.book, target)
                 }
+                onReaderEvent={dispatchWeReadReader}
                 onSync={() => void weRead.syncBook(selectedWeReadBook.book.bookId)}
               />
             ) : selectedArticle ? (

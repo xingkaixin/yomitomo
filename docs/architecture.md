@@ -38,6 +38,13 @@ telemetry → shared
 - 窗口分三类：主窗口；批注窗口（讨论与沉淀两个路由，按文章和批注复用，见
   `apps/desktop/src/main/windows/annotation-window-lifecycle.ts`）；使用独立 session 的隐藏网页导入窗口，
   拒绝页面的权限请求和新窗口（`apps/desktop/src/main/articles/article-import.ts`）。
+- 微信读书网页版不开新窗口，而是挂在主窗口上的一个 `WebContentsView`，全局只有一个
+  （`apps/desktop/src/main/windows/weread-reader-view.ts`）。它不在 renderer 的 DOM 里：renderer 留一个占位区域，
+  把位置和是否为小窗通过 `weread:set-reader-bounds` 同步给 main，占位区域卸载时隐藏。离开书架只隐藏不关闭，
+  阅读库记住它属于哪本书和全屏或小窗形态，回到同一本书时原样恢复；用户关闭阅读器、主窗口重新加载或应用锁定时关闭。它使用持久 partition `persist:weread-reader` 保存网页登录态，不挂 preload，拒绝权限请求，
+  只在全屏显示时放行网页版写阅读进度的 `POST /web/book/read`，小窗和隐藏时拦截，
+  顶层导航只允许 `https://weread.qq.com`，其他链接交给系统浏览器。原生视图总在 renderer 内容之上，
+  与它重叠的 renderer 弹层会被盖住。
 - 每个 invoke channel 由一个 descriptor 声明路由、允许的窗口角色和参数校验方式，见
   `apps/desktop/src/ipc/desktop-ipc-descriptor.ts`。参数在 main 侧用 Zod 校验
   （`apps/desktop/src/ipc-schemas.ts`）；角色表按类型穷尽，新 channel 不声明角色无法编译
