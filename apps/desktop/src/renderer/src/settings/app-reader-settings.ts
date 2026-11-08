@@ -5,6 +5,7 @@ import {
   defaultReaderSettings,
   defaultReaderBackgroundForTone,
   normalizeReaderBackgroundColor,
+  normalizeReaderDistillationColor,
   readerBackgroundTone,
   type ReaderBackgroundTone,
 } from '@yomitomo/reader-ui/reader-settings';
@@ -55,6 +56,7 @@ export function normalizeDesktopReaderSettings(
       defaultReaderSettings.contentWidth,
     ),
     backgroundColor: normalizeReaderBackgroundColor(settings?.backgroundColor),
+    distillationColor: normalizeReaderDistillationColor(settings?.distillationColor),
   };
 }
 

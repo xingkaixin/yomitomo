@@ -255,37 +255,30 @@ export const composerTooltipHighlightResponsiveStyles = `.reader-composer textar
   outline:2px solid var(--app-interactive-focus-ring);
   outline-offset:-2px
 }
+/* An uneven 120px stroke repeated along the line reads as drawn by hand rather than as a wave. */
 .reader-highlight::after {
-  content:"";
-  position:absolute;
-  inset:0;
-  border-radius:2px;
-  background:var(--highlight-line);
-  opacity:var(--reader-paper-hl,.5);
-  transform-origin:left center;
-  transition:opacity .16s ease
-}
-.reader-highlight.is-active::after {
-  opacity:var(--reader-paper-hl-on,.78)
-}
-.reader-highlight::before {
   content:"";
   position:absolute;
   z-index:1;
   left:min(var(--highlight-edge-size,0px),42%);
   right:min(var(--highlight-edge-size,0px),42%);
-  bottom:-2px;
-  height:2px;
+  bottom:calc(var(--highlight-offset,-2px) - var(--highlight-thickness,3px) / 2);
+  height:calc(var(--highlight-thickness,3px) * 2);
+  border-radius:999px;
   background:var(--highlight-line);
-  opacity:0;
-  transition:opacity .16s ease
+  opacity:var(--highlight-opacity,.62);
+  -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 8' preserveAspectRatio='none'%3E%3Cpath d='M0 4.4C10 3.6 22 3.4 34 4.1S58 5.3 72 4.6 100 3.3 120 4.4' stroke='black' stroke-width='3.4' fill='none'/%3E%3C/svg%3E");
+  mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 8' preserveAspectRatio='none'%3E%3Cpath d='M0 4.4C10 3.6 22 3.4 34 4.1S58 5.3 72 4.6 100 3.3 120 4.4' stroke='black' stroke-width='3.4' fill='none'/%3E%3C/svg%3E");
+  -webkit-mask-repeat:repeat-x;
+  mask-repeat:repeat-x;
+  -webkit-mask-size:120px 100%;
+  mask-size:120px 100%;
+  transform-origin:left center;
+  transition:opacity .16s ease,height .16s ease
 }
 .reader-highlight.is-new::after {
   animation:reader-highlight-grow .42s cubic-bezier(.22,1,.36,1) both;
   animation-delay:var(--highlight-grow-delay,0ms)
-}
-.reader-highlight.is-active::before {
-  opacity:1
 }
 .reader-highlight.is-filter-dimmed {
   cursor:default
@@ -300,7 +293,7 @@ export const composerTooltipHighlightResponsiveStyles = `.reader-composer textar
   border-radius:3px;
   background:var(--app-reader-selection)
 }
-.reader-highlight.is-temporary::before,.reader-highlight.is-temporary::after,.reader-highlight.is-temporary .reader-highlight-dots {
+.reader-highlight.is-temporary::after,.reader-highlight.is-temporary .reader-highlight-dots {
   display:none
 }
 .reader-highlight.is-search {

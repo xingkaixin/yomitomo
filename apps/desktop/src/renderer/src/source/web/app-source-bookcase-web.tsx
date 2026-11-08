@@ -495,7 +495,12 @@ function WebSourceReader({
         <>
           {bilingualTranslation.toolbar}
           <ReaderSettingsToolbarControls
-            labels={{ articleWidth: labels.articleWidth, fontSize: labels.fontSize }}
+            labels={{
+              appearance: labels.readerAppearance,
+              articleWidth: labels.articleWidth,
+              distillationColor: labels.distillationColor,
+              fontSize: labels.fontSize,
+            }}
             settings={readerSettings}
             onChange={updateReaderSettings}
           />

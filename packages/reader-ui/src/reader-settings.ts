@@ -5,7 +5,7 @@ export const readerBodyLineHeight = '1.78';
 
 export type ReaderBackgroundTone = 'light' | 'dark';
 
-// ink, muted and highlight alphas per paper come from the A2 design system (paper-<id>-ink, -ink-mut, -hl, -hl-on).
+// ink and muted colors per paper come from the A2 design system (paper-<id>-ink, -ink-mut).
 export const readerBackgroundOptions = [
   {
     label: '纸白',
@@ -13,8 +13,6 @@ export const readerBackgroundOptions = [
     value: defaultReaderBackgroundColor,
     ink: '#1f1c18',
     muted: '#6d665c',
-    highlight: 0.5,
-    highlightActive: 0.78,
   },
   {
     label: '暖米',
@@ -22,8 +20,6 @@ export const readerBackgroundOptions = [
     value: '#f7eddc',
     ink: '#1f1c18',
     muted: '#6a5f50',
-    highlight: 0.55,
-    highlightActive: 0.85,
   },
   {
     label: '淡绿',
@@ -31,8 +27,6 @@ export const readerBackgroundOptions = [
     value: '#eef4e8',
     ink: '#1f1c18',
     muted: '#5f665a',
-    highlight: 0.55,
-    highlightActive: 0.85,
   },
   {
     label: '冷灰',
@@ -40,8 +34,6 @@ export const readerBackgroundOptions = [
     value: '#eef1f4',
     ink: '#1f1c18',
     muted: '#5d636b',
-    highlight: 0.55,
-    highlightActive: 0.85,
   },
   {
     label: '松烟',
@@ -49,8 +41,6 @@ export const readerBackgroundOptions = [
     value: '#242019',
     ink: '#e4ddd2',
     muted: '#a99f90',
-    highlight: 0.24,
-    highlightActive: 0.4,
   },
   {
     label: '黛蓝',
@@ -58,8 +48,6 @@ export const readerBackgroundOptions = [
     value: '#171a21',
     ink: '#e2e3e6',
     muted: '#9da3ad',
-    highlight: 0.22,
-    highlightActive: 0.38,
   },
   {
     label: '纯白',
@@ -67,8 +55,6 @@ export const readerBackgroundOptions = [
     value: '#ffffff',
     ink: '#1f1c18',
     muted: '#6d665c',
-    highlight: 0.5,
-    highlightActive: 0.78,
   },
   {
     label: '深蓝',
@@ -76,8 +62,6 @@ export const readerBackgroundOptions = [
     value: '#012032',
     ink: '#dfe7ec',
     muted: '#93a9b6',
-    highlight: 0.22,
-    highlightActive: 0.38,
   },
 ] as const;
 
@@ -94,8 +78,6 @@ export function readerPaperCssVariables(value: string | undefined) {
   return {
     '--reader-paper-ink': paper.ink,
     '--reader-paper-muted': paper.muted,
-    '--reader-paper-hl': String(paper.highlight),
-    '--reader-paper-hl-on': String(paper.highlightActive),
   };
 }
 
@@ -110,10 +92,14 @@ export function defaultReaderBackgroundForTone(tone: ReaderBackgroundTone): stri
   );
 }
 
+// Distilled highlights need a line color the user's own annotation colors never use.
+export const readerDistillationColorOptions = ['#8ab6d6', '#6fa48f', '#b99ac8', '#d58b63'] as const;
+
 export const defaultReaderSettings: ReaderSettings = {
   fontSize: 20,
   contentWidth: 860,
   backgroundColor: defaultReaderBackgroundColor,
+  distillationColor: readerDistillationColorOptions[0],
 };
 
 export function clampNumber(value: number | undefined, min: number, max: number, fallback: number) {
@@ -124,4 +110,11 @@ export function clampNumber(value: number | undefined, min: number, max: number,
 export function normalizeReaderBackgroundColor(value: string | undefined): string {
   if (value && readerBackgroundOptions.some((option) => option.value === value)) return value;
   return defaultReaderSettings.backgroundColor;
+}
+
+export function normalizeReaderDistillationColor(value: string | undefined): string {
+  return (
+    readerDistillationColorOptions.find((option) => option === value) ??
+    defaultReaderSettings.distillationColor
+  );
 }

@@ -16,6 +16,7 @@ import type {
   FoliatePageInfo,
   FoliateViewElement,
 } from '../source/ebook/ebook-foliate-view';
+import { defaultReaderSettings } from '@yomitomo/reader-ui/reader-settings';
 import { lightTheme } from '../theme/app-theme';
 
 vi.mock('../vendor/foliate-js/view.js', () => ({}));
@@ -93,7 +94,7 @@ function FoliateViewProbe({
     article,
     maxColumnCount,
     readerTheme: lightTheme.reader,
-    readerSettings: { fontSize, contentWidth: 720, backgroundColor: '#fffdf8' },
+    readerSettings: { ...defaultReaderSettings, fontSize, contentWidth: 720 },
     onSaveArticleReadingProgress,
     onAttachFoliateDocumentListeners,
     onBeforePageTurn,

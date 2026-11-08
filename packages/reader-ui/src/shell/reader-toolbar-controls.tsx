@@ -4,19 +4,21 @@ import {
   ArrowHorizontalIcon,
   CaseSensitiveIcon,
   MinusSignIcon,
+  PaintBoardIcon,
 } from '@hugeicons/core-free-icons';
 import type React from 'react';
 import { useId, useReducer } from 'react';
+import { readerDistillationColorOptions } from '../reader-settings';
 import type { ReaderSettings } from '../reader-types';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { ReaderTooltip } from '../shared/reader-component-primitives';
 
 export function ReaderSettingsToolbarControls({
-  labels = { articleWidth: '文章宽度', fontSize: '字号' },
+  labels = defaultToolbarLabels,
   settings,
   onChange,
 }: {
-  labels?: { articleWidth: string; fontSize: string };
+  labels?: ReaderToolbarLabels;
   settings: ReaderSettings;
   onChange: (settings: ReaderSettings) => void;
 }) {
@@ -42,7 +44,79 @@ export function ReaderSettingsToolbarControls({
         value={settings.contentWidth}
         onChange={(contentWidth) => onChange({ ...settings, contentWidth })}
       />
+      <ReaderToolbarAppearancePopover labels={labels} settings={settings} onChange={onChange} />
     </>
+  );
+}
+
+export type ReaderToolbarLabels = {
+  appearance: string;
+  articleWidth: string;
+  distillationColor: string;
+  fontSize: string;
+};
+
+const defaultToolbarLabels: ReaderToolbarLabels = {
+  appearance: '阅读外观',
+  articleWidth: '文章宽度',
+  distillationColor: '沉淀划线',
+  fontSize: '字号',
+};
+
+function ReaderToolbarAppearancePopover({
+  labels,
+  settings,
+  onChange,
+}: {
+  labels: ReaderToolbarLabels;
+  settings: ReaderSettings;
+  onChange: (settings: ReaderSettings) => void;
+}) {
+  const [open, dispatch] = useReducer(sliderPopoverReducer, false);
+  const popoverId = useId();
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(nextOpen) => dispatch({ type: 'openChanged', open: nextOpen })}
+    >
+      <ReaderTooltip content={labels.appearance} side="bottom">
+        <PopoverTrigger asChild>
+          <button
+            aria-controls={popoverId}
+            aria-expanded={open}
+            aria-label={labels.appearance}
+            className={open ? 'reader-icon-button is-active' : 'reader-icon-button'}
+            type="button"
+          >
+            <HugeiconsIcon icon={PaintBoardIcon} size={16} />
+          </button>
+        </PopoverTrigger>
+      </ReaderTooltip>
+      <PopoverContent className="reader-toolbar-popover reader-appearance-popover" id={popoverId}>
+        <div className="reader-appearance-section">
+          <span className="reader-appearance-label">{labels.distillationColor}</span>
+          <div
+            className="reader-appearance-swatches"
+            role="radiogroup"
+            aria-label={labels.distillationColor}
+          >
+            {readerDistillationColorOptions.map((color, index) => (
+              <button
+                aria-checked={settings.distillationColor === color}
+                aria-label={`${labels.distillationColor} ${index + 1}`}
+                className="reader-appearance-line"
+                key={color}
+                role="radio"
+                style={{ '--reader-swatch': color } as React.CSSProperties}
+                type="button"
+                onClick={() => onChange({ ...settings, distillationColor: color })}
+              />
+            ))}
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 

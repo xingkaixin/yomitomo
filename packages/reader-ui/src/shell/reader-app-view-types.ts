@@ -185,6 +185,8 @@ export type ReaderUiLabels = {
   annotationNavigation: string;
   annotationProcessing: string;
   articleWidth: string;
+  distillationColor: string;
+  readerAppearance: string;
   adjustSelectionEnd: string;
   adjustSelectionStart: string;
   askSelection: string;
@@ -263,6 +265,8 @@ export const defaultReaderUiLabels: ReaderUiLabels = {
   annotationNavigation: '划线快捷选择',
   annotationProcessing: '助手处理中',
   articleWidth: '文章宽度',
+  distillationColor: '沉淀划线',
+  readerAppearance: '阅读外观',
   adjustSelectionEnd: '调整选区终点',
   adjustSelectionStart: '调整选区起点',
   askSelection: '问一下',

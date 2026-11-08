@@ -528,4 +528,49 @@ export const toolbarStyles = `.reader-main {
   background:var(--reader-ink);
   box-shadow:0 2px 7px var(--app-reader-ink-a16);
   appearance:none
+}
+.reader-appearance-popover {
+  width:auto;
+  padding:12px
+}
+.reader-appearance-section {
+  display:grid;
+  gap:8px
+}
+.reader-appearance-label {
+  color:var(--reader-muted);
+  font-size:12px;
+  font-weight:500
+}
+.reader-appearance-swatches {
+  display:flex;
+  gap:6px
+}
+.reader-appearance-line {
+  display:grid;
+  width:40px;
+  height:28px;
+  place-items:center;
+  border:1px solid transparent;
+  border-radius:6px;
+  background:transparent;
+  padding:0
+}
+.reader-appearance-line::after {
+  content:"";
+  width:22px;
+  height:3px;
+  border-radius:999px;
+  background:var(--reader-swatch)
+}
+.reader-appearance-line:hover {
+  background:var(--app-reader-toolbar-control-hover-bg)
+}
+.reader-appearance-line[aria-checked="true"] {
+  border-color:var(--app-reader-toolbar-border);
+  background:var(--app-reader-toolbar-control-bg)
+}
+.reader-appearance-line:focus-visible {
+  outline:2px solid var(--app-reader-focus-ring);
+  outline-offset:1px
 }`;

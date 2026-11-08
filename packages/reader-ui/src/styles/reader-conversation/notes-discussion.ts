@@ -333,6 +333,11 @@ export const notesDiscussionStyles = `.reader-note {
 .reader-note.has-distillation .reader-note-text,.reader-note-dual-face-distillation .reader-note-text {
   font-family:var(--font-reader-serif, Charter, Georgia, Cambria, "Times New Roman", serif)
 }
+.reader-note-highlight-text {
+  color:var(--reader-muted);
+  font-family:var(--font-reader-serif, Charter, Georgia, Cambria, "Times New Roman", serif);
+  -webkit-line-clamp:2
+}
 .reader-note.has-discussion .reader-note-meta {
   padding-left:0
 }
