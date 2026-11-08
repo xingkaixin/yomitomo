@@ -1,9 +1,6 @@
 export const toolbarStyles = `.reader-main {
   grid-template-columns:minmax(0,1fr)
 }
-.reader-brand {
-  min-width:0
-}
 .reader-toolbar {
   position:relative;
   display:grid;
@@ -46,16 +43,6 @@ export const toolbarStyles = `.reader-main {
 .reader-back:active {
   transform:scale(.96)
 }
-.reader-toolbar-article {
-  display:flex;
-  flex:1 1 auto;
-  max-width:100%;
-  align-items:center;
-  gap:12px;
-  min-width:0;
-  overflow:hidden;
-  font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif)
-}
 .reader-toolbar>.reader-toolbar-article {
   grid-column:2;
   width:100%;
@@ -68,12 +55,6 @@ export const toolbarStyles = `.reader-main {
   place-items:center
 }
 .reader-toolbar-article-copy {
-  display:grid;
-  flex:0 1 auto;
-  gap:5px;
-  max-width:100%;
-  min-width:0;
-  overflow:hidden;
   justify-items:center;
   text-align:center
 }
@@ -81,51 +62,11 @@ export const toolbarStyles = `.reader-main {
   justify-items:start;
   text-align:left
 }
-.reader-toolbar-article-title {
-  max-width:100%;
-  overflow:hidden;
-  color:var(--reader-ink);
-  font-size:15px;
-  font-weight:920;
-  line-height:1.18;
-  text-overflow:ellipsis;
-  white-space:nowrap
-}
 .reader-toolbar-article-meta {
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:8px;
-  min-width:0;
-  margin:0;
-  color:var(--reader-muted);
-  font-size:12px;
-  font-weight:760;
-  line-height:1.25
+  justify-content:center
 }
 .reader-toolbar-article.has-cover .reader-toolbar-article-meta {
   justify-content:flex-start
-}
-.reader-toolbar-article-meta span {
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap
-}
-.reader-toolbar-article-meta span+span::before {
-  content:"";
-  display:inline-block;
-  width:4px;
-  height:4px;
-  margin-right:8px;
-  border-radius:999px;
-  background:var(--reader-ink-weak);
-  vertical-align:2px
-}
-.reader-toolbar-article-action {
-  display:flex;
-  flex:0 0 auto;
-  align-items:center;
-  gap:8px
 }
 .reader-toolbar>.reader-toolbar-actions {
   grid-column:3;
@@ -171,7 +112,7 @@ export const toolbarStyles = `.reader-main {
   border:1px solid var(--app-reader-toolbar-border);
   border-radius:6px;
   background:var(--app-reader-toolbar-bg);
-  box-shadow:var(--reader-soft-shadow),inset 0 1px 0 color-mix(in srgb,var(--reader-paper) 58%,transparent);
+  box-shadow:var(--reader-soft-shadow),inset 0 1px 0 var(--app-reader-paper-a56);
   backdrop-filter:blur(16px);
   -webkit-backdrop-filter:blur(16px);
   font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);
@@ -217,7 +158,7 @@ export const toolbarStyles = `.reader-main {
   width:1px;
   background:var(--reader-ink-subtle)
 }
-.reader-floating-toolbar .reader-icon-button,.reader-floating-toolbar .reader-close {
+.reader-floating-toolbar .reader-icon-button {
   width:30px;
   height:30px;
   min-height:30px;
@@ -228,11 +169,12 @@ export const toolbarStyles = `.reader-main {
   color:var(--reader-ink);
   transition:transform .14s ease
 }
-.reader-floating-toolbar .reader-icon-button:hover:not(:disabled),.reader-floating-toolbar .reader-icon-button.is-active,.reader-floating-toolbar .reader-close:hover:not(:disabled) {
+.reader-floating-toolbar .reader-icon-button:hover:not(:disabled),
+.reader-floating-toolbar .reader-icon-button.is-active {
   background:transparent;
   color:var(--reader-ink)
 }
-.reader-floating-toolbar .reader-icon-button:active:not(:disabled),.reader-floating-toolbar .reader-close:active:not(:disabled) {
+.reader-floating-toolbar .reader-icon-button:active:not(:disabled) {
   transform:scale(.96)
 }
 .reader-floating-toolbar .reader-icon-button.is-busy svg,.reader-translation-confirm-actions .is-primary svg {
@@ -246,7 +188,7 @@ export const toolbarStyles = `.reader-main {
   border:1px solid var(--app-reader-toolbar-border);
   border-radius:8px;
   background:var(--app-reader-toolbar-bg);
-  box-shadow:var(--reader-soft-shadow),inset 0 1px 0 color-mix(in srgb,var(--reader-paper) 58%,transparent);
+  box-shadow:var(--reader-soft-shadow),inset 0 1px 0 var(--app-reader-paper-a56);
   font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif)
 }
 .reader-translation-menu button {
@@ -277,7 +219,7 @@ export const toolbarStyles = `.reader-main {
   opacity:.45
 }
 .reader-translation-menu button.is-danger {
-  color:var(--reader-red,var(--app-reader-danger,#8a3f32))
+  color:var(--app-reader-danger)
 }
 .reader-translation-menu span {
   overflow:hidden;
@@ -291,7 +233,7 @@ export const toolbarStyles = `.reader-main {
   display:grid;
   place-items:center;
   padding:22px;
-  background:color-mix(in srgb,var(--reader-ink) 18%,transparent);
+  background:var(--app-reader-ink-a16);
   backdrop-filter:blur(4px);
   animation:reader-dialog-fade-in .16s ease
 }
@@ -346,7 +288,7 @@ export const toolbarStyles = `.reader-main {
   transition:background .14s ease,box-shadow .14s ease,transform .14s ease
 }
 .reader-translation-confirm-actions button:hover:not(:disabled) {
-  box-shadow:0 6px 14px color-mix(in srgb,var(--reader-ink) 8%,transparent)
+  box-shadow:0 6px 14px var(--app-reader-ink-a8)
 }
 .reader-translation-confirm-actions button:active:not(:disabled) {
   transform:scale(.97)
@@ -360,8 +302,8 @@ export const toolbarStyles = `.reader-main {
   color:var(--reader-paper)
 }
 .reader-translation-confirm-actions .is-danger {
-  background:var(--reader-red,var(--app-reader-danger,#8a3f32));
-  color:var(--app-reader-paper,#fff)
+  background:var(--app-reader-danger);
+  color:var(--app-reader-paper)
 }
 @keyframes reader-dialog-fade-in {
   from {
@@ -542,7 +484,7 @@ export const toolbarStyles = `.reader-main {
   border:1px solid var(--app-reader-toolbar-border);
   border-radius:8px;
   background:var(--app-reader-toolbar-bg);
-  box-shadow:var(--reader-soft-shadow),inset 0 1px 0 color-mix(in srgb,var(--reader-paper) 58%,transparent)
+  box-shadow:var(--reader-soft-shadow),inset 0 1px 0 var(--app-reader-paper-a56)
 }
 .reader-toolbar-popover-slider-row {
   display:grid;
@@ -584,6 +526,6 @@ export const toolbarStyles = `.reader-main {
   border:2px solid var(--reader-paper);
   border-radius:999px;
   background:var(--reader-ink);
-  box-shadow:0 2px 7px color-mix(in srgb,var(--reader-ink) 16%,transparent);
+  box-shadow:0 2px 7px var(--app-reader-ink-a16);
   appearance:none
 }`;

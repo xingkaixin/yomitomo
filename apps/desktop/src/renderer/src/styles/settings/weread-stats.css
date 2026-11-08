@@ -164,7 +164,7 @@
 .weread-stats-bars i {
   height: 8px;
   border-radius: 999px;
-  background: hsl(12 58% 45% / 0.78);
+  background: var(--chart-2);
 }
 
 .weread-stats-bars p {

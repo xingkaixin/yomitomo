@@ -27,7 +27,7 @@
   inset: 0 auto 0 0;
   z-index: 0;
   width: 0;
-  background: color-mix(in srgb, var(--app-action-danger-bg) 12%, transparent);
+  background: var(--app-danger-a12);
   content: '';
 }
 
@@ -38,18 +38,12 @@
 }
 
 .library-item-delete:hover {
-  background: color-mix(in srgb, var(--app-action-danger-bg) 12%, transparent);
+  background: var(--app-danger-a12);
   color: var(--app-action-danger-bg);
 }
 
 .library-item-delete:active {
   transform: scale(0.96);
-}
-
-@keyframes library-delete-hold {
-  to {
-    width: 100%;
-  }
 }
 
 .library-empty {

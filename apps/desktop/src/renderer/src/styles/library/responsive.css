@@ -1,14 +1,4 @@
-@media (max-width: 1120px) {
-  .library-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 @media (max-width: 760px) {
-  .library-list {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
   .library-ebook-list-item {
     grid-template-columns: 120px minmax(0, 1fr);
     padding-right: 68px;

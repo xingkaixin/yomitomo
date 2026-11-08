@@ -48,7 +48,7 @@
   background: var(--app-reader-paper);
   box-shadow:
     inset -1px 0 0 var(--app-reader-line),
-    18px 0 46px color-mix(in srgb, var(--app-reader-ink) 16%, transparent);
+    18px 0 46px var(--app-reader-ink-a16);
   padding: 16px;
 }
 
@@ -179,7 +179,7 @@
   z-index: 50;
   display: grid;
   place-items: center;
-  background: color-mix(in srgb, var(--app-reader-ink) 32%, transparent);
+  background: var(--app-reader-ink-a32);
   padding: 22px;
 }
 
@@ -193,7 +193,7 @@
   border: 1px solid var(--app-reader-toolbar-border);
   border-radius: 16px;
   background: var(--app-reader-paper);
-  box-shadow: 0 28px 80px color-mix(in srgb, var(--app-reader-ink) 22%, transparent);
+  box-shadow: 0 28px 80px var(--app-reader-ink-a20);
   color: var(--app-reader-ink);
   padding: 0;
 }
@@ -289,7 +289,7 @@
   border: 2px solid var(--app-reader-paper);
   border-radius: 999px;
   background: var(--app-reader-paper);
-  box-shadow: 0 2px 7px color-mix(in srgb, var(--app-reader-ink) 14%, transparent);
+  box-shadow: 0 2px 7px var(--app-reader-ink-a12);
   color: inherit;
   line-height: 1;
   overflow: visible;
@@ -311,7 +311,7 @@
 .annotation-discussion-add-agents .reader-agent-avatar-stack-item:focus-visible,
 .annotation-discussion-add-agents .reader-agent-avatar-stack-item.is-revealed {
   z-index: 2;
-  box-shadow: 0 8px 18px color-mix(in srgb, var(--app-reader-ink) 16%, transparent);
+  box-shadow: 0 8px 18px var(--app-reader-ink-a16);
 }
 
 .annotation-discussion-add-agents .reader-agent-avatar-stack-item:focus-visible,
@@ -338,7 +338,7 @@
   border: 1px solid var(--app-reader-selection-menu-border);
   border-radius: 10px;
   background: var(--app-reader-paper);
-  box-shadow: var(--app-subtle-panel-shadow);
+  box-shadow: var(--app-raised-shadow);
   color: var(--app-reader-ink);
   font-size: 11px;
   font-weight: 760;
@@ -451,23 +451,15 @@
 }
 
 .annotation-discussion-sedimentation-entry button.is-primary {
-  border-color: color-mix(
-    in srgb,
-    var(--app-action-primary-bg) 76%,
-    var(--app-reader-toolbar-border)
-  );
+  border-color: var(--app-action-primary-border);
   background: var(--app-action-primary-bg);
-  box-shadow: 0 8px 18px color-mix(in srgb, var(--app-action-primary-bg) 18%, transparent);
+  box-shadow: 0 8px 18px var(--app-ink-a16);
   color: var(--app-action-primary-fg);
 }
 
 .annotation-discussion-sedimentation-entry button.is-primary:hover {
-  border-color: color-mix(
-    in srgb,
-    var(--app-action-primary-bg) 88%,
-    var(--app-reader-toolbar-border)
-  );
-  background: color-mix(in srgb, var(--app-action-primary-bg) 92%, var(--app-reader-paper));
+  border-color: var(--app-action-primary-border);
+  background: var(--app-action-primary-hover-bg);
 }
 
 .annotation-discussion-sedimentation-entry button:active {
@@ -525,7 +517,7 @@
 
 .annotation-discussion-idea.is-selected {
   border-color: var(--app-reader-toolbar-border);
-  background: color-mix(in srgb, var(--app-reader-accent-strong) 7%, var(--app-reader-paper));
+  background: var(--app-reader-accent-strong-a8);
   box-shadow: inset 4px 0 0 var(--app-reader-accent-strong);
 }
 
@@ -541,9 +533,9 @@
   width: 18px;
   height: 18px;
   place-items: center;
-  border: 1px solid color-mix(in srgb, var(--app-reader-accent-strong) 34%, transparent);
+  border: 1px solid var(--app-reader-accent-strong-a32);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--app-reader-accent-strong) 14%, var(--app-reader-paper));
+  background: var(--app-reader-accent-strong-a12);
   color: var(--app-reader-accent-strong);
 }
 
@@ -568,7 +560,7 @@
   place-items: center;
   overflow: hidden;
   border-radius: 999px;
-  background: var(--app-user-annotation-default);
+  background: var(--app-reader-primary);
   color: var(--app-reader-paper);
   font-size: 11px;
   font-weight: 800;
@@ -668,7 +660,7 @@
   border: 1px solid var(--app-reader-toolbar-border);
   border-radius: 12px;
   background: var(--app-reader-paper);
-  box-shadow: var(--app-subtle-panel-shadow);
+  box-shadow: var(--app-raised-shadow);
   padding: 6px;
 }
 

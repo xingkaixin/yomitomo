@@ -26,7 +26,8 @@ subpath imports so each wrapper imports only the primitive it needs.
   These wrappers may use Tailwind classes, `cn`, `class-variance-authority`,
   desktop z-index variables, and AppTheme CSS variables.
 - [Desktop renderer style ownership](./desktop-style-ownership.md) covers
-  desktop renderer CSS.
+  desktop renderer CSS. Popup and dropdown open/close motion lives in
+  `styles/popup-motion.css`.
 - `packages/reader-ui/src/components/ui`: reader-ui wrappers. These wrappers
   must not depend on desktop renderer modules, Tailwind config, Electron, or
   desktop-only theme helpers.

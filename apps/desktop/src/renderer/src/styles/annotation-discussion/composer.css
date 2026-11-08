@@ -20,7 +20,7 @@
   border: 1px solid var(--app-reader-toolbar-border);
   border-radius: 999px;
   background: var(--app-reader-toolbar-bg);
-  box-shadow: var(--app-subtle-panel-shadow);
+  box-shadow: var(--app-raised-shadow);
   color: var(--app-reader-ink);
 }
 
@@ -60,7 +60,7 @@
   border: 2px solid var(--app-reader-paper);
   border-radius: 999px;
   background: var(--app-reader-paper);
-  box-shadow: 0 2px 7px color-mix(in srgb, var(--app-reader-ink) 12%, transparent);
+  box-shadow: 0 2px 7px var(--app-reader-ink-a12);
   color: inherit;
   line-height: 1;
   overflow: visible;
@@ -82,7 +82,7 @@
 .annotation-discussion-agent-dock .reader-agent-avatar-stack-item:focus-visible,
 .annotation-discussion-agent-dock .reader-agent-avatar-stack-item.is-revealed {
   z-index: 2;
-  box-shadow: 0 8px 18px color-mix(in srgb, var(--app-reader-ink) 16%, transparent);
+  box-shadow: 0 8px 18px var(--app-reader-ink-a16);
 }
 
 .annotation-discussion-agent-dock .reader-agent-avatar-stack-item:focus-visible,
@@ -116,7 +116,7 @@
   border: 1px solid var(--app-reader-selection-menu-border);
   border-radius: 10px;
   background: var(--app-reader-paper);
-  box-shadow: var(--app-subtle-panel-shadow);
+  box-shadow: var(--app-raised-shadow);
   color: var(--app-reader-ink);
   font-size: 11px;
   font-weight: 760;
@@ -141,8 +141,8 @@
   border-radius: 10px;
   background: var(--app-reader-paper);
   box-shadow:
-    0 18px 54px color-mix(in srgb, var(--app-reader-ink) 12%, transparent),
-    0 2px 10px color-mix(in srgb, var(--app-reader-ink) 6%, transparent);
+    0 18px 54px var(--app-reader-ink-a12),
+    0 2px 10px var(--app-reader-ink-a6);
   padding: 10px;
 }
 
@@ -176,7 +176,7 @@
 }
 
 .floating-composer.has-mention-overlay .floating-composer-textarea::selection {
-  background: color-mix(in srgb, var(--app-reader-accent) 22%, transparent);
+  background: var(--app-reader-accent-a20);
   color: transparent;
 }
 
@@ -203,9 +203,8 @@
 .floating-composer-mention-chip {
   display: inline;
   border-radius: 4px;
-  background: color-mix(in srgb, var(--mention-accent, var(--app-reader-accent)) 18%, transparent);
-  box-shadow: 0 0 0 1px
-    color-mix(in srgb, var(--mention-accent, var(--app-reader-accent)) 28%, transparent);
+  background: var(--app-reader-accent-a16);
+  box-shadow: 0 0 0 1px var(--app-reader-accent-a24);
   color: color-mix(
     in srgb,
     var(--mention-accent, var(--app-reader-accent)) 76%,

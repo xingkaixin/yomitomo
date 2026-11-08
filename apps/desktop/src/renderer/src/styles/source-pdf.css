@@ -3,7 +3,6 @@
   --reader-paper: var(--app-reader-paper);
   --reader-ink: var(--app-reader-ink);
   --reader-muted: var(--app-reader-muted);
-  --reader-line: var(--app-reader-line);
   --reader-green: var(--app-reader-primary);
   --reader-red: var(--app-reader-danger);
   --reader-yellow: var(--app-reader-accent);
@@ -17,12 +16,6 @@
   min-height: 0;
   background: var(--app-shell-background);
   padding: 0;
-}
-
-.source-pdf-reader-shell .source-reader-back-button {
-  top: 14px;
-  left: var(--reader-titlebar-back-left);
-  height: 38px;
 }
 
 .pdf-reader-main {
@@ -115,16 +108,11 @@
   padding: 10px 12px;
   color: hsl(var(--muted-foreground));
   font-size: 0.84rem;
-  box-shadow: 0 14px 32px rgb(15 23 42 / 0.12);
+  box-shadow: var(--app-float-shadow);
 }
 
 .pdf-reader-status.is-error {
   color: hsl(var(--destructive));
-}
-
-.pdf-reader-progress {
-  justify-self: stretch;
-  width: 100%;
 }
 
 .source-pdfium-spike-shell {
@@ -221,14 +209,6 @@
 .source-pdfium-spike-reader
   .reader-annotation-rail
   > .reader-note:has(.reader-comment-agent-more-menu)
-  .reader-note-body,
-.source-pdfium-spike-reader
-  .reader-annotation-rail
-  > .reader-note.has-review-burst
-  .reader-note-body,
-.source-pdfium-spike-reader
-  .reader-annotation-rail
-  > .reader-note.has-review-menu
   .reader-note-body {
   overflow: visible;
 }
@@ -304,42 +284,12 @@
   mix-blend-mode: multiply;
 }
 
-.pdfium-spike-floating-toolbar {
-  position: absolute;
-  z-index: 40;
-  display: inline-flex;
-  align-items: center;
-  border: 1px solid var(--app-reader-toolbar-border);
-  background: var(--app-reader-toolbar-bg);
-  color: var(--app-reader-ink);
-  box-shadow: 0 14px 36px rgb(15 23 42 / 0.12);
-}
-
-.pdfium-spike-floating-toolbar {
-  top: 14px;
-  left: 50%;
-  gap: 6px;
-  height: 38px;
-  transform: translateX(-50%);
-  padding: 0 8px;
-  font-size: 0.78rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.pdfium-spike-floating-toolbar button {
-  width: 30px;
-  height: 30px;
-  min-height: 30px;
-  border-radius: 0;
-  box-shadow: none;
-}
-
-.pdfium-spike-floating-toolbar span {
-  min-width: 42px;
-  color: hsl(var(--muted-foreground));
-  text-align: center;
-}
-
 .pdfium-page-slider {
   width: 92px;
+}
+
+@media (max-width: 760px) {
+  .source-pdf-reader-shell {
+    padding: 0;
+  }
 }

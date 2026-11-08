@@ -169,7 +169,7 @@
   border: 1px solid var(--app-edge-soft);
   border-radius: 12px;
   background: var(--app-panel);
-  box-shadow: var(--app-shell-panel-shadow);
+  box-shadow: var(--app-panel-shadow);
 }
 
 .app-nav-update-button {
@@ -282,7 +282,7 @@
   opacity: 0;
   border-radius: 999px;
   background: var(--app-action-primary-bg);
-  box-shadow: 0 8px 18px hsl(31 34% 24% / 0.14);
+  box-shadow: var(--app-float-shadow);
   color: var(--app-action-primary-fg);
   content: attr(data-tooltip);
   font-size: 12px;
@@ -616,6 +616,6 @@
 .app-nav-profile-button:hover .avatar-image.app-nav-profile-avatar,
 .app-nav-profile-button:focus-visible .avatar-image.app-nav-profile-avatar {
   border-color: hsl(var(--foreground) / 0.58);
-  box-shadow: 0 6px 14px hsl(31 34% 24% / 0.12);
+  box-shadow: 0 6px 14px var(--app-shadow-a12);
   transform: scale(1.05);
 }

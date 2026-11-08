@@ -53,7 +53,7 @@
   left: 28px;
   height: 18px;
   border-radius: 999px;
-  background: rgb(38 27 16 / 0.16);
+  background: var(--app-shadow-a16);
   filter: blur(12px);
   opacity: 0.7;
   transform: translate3d(0, 0, -24px) scaleX(0.76);
@@ -293,7 +293,6 @@
   z-index: 2;
   display: flex;
   flex-direction: column;
-  padding: 13% 12%;
   background: hsl(var(--card));
 }
 
@@ -301,10 +300,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: calc(var(--book-cover-width) * 0.26);
-  height: calc(var(--book-cover-width) * 0.26);
   overflow: hidden;
-  border-radius: 7px;
   background: hsl(var(--muted));
 }
 
@@ -316,15 +312,12 @@
 
 .web-cover-fav-letter {
   color: hsl(var(--card-foreground));
-  font-size: calc(var(--book-cover-width) * 0.15);
   font-weight: 800;
 }
 
 .web-cover-domain {
-  margin-block: 8% 5%;
   overflow: hidden;
   color: hsl(var(--muted-foreground));
-  font-size: max(7px, calc(var(--book-cover-width) * 0.085));
   font-weight: 600;
   letter-spacing: 0.01em;
   text-overflow: ellipsis;
@@ -337,9 +330,7 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 4;
   color: hsl(var(--card-foreground));
-  font-size: max(9px, calc(var(--book-cover-width) * 0.115));
   font-weight: 720;
-  line-height: 1.34;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
@@ -397,7 +388,7 @@
   border-radius: 6px;
   background: hsl(0 0% 99.5%);
   box-shadow:
-    0 2px 6px hsl(31 34% 24% / 0.1),
+    0 2px 6px var(--app-shadow-a12),
     inset 0 0 0 1px hsl(var(--border) / 0.55);
   transform-origin: 50% 120%;
   transition: transform 280ms cubic-bezier(0.2, 0, 0, 1);
@@ -468,34 +459,26 @@
 }
 
 /* 扁平封面 hover：卡片轻抬 + chrome 滑入，不做书本打开 */
-.library-card:hover .article-cover-card,
-.library-card:focus-within .article-cover-card,
 .library-web-item:hover .article-cover-card,
 .library-web-item:focus-within .article-cover-card,
 .library-ebook-list-item:hover .is-flat-cover .article-cover-card,
 .library-ebook-list-item:focus-within .is-flat-cover .article-cover-card {
   box-shadow:
-    var(--app-shell-panel-shadow),
+    var(--app-panel-shadow),
     inset 0 0 0 1px hsl(var(--border) / 0.6);
 }
 
-.library-card:hover .pdf-cover-bar,
-.library-card:focus-within .pdf-cover-bar,
 .library-ebook-list-item:hover .pdf-cover-bar,
 .library-ebook-list-item:focus-within .pdf-cover-bar {
   transform: translateY(0);
 }
 
-.library-card:hover .web-cover-chrome,
-.library-card:focus-within .web-cover-chrome,
 .library-web-item:hover .web-cover-chrome,
 .library-web-item:focus-within .web-cover-chrome {
   transform: translateY(0);
 }
 
 /* 文本稿纸 hover：后层叠纸向右下扇出 */
-.library-card:hover .is-text-cover .text-cover-sheet.s2,
-.library-card:focus-within .is-text-cover .text-cover-sheet.s2,
 .library-web-item:hover .is-text-cover .text-cover-sheet.s2,
 .library-web-item:focus-within .is-text-cover .text-cover-sheet.s2,
 .library-ebook-list-item:hover .is-text-cover .text-cover-sheet.s2,
@@ -503,8 +486,6 @@
   transform: translate(6px, 2px) rotate(2.4deg);
 }
 
-.library-card:hover .is-text-cover .text-cover-sheet.s3,
-.library-card:focus-within .is-text-cover .text-cover-sheet.s3,
 .library-web-item:hover .is-text-cover .text-cover-sheet.s3,
 .library-web-item:focus-within .is-text-cover .text-cover-sheet.s3,
 .library-ebook-list-item:hover .is-text-cover .text-cover-sheet.s3,
@@ -520,8 +501,6 @@
     transition-duration: 1ms;
   }
 
-  .library-card:hover .is-text-cover .text-cover-sheet.s2,
-  .library-card:focus-within .is-text-cover .text-cover-sheet.s2,
   .library-web-item:hover .is-text-cover .text-cover-sheet.s2,
   .library-web-item:focus-within .is-text-cover .text-cover-sheet.s2,
   .library-ebook-list-item:hover .is-text-cover .text-cover-sheet.s2,
@@ -529,8 +508,6 @@
     transform: translate(3px, 1px) rotate(1deg);
   }
 
-  .library-card:hover .is-text-cover .text-cover-sheet.s3,
-  .library-card:focus-within .is-text-cover .text-cover-sheet.s3,
   .library-web-item:hover .is-text-cover .text-cover-sheet.s3,
   .library-web-item:focus-within .is-text-cover .text-cover-sheet.s3,
   .library-ebook-list-item:hover .is-text-cover .text-cover-sheet.s3,
@@ -541,41 +518,23 @@
 
 .library-ebook-list-item:hover .article-book-scene,
 .library-ebook-list-item:focus-within .article-book-scene,
-.library-ebook-shelf-item:hover .article-book-scene,
-.library-ebook-shelf-item:focus-within .article-book-scene,
-.library-card:hover .article-book-scene,
-.library-card:focus-within .article-book-scene,
 .library-web-item:hover .article-book-scene,
-.library-web-item:focus-within .article-book-scene,
-.library-bookcase-item:hover .article-book-scene,
-.library-bookcase-item.is-active .article-book-scene {
+.library-web-item:focus-within .article-book-scene {
   transform: rotateY(var(--book-hover-rotate)) scale(var(--book-hover-scale))
     translateX(var(--book-hover-translate-x));
 }
 
 .library-ebook-list-item:hover .article-book,
 .library-ebook-list-item:focus-within .article-book,
-.library-ebook-shelf-item:hover .article-book,
-.library-ebook-shelf-item:focus-within .article-book,
-.library-card:hover .article-book,
-.library-card:focus-within .article-book,
 .library-web-item:hover .article-book,
-.library-web-item:focus-within .article-book,
-.library-bookcase-item:hover .article-book,
-.library-bookcase-item.is-active .article-book {
+.library-web-item:focus-within .article-book {
   transform: translateY(-2px);
 }
 
 .library-ebook-list-item:hover .article-book-ground-shadow,
 .library-ebook-list-item:focus-within .article-book-ground-shadow,
-.library-ebook-shelf-item:hover .article-book-ground-shadow,
-.library-ebook-shelf-item:focus-within .article-book-ground-shadow,
-.library-card:hover .article-book-ground-shadow,
-.library-card:focus-within .article-book-ground-shadow,
 .library-web-item:hover .article-book-ground-shadow,
-.library-web-item:focus-within .article-book-ground-shadow,
-.library-bookcase-item:hover .article-book-ground-shadow,
-.library-bookcase-item.is-active .article-book-ground-shadow {
+.library-web-item:focus-within .article-book-ground-shadow {
   opacity: 0.82;
   transform: translate3d(12px, 2px, -24px) scaleX(1.02);
 }
@@ -589,10 +548,6 @@
 
   .library-ebook-list-item:hover .article-book-scene,
   .library-ebook-list-item:focus-within .article-book-scene,
-  .library-ebook-shelf-item:hover .article-book-scene,
-  .library-ebook-shelf-item:focus-within .article-book-scene,
-  .library-card:hover .article-book-scene,
-  .library-card:focus-within .article-book-scene,
   .library-web-item:hover .article-book-scene,
   .library-web-item:focus-within .article-book-scene {
     transform: rotateY(-10deg) scale(1.03) translateX(-4px);
@@ -600,10 +555,6 @@
 
   .library-ebook-list-item:hover .article-book,
   .library-ebook-list-item:focus-within .article-book,
-  .library-ebook-shelf-item:hover .article-book,
-  .library-ebook-shelf-item:focus-within .article-book,
-  .library-card:hover .article-book,
-  .library-card:focus-within .article-book,
   .library-web-item:hover .article-book,
   .library-web-item:focus-within .article-book {
     transform: translateY(-1px);

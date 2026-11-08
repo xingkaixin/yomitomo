@@ -261,7 +261,7 @@ function foliateReaderCss(settings: ReaderSettings, theme: ReaderTheme) {
     }
 
     ::selection {
-      background: rgb(77 155 114 / 0.18);
+      background: ${theme.selection};
     }
 
     p, li, blockquote, dd {

@@ -1,30 +1,4 @@
-export const markdownDialogTocStyles = `.reader-composer-types {
-  display:flex;
-  flex-wrap:wrap;
-  gap:6px;
-  margin-bottom:10px
-}
-.reader-composer-types button {
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  gap:4px;
-  border:1px solid rgba(37,29,22,.12);
-  border-radius:999px;
-  background:var(--reader-paper);
-  color:var(--reader-muted);
-  font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);
-  font-size:11px;
-  font-weight:850;
-  line-height:1;
-  padding:7px 9px
-}
-.reader-composer-types button:hover,.reader-composer-types button.is-active {
-  border-color:rgba(159,91,80,.18);
-  background:rgba(159,91,80,.07);
-  color:var(--reader-red)
-}
-.reader-comment-body {
+export const markdownDialogTocStyles = `.reader-comment-body {
   min-width:0
 }
 .reader-comment-author {
@@ -59,46 +33,12 @@ export const markdownDialogTocStyles = `.reader-composer-types {
   align-items:center;
   gap:3px;
   border-radius:999px;
-  background:rgba(159,91,80,.07);
+  background:var(--app-reader-accent-strong-a8);
   color:var(--reader-red);
   font-size:10px;
   font-weight:850;
   line-height:1;
   padding:3px 6px
-}
-.reader-comment .reader-review-label {
-  display:inline-flex;
-  width:max-content;
-  max-width:100%;
-  height:auto;
-  min-width:0;
-  align-items:center;
-  margin:0 0 5px;
-  border:1px solid transparent;
-  border-radius:999px;
-  font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);
-  font-size:9px;
-  font-weight:900;
-  line-height:1;
-  overflow-wrap:normal;
-  padding:3px 6px;
-  white-space:nowrap;
-  word-break:normal
-}
-.reader-review-label.is-support {
-  border-color:var(--reader-review-support-border);
-  background:var(--reader-review-support-bg);
-  color:var(--reader-review-support-fg)
-}
-.reader-review-label.is-challenge {
-  border-color:var(--reader-review-challenge-border);
-  background:var(--reader-review-challenge-bg);
-  color:var(--reader-review-challenge-fg)
-}
-.reader-review-label.is-supplement {
-  border-color:var(--reader-review-supplement-border);
-  background:var(--reader-review-supplement-bg);
-  color:var(--reader-review-supplement-fg)
 }
 .reader-markdown {
   min-width:0;
@@ -148,7 +88,7 @@ export const markdownDialogTocStyles = `.reader-composer-types {
 .reader-markdown blockquote {
   margin:8px 0;
   padding-left:10px;
-  border-left:3px solid color-mix(in srgb,var(--reader-red) 28%,transparent);
+  border-left:3px solid var(--app-reader-danger-a24);
   color:var(--reader-ink)
 }
 .reader-markdown code {
@@ -175,7 +115,7 @@ export const markdownDialogTocStyles = `.reader-composer-types {
 .reader-markdown a {
   color:inherit;
   text-decoration:underline;
-  text-decoration-color:rgba(37,29,22,.35);
+  text-decoration-color:var(--app-reader-ink-a32);
   text-decoration-thickness:1px;
   text-underline-offset:.16em
 }
@@ -192,7 +132,7 @@ export const markdownDialogTocStyles = `.reader-composer-types {
   border:0;
   border-radius:999px;
   background:transparent;
-  color:var(--reader-red,var(--app-reader-danger,#8a3f32));
+  color:var(--app-reader-danger);
   font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);
   font-weight:850;
   padding:0 12px;
@@ -200,7 +140,7 @@ export const markdownDialogTocStyles = `.reader-composer-types {
   white-space:nowrap
 }
 .reader-delete-note:hover {
-  background:color-mix(in srgb,var(--reader-red,var(--app-reader-danger,#8a3f32)) 7%,transparent)
+  background:var(--app-reader-danger-a6)
 }
 .reader-delete-note>span {
   display:inline;
@@ -219,7 +159,7 @@ export const markdownDialogTocStyles = `.reader-composer-types {
   position:fixed;
   inset:0;
   z-index:var(--reader-z-modal,var(--app-z-modal,320));
-  background:color-mix(in srgb,var(--reader-ink,var(--app-reader-ink,#251d16)) 38%,transparent)
+  background:var(--app-reader-ink-a40)
 }
 .reader-confirm-dialog {
   position:fixed;
@@ -230,11 +170,11 @@ export const markdownDialogTocStyles = `.reader-composer-types {
   display:grid;
   gap:16px;
   padding:20px;
-  border:1px solid var(--app-reader-note-border,color-mix(in srgb,var(--app-reader-ink,#251d16) 14%,transparent));
+  border:1px solid var(--app-reader-note-border,var(--app-reader-ink-a12));
   border-radius:16px;
-  background:var(--reader-paper,var(--app-reader-paper,#fffaf0));
-  box-shadow:0 22px 70px color-mix(in srgb,var(--reader-ink,var(--app-reader-ink,#251d16)) 22%,transparent);
-  color:var(--reader-ink,var(--app-reader-ink,#251d16));
+  background:var(--app-reader-paper);
+  box-shadow:0 22px 70px var(--app-reader-ink-a20);
+  color:var(--app-reader-ink);
   font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);
   transform:translate(-50%,-50%)
 }
@@ -250,19 +190,19 @@ export const markdownDialogTocStyles = `.reader-composer-types {
   height:36px;
   place-items:center;
   border-radius:999px;
-  background:color-mix(in srgb,var(--reader-red,var(--app-reader-danger,#8a3f32)) 14%,transparent);
-  color:var(--reader-red,var(--app-reader-danger,#8a3f32))
+  background:var(--app-reader-danger-a12);
+  color:var(--app-reader-danger)
 }
 .reader-confirm-dialog h2 {
   margin:0;
-  color:var(--reader-ink,var(--app-reader-ink,#251d16));
+  color:var(--app-reader-ink);
   font-size:15px;
   font-weight:850;
   line-height:1.3
 }
 .reader-confirm-dialog p {
   margin:6px 0 0;
-  color:var(--reader-muted,var(--app-reader-muted,#756a5d));
+  color:var(--app-reader-muted);
   font-size:13px;
   line-height:1.55
 }
@@ -280,25 +220,12 @@ export const markdownDialogTocStyles = `.reader-composer-types {
   padding:9px 14px
 }
 .reader-confirm-cancel {
-  background:var(--reader-paper-hover,color-mix(in srgb,var(--app-reader-ink,#251d16) 6%,var(--app-reader-paper,#fffaf0)));
-  color:var(--reader-ink,var(--app-reader-ink,#251d16))
+  background:var(--app-reader-paper-hover);
+  color:var(--app-reader-ink)
 }
 .reader-confirm-delete {
-  background:var(--reader-red,var(--app-reader-danger,#8a3f32));
-  color:var(--app-reader-paper,#fff)
-}
-.reader-agent-annotate-popover {
-  position:fixed;
-  inset:0;
-  z-index:var(--reader-z-modal);
-  display:grid;
-  place-items:center;
-  width:auto;
-  padding:34px;
-  pointer-events:none
-}
-.reader-agent-annotate-popover .reader-agent-annotate-menu {
-  margin:0
+  background:var(--app-reader-danger);
+  color:var(--app-reader-paper)
 }
 .reader-toc-item-main {
   display:grid;
@@ -333,7 +260,7 @@ export const markdownDialogTocStyles = `.reader-composer-types {
   width:var(--reader-toc-line-current-width);
   height:1px;
   border-radius:999px;
-  background:color-mix(in srgb,var(--reader-ink) 22%,transparent);
+  background:var(--app-reader-ink-a20);
   transform-origin:left center;
   transition:width var(--reader-toc-motion),background .16s ease;
   will-change:width
@@ -342,7 +269,7 @@ export const markdownDialogTocStyles = `.reader-composer-types {
   background:var(--reader-green)
 }
 .reader-toc-item.is-active {
-  background:color-mix(in srgb,var(--reader-green) 10%,var(--app-reader-toc-item-hover-bg));
+  background:var(--app-reader-toc-item-active-bg);
   box-shadow:none;
   color:var(--reader-ink)
 }
@@ -351,10 +278,10 @@ export const markdownDialogTocStyles = `.reader-composer-types {
   min-width:23px;
   height:23px;
   place-items:center;
-  border:1px solid color-mix(in srgb,var(--reader-toc-count-color,var(--reader-green)) 42%,rgba(37,29,22,.14));
+  border:1px solid color-mix(in srgb,var(--reader-toc-count-color,var(--reader-green)) 42%,var(--app-reader-ink-a12));
   border-radius:999px;
   background:color-mix(in srgb,var(--reader-toc-count-color,var(--reader-green)) 58%,var(--reader-paper));
-  box-shadow:inset 0 1px 0 color-mix(in srgb,var(--reader-paper) 46%,transparent);
+  box-shadow:inset 0 1px 0 var(--app-reader-paper-a48);
   color:var(--reader-ink);
   font-size:11px;
   font-weight:850;
@@ -376,9 +303,9 @@ export const markdownDialogTocStyles = `.reader-composer-types {
   gap:7px;
   margin-top:18px;
   padding:12px 10px;
-  border:1px solid rgba(37,29,22,.12);
+  border:1px solid var(--app-reader-ink-a12);
   border-radius:14px;
-  background:var(--reader-paper-panel);
+  background:var(--app-reader-paper);
   color:var(--reader-muted);
   font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);
   font-size:12px;

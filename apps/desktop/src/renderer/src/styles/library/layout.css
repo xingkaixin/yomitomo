@@ -102,25 +102,6 @@
   padding: 0;
 }
 
-.library-source-tabs {
-  flex: 0 0 auto;
-  border-bottom: 0;
-}
-
-.library-toolbar {
-  min-height: 42px;
-  border-top: 1px solid hsl(var(--border) / 0.72);
-  border-bottom: 1px solid hsl(var(--border) / 0.72);
-  padding: 0 34px;
-}
-
-.library-toolbar > span {
-  color: hsl(var(--muted-foreground));
-  font-size: 11px;
-  font-weight: 820;
-  letter-spacing: 0.12em;
-}
-
 .library-home-body {
   display: grid;
   min-height: 0;
@@ -191,15 +172,6 @@
   will-change: opacity, transform;
 }
 
-.library-list {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.library-web-grid {
-  border-left: 1px solid hsl(var(--border) / 0.72);
-  padding-top: 1px;
-}
-
 .library-web-item {
   position: relative;
   display: grid;
@@ -256,25 +228,6 @@
   line-height: 1.28;
 }
 
-.library-web-item-source {
-  display: block;
-  align-self: start;
-  padding: 0;
-}
-
-.library-web-item-source span {
-  display: block;
-  overflow: hidden;
-  color: hsl(var(--muted-foreground));
-  font-size: 10px;
-  font-weight: 860;
-  letter-spacing: 0.16em;
-  line-height: 1;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
 .library-web-item-main {
   align-self: start;
 }
@@ -323,8 +276,6 @@
 
 .library-web-item:hover .library-item-actions,
 .library-web-item:focus-within .library-item-actions,
-.library-ebook-shelf-item:hover .library-item-actions,
-.library-ebook-shelf-item:focus-within .library-item-actions,
 .library-ebook-list-item:hover .library-item-actions,
 .library-ebook-list-item:focus-within .library-item-actions {
   opacity: 1;
@@ -339,22 +290,6 @@
   height: 34px;
 }
 
-.library-card-open-icon {
-  display: none;
-}
-
-.library-ebook-list {
-  border-left: 0;
-}
-
-.library-ebook-list-item {
-  min-height: 148px;
-  grid-template-columns: 126px minmax(0, 1fr);
-  gap: 20px;
-  align-items: stretch;
-  padding: 18px 68px 18px 0;
-}
-
 .library-ebook-cover-column {
   display: grid;
   align-content: start;
@@ -362,10 +297,6 @@
   gap: 9px;
   min-width: 0;
   perspective: 920px;
-}
-
-.library-ebook-list-item .article-book {
-  --book-cover-height: 92px;
 }
 
 .library-cover-progress,
@@ -401,30 +332,6 @@
   gap: 10px;
 }
 
-.library-ebook-list-source {
-  min-width: 0;
-  overflow: hidden;
-}
-
-.library-ebook-list-source span {
-  display: block;
-  max-width: 100%;
-  overflow: hidden;
-  color: hsl(var(--muted-foreground));
-  font-size: 11px;
-  font-weight: 860;
-  letter-spacing: 0.16em;
-  line-height: 1;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.library-ebook-list-source.is-pdf-source span {
-  letter-spacing: 0.08em;
-  text-transform: none;
-}
-
 .library-ebook-list-main {
   min-width: 0;
   overflow: hidden;
@@ -435,7 +342,6 @@
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  font-size: clamp(22px, 2vw, 30px);
   line-height: 1.16;
   overflow-wrap: anywhere;
   white-space: normal;
@@ -446,7 +352,6 @@
   display: flex;
   align-items: end;
   justify-content: space-between;
-  gap: 16px;
   overflow: visible;
   white-space: normal;
 }
@@ -492,10 +397,6 @@
   text-align: right;
 }
 
-.library-count-separator {
-  color: hsl(var(--muted-foreground));
-}
-
 .library-ebook-list-item .library-item-actions {
   top: 10px;
   right: 10px;
@@ -529,8 +430,8 @@
 .library-article-list-item .library-card-pin-indicator {
   width: 18px;
   height: 18px;
-  border-color: color-mix(in srgb, var(--app-interactive-link) 42%, hsl(var(--border)));
-  background: color-mix(in srgb, var(--app-interactive-link) 12%, hsl(var(--card)));
+  border-color: var(--app-interactive-selected-border);
+  background: var(--app-interactive-selected-bg);
   color: var(--app-interactive-link);
 }
 
@@ -575,14 +476,6 @@
 
 .library-article-list-item.library-ebook-list-item h3 {
   font-size: clamp(19px, 1.35vw, 23px);
-}
-
-.library-article-list-meta {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 10px;
-  min-width: 0;
 }
 
 .library-article-list-item .library-web-item-meta,
@@ -674,15 +567,16 @@
 @media (max-width: 760px) {
   .library-home-header,
   .library-home-body,
-  .library-toolbar,
   .library-home-footer {
     padding-right: 18px;
     padding-left: 18px;
   }
+}
 
-  .library-ebook-list-item {
-    grid-template-columns: 120px minmax(0, 1fr);
-    gap: 16px;
-    padding-right: 68px;
-  }
+.library-ebook-list-item h3 {
+  font-size: clamp(19px, 1.45vw, 25px);
+}
+
+.library-ebook-list-meta {
+  gap: 12px;
 }

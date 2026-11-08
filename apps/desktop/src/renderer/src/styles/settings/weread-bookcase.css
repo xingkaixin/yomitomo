@@ -72,7 +72,7 @@
   --reader-muted: var(--app-reader-muted);
   --reader-green: var(--app-reader-primary);
   --reader-red: var(--app-reader-danger);
-  --reader-paper-hover: color-mix(in srgb, var(--reader-ink) 6%, var(--reader-paper));
+  --reader-paper-hover: var(--app-reader-paper-hover);
   display: grid;
   position: relative;
   height: 100%;
@@ -312,7 +312,7 @@
   border-bottom: 0;
   border-radius: 7px 7px 0 0;
   background: var(--reader-note-surface);
-  color: color-mix(in srgb, var(--reader-note-accent) 76%, var(--reader-ink));
+  color: var(--reader-note-accent);
   font-family: var(--font-ui);
   font-size: 10.5px;
   font-weight: 850;
@@ -340,7 +340,7 @@
   overflow: hidden;
   border-radius: 10px 0;
   background: var(--reader-note-surface);
-  box-shadow: 0 2px 5px color-mix(in srgb, var(--reader-ink) 7%, transparent);
+  box-shadow: 0 2px 5px var(--app-reader-ink-a6);
   padding: 18px 19px 12px;
 }
 
@@ -524,7 +524,7 @@
   display: block;
   margin: 10px -19px -12px;
   border-top: 1px solid var(--reader-note-border);
-  background: color-mix(in srgb, var(--reader-note-surface) 86%, var(--reader-note-accent));
+  background: var(--app-reader-accent-strong-a12);
   padding: 12px 15px 14px;
 }
 
@@ -604,7 +604,7 @@
   gap: 7px;
   border: 0;
   background: transparent;
-  color: hsl(118 24% 32%);
+  color: var(--app-interactive-link);
   font: inherit;
   font-size: 12px;
   font-weight: 780;
@@ -614,11 +614,19 @@
 
 .weread-help-link:hover,
 .weread-help-link:focus-visible {
-  color: hsl(118 30% 24%);
+  color: var(--app-interactive-link-hover);
   text-decoration: underline;
   text-underline-offset: 4px;
 }
 
 .weread-remove-action:disabled {
   opacity: 0.46;
+}
+
+@media (max-width: 760px) {
+  .weread-bookcase-header {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 8px;
+    padding-left: var(--reader-titlebar-mobile-back-left);
+  }
 }
