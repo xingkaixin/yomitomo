@@ -52,15 +52,17 @@
 .library-entity-grid .library-collection-list-item {
   min-height: 156px;
   align-items: stretch;
-  border-right: 1px solid hsl(var(--border) / 0.72);
-  border-bottom: 1px solid hsl(var(--border) / 0.72);
-  background: transparent;
+  border: 1px solid var(--app-edge);
+  border-radius: 12px;
+  background: var(--app-card-surface);
+  box-shadow: var(--app-card-shadow);
   padding: 0;
+  transition: box-shadow 150ms ease-out;
 }
 
 .library-collection-list-item:hover,
 .library-collection-list-item:focus-within {
-  background: hsl(var(--muted) / 0.26);
+  box-shadow: var(--app-float-shadow);
 }
 
 .library-collection-list-item .library-item-actions {
@@ -75,20 +77,8 @@
   opacity: 1;
 }
 
-.library-collection-list-item .library-card-more {
-  background: hsl(var(--card) / 0.9);
-}
-
-.library-collection-list-item .library-card-more:hover,
-.library-collection-list-item .library-card-more.is-active {
-  border-color: var(--app-action-primary-border);
-  background: var(--app-action-primary-bg);
-  color: var(--app-action-primary-fg);
-}
-
-/* 1a — the collection blends into the grid like the article cells (no card
-   chrome). The recent covers sit stacked like a hand on the right, fanning open
-   and squaring up on hover/focus. */
+/* The recent covers sit stacked like a hand on the right, fanning open and
+   squaring up on hover/focus. */
 .library-collection-fan {
   position: relative;
   height: 100%;
@@ -307,10 +297,10 @@
 .library-collection-dialog,
 .library-collection-picker-dialog {
   width: min(92vw, 440px);
-  border: 1px solid hsl(var(--border) / 0.84);
-  border-radius: 8px;
-  background: hsl(var(--popover) / 0.98);
-  box-shadow: var(--app-shell-panel-shadow);
+  border: 1px solid var(--app-edge);
+  border-radius: 16px;
+  background: var(--app-card-surface);
+  box-shadow: var(--app-dialog-shadow);
   color: hsl(var(--popover-foreground));
 }
 
@@ -333,7 +323,7 @@
   margin: 0;
   color: hsl(var(--popover-foreground));
   font-size: 18px;
-  font-weight: 860;
+  font-weight: 600;
   line-height: 1.2;
 }
 
@@ -353,18 +343,16 @@
 .library-collection-name-field span {
   color: hsl(var(--muted-foreground));
   font-size: 12px;
-  font-weight: 780;
+  font-weight: 500;
 }
 
 .library-collection-name-field input {
   height: 42px;
-  border-color: hsl(var(--border) / 0.84);
-  background: hsl(var(--card) / 0.92);
 }
 
 .library-collection-dialog-error {
   color: hsl(var(--destructive)) !important;
-  font-weight: 760;
+  font-weight: 500;
 }
 
 .library-collection-dialog footer,
@@ -385,13 +373,21 @@
 
 .library-collection-picker-dialog > header > button {
   display: inline-grid;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   flex: none;
   place-items: center;
-  border: 1px solid hsl(var(--border) / 0.82);
+  border: 0;
   border-radius: 999px;
-  background: hsl(var(--card) / 0.86);
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  transition:
+    background 150ms ease,
+    color 150ms ease;
+}
+
+.library-collection-picker-dialog > header > button:hover {
+  background: var(--app-interactive-hover-bg);
   color: hsl(var(--foreground));
 }
 
@@ -411,9 +407,10 @@
 .library-collection-picker-selection {
   min-height: 0;
   overflow: auto;
-  border: 1px solid hsl(var(--border) / 0.74);
-  border-radius: 8px;
-  background: hsl(var(--card) / 0.58);
+  border: 1px solid var(--app-edge-soft);
+  border-radius: 12px;
+  background: var(--app-well);
+  box-shadow: var(--app-well-shadow);
   padding: 10px;
 }
 
@@ -429,9 +426,10 @@
   align-items: center;
   gap: 12px;
   min-height: 82px;
-  border: 1px solid hsl(var(--border) / 0.58);
-  border-radius: 8px;
-  background: hsl(var(--popover) / 0.58);
+  border: 1px solid var(--app-edge);
+  border-radius: 10px;
+  background: var(--app-card-surface);
+  box-shadow: var(--app-card-shadow);
   color: hsl(var(--popover-foreground));
   padding: 8px 10px;
   transition:
@@ -447,9 +445,7 @@
 }
 
 .library-collection-picker-list > .library-collection-picker-item:hover {
-  border-color: var(--app-action-primary-border);
-  background: color-mix(in srgb, var(--app-action-primary-bg) 10%, hsl(var(--popover)));
-  box-shadow: 0 8px 22px hsl(var(--foreground) / 0.08);
+  box-shadow: var(--app-float-shadow);
 }
 
 .library-collection-picker-list > .library-collection-picker-item.is-dragging {
@@ -459,14 +455,12 @@
 .library-drag-overlay {
   z-index: 9999;
   max-width: 320px;
-  border: 1px solid hsl(var(--border) / 0.58);
-  border-radius: 8px;
-  background: hsl(var(--popover) / 0.96);
+  border: 1px solid var(--app-edge);
+  border-radius: 10px;
+  background: var(--app-card-surface);
   color: hsl(var(--popover-foreground));
   padding: 10px 12px;
-  box-shadow:
-    0 2px 6px hsl(var(--foreground) / 0.16),
-    0 18px 40px hsl(var(--foreground) / 0.24);
+  box-shadow: var(--app-float-shadow);
   font-size: 13px;
   font-weight: 760;
 }
@@ -575,7 +569,7 @@
   overflow: hidden;
   color: hsl(var(--foreground));
   font-size: 13px;
-  font-weight: 820;
+  font-weight: 600;
   line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -610,12 +604,13 @@
   width: 28px;
   height: 28px;
   place-items: center;
-  border: 1px solid hsl(var(--border) / 0.76);
+  border: 1px solid var(--app-edge);
   border-radius: 999px;
-  background: hsl(var(--card) / 0.72);
-  color: var(--app-interactive-link);
+  background: var(--app-raised);
+  box-shadow: var(--app-raised-shadow);
+  color: hsl(var(--foreground));
   font-size: 16px;
-  font-weight: 820;
+  font-weight: 500;
   line-height: 1;
   transition:
     background-color 160ms ease,
@@ -627,17 +622,19 @@
 .library-collection-picker-list
   > .library-collection-picker-item:hover
   .library-collection-picker-add {
-  border-color: var(--app-action-primary-border);
-  background: var(--app-action-primary-bg);
-  color: var(--app-action-primary-fg);
+  border-color: var(--app-ink-edge);
+  background: var(--app-ink);
+  box-shadow: var(--app-ink-shadow);
+  color: var(--app-ink-fg);
   transform: scale(1.06);
 }
 
 .library-collection-picker-add:hover,
 .library-collection-picker-add:focus-visible {
-  border-color: var(--app-action-primary-border);
-  background: var(--app-action-primary-bg);
-  color: var(--app-action-primary-fg);
+  border-color: var(--app-ink-edge);
+  background: var(--app-ink);
+  box-shadow: var(--app-ink-shadow);
+  color: var(--app-ink-fg);
   transform: scale(1.12);
   outline: 0;
 }
