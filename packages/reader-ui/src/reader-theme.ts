@@ -10,6 +10,9 @@ export type ReaderTheme = {
   accent: string;
   accentStrong: string;
   danger: string;
+  paperEdge: string;
+  paperShadow: string;
+  ribbon: string;
   toolbar: {
     background: string;
     border: string;
@@ -90,6 +93,9 @@ export function readerThemeToCssVariables(theme: ReaderTheme): CssVariableMap {
     '--app-reader-accent': theme.accent,
     '--app-reader-accent-strong': theme.accentStrong,
     '--app-reader-danger': theme.danger,
+    '--app-reader-paper-edge': theme.paperEdge,
+    '--app-reader-paper-shadow': theme.paperShadow,
+    '--app-reader-ribbon': theme.ribbon,
     '--app-reader-toolbar-bg': theme.toolbar.background,
     '--app-reader-toolbar-border': theme.toolbar.border,
     '--app-reader-toolbar-control-bg': theme.toolbar.controlBackground,
