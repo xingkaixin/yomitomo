@@ -57,9 +57,6 @@
   min-height: 260px;
   place-items: center;
   align-content: center;
-  border: 1px solid hsl(var(--border) / 0.86);
-  border-radius: 0;
-  background: hsl(var(--card));
   color: hsl(var(--muted-foreground));
   text-align: center;
 }
@@ -73,7 +70,7 @@
   color: hsl(var(--foreground));
   font-family: var(--font-reader-serif);
   font-size: 22px;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .library-empty p {
@@ -210,18 +207,18 @@
   align-items: center;
   gap: 12px;
   padding: 13px 14px;
-  border: 1px solid hsl(var(--border) / 0.8);
-  background: hsl(var(--card));
+  border: 1px solid var(--app-edge);
+  border-radius: 12px;
+  background: var(--app-card-surface);
+  box-shadow: var(--app-card-shadow);
   color: inherit;
   text-align: left;
   cursor: pointer;
-  transition:
-    border-color 140ms ease,
-    background 140ms ease;
+  transition: box-shadow 150ms ease-out;
 }
 
 .library-empty-entry:hover:not(:disabled) {
-  border-color: var(--app-interactive-link);
+  box-shadow: var(--app-float-shadow);
 }
 
 .library-empty-entry:disabled {
@@ -235,7 +232,8 @@
   place-items: center;
   width: 38px;
   height: 38px;
-  background: hsl(var(--background) / 0.6);
+  border-radius: 8px;
+  background: var(--app-interactive-selected-bg);
   color: var(--app-interactive-link);
 }
 
@@ -247,7 +245,7 @@
 .library-empty-entry-copy strong {
   color: hsl(var(--foreground));
   font-size: 14px;
-  font-weight: 760;
+  font-weight: 500;
 }
 
 .library-empty-entry-copy em {

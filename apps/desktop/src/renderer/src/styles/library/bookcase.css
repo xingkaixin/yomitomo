@@ -455,9 +455,7 @@
 }
 
 .library-ebook-shelf-item:hover,
-.library-ebook-shelf-item:focus-visible,
-.library-ebook-list-item:hover,
-.library-ebook-list-item:focus-within {
+.library-ebook-shelf-item:focus-visible {
   background: hsl(0 0% 0% / 0.025);
   outline: 0;
 }
@@ -536,7 +534,7 @@
   color: hsl(var(--muted-foreground));
   font-size: 12px;
   font-variant-numeric: tabular-nums;
-  font-weight: 760;
+  font-weight: 500;
 }
 
 .library-ebook-list-item {

@@ -100,9 +100,10 @@
   min-width: 260px;
   grid-template-columns: auto auto minmax(0, 1fr);
   align-items: center;
-  border: 1px solid hsl(var(--border) / 0.82);
-  border-radius: 999px;
-  background: hsl(var(--card) / 0.86);
+  border: 1px solid var(--app-edge);
+  border-radius: 12px;
+  background: var(--app-field);
+  box-shadow: var(--app-field-shadow);
   overflow: hidden;
 }
 
@@ -111,19 +112,20 @@
   color: hsl(var(--muted-foreground));
 }
 
-/* 内嵌左侧类型筛选触发器（方案 C） */
 .library-type-filter-button {
   display: inline-flex;
-  height: 40px;
+  height: 30px;
   align-items: center;
   gap: 5px;
-  border: 0;
-  border-right: 1px solid hsl(var(--border) / 0.72);
-  background: transparent;
+  margin: 0 8px;
+  border: 1px solid var(--app-edge);
+  border-radius: 8px;
+  background: var(--app-raised);
+  box-shadow: var(--app-raised-shadow);
   color: hsl(var(--foreground));
-  font-size: 13px;
-  font-weight: 760;
-  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 0 8px 0 10px;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -359,10 +361,7 @@
 
 .library-type-filter-menu-head span {
   color: hsl(var(--muted-foreground));
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  font-size: 12px;
 }
 
 .library-type-filter-menu-head button {
@@ -370,7 +369,7 @@
   background: transparent;
   color: var(--app-interactive-link);
   font-size: 12px;
-  font-weight: 760;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -379,11 +378,11 @@
   align-items: center;
   gap: 10px;
   border: 0;
-  border-radius: 9px;
+  border-radius: 8px;
   background: transparent;
   color: hsl(var(--foreground));
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
   padding: 8px 10px;
   cursor: pointer;
   text-align: left;
@@ -400,15 +399,18 @@
   height: 17px;
   flex: none;
   place-items: center;
-  border: 1.5px solid hsl(var(--border));
-  border-radius: 5px;
+  border: 1px solid var(--app-edge);
+  border-radius: 4px;
+  background: var(--app-field);
+  box-shadow: var(--app-field-shadow);
   color: transparent;
 }
 
 .library-type-filter-option.is-on .library-type-filter-check {
-  border-color: var(--app-interactive-selected-bg);
-  background: var(--app-interactive-selected-bg);
-  color: var(--app-interactive-selected-fg);
+  border-color: var(--app-ink-edge);
+  background: var(--app-ink);
+  box-shadow: var(--app-ink-shadow);
+  color: var(--app-ink-fg);
 }
 
 .library-type-filter-option-icon {

@@ -4,10 +4,10 @@
 }
 
 .library-import-dialog {
-  border: 1px solid hsl(var(--border) / 0.92);
-  border-radius: 0;
-  background: hsl(var(--card));
-  box-shadow: var(--app-shell-panel-shadow);
+  border: 1px solid var(--app-edge);
+  border-radius: 16px;
+  background: var(--app-card-surface);
+  box-shadow: var(--app-dialog-shadow);
   color: hsl(var(--foreground));
   padding: 22px;
 }
@@ -23,13 +23,14 @@
 }
 
 .library-import-dialog.is-imported {
-  border-color: hsl(var(--foreground));
+  border-color: var(--app-interactive-selected-border);
 }
 
 .library-import-dialog > header strong {
   color: hsl(var(--foreground));
   font-family: var(--font-reader-serif);
   font-size: 22px;
+  font-weight: 600;
   letter-spacing: 0;
 }
 
@@ -43,44 +44,35 @@
 }
 
 .library-import-dialog > header button {
-  width: 40px;
-  height: 40px;
-  border-color: hsl(var(--border) / 0.86);
-  border-radius: 0;
-  background: hsl(var(--card));
-  color: hsl(var(--foreground));
+  width: 32px;
+  height: 32px;
+  border-color: transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
   transition:
     background 150ms ease,
-    border-color 150ms ease,
-    color 150ms ease,
-    transform 150ms ease;
+    color 150ms ease;
 }
 
-.library-import-dialog > header button:hover,
-.library-import-dialog > header button:focus-visible {
-  border-color: hsl(var(--foreground));
-  background: hsl(var(--foreground));
-  color: hsl(var(--card));
-  outline: 0;
-}
-
-.library-import-dialog > header button:active {
-  transform: scale(0.96);
+.library-import-dialog > header button:hover {
+  background: var(--app-interactive-hover-bg);
+  color: hsl(var(--foreground));
 }
 
 .library-article-import-box,
 .library-ebook-dropzone {
-  border-color: hsl(var(--border) / 0.92);
-  border-radius: 0;
-  background: hsl(var(--card));
+  border-color: var(--app-edge);
+  border-radius: 12px;
+  background: var(--app-well);
   color: hsl(var(--foreground));
-  box-shadow: none;
+  box-shadow: var(--app-well-shadow);
 }
 
 .library-article-import-box.is-imported,
 .library-ebook-dropzone.is-imported {
-  border-color: hsl(var(--foreground));
-  background: hsl(var(--card));
+  border-color: var(--app-interactive-selected-border);
+  background: var(--app-well);
 }
 
 .library-article-import-box.is-error,
@@ -98,43 +90,63 @@
 
 .library-ebook-dropzone:hover,
 .library-ebook-dropzone.is-dragging {
-  border-color: hsl(var(--foreground));
-  background: var(--app-interactive-hover-bg);
-  box-shadow: none;
+  border-color: var(--app-interactive-selected-border);
 }
 
 .library-article-import-input svg {
   color: hsl(var(--muted-foreground));
 }
 
-.library-article-import-input input {
-  border-color: hsl(var(--border) / 0.92);
-  border-radius: 0;
-  background: hsl(var(--card));
-  color: hsl(var(--foreground));
-  box-shadow: none;
+.library-article-import-input {
+  border: 1px solid var(--app-edge);
+  border-radius: 12px;
+  background: var(--app-field);
+  box-shadow: var(--app-field-shadow);
 }
 
-.library-article-import-input input:focus {
-  border-color: hsl(var(--foreground));
-  background: hsl(var(--card));
-  box-shadow: 0 0 0 2px var(--app-interactive-focus-ring);
+.library-article-import-input:focus-within {
+  outline: 2px solid var(--app-interactive-focus-ring);
+  outline-offset: 2px;
+}
+
+.library-article-import-url {
+  font-weight: 500;
+}
+
+.library-article-import-input input::placeholder {
+  color: hsl(var(--muted-foreground));
+  opacity: 1;
+}
+
+.library-article-import-box.has-parsed-title .library-article-import-input input {
+  color: hsl(var(--foreground));
+  font-weight: 600;
+}
+
+.library-article-import-input input {
+  height: 44px;
+  border: 0;
+  background: transparent;
+  color: hsl(var(--foreground));
+  box-shadow: none;
+  outline: 0;
 }
 
 .library-import-status-icon,
 .library-ebook-dropzone-icon {
-  border-color: hsl(var(--border) / 0.92);
-  border-radius: 0;
-  background: hsl(var(--card));
+  border-color: var(--app-edge);
+  border-radius: 8px;
+  background: var(--app-raised);
   color: hsl(var(--foreground));
-  box-shadow: none;
+  box-shadow: var(--app-raised-shadow);
 }
 
 .library-import-status-icon.is-success,
 .library-ebook-dropzone-icon.is-success {
-  border-color: hsl(var(--foreground));
-  background: hsl(var(--foreground));
-  color: hsl(var(--card));
+  border-color: var(--app-ink-edge);
+  background: var(--app-ink);
+  color: var(--app-ink-fg);
+  box-shadow: var(--app-ink-shadow);
 }
 
 .library-import-status-icon.is-error,
@@ -150,34 +162,17 @@
   color: var(--app-reader-accent-strong);
 }
 
-.library-article-import-submit,
-.library-article-import-cancel {
-  border: 1px solid hsl(var(--foreground));
-  border-radius: 0;
-  background: hsl(var(--foreground));
-  color: hsl(var(--card));
-  box-shadow: none;
-}
-
-.library-article-import-submit:hover,
-.library-article-import-submit:focus-visible,
-.library-article-import-cancel:hover,
-.library-article-import-cancel:focus-visible {
-  border-color: var(--app-interactive-link);
-  background: var(--app-interactive-link);
-  color: hsl(var(--card));
-}
-
 .library-import-progress-track {
   height: 4px;
-  border-radius: 0;
-  background: hsl(var(--border) / 0.55);
+  border-radius: 999px;
+  background: var(--app-well);
+  box-shadow: var(--app-well-shadow);
 }
 
 .library-import-progress-track span,
 .library-import-dialog.is-imported .library-import-progress-track span {
-  border-radius: 0;
-  background: hsl(var(--foreground));
+  border-radius: inherit;
+  background: var(--app-ink);
 }
 
 .library-import-dialog.is-error .library-import-progress-track span {
@@ -189,10 +184,10 @@
 }
 
 .library-file-import-result {
-  border-color: hsl(var(--border) / 0.82);
-  border-radius: 0;
-  background: hsl(var(--card));
-  box-shadow: none;
+  border-color: var(--app-edge);
+  border-radius: 12px;
+  background: var(--app-card-surface);
+  box-shadow: var(--app-card-shadow);
 }
 
 .library-file-import-result.is-error {
@@ -201,8 +196,8 @@
 }
 
 .library-file-import-cover {
-  border-color: hsl(var(--border) / 0.82);
-  border-radius: 0;
+  border-color: var(--app-edge-soft);
+  border-radius: 4px;
   background: var(--app-interactive-hover-bg);
   color: hsl(var(--foreground));
 }
@@ -218,7 +213,7 @@
 
 .library-article-duplicate-callout {
   border-color: color-mix(in srgb, var(--app-reader-accent-strong) 48%, hsl(var(--border)));
-  border-radius: 0;
+  border-radius: 12px;
   background: color-mix(in srgb, var(--app-reader-accent-strong) 8%, hsl(var(--card)));
   color: hsl(var(--foreground));
   box-shadow: none;
@@ -230,19 +225,4 @@
 
 .library-article-duplicate-callout strong {
   color: hsl(var(--foreground));
-}
-
-.library-import-dialog > footer button {
-  border-color: hsl(var(--foreground));
-  border-radius: 0;
-  background: hsl(var(--foreground));
-  color: hsl(var(--card));
-}
-
-.library-import-dialog > footer button:hover,
-.library-import-dialog > footer button:focus-visible {
-  border-color: var(--app-interactive-link);
-  background: var(--app-interactive-link);
-  color: hsl(var(--card));
-  outline: 0;
 }

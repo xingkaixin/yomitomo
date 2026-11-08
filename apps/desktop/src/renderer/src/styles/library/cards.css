@@ -36,7 +36,6 @@
   align-content: start;
   min-height: 0;
   overflow: auto;
-  border-top: 1px solid hsl(var(--foreground));
 }
 
 .library-list-item {
@@ -84,12 +83,6 @@
   grid-template-columns: minmax(120px, 0.55fr) minmax(0, 1.75fr) minmax(220px, 0.9fr);
 }
 
-.library-web-item:hover,
-.library-web-item:focus-within {
-  background: hsl(0 0% 0% / 0.025);
-  outline: 0;
-}
-
 .library-web-item-source,
 .library-web-item-main,
 .library-web-item-meta {
@@ -127,7 +120,6 @@
   color: hsl(var(--muted-foreground));
   font-size: 12px;
   font-variant-numeric: tabular-nums;
-  font-weight: 760;
 }
 
 .library-web-item-main {
@@ -243,31 +235,26 @@
   height: 36px;
   align-items: center;
   justify-content: center;
-  border: 1px solid hsl(var(--border) / 0.78);
-  border-radius: 0;
-  background: hsl(var(--card));
-  box-shadow: none;
+  border: 1px solid var(--app-edge);
+  border-radius: 8px;
+  background: var(--app-raised);
+  box-shadow: var(--app-raised-shadow);
   color: hsl(var(--foreground));
   transition:
-    background 150ms ease,
-    border-color 150ms ease,
-    box-shadow 150ms ease,
-    color 150ms ease,
-    transform 150ms ease;
+    filter 120ms ease-out,
+    transform 120ms ease-out;
 }
 
 .library-card-open-icon:hover,
 .library-card-more:hover,
 .library-card-more.is-active {
-  border-color: hsl(var(--foreground));
-  background: hsl(var(--foreground));
-  box-shadow: none;
-  color: hsl(var(--card));
+  filter: brightness(0.98);
 }
 
 .library-card-open-icon:active,
 .library-card-more:active {
-  transform: scale(0.96);
+  transform: translateY(1px);
+  box-shadow: var(--app-well-shadow);
 }
 
 .library-card-menu {
@@ -280,40 +267,33 @@
   right: 0;
   z-index: var(--app-z-dropdown);
   width: 176px;
-  border: 1px solid hsl(var(--border) / 0.92);
-  border-radius: 0;
-  background: hsl(var(--popover) / 0.98);
-  box-shadow: 0 18px 44px rgb(0 0 0 / 0.12);
-  color: hsl(var(--popover-foreground));
+  border: 1px solid var(--app-edge);
+  border-radius: 12px;
+  background: var(--app-card-surface);
+  box-shadow: var(--app-float-shadow);
+  color: hsl(var(--foreground));
   padding: 6px;
 }
 
-.library-add-menu-popover,
-.library-card-menu-popover,
 .library-import-dialog {
   background: hsl(var(--popover) / 0.98);
-  color: hsl(var(--popover-foreground));
-}
-
-.library-add-menu-popover button,
-.library-card-menu-popover button {
   color: hsl(var(--popover-foreground));
 }
 
 .library-card-menu-popover button {
   display: flex;
   width: 100%;
-  min-height: 36px;
+  min-height: 32px;
   align-items: center;
   justify-content: flex-start;
-  gap: 7px;
+  gap: 10px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 8px;
   background: transparent;
-  color: hsl(var(--popover-foreground));
+  color: hsl(var(--foreground));
   font: inherit;
-  font-size: 12px;
-  font-weight: 780;
+  font-size: 13px;
+  font-weight: 400;
   padding: 0 8px;
   text-align: left;
 }
@@ -449,17 +429,18 @@
   color: hsl(267 20% 30%);
 }
 
-.library-source-badge {
+.library-source-badge,
+.library-item-date-source .library-source-badge {
   display: inline-flex;
   align-items: center;
-  border-radius: 999px;
-  border: 1px solid hsl(31 23% 20% / 0.12);
-  background: hsl(31 23% 20% / 0.07);
-  color: hsl(31 23% 24%);
+  height: 20px;
+  border-radius: 6px;
+  background: var(--app-interactive-hover-bg);
+  color: hsl(var(--secondary-foreground));
   font-size: 11px;
-  font-weight: 900;
-  line-height: 1;
-  padding: 6px 8px;
+  font-weight: 500;
+  line-height: 16px;
+  padding: 0 7px;
 }
 
 .library-card-status-row span {
@@ -674,7 +655,7 @@
   grid-template-columns: minmax(120px, 1fr) auto minmax(120px, 1fr);
   align-items: center;
   gap: 12px;
-  border-top: 1px solid hsl(var(--foreground));
+  border-top: 1px solid var(--app-edge-soft);
   padding: 8px 26px;
 }
 
@@ -732,29 +713,28 @@
   height: 36px;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--app-action-secondary-border);
-  border-radius: 0;
-  background: var(--app-action-secondary-bg);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
   box-shadow: none;
-  color: var(--app-action-secondary-fg);
+  color: hsl(var(--muted-foreground));
   font-size: 13px;
-  font-weight: 820;
+  font-weight: 500;
   transition:
     background 150ms ease,
-    border-color 150ms ease,
-    color 150ms ease,
-    transform 150ms ease;
+    color 150ms ease;
 }
 
-.library-pagination button:hover:not(:disabled),
+.library-pagination button:hover:not(:disabled) {
+  background: var(--app-interactive-hover-bg);
+  color: hsl(var(--foreground));
+}
+
 .library-pagination button.is-active {
-  border-color: var(--app-action-primary-border);
-  background: var(--app-action-primary-bg);
-  color: var(--app-action-primary-fg);
-}
-
-.library-pagination button:active:not(:disabled) {
-  transform: scale(0.96);
+  border-color: var(--app-edge);
+  background: var(--app-raised);
+  box-shadow: var(--app-raised-shadow);
+  color: hsl(var(--foreground));
 }
 
 .library-pagination button:disabled {
@@ -768,13 +748,7 @@
   justify-self: end;
   width: 132px;
   height: 36px;
-  border-color: hsl(var(--border) / 0.86);
-  border-radius: 0;
-  background: hsl(var(--card));
-  box-shadow: none;
-  color: hsl(var(--foreground));
   font-size: 12px;
-  font-weight: 760;
 }
 
 @container app-content (max-width: 980px) {

@@ -660,7 +660,6 @@ export function LibraryImportControls({
             }
             className="library-add-trigger"
             type="button"
-            variant="secondary"
             onClick={() => {
               if (defaultImportType === 'web') {
                 openArticleImportDialog();
@@ -689,7 +688,6 @@ export function LibraryImportControls({
                 aria-label={t('library.import.addContent')}
                 className="library-add-trigger"
                 type="button"
-                variant="secondary"
               >
                 <HugeiconsIcon icon={Add01Icon} size={16} />
               </Button>
