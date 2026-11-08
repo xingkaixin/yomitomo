@@ -1,8 +1,7 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ColorPickerIcon } from '@hugeicons/core-free-icons';
 import { lazy, Suspense, useReducer } from 'react';
-import type { ReaderBackgroundTone } from '@yomitomo/reader-ui/reader-settings';
-import type { AppThemeTone, AppThemeId } from './app-theme';
+import type { AppThemeId } from './app-theme';
 import {
   elementDialogSourceRect,
   useSourceAwareDialogTransition,
@@ -10,7 +9,7 @@ import {
 } from '../shell/app-dialog-transition';
 import { useTranslation } from 'react-i18next';
 import { IconButton } from '../components/ui/icon-button';
-import type { ResolvedAppSettings } from '@yomitomo/shared';
+import type { ResolvedAppSettings, ThemePreference } from '@yomitomo/shared';
 
 // The dialog renders full appearance previews with reader CSS; load it when it first opens.
 const ThemeDialog = lazy(() =>
@@ -19,14 +18,13 @@ const ThemeDialog = lazy(() =>
 
 export type ThemeSelectorProps = {
   activeThemeId: AppThemeId;
+  themePreference: ThemePreference;
   open: boolean;
   readerBackgroundColor: string;
   soundSettings?: Partial<Pick<ResolvedAppSettings, 'soundEffectsEnabled' | 'soundEffectsVolume'>>;
-  readerBackgroundsByTone?: Record<ReaderBackgroundTone, string>;
-  themeIdsByTone?: Record<AppThemeTone, AppThemeId>;
   onOpenChange: (open: boolean) => void;
   onSelectReaderBackground: (backgroundColor: string) => void;
-  onSelectTheme: (themeId: AppThemeId, readerBackgroundColor?: string) => void;
+  onSelectThemePreference: (preference: ThemePreference) => void;
 };
 
 export function ThemeSelector(props: ThemeSelectorProps) {

@@ -6,6 +6,8 @@ export type { UiLanguage } from './locale-types';
 
 export type MessageSendShortcut = 'enter' | 'mod-enter';
 
+export type ThemePreference = 'light' | 'dark' | 'system';
+
 // Only historical assistant execution rows carry deep_verification; agents no longer pick a mode.
 export const assistantExecutionModes = ['fast_response', 'deep_verification'] as const;
 
@@ -37,7 +39,7 @@ export type LibraryContentSourcePreference = {
 
 export type ResolvedAppSettings = {
   uiLanguage: UiLanguage;
-  themeId: string | undefined;
+  themeId: ThemePreference;
   soundEffectsEnabled: boolean;
   soundEffectsVolume: number;
   appLockEnabled: boolean;
@@ -71,6 +73,18 @@ export type AppSettingsPatch = Omit<
   bilingualTranslationTargetLanguage?: string;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
 };
+
+// Ids of the eight themes before the light/dark redesign, kept so upgraded users keep their tone.
+const legacyLightThemeIds = new Set(['default', 'ink-paper', 'beige-paper', 'shadlingo', 'lanmo']);
+const legacyDarkThemeIds = new Set(['ink-black', 'dusk-indigo', 'shadlingo-dark']);
+
+export function normalizeThemePreference(value: unknown): ThemePreference {
+  if (value === 'light' || value === 'dark' || value === 'system') return value;
+  if (typeof value !== 'string') return 'system';
+  if (legacyLightThemeIds.has(value)) return 'light';
+  if (legacyDarkThemeIds.has(value)) return 'dark';
+  return 'system';
+}
 
 export function normalizeUiLanguage(value: unknown): UiLanguage {
   return value === 'en' || value === 'ja' ? value : 'zh-CN';

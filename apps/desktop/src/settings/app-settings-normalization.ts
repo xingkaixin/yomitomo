@@ -4,6 +4,7 @@ import {
   normalizeMessageSendShortcut,
   normalizeSelectionActionShortcuts,
   normalizeSoundEffectsVolume,
+  normalizeThemePreference,
   normalizeUiLanguage,
 } from '@yomitomo/shared';
 
@@ -12,7 +13,7 @@ type AppSettingsInput = Partial<Record<keyof ResolvedAppSettings, unknown>>;
 export function normalizeAppSettings(settings: AppSettingsInput | undefined): ResolvedAppSettings {
   return {
     uiLanguage: normalizeUiLanguage(settings?.uiLanguage),
-    themeId: normalizeOptionalString(settings?.themeId),
+    themeId: normalizeThemePreference(settings?.themeId),
     soundEffectsEnabled: normalizeBoolean(settings?.soundEffectsEnabled, true),
     soundEffectsVolume: normalizeSoundEffectsVolume(settings?.soundEffectsVolume),
     appLockEnabled: Boolean(settings?.appLockEnabled),

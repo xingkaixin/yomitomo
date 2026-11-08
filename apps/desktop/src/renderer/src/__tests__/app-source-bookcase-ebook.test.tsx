@@ -11,7 +11,7 @@ import type {
   EbookArticleRecord,
   EbookBookcaseProps,
 } from '../source/bookcase/app-source-bookcase';
-import { defaultTheme } from '../theme/app-theme';
+import { lightTheme } from '../theme/app-theme';
 import { articleActionStubs } from './article-actions-test-utils';
 
 const mocks = vi.hoisted(() => ({
@@ -276,7 +276,7 @@ function ebookBookcaseProps(
       userProfile,
     },
     presentation: {
-      readerTheme: defaultTheme.reader,
+      readerTheme: lightTheme.reader,
       uiLanguage: 'zh-CN',
     },
     readerControl: {

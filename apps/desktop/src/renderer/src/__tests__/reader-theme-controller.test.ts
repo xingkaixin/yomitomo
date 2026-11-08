@@ -1,10 +1,9 @@
 // @vitest-environment jsdom
 
 import { afterEach, expect, it, vi } from 'vitest';
-import type { DesktopStore } from '@yomitomo/shared';
+import type { DesktopStore, ThemePreference } from '@yomitomo/shared';
 
 import { emptyStore } from '../settings/app-settings';
-import { inkBlackThemeId, inkPaperThemeId } from '../theme/app-theme';
 import { createReaderThemeStore } from '../theme/use-reader-theme-controller';
 
 afterEach(() => {
@@ -26,19 +25,19 @@ it('keeps the latest theme when an earlier theme save resolves after a newer sel
   const themeStore = createReaderThemeStore({
     applyStore: (store) => themeStore.getState().syncFromSettings(store.settings),
   });
-  const storeWithTheme = (themeId: string): DesktopStore => ({
+  const storeWithTheme = (themeId: ThemePreference): DesktopStore => ({
     ...emptyStore,
     settings: { ...emptyStore.settings, themeId },
   });
 
-  const firstSave = themeStore.getState().selectTheme(inkPaperThemeId);
-  const secondSave = themeStore.getState().selectTheme(inkBlackThemeId);
+  const firstSave = themeStore.getState().selectThemePreference('light');
+  const secondSave = themeStore.getState().selectThemePreference('dark');
 
-  pendingSaves[0](storeWithTheme(inkPaperThemeId));
+  pendingSaves[0](storeWithTheme('light'));
   await firstSave;
-  expect(themeStore.getState().activeThemeId).toBe(inkBlackThemeId);
+  expect(themeStore.getState().activeThemeId).toBe('dark');
 
-  pendingSaves[1](storeWithTheme(inkBlackThemeId));
+  pendingSaves[1](storeWithTheme('dark'));
   await secondSave;
-  expect(themeStore.getState().activeThemeId).toBe(inkBlackThemeId);
+  expect(themeStore.getState().activeThemeId).toBe('dark');
 });

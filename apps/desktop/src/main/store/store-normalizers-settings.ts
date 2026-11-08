@@ -32,7 +32,6 @@ export function settingsToRow(settings: ResolvedAppSettings, updatedAt = new Dat
   return {
     ...normalized,
     id: 'default',
-    themeId: normalized.themeId ?? null,
     appLockShortcut: normalized.appLockShortcut ?? null,
     libraryPageSize: normalized.libraryPageSize ?? null,
     defaultProviderId: normalized.defaultProviderId ?? null,

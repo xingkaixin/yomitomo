@@ -1,11 +1,9 @@
+import { normalizeThemePreference, type ThemePreference } from '@yomitomo/shared';
 import {
   readerThemeToCssVariables,
   type CssVariableMap,
   type ReaderTheme,
 } from '@yomitomo/reader-ui/reader-theme';
-import { registerLanmoSketch } from './lanmo-sketch';
-import { createLanmoTheme, paperGrainImage } from './lanmo-theme';
-import { createShadLingoTheme } from './shadlingo-theme';
 
 export type AppTheme = {
   meta: {
@@ -13,7 +11,6 @@ export type AppTheme = {
     name: string;
     description: string;
     tone: AppThemeTone;
-    visible: boolean;
   };
   font: {
     ui: string;
@@ -95,7 +92,7 @@ export type ThemeControlState = {
   disabledForeground: string;
 };
 
-export type PaperPatternKind = 'plain' | 'grid' | 'dot' | 'ruled' | 'dash-grid' | 'grain';
+export type PaperPatternKind = 'plain' | 'grid' | 'dot' | 'ruled' | 'dash-grid';
 
 export type PaperPatternTheme = {
   kind: PaperPatternKind;
@@ -118,17 +115,6 @@ export type AppThemeZIndex = {
   topOverlay: string;
 };
 
-export const defaultThemeId = 'default';
-export const beigePaperThemeId = 'beige-paper';
-export const inkBlackThemeId = 'ink-black';
-export const duskIndigoThemeId = 'dusk-indigo';
-export const inkPaperThemeId = 'ink-paper';
-export const shadLingoThemeId = 'shadlingo';
-export const shadLingoDarkThemeId = 'shadlingo-dark';
-export const lanmoThemeId = 'lanmo';
-const cachedThemeStorageKey = 'yomitomo.themeId';
-const cachedThemeIdsByToneStorageKey = 'yomitomo.themeIdsByTone';
-
 const appThemeZIndex: AppThemeZIndex = {
   sticky: '20',
   floating: '80',
@@ -141,7 +127,7 @@ const appThemeZIndex: AppThemeZIndex = {
   topOverlay: '360',
 };
 
-const defaultReaderTheme: ReaderTheme = {
+const lightReaderTheme: ReaderTheme = {
   background: '#f6f2ea',
   paper: '#fffaf3',
   ink: '#2f2720',
@@ -222,13 +208,12 @@ const defaultReaderTheme: ReaderTheme = {
   },
 };
 
-export const defaultTheme: AppTheme = {
+export const lightTheme: AppTheme = {
   meta: {
-    id: defaultThemeId,
-    name: '纸白',
-    description: '当前 Yomitomo 桌面端默认视觉，提炼为主题契约的基准主题。',
+    id: 'light',
+    name: '亮色',
+    description: '暖白面板和墨色主操作，品牌红只用于选中、链接和批注。',
     tone: 'light',
-    visible: true,
   },
   font: {
     // System CJK fonts first: the bundled Noto Sans SC is 4.2 MB and would load in every window.
@@ -237,80 +222,81 @@ export const defaultTheme: AppTheme = {
     readerSerif: "'Source Serif 4', 'Noto Serif SC', 'Songti SC', Georgia, serif",
   },
   palette: {
-    background: '40 33% 97%',
-    foreground: '28 21% 13%',
-    card: '42 50% 99%',
-    cardForeground: '28 21% 13%',
-    popover: '42 50% 99%',
-    popoverForeground: '28 21% 13%',
-    primary: '28 21% 13%',
-    primaryForeground: '42 50% 98%',
-    secondary: '38 24% 92%',
-    secondaryForeground: '28 18% 16%',
-    muted: '38 24% 92%',
-    mutedForeground: '30 11% 42%',
-    accent: '6 42% 93%',
-    accentForeground: '4 45% 38%',
-    destructive: '3 64% 42%',
-    destructiveForeground: '42 50% 98%',
-    border: '34 18% 78%',
-    input: '34 18% 78%',
-    ring: '4 45% 42%',
+    background: '45 22% 96%',
+    foreground: '36 10% 10%',
+    card: '0 0% 100%',
+    cardForeground: '36 10% 10%',
+    popover: '0 0% 100%',
+    popoverForeground: '36 10% 10%',
+    primary: '36 10% 10%',
+    primaryForeground: '0 0% 100%',
+    secondary: '43 18% 92%',
+    secondaryForeground: '37 9% 18%',
+    muted: '43 18% 92%',
+    mutedForeground: '37 7% 38%',
+    accent: '16 38% 92%',
+    accentForeground: '6 67% 42%',
+    destructive: '4 63% 46%',
+    destructiveForeground: '0 0% 100%',
+    border: '40 18% 87%',
+    input: '40 18% 87%',
+    ring: '6 67% 42%',
   },
   effect: {
     radius: '0.85rem',
     resizeDuration: '300ms',
     resizeEase: 'cubic-bezier(0.22, 1, 0.36, 1)',
-    shellBackground:
-      'radial-gradient(circle at 14% 18%, hsl(50 36% 84% / 0.42), transparent 30%), linear-gradient(135deg, hsl(45 38% 93%), hsl(36 32% 88%))',
-    shellPanelShadow: '0 24px 80px hsl(31 34% 24% / 0.12)',
-    subtlePanelShadow: '0 12px 36px hsl(31 34% 24% / 0.05)',
-    cardShadow: '0 7px 18px hsl(31 28% 24% / 0.11)',
-    overlayScrim: 'rgba(47,39,32,.14)',
+    shellBackground: '#f1efeb',
+    shellPanelShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 2px rgba(28, 26, 23, 0.04)',
+    subtlePanelShadow:
+      'inset 0 1px 0 #ffffff, 0 1px 0 rgba(28, 26, 23, 0.04), 0 1px 3px rgba(28, 26, 23, 0.08)',
+    cardShadow:
+      'inset 0 1px 0 #ffffff, 0 1px 2px rgba(28, 26, 23, 0.05), 0 6px 16px -6px rgba(28, 26, 23, 0.1)',
+    overlayScrim: 'rgba(28, 26, 23, 0.32)',
     zIndex: appThemeZIndex,
   },
   action: {
     primary: {
-      background: 'hsl(28 21% 13%)',
-      foreground: 'hsl(42 50% 98%)',
-      border: 'hsl(28 21% 13%)',
-      hoverBackground: 'hsl(28 21% 18%)',
-      activeBackground: 'hsl(28 21% 9%)',
-      disabledBackground: 'hsl(36 18% 84%)',
-      disabledForeground: 'hsl(30 10% 46%)',
+      background: '#1c1a17',
+      foreground: '#ffffff',
+      border: '#0f0e0c',
+      hoverBackground: '#403b35',
+      activeBackground: '#0f0e0c',
+      disabledBackground: '#e4e0d8',
+      disabledForeground: '#75706a',
     },
     secondary: {
-      background: 'hsl(42 50% 99% / 0.84)',
-      foreground: 'hsl(28 21% 13%)',
-      border: 'hsl(34 18% 78% / 0.86)',
-      hoverBackground: 'hsl(40 30% 92%)',
-      activeBackground: 'hsl(40 24% 86%)',
-      disabledBackground: 'hsl(38 24% 92% / 0.72)',
-      disabledForeground: 'hsl(30 10% 50%)',
+      background: '#ffffff',
+      foreground: '#1c1a17',
+      border: 'rgba(28, 26, 23, 0.13)',
+      hoverBackground: '#f7f6f2',
+      activeBackground: '#efede8',
+      disabledBackground: '#efede8',
+      disabledForeground: '#75706a',
     },
     danger: {
-      background: 'hsl(3 64% 42%)',
-      foreground: 'hsl(0 0% 98%)',
-      border: 'hsl(3 64% 42%)',
-      hoverBackground: 'hsl(3 64% 36%)',
-      activeBackground: 'hsl(3 64% 30%)',
-      disabledBackground: 'hsl(3 24% 84%)',
-      disabledForeground: 'hsl(3 20% 44%)',
+      background: '#c0352b',
+      foreground: '#ffffff',
+      border: '#c0352b',
+      hoverBackground: '#a72e25',
+      activeBackground: '#8e2720',
+      disabledBackground: '#e4e0d8',
+      disabledForeground: '#75706a',
     },
   },
   interactive: {
-    link: 'hsl(3 62% 39%)',
-    linkHover: 'hsl(3 62% 32%)',
-    selectedBackground: 'hsl(4 68% 94%)',
-    selectedForeground: 'hsl(3 62% 36%)',
-    selectedBorder: 'hsl(3 62% 39% / 0.52)',
-    currentBackground: 'hsl(40 30% 94% / 0.82)',
-    hoverBackground: 'hsl(40 34% 94% / 0.74)',
-    hoverBorder: 'hsl(3 62% 39% / 0.4)',
-    focusRing: 'hsl(3 62% 42% / 0.38)',
-    badgeBackground: 'hsl(4 68% 94%)',
-    badgeForeground: 'hsl(3 62% 36%)',
-    badgeBorder: 'hsl(3 62% 42% / 0.22)',
+    link: '#b23223',
+    linkHover: '#8f2519',
+    selectedBackground: 'rgba(178, 50, 35, 0.08)',
+    selectedForeground: '#b23223',
+    selectedBorder: 'rgba(178, 50, 35, 0.45)',
+    currentBackground: '#efede8',
+    hoverBackground: '#efede8',
+    hoverBorder: 'rgba(178, 50, 35, 0.45)',
+    focusRing: 'rgba(178, 50, 35, 0.38)',
+    badgeBackground: 'rgba(178, 50, 35, 0.08)',
+    badgeForeground: '#b23223',
+    badgeBorder: 'rgba(178, 50, 35, 0.45)',
     successForeground: 'hsl(142 44% 30%)',
     successBackground: 'hsl(142 42% 92%)',
   },
@@ -328,195 +314,10 @@ export const defaultTheme: AppTheme = {
     chart3: 'hsl(205 30% 38%)',
     readerAgentFallback: '#2f2720',
   },
-  reader: defaultReaderTheme,
+  reader: lightReaderTheme,
 };
 
-const beigePaperReaderTheme: ReaderTheme = {
-  background: '#efe2c9',
-  paper: '#fff4df',
-  ink: '#302416',
-  muted: '#7c6a54',
-  line: '#dbc8aa',
-  primary: '#4a321b',
-  accent: '#e1c27d',
-  accentStrong: '#b9873d',
-  danger: '#9d4d3f',
-  toolbar: {
-    background: 'rgba(255,244,223,.9)',
-    border: 'rgba(74,50,27,.14)',
-    controlBackground: 'rgba(255,248,234,.84)',
-    controlHoverBackground: '#ead7b8',
-    progressTrack: 'rgba(74,50,27,.12)',
-    progressFill: '#b9873d',
-  },
-  toc: {
-    background: 'rgba(235,217,184,.58)',
-    itemHoverBackground: 'rgba(255,244,223,.78)',
-  },
-  note: {
-    annotationAccent: 'var(--app-reader-accent-strong)',
-    annotationBorder:
-      'color-mix(in srgb,var(--app-reader-accent-strong) 24%,var(--app-reader-note-border))',
-    annotationMat: 'color-mix(in srgb,var(--app-reader-accent) 20%,var(--app-reader-paper))',
-    annotationSurface: 'var(--app-reader-paper)',
-    background: 'rgba(255,246,229,.9)',
-    border: 'rgba(74,50,27,.14)',
-    distillationAccent: 'var(--app-reader-accent-strong)',
-    distillationBorder:
-      'color-mix(in srgb,var(--app-reader-accent-strong) 46%,var(--app-reader-note-border))',
-    distillationMat: 'color-mix(in srgb,var(--app-reader-accent) 34%,var(--app-reader-note-bg))',
-    distillationSurface: 'var(--app-reader-paper)',
-    distillationTabForeground: '#fff4df',
-    shadow: '0 10px 28px rgba(74,50,27,.1)',
-    quoteBackground: 'rgba(225,194,125,.2)',
-    quoteText: '#4d3924',
-  },
-  selectionMenu: {
-    background: 'rgba(61,42,24,.94)',
-    foreground: '#fff4df',
-    border: 'rgba(74,50,27,.16)',
-    shadow: '0 14px 36px rgba(61,42,24,.32)',
-  },
-  composer: {
-    background: 'rgba(255,246,229,.98)',
-    border: 'rgba(74,50,27,.18)',
-    shadow: '0 24px 68px rgba(74,50,27,.2)',
-  },
-  chat: {
-    panelBackground: 'rgba(255,246,229,.98)',
-    panelBorder: 'rgba(74,50,27,.16)',
-    panelShadow: '0 28px 88px rgba(74,50,27,.24),inset 0 1px 0 rgba(255,255,255,.5)',
-    userBubbleBackground: '#302416',
-    userBubbleForeground: '#fff4df',
-    assistantBubbleBackground: 'rgba(74,50,27,.08)',
-    assistantBubbleForeground: '#302416',
-    contextBackground: 'rgba(225,194,125,.22)',
-    contextBorder: 'rgba(185,135,61,.24)',
-    contextForeground: '#4d3924',
-    composerBackground: 'color-mix(in srgb,#fff4df 74%,rgba(255,246,229,.9))',
-    composerBorder: 'rgba(74,50,27,.12)',
-    sendBackground: '#4a321b',
-    sendForeground: '#fff4df',
-    sendDisabledBackground: 'rgba(74,50,27,.16)',
-    sendDisabledForeground: 'rgba(74,50,27,.48)',
-  },
-  agentPanel: {
-    background: 'rgba(252,237,209,.94)',
-    border: 'rgba(74,50,27,.16)',
-    hoverBackground: '#ead2a7',
-  },
-  overlay: {
-    scrim: 'rgba(74,50,27,.18)',
-    edgeBlurTop: 'linear-gradient(to bottom,rgba(239,226,201,.88),rgba(239,226,201,0))',
-    edgeBlurBottom: 'linear-gradient(to top,rgba(239,226,201,.88),rgba(239,226,201,0))',
-  },
-};
-
-export const beigePaperTheme: AppTheme = {
-  meta: {
-    id: beigePaperThemeId,
-    name: '米色纸',
-    description: '用于验证主题契约覆盖范围的米色纸质感主题。',
-    tone: 'light',
-    visible: false,
-  },
-  font: defaultTheme.font,
-  palette: {
-    background: '39 52% 91%',
-    foreground: '31 39% 14%',
-    card: '39 69% 96%',
-    cardForeground: '31 39% 14%',
-    popover: '39 69% 96%',
-    popoverForeground: '31 39% 14%',
-    primary: '31 45% 20%',
-    primaryForeground: '39 68% 96%',
-    secondary: '38 44% 86%',
-    secondaryForeground: '31 39% 16%',
-    muted: '38 36% 84%',
-    mutedForeground: '33 23% 39%',
-    accent: '40 63% 82%',
-    accentForeground: '29 55% 29%',
-    destructive: '7 43% 43%',
-    destructiveForeground: '39 68% 96%',
-    border: '36 34% 70%',
-    input: '36 34% 70%',
-    ring: '29 55% 35%',
-  },
-  effect: {
-    radius: '0.8rem',
-    resizeDuration: defaultTheme.effect.resizeDuration,
-    resizeEase: defaultTheme.effect.resizeEase,
-    shellBackground:
-      'radial-gradient(circle at 18% 16%, hsl(42 68% 83% / 0.5), transparent 28%), linear-gradient(135deg, hsl(39 56% 90%), hsl(34 45% 82%))',
-    shellPanelShadow: '0 24px 82px hsl(31 45% 20% / 0.16)',
-    subtlePanelShadow: '0 12px 38px hsl(31 45% 20% / 0.08)',
-    cardShadow: '0 8px 22px hsl(31 45% 20% / 0.15)',
-    overlayScrim: 'rgba(74,50,27,.18)',
-    zIndex: appThemeZIndex,
-  },
-  action: {
-    primary: {
-      background: 'hsl(31 45% 20%)',
-      foreground: 'hsl(39 68% 96%)',
-      border: 'hsl(31 45% 20%)',
-      hoverBackground: 'hsl(31 45% 16%)',
-      activeBackground: 'hsl(31 45% 12%)',
-      disabledBackground: 'hsl(38 34% 76%)',
-      disabledForeground: 'hsl(33 22% 42%)',
-    },
-    secondary: {
-      background: 'hsl(39 69% 96% / 0.86)',
-      foreground: 'hsl(31 39% 14%)',
-      border: 'hsl(36 34% 70% / 0.9)',
-      hoverBackground: 'hsl(38 44% 86%)',
-      activeBackground: 'hsl(37 42% 80%)',
-      disabledBackground: 'hsl(38 36% 84% / 0.7)',
-      disabledForeground: 'hsl(33 20% 46%)',
-    },
-    danger: {
-      background: 'hsl(7 43% 43%)',
-      foreground: 'hsl(39 68% 96%)',
-      border: 'hsl(7 43% 43%)',
-      hoverBackground: 'hsl(7 43% 36%)',
-      activeBackground: 'hsl(7 43% 30%)',
-      disabledBackground: 'hsl(12 28% 78%)',
-      disabledForeground: 'hsl(9 22% 42%)',
-    },
-  },
-  interactive: {
-    link: 'hsl(29 55% 29%)',
-    linkHover: 'hsl(29 55% 23%)',
-    selectedBackground: 'hsl(40 63% 82%)',
-    selectedForeground: 'hsl(29 55% 29%)',
-    selectedBorder: 'hsl(29 55% 29% / 0.52)',
-    currentBackground: 'hsl(39 60% 92% / 0.82)',
-    hoverBackground: 'hsl(38 44% 86% / 0.72)',
-    hoverBorder: 'hsl(29 55% 29% / 0.4)',
-    focusRing: 'hsl(29 55% 35% / 0.36)',
-    badgeBackground: 'hsl(40 63% 82% / 0.64)',
-    badgeForeground: 'hsl(29 55% 29%)',
-    badgeBorder: 'hsl(29 55% 35% / 0.22)',
-    successForeground: 'hsl(140 42% 28%)',
-    successBackground: 'hsl(132 40% 88%)',
-  },
-  paperPattern: {
-    kind: 'dash-grid',
-    background: 'hsl(39 69% 96%)',
-    color: 'hsl(31 45% 20%)',
-    secondaryColor: 'hsl(31 45% 20%)',
-    opacity: '0.028',
-    size: '18px',
-  },
-  dataColor: {
-    chart1: 'hsl(94 25% 34%)',
-    chart2: 'hsl(11 45% 45%)',
-    chart3: 'hsl(207 27% 36%)',
-    readerAgentFallback: '#4a321b',
-  },
-  reader: beigePaperReaderTheme,
-};
-
-const inkBlackReaderTheme: ReaderTheme = {
+const darkReaderTheme: ReaderTheme = {
   background: '#1a1815',
   paper: '#242019',
   ink: '#e0d9cc',
@@ -598,90 +399,88 @@ const inkBlackReaderTheme: ReaderTheme = {
   },
 };
 
-export const inkBlackTheme: AppTheme = {
+export const darkTheme: AppTheme = {
   meta: {
-    id: inkBlackThemeId,
-    name: '墨黑',
-    description: '暖调近黑、松烟纸面和余烬赤陶强调的夜间阅读主题。',
+    id: 'dark',
+    name: '暗色',
+    description: '暖调近黑面板，主操作翻成浅墨色，层级靠底色区分。',
     tone: 'dark',
-    visible: true,
   },
-  font: defaultTheme.font,
+  font: lightTheme.font,
   palette: {
-    background: '34 9% 9%',
-    foreground: '40 16% 87%',
-    card: '33 8% 14%',
-    cardForeground: '40 16% 87%',
-    popover: '33 8% 14%',
-    popoverForeground: '40 16% 87%',
-    primary: '8 76% 63%',
-    primaryForeground: '30 14% 10%',
-    secondary: '33 8% 17%',
-    secondaryForeground: '40 16% 87%',
-    muted: '33 8% 17%',
-    mutedForeground: '38 9% 60%',
-    accent: '8 40% 20%',
-    accentForeground: '8 76% 63%',
-    destructive: '6 72% 62%',
-    destructiveForeground: '30 14% 10%',
-    border: '36 7% 27%',
-    input: '36 7% 27%',
-    ring: '8 76% 63%',
+    background: '40 6% 10%',
+    foreground: '38 22% 90%',
+    card: '36 8% 12%',
+    cardForeground: '38 22% 90%',
+    popover: '36 8% 12%',
+    popoverForeground: '38 22% 90%',
+    primary: '39 16% 82%',
+    primaryForeground: '40 6% 10%',
+    secondary: '36 6% 15%',
+    secondaryForeground: '39 15% 81%',
+    muted: '36 6% 15%',
+    mutedForeground: '38 8% 60%',
+    accent: '13 23% 16%',
+    accentForeground: '9 75% 64%',
+    destructive: '4 62% 47%',
+    destructiveForeground: '0 0% 100%',
+    border: '37 9% 18%',
+    input: '37 9% 18%',
+    ring: '9 75% 64%',
   },
   effect: {
-    radius: '0.75rem',
-    resizeDuration: defaultTheme.effect.resizeDuration,
-    resizeEase: defaultTheme.effect.resizeEase,
-    shellBackground:
-      'radial-gradient(circle at 16% 18%, hsl(8 76% 63% / 0.14), transparent 28%), linear-gradient(135deg, hsl(34 9% 9%), hsl(30 10% 7%))',
-    shellPanelShadow: '0 26px 70px hsl(0 0% 0% / 0.58)',
-    subtlePanelShadow: '0 12px 30px hsl(0 0% 0% / 0.5)',
-    cardShadow: '0 8px 18px hsl(0 0% 0% / 0.45)',
-    overlayScrim: 'rgba(0,0,0,.42)',
+    radius: lightTheme.effect.radius,
+    resizeDuration: lightTheme.effect.resizeDuration,
+    resizeEase: lightTheme.effect.resizeEase,
+    shellBackground: '#121110',
+    shellPanelShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.04)',
+    subtlePanelShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 1px 2px rgba(0, 0, 0, 0.45)',
+    cardShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 2px 10px -2px rgba(0, 0, 0, 0.5)',
+    overlayScrim: 'rgba(0, 0, 0, 0.5)',
     zIndex: appThemeZIndex,
   },
   action: {
     primary: {
-      background: 'hsl(8 76% 63%)',
-      foreground: 'hsl(30 14% 10%)',
-      border: 'hsl(8 76% 63%)',
-      hoverBackground: 'hsl(8 76% 68%)',
-      activeBackground: 'hsl(8 70% 56%)',
-      disabledBackground: 'hsl(36 7% 27%)',
-      disabledForeground: 'hsl(36 8% 45%)',
+      background: '#d9d4cb',
+      foreground: '#1a1917',
+      border: 'rgba(0, 0, 0, 0.6)',
+      hoverBackground: '#f6f3ee',
+      activeBackground: '#d6d1c8',
+      disabledBackground: '#33302b',
+      disabledForeground: '#8f897f',
     },
     secondary: {
-      background: 'hsl(33 8% 17% / 0.86)',
-      foreground: 'hsl(40 16% 87%)',
-      border: 'hsl(36 7% 30% / 0.7)',
-      hoverBackground: 'hsl(33 8% 22%)',
-      activeBackground: 'hsl(33 8% 26%)',
-      disabledBackground: 'hsl(33 8% 17% / 0.56)',
-      disabledForeground: 'hsl(36 8% 45%)',
+      background: '#2e2b27',
+      foreground: '#ece8e1',
+      border: 'rgba(0, 0, 0, 0.55)',
+      hoverBackground: '#2a2825',
+      activeBackground: '#252320',
+      disabledBackground: '#2a2825',
+      disabledForeground: '#8f897f',
     },
     danger: {
-      background: 'hsl(6 72% 62%)',
-      foreground: 'hsl(30 14% 10%)',
-      border: 'hsl(6 72% 62%)',
-      hoverBackground: 'hsl(6 72% 67%)',
-      activeBackground: 'hsl(6 64% 55%)',
-      disabledBackground: 'hsl(6 24% 25%)',
-      disabledForeground: 'hsl(36 8% 45%)',
+      background: '#c4392e',
+      foreground: '#ffffff',
+      border: '#c4392e',
+      hoverBackground: '#ab3228',
+      activeBackground: '#922b22',
+      disabledBackground: '#33302b',
+      disabledForeground: '#8f897f',
     },
   },
   interactive: {
-    link: 'hsl(8 76% 63%)',
-    linkHover: 'hsl(8 76% 70%)',
-    selectedBackground: 'hsl(8 40% 20%)',
-    selectedForeground: 'hsl(8 76% 63%)',
-    selectedBorder: 'hsl(8 76% 63% / 0.48)',
-    currentBackground: 'hsl(33 8% 17% / 0.82)',
-    hoverBackground: 'hsl(33 8% 17% / 0.72)',
-    hoverBorder: 'hsl(8 76% 63% / 0.38)',
-    focusRing: 'hsl(8 76% 63% / 0.4)',
-    badgeBackground: 'hsl(8 40% 20%)',
-    badgeForeground: 'hsl(8 76% 63%)',
-    badgeBorder: 'hsl(8 76% 63% / 0.24)',
+    link: '#e8735f',
+    linkHover: '#f08b79',
+    selectedBackground: 'rgba(232, 115, 95, 0.12)',
+    selectedForeground: '#e8735f',
+    selectedBorder: 'rgba(232, 115, 95, 0.5)',
+    currentBackground: '#2a2825',
+    hoverBackground: '#2a2825',
+    hoverBorder: 'rgba(232, 115, 95, 0.5)',
+    focusRing: 'rgba(232, 115, 95, 0.4)',
+    badgeBackground: 'rgba(232, 115, 95, 0.12)',
+    badgeForeground: '#e8735f',
+    badgeBorder: 'rgba(232, 115, 95, 0.5)',
     successForeground: 'hsl(140 50% 72%)',
     successBackground: 'hsl(142 32% 18%)',
   },
@@ -699,410 +498,18 @@ export const inkBlackTheme: AppTheme = {
     chart3: 'hsl(205 46% 60%)',
     readerAgentFallback: '#e0d9cc',
   },
-  reader: inkBlackReaderTheme,
+  reader: darkReaderTheme,
 };
-
-const duskIndigoReaderTheme: ReaderTheme = {
-  background: '#12141b',
-  paper: '#171a21',
-  ink: '#dbe2eb',
-  muted: '#94a0ad',
-  line: '#3c404e',
-  primary: '#ef7e58',
-  accent: '#36211f',
-  accentStrong: '#ef7e58',
-  danger: '#f06d5d',
-  toolbar: {
-    background: 'hsl(228 19% 9% / 0.88)',
-    border: 'hsl(222 13% 27% / 0.82)',
-    controlBackground: 'hsl(223 15% 15% / 0.86)',
-    controlHoverBackground: 'hsl(221 15% 19%)',
-    progressTrack: 'hsl(222 13% 35% / 0.45)',
-    progressFill: '#ef7e58',
-  },
-  toc: {
-    background: 'hsl(223 15% 15% / 0.62)',
-    itemHoverBackground: 'hsl(221 15% 19% / 0.82)',
-  },
-  note: {
-    annotationAccent: 'var(--app-reader-accent-strong)',
-    annotationBorder:
-      'color-mix(in srgb,var(--app-reader-accent-strong) 24%,var(--app-reader-note-border))',
-    annotationMat: 'color-mix(in srgb,var(--app-reader-accent-strong) 8%,var(--app-reader-bg))',
-    annotationSurface: 'color-mix(in srgb,var(--app-reader-paper) 86%,var(--app-reader-ink) 14%)',
-    background: 'hsl(223 15% 15% / 0.9)',
-    border: 'hsl(222 13% 27% / 0.86)',
-    distillationAccent: 'var(--app-reader-accent-strong)',
-    distillationBorder:
-      'color-mix(in srgb,var(--app-reader-accent-strong) 46%,var(--app-reader-note-border))',
-    distillationMat: 'color-mix(in srgb,var(--app-reader-accent-strong) 14%,var(--app-reader-bg))',
-    distillationSurface:
-      'color-mix(in srgb,var(--app-reader-paper) 88%,var(--app-reader-accent-strong) 12%)',
-    distillationTabForeground: '#12141b',
-    shadow: '0 18px 44px hsl(228 40% 3% / 0.52)',
-    quoteBackground: 'hsl(8 32% 16% / 0.72)',
-    quoteText: '#dbe2eb',
-  },
-  selectionMenu: {
-    background: 'hsl(223 15% 15% / 0.94)',
-    foreground: '#dbe2eb',
-    border: 'hsl(222 13% 31% / 0.78)',
-    shadow: '0 18px 48px hsl(228 40% 3% / 0.58)',
-  },
-  composer: {
-    background: 'hsl(223 15% 15% / 0.98)',
-    border: 'hsl(222 13% 31% / 0.84)',
-    shadow: '0 24px 70px hsl(228 45% 3% / 0.62)',
-  },
-  chat: {
-    panelBackground: 'hsl(223 15% 15% / 0.98)',
-    panelBorder: 'hsl(222 13% 31% / 0.84)',
-    panelShadow: '0 28px 88px hsl(228 45% 3% / 0.68),inset 0 1px 0 hsl(214 24% 89% / 0.08)',
-    userBubbleBackground: 'hsl(221 15% 24%)',
-    userBubbleForeground: '#eef3f8',
-    assistantBubbleBackground: 'hsl(214 24% 89% / 0.08)',
-    assistantBubbleForeground: '#dbe2eb',
-    contextBackground: 'hsl(13 46% 32% / 0.24)',
-    contextBorder: 'hsl(13 68% 64% / 0.26)',
-    contextForeground: '#dbe2eb',
-    composerBackground: 'hsl(223 15% 15% / 0.98)',
-    composerBorder: 'hsl(222 13% 31% / 0.84)',
-    sendBackground: 'hsl(13 43% 45%)',
-    sendForeground: '#fff7f3',
-    sendDisabledBackground: 'hsl(214 24% 89% / 0.12)',
-    sendDisabledForeground: 'hsl(214 24% 89% / 0.42)',
-  },
-  agentPanel: {
-    background: 'hsl(221 15% 19% / 0.9)',
-    border: 'hsl(222 13% 31% / 0.78)',
-    hoverBackground: 'hsl(221 15% 23%)',
-  },
-  overlay: {
-    scrim: 'hsl(228 40% 3% / 0.5)',
-    edgeBlurTop: 'linear-gradient(to bottom,hsl(228 19% 9% / 0.9),hsl(228 19% 9% / 0))',
-    edgeBlurBottom: 'linear-gradient(to top,hsl(228 19% 9% / 0.9),hsl(228 19% 9% / 0))',
-  },
-};
-
-export const duskIndigoTheme: AppTheme = {
-  meta: {
-    id: duskIndigoThemeId,
-    name: '黛蓝',
-    description: '冷调靛青夜色、月白正文和赤陶余烬强调的暗色阅读主题。',
-    tone: 'dark',
-    visible: true,
-  },
-  font: defaultTheme.font,
-  palette: {
-    background: '228 19% 9%',
-    foreground: '214 24% 89%',
-    card: '223 15% 15%',
-    cardForeground: '214 24% 89%',
-    popover: '223 15% 15%',
-    popoverForeground: '214 24% 89%',
-    primary: '10 78% 64%',
-    primaryForeground: '225 20% 11%',
-    secondary: '221 15% 19%',
-    secondaryForeground: '214 24% 89%',
-    muted: '221 15% 19%',
-    mutedForeground: '216 13% 63%',
-    accent: '8 38% 21%',
-    accentForeground: '10 78% 64%',
-    destructive: '6 74% 64%',
-    destructiveForeground: '225 20% 11%',
-    border: '222 13% 27%',
-    input: '222 13% 27%',
-    ring: '10 78% 64%',
-  },
-  effect: {
-    radius: '0.75rem',
-    resizeDuration: defaultTheme.effect.resizeDuration,
-    resizeEase: defaultTheme.effect.resizeEase,
-    shellBackground:
-      'radial-gradient(circle at 16% 18%, hsl(10 78% 64% / 0.12), transparent 28%), linear-gradient(135deg, hsl(228 19% 9%), hsl(230 22% 7%))',
-    shellPanelShadow: '0 32px 70px hsl(228 45% 2% / 0.68), 0 1px 0 hsl(220 40% 100% / 0.06) inset',
-    subtlePanelShadow: '0 12px 30px hsl(228 40% 3% / 0.55)',
-    cardShadow: '0 1px 0 hsl(220 40% 100% / 0.05) inset, 0 8px 18px hsl(228 40% 3% / 0.5)',
-    overlayScrim: 'hsl(228 40% 3% / 0.5)',
-    zIndex: appThemeZIndex,
-  },
-  action: {
-    primary: {
-      background: 'hsl(10 78% 64%)',
-      foreground: 'hsl(225 20% 11%)',
-      border: 'hsl(10 78% 64%)',
-      hoverBackground: 'hsl(10 78% 69%)',
-      activeBackground: 'hsl(10 70% 57%)',
-      disabledBackground: 'hsl(222 13% 27%)',
-      disabledForeground: 'hsl(219 11% 47%)',
-    },
-    secondary: {
-      background: 'hsl(221 15% 19% / 0.86)',
-      foreground: 'hsl(214 24% 89%)',
-      border: 'hsl(222 13% 31% / 0.7)',
-      hoverBackground: 'hsl(221 15% 23%)',
-      activeBackground: 'hsl(221 15% 27%)',
-      disabledBackground: 'hsl(221 15% 19% / 0.56)',
-      disabledForeground: 'hsl(219 11% 47%)',
-    },
-    danger: {
-      background: 'hsl(6 74% 64%)',
-      foreground: 'hsl(225 20% 11%)',
-      border: 'hsl(6 74% 64%)',
-      hoverBackground: 'hsl(6 74% 69%)',
-      activeBackground: 'hsl(6 66% 57%)',
-      disabledBackground: 'hsl(6 24% 26%)',
-      disabledForeground: 'hsl(219 11% 47%)',
-    },
-  },
-  interactive: {
-    link: 'hsl(10 78% 64%)',
-    linkHover: 'hsl(10 78% 71%)',
-    selectedBackground: 'hsl(8 38% 21%)',
-    selectedForeground: 'hsl(10 78% 64%)',
-    selectedBorder: 'hsl(10 78% 64% / 0.48)',
-    currentBackground: 'hsl(221 15% 19% / 0.82)',
-    hoverBackground: 'hsl(221 15% 19% / 0.72)',
-    hoverBorder: 'hsl(10 78% 64% / 0.38)',
-    focusRing: 'hsl(10 78% 64% / 0.4)',
-    badgeBackground: 'hsl(8 38% 21%)',
-    badgeForeground: 'hsl(10 78% 64%)',
-    badgeBorder: 'hsl(10 78% 64% / 0.24)',
-    successForeground: 'hsl(140 50% 72%)',
-    successBackground: 'hsl(142 30% 19%)',
-  },
-  paperPattern: {
-    kind: 'dash-grid',
-    background: 'hsl(228 19% 9%)',
-    color: 'hsl(214 24% 89%)',
-    secondaryColor: 'hsl(10 78% 64%)',
-    opacity: '0.032',
-    size: '18px',
-  },
-  dataColor: {
-    chart1: 'hsl(190 40% 56%)',
-    chart2: 'hsl(10 58% 62%)',
-    chart3: 'hsl(225 50% 66%)',
-    readerAgentFallback: '#dbe2eb',
-  },
-  reader: duskIndigoReaderTheme,
-};
-
-const inkPaperReaderTheme: ReaderTheme = {
-  background: '#f5f4ed',
-  paper: '#faf9f5',
-  ink: '#141413',
-  muted: '#6b6a64',
-  line: '#d6d1c4',
-  primary: '#1b365d',
-  accent: '#d6e1ee',
-  accentStrong: '#1b365d',
-  danger: '#b53333',
-  toolbar: {
-    background: 'rgba(250,249,245,.9)',
-    border: 'rgba(27,54,93,.12)',
-    controlBackground: 'rgba(250,249,245,.84)',
-    controlHoverBackground: '#e8e6dc',
-    progressTrack: 'rgba(27,54,93,.12)',
-    progressFill: '#1b365d',
-  },
-  toc: {
-    background: 'rgba(232,230,220,.58)',
-    itemHoverBackground: 'rgba(250,249,245,.82)',
-  },
-  note: {
-    annotationAccent: 'var(--app-reader-accent-strong)',
-    annotationBorder:
-      'color-mix(in srgb,var(--app-reader-accent-strong) 24%,var(--app-reader-note-border))',
-    annotationMat: 'color-mix(in srgb,var(--app-reader-accent) 20%,var(--app-reader-paper))',
-    annotationSurface: 'var(--app-reader-paper)',
-    background: 'rgba(250,249,245,.9)',
-    border: 'rgba(27,54,93,.12)',
-    distillationAccent: 'var(--app-reader-accent-strong)',
-    distillationBorder:
-      'color-mix(in srgb,var(--app-reader-accent-strong) 46%,var(--app-reader-note-border))',
-    distillationMat: 'color-mix(in srgb,var(--app-reader-accent) 34%,var(--app-reader-note-bg))',
-    distillationSurface: 'var(--app-reader-paper)',
-    distillationTabForeground: '#faf9f5',
-    shadow: '0 10px 28px rgba(20,20,19,.08)',
-    quoteBackground: 'rgba(214,225,238,.34)',
-    quoteText: '#1b365d',
-  },
-  selectionMenu: {
-    background: 'rgba(20,20,19,.92)',
-    foreground: '#faf9f5',
-    border: 'rgba(27,54,93,.18)',
-    shadow: '0 14px 36px rgba(20,20,19,.24)',
-  },
-  composer: {
-    background: 'rgba(250,249,245,.98)',
-    border: 'rgba(27,54,93,.16)',
-    shadow: '0 24px 64px rgba(20,20,19,.16)',
-  },
-  chat: {
-    panelBackground: 'rgba(250,249,245,.98)',
-    panelBorder: 'rgba(27,54,93,.16)',
-    panelShadow: '0 28px 88px rgba(20,20,19,.22),inset 0 1px 0 rgba(255,255,255,.64)',
-    userBubbleBackground: '#141413',
-    userBubbleForeground: '#faf9f5',
-    assistantBubbleBackground: 'rgba(20,20,19,.06)',
-    assistantBubbleForeground: '#141413',
-    contextBackground: 'rgba(214,225,238,.34)',
-    contextBorder: 'rgba(27,54,93,.16)',
-    contextForeground: '#1b365d',
-    composerBackground: 'color-mix(in srgb,#faf9f5 74%,rgba(250,249,245,.9))',
-    composerBorder: 'rgba(27,54,93,.12)',
-    sendBackground: '#1b365d',
-    sendForeground: '#faf9f5',
-    sendDisabledBackground: 'rgba(27,54,93,.14)',
-    sendDisabledForeground: 'rgba(27,54,93,.46)',
-  },
-  agentPanel: {
-    background: 'rgba(245,244,237,.94)',
-    border: 'rgba(27,54,93,.14)',
-    hoverBackground: '#e8e6dc',
-  },
-  overlay: {
-    scrim: 'rgba(20,20,19,.16)',
-    edgeBlurTop: 'linear-gradient(to bottom,rgba(245,244,237,.86),rgba(245,244,237,0))',
-    edgeBlurBottom: 'linear-gradient(to top,rgba(245,244,237,.86),rgba(245,244,237,0))',
-  },
-};
-
-export const inkPaperTheme: AppTheme = {
-  meta: {
-    id: inkPaperThemeId,
-    name: '墨纸',
-    description: '暖纸底、淡点阵和墨蓝强调的沉静阅读主题。',
-    tone: 'light',
-    visible: true,
-  },
-  font: defaultTheme.font,
-  palette: {
-    background: '48 29% 95%',
-    foreground: '60 3% 8%',
-    card: '48 33% 97%',
-    cardForeground: '60 3% 8%',
-    popover: '48 33% 97%',
-    popoverForeground: '60 3% 8%',
-    primary: '215 55% 24%',
-    primaryForeground: '48 33% 97%',
-    secondary: '48 17% 89%',
-    secondaryForeground: '60 3% 8%',
-    muted: '48 15% 87%',
-    mutedForeground: '50 3% 41%',
-    accent: '213 32% 88%',
-    accentForeground: '215 55% 24%',
-    destructive: '0 55% 45%',
-    destructiveForeground: '48 33% 97%',
-    border: '44 16% 80%',
-    input: '44 16% 80%',
-    ring: '215 55% 24%',
-  },
-  effect: {
-    radius: '0.7rem',
-    resizeDuration: defaultTheme.effect.resizeDuration,
-    resizeEase: defaultTheme.effect.resizeEase,
-    shellBackground:
-      'radial-gradient(circle at 16% 18%, hsl(213 32% 88% / 0.36), transparent 28%), linear-gradient(135deg, hsl(48 29% 95%), hsl(44 23% 90%))',
-    shellPanelShadow: '0 22px 70px hsl(60 3% 8% / 0.1)',
-    subtlePanelShadow: '0 10px 30px hsl(60 3% 8% / 0.055)',
-    cardShadow: '0 7px 18px hsl(60 3% 8% / 0.1)',
-    overlayScrim: 'rgba(20,20,19,.16)',
-    zIndex: appThemeZIndex,
-  },
-  action: {
-    primary: {
-      background: 'hsl(215 55% 24%)',
-      foreground: 'hsl(48 33% 97%)',
-      border: 'hsl(215 55% 24%)',
-      hoverBackground: 'hsl(215 55% 20%)',
-      activeBackground: 'hsl(215 55% 16%)',
-      disabledBackground: 'hsl(48 14% 82%)',
-      disabledForeground: 'hsl(50 3% 42%)',
-    },
-    secondary: {
-      background: 'hsl(48 17% 89% / 0.88)',
-      foreground: 'hsl(60 3% 8%)',
-      border: 'hsl(44 16% 76%)',
-      hoverBackground: 'hsl(48 17% 84%)',
-      activeBackground: 'hsl(48 16% 79%)',
-      disabledBackground: 'hsl(48 15% 87% / 0.7)',
-      disabledForeground: 'hsl(50 3% 46%)',
-    },
-    danger: {
-      background: 'hsl(0 55% 45%)',
-      foreground: 'hsl(48 33% 97%)',
-      border: 'hsl(0 55% 45%)',
-      hoverBackground: 'hsl(0 55% 38%)',
-      activeBackground: 'hsl(0 55% 32%)',
-      disabledBackground: 'hsl(0 22% 82%)',
-      disabledForeground: 'hsl(0 20% 44%)',
-    },
-  },
-  interactive: {
-    link: 'hsl(215 55% 24%)',
-    linkHover: 'hsl(215 55% 18%)',
-    selectedBackground: 'hsl(213 32% 88%)',
-    selectedForeground: 'hsl(215 55% 24%)',
-    selectedBorder: 'hsl(215 55% 24% / 0.52)',
-    currentBackground: 'hsl(48 33% 97% / 0.82)',
-    hoverBackground: 'hsl(48 17% 89% / 0.72)',
-    hoverBorder: 'hsl(215 55% 24% / 0.4)',
-    focusRing: 'hsl(215 55% 24% / 0.34)',
-    badgeBackground: 'hsl(213 32% 88% / 0.72)',
-    badgeForeground: 'hsl(215 55% 24%)',
-    badgeBorder: 'hsl(215 55% 24% / 0.18)',
-    successForeground: 'hsl(150 46% 30%)',
-    successBackground: 'hsl(146 40% 90%)',
-  },
-  paperPattern: {
-    kind: 'dot',
-    background: 'hsl(48 29% 95%)',
-    color: 'hsl(215 55% 24%)',
-    opacity: '0.12',
-    size: '14px',
-  },
-  dataColor: {
-    chart1: 'hsl(215 32% 34%)',
-    chart2: 'hsl(0 48% 44%)',
-    chart3: 'hsl(92 18% 36%)',
-    readerAgentFallback: '#1b365d',
-  },
-  reader: inkPaperReaderTheme,
-};
-
-export const shadLingoTheme = createShadLingoTheme(defaultTheme, 'light');
-export const shadLingoDarkTheme = createShadLingoTheme(defaultTheme, 'dark');
-export const lanmoTheme = createLanmoTheme(defaultTheme);
 
 export const themeRegistry = {
-  [defaultThemeId]: defaultTheme,
-  [inkPaperThemeId]: inkPaperTheme,
-  [inkBlackThemeId]: inkBlackTheme,
-  [duskIndigoThemeId]: duskIndigoTheme,
-  [beigePaperThemeId]: beigePaperTheme,
-  [shadLingoThemeId]: shadLingoTheme,
-  [shadLingoDarkThemeId]: shadLingoDarkTheme,
-  [lanmoThemeId]: lanmoTheme,
-} as const satisfies Record<string, AppTheme>;
+  light: lightTheme,
+  dark: darkTheme,
+} as const satisfies Record<AppThemeTone, AppTheme>;
 
 export type AppThemeId = keyof typeof themeRegistry;
 
-export const visibleThemeIds = (Object.keys(themeRegistry) as AppThemeId[]).filter(
-  (themeId) => themeRegistry[themeId].meta.visible,
-);
-
-export function defaultThemeIdForTone(tone: AppThemeTone): AppThemeId {
-  return (
-    visibleThemeIds.find((themeId) => themeRegistry[themeId].meta.tone === tone) || defaultThemeId
-  );
-}
-
-export function resolveAppThemeIdForTone(value: unknown, tone: AppThemeTone): AppThemeId {
-  const themeId = resolveAppThemeId(value);
-  return themeRegistry[themeId].meta.tone === tone ? themeId : defaultThemeIdForTone(tone);
-}
+const cachedThemeStorageKey = 'yomitomo.themeId';
+const systemDarkQuery = '(prefers-color-scheme: dark)';
 
 export function themeToCssVariables(theme: AppTheme): CssVariableMap {
   return {
@@ -1202,83 +609,55 @@ export function applyAppTheme(theme: AppTheme, root: HTMLElement = document.docu
   for (const [name, value] of Object.entries(variables)) {
     root.style.setProperty(name, value);
   }
-  if (theme.meta.id === lanmoThemeId) registerLanmoSketch(root);
 }
 
-export function resolveAppThemeId(value: unknown): AppThemeId {
-  return typeof value === 'string' && value in themeRegistry
-    ? (value as AppThemeId)
-    : defaultThemeId;
-}
-
-export function readCachedThemeId(
-  storage: Storage | undefined = browserLocalStorage(),
+export function themeIdForPreference(
+  preference: ThemePreference,
+  systemTone: AppThemeTone = systemThemeTone(),
 ): AppThemeId {
-  if (!storage) return defaultThemeId;
+  return preference === 'system' ? systemTone : preference;
+}
+
+export function systemThemeTone(): AppThemeTone {
+  const query = systemDarkMediaQuery();
+  return query?.matches ? 'dark' : 'light';
+}
+
+export function watchSystemThemeTone(onChange: (tone: AppThemeTone) => void) {
+  const query = systemDarkMediaQuery();
+  if (!query) return () => undefined;
+  const listener = () => onChange(query.matches ? 'dark' : 'light');
+  query.addEventListener('change', listener);
+  return () => query.removeEventListener('change', listener);
+}
+
+export function readCachedThemePreference(
+  storage: Storage | undefined = browserLocalStorage(),
+): ThemePreference {
+  if (!storage) return 'system';
 
   try {
-    return resolveAppThemeId(storage.getItem(cachedThemeStorageKey));
+    return normalizeThemePreference(storage.getItem(cachedThemeStorageKey));
   } catch {
-    return defaultThemeId;
+    return 'system';
   }
 }
 
-export function writeCachedThemeId(
-  themeId: AppThemeId,
+export function readCachedThemeId(): AppThemeId {
+  return themeIdForPreference(readCachedThemePreference());
+}
+
+export function writeCachedThemePreference(
+  preference: ThemePreference,
   storage: Storage | undefined = browserLocalStorage(),
 ) {
   if (!storage) return;
 
   try {
-    storage.setItem(cachedThemeStorageKey, themeId);
-    writeCachedThemeIdForTone(themeId, storage);
+    storage.setItem(cachedThemeStorageKey, preference);
   } catch {
     // Theme cache is a startup optimization; settings remain the source of truth.
   }
-}
-
-export function readCachedThemeIdsByTone(
-  storage: Storage | undefined = browserLocalStorage(),
-): Record<AppThemeTone, AppThemeId> {
-  if (!storage) return defaultThemeIdsByTone();
-
-  try {
-    return normalizeThemeIdsByTone(
-      JSON.parse(storage.getItem(cachedThemeIdsByToneStorageKey) || '{}'),
-    );
-  } catch {
-    return defaultThemeIdsByTone();
-  }
-}
-
-export function writeCachedThemeIdForTone(
-  themeId: AppThemeId,
-  storage: Storage | undefined = browserLocalStorage(),
-) {
-  if (!storage) return;
-
-  try {
-    const tone = themeRegistry[themeId].meta.tone;
-    const nextThemeIds = { ...readCachedThemeIdsByTone(storage), [tone]: themeId };
-    storage.setItem(cachedThemeIdsByToneStorageKey, JSON.stringify(nextThemeIds));
-  } catch {
-    // Theme cache is a startup optimization; settings remain the source of truth.
-  }
-}
-
-function defaultThemeIdsByTone(): Record<AppThemeTone, AppThemeId> {
-  return {
-    light: defaultThemeIdForTone('light'),
-    dark: defaultThemeIdForTone('dark'),
-  };
-}
-
-function normalizeThemeIdsByTone(value: unknown): Record<AppThemeTone, AppThemeId> {
-  const input = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
-  return {
-    light: resolveAppThemeIdForTone(input.light, 'light'),
-    dark: resolveAppThemeIdForTone(input.dark, 'dark'),
-  };
 }
 
 function paperPatternImage(pattern: PaperPatternTheme) {
@@ -1288,8 +667,6 @@ function paperPatternImage(pattern: PaperPatternTheme) {
   switch (pattern.kind) {
     case 'plain':
       return 'none';
-    case 'grain':
-      return paperGrainImage;
     case 'dot':
       return `radial-gradient(circle, ${color} 0 1px, transparent 1.35px)`;
     case 'ruled':
@@ -1314,4 +691,10 @@ function browserLocalStorage() {
   } catch {
     return undefined;
   }
+}
+
+function systemDarkMediaQuery() {
+  return typeof window === 'undefined' || typeof window.matchMedia !== 'function'
+    ? undefined
+    : window.matchMedia(systemDarkQuery);
 }

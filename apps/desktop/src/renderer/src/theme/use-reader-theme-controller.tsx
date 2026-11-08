@@ -1,6 +1,6 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import { createStore, useStore, type StoreApi } from 'zustand';
-import type { ResolvedAppSettings, DesktopStore } from '@yomitomo/shared';
+import type { ResolvedAppSettings, DesktopStore, ThemePreference } from '@yomitomo/shared';
 import {
   readerBackgroundTone,
   type ReaderBackgroundTone,
@@ -14,29 +14,29 @@ import {
 } from '../settings/app-reader-settings';
 import {
   applyAppTheme,
-  readCachedThemeIdsByTone,
-  readCachedThemeId,
-  resolveAppThemeId,
+  readCachedThemePreference,
+  themeIdForPreference,
   themeRegistry,
-  writeCachedThemeId,
+  watchSystemThemeTone,
+  writeCachedThemePreference,
   type AppThemeTone,
   type AppThemeId,
 } from './app-theme';
 import { getDesktopApi } from '../shell/app-desktop-api';
 
-const startupThemeId = readCachedThemeId();
-const startupThemeIdsByTone = readCachedThemeIdsByTone();
+const startupThemePreference = readCachedThemePreference();
+const startupThemeId = themeIdForPreference(startupThemePreference);
 const startupReaderSettings = readDesktopReaderSettings();
 const startupReaderBackgroundsByTone = readDesktopReaderBackgroundsByTone();
 applyAppTheme(themeRegistry[startupThemeId]);
 
 type ReaderThemeState = {
   activeThemeId: AppThemeId;
-  themeIdsByTone: Record<AppThemeTone, AppThemeId>;
+  themePreference: ThemePreference;
   readerBackgroundColor: string;
   readerBackgroundsByTone: Record<ReaderBackgroundTone, string>;
   selectReaderBackground: (backgroundColor: string) => void;
-  selectTheme: (themeId: AppThemeId, preferredReaderBackgroundColor?: string) => Promise<void>;
+  selectThemePreference: (preference: ThemePreference) => Promise<void>;
   syncFromSettings: (settings: ResolvedAppSettings) => void;
 };
 
@@ -44,12 +44,12 @@ export type ReaderThemeStoreApi = StoreApi<ReaderThemeState>;
 
 type ReaderThemeController = {
   activeThemeId: AppThemeId;
+  themePreference: ThemePreference;
   readerBackgroundColor: string;
   readerBackgroundsByTone: Record<ReaderBackgroundTone, string>;
   readerTheme: ReaderTheme;
   selectReaderBackground: (backgroundColor: string) => void;
-  selectTheme: (themeId: AppThemeId, preferredReaderBackgroundColor?: string) => Promise<void>;
-  themeIdsByTone: Record<AppThemeTone, AppThemeId>;
+  selectThemePreference: (preference: ThemePreference) => Promise<void>;
   tone: AppThemeTone;
 };
 
@@ -59,12 +59,17 @@ export function createReaderThemeStore(input: {
   return createStore<ReaderThemeState>()((set, get) => {
     let latestThemeSave = 0;
 
-    function showTheme(themeId: AppThemeId) {
+    function showPreference(preference: ThemePreference) {
+      const themeId = themeIdForPreference(preference);
       if (get().activeThemeId !== themeId) applyAppTheme(themeRegistry[themeId]);
-      set((state) => ({
-        activeThemeId: themeId,
-        themeIdsByTone: { ...state.themeIdsByTone, [themeRegistry[themeId].meta.tone]: themeId },
-      }));
+      set({ activeThemeId: themeId, themePreference: preference });
+      const currentBackgroundColor = readDesktopReaderSettings().backgroundColor;
+      const nextBackgroundColor = readerBackgroundForTone(
+        themeRegistry[themeId].meta.tone,
+        currentBackgroundColor,
+        get().readerBackgroundsByTone,
+      );
+      if (nextBackgroundColor !== currentBackgroundColor) saveReaderBackground(nextBackgroundColor);
     }
 
     function saveReaderBackground(backgroundColor: string) {
@@ -82,29 +87,27 @@ export function createReaderThemeStore(input: {
       writeDesktopReaderSettings(nextSettings);
     }
 
+    // The store lives as long as the window, so the system listener is never removed.
+    watchSystemThemeTone(() => {
+      if (get().themePreference === 'system') showPreference('system');
+    });
+
     return {
       activeThemeId: startupThemeId,
-      themeIdsByTone: startupThemeIdsByTone,
-      readerBackgroundColor: compatibleReaderBackgroundForTheme(
-        startupThemeId,
+      themePreference: startupThemePreference,
+      readerBackgroundColor: readerBackgroundForTone(
+        themeRegistry[startupThemeId].meta.tone,
         startupReaderSettings.backgroundColor,
+        startupReaderBackgroundsByTone,
       ),
       readerBackgroundsByTone: startupReaderBackgroundsByTone,
       selectReaderBackground: saveReaderBackground,
-      selectTheme: async (themeId, preferredReaderBackgroundColor) => {
-        const { activeThemeId, readerBackgroundColor } = get();
-        showTheme(themeId);
-        writeCachedThemeId(themeId);
-        const nextBackgroundColor = compatibleReaderBackgroundForTheme(
-          themeId,
-          preferredReaderBackgroundColor || readerBackgroundColor,
-          preferredReaderBackgroundColor ? undefined : activeThemeId,
-        );
-        if (nextBackgroundColor !== readerBackgroundColor)
-          saveReaderBackground(nextBackgroundColor);
+      selectThemePreference: async (preference) => {
+        showPreference(preference);
+        writeCachedThemePreference(preference);
         const themeSave = ++latestThemeSave;
         try {
-          const nextStore = await getDesktopApi().store.saveSettings({ themeId });
+          const nextStore = await getDesktopApi().store.saveSettings({ themeId: preference });
           // An older save's snapshot would sync the theme back to an earlier choice.
           if (themeSave === latestThemeSave) input.applyStore(nextStore);
         } catch {
@@ -112,17 +115,8 @@ export function createReaderThemeStore(input: {
         }
       },
       syncFromSettings: (settings) => {
-        const storedThemeId = resolveAppThemeId(settings.themeId);
-        showTheme(storedThemeId);
-        const currentBackgroundColor = readDesktopReaderSettings().backgroundColor;
-        const nextBackgroundColor = compatibleReaderBackgroundForTheme(
-          storedThemeId,
-          currentBackgroundColor,
-        );
-        if (nextBackgroundColor !== currentBackgroundColor) {
-          saveReaderBackground(nextBackgroundColor);
-        }
-        writeCachedThemeId(storedThemeId);
+        showPreference(settings.themeId);
+        writeCachedThemePreference(settings.themeId);
       },
     };
   });
@@ -144,37 +138,28 @@ export function useReaderThemeController(): ReaderThemeController {
   const themeStore = useContext(ReaderThemeStoreContext);
   if (!themeStore) throw new Error('ReaderThemeStoreProvider is missing');
   const activeThemeId = useStore(themeStore, (state) => state.activeThemeId);
+  const themePreference = useStore(themeStore, (state) => state.themePreference);
   const readerBackgroundColor = useStore(themeStore, (state) => state.readerBackgroundColor);
   const readerBackgroundsByTone = useStore(themeStore, (state) => state.readerBackgroundsByTone);
-  const themeIdsByTone = useStore(themeStore, (state) => state.themeIdsByTone);
-  const { selectReaderBackground, selectTheme } = themeStore.getState();
+  const { selectReaderBackground, selectThemePreference } = themeStore.getState();
   const activeTheme = themeRegistry[activeThemeId];
 
   return {
     activeThemeId,
+    themePreference,
     readerBackgroundColor,
     readerBackgroundsByTone,
     readerTheme: activeTheme.reader,
     selectReaderBackground,
-    selectTheme,
-    themeIdsByTone,
+    selectThemePreference,
     tone: activeTheme.meta.tone,
   };
 }
 
-export function compatibleReaderBackgroundForTheme(
-  themeId: AppThemeId,
+function readerBackgroundForTone(
+  tone: AppThemeTone,
   backgroundColor: string,
-  previousThemeId?: AppThemeId,
+  backgroundsByTone: Record<ReaderBackgroundTone, string>,
 ) {
-  const tone = themeRegistry[themeId].meta.tone;
-  if (readerBackgroundTone(backgroundColor) !== tone) return themeRegistry[themeId].reader.paper;
-  if (
-    previousThemeId &&
-    previousThemeId !== themeId &&
-    backgroundColor === themeRegistry[previousThemeId].reader.paper
-  ) {
-    return themeRegistry[themeId].reader.paper;
-  }
-  return backgroundColor;
+  return readerBackgroundTone(backgroundColor) === tone ? backgroundColor : backgroundsByTone[tone];
 }

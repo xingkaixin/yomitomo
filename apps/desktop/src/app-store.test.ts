@@ -15,7 +15,7 @@ describe('desktop store app lock projection', () => {
         onboardingCompletedAt: '2026-07-18T00:00:00.000Z',
         soundEffectsEnabled: false,
         soundEffectsVolume: 0.25,
-        themeId: 'ink-paper',
+        themeId: 'dark' as const,
         uiLanguage: 'en' as const,
         defaultProviderId: 'provider_secret',
         telemetryEnabled: false,
@@ -33,7 +33,7 @@ describe('desktop store app lock projection', () => {
         onboardingCompletedAt: '2026-07-18T00:00:00.000Z',
         soundEffectsEnabled: false,
         soundEffectsVolume: 0.25,
-        themeId: 'ink-paper',
+        themeId: 'dark' as const,
         uiLanguage: 'en',
       },
     });

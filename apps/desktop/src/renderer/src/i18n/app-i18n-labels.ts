@@ -103,10 +103,6 @@ function readerRelativeTimeLabel(parts: RelativeTimeParts) {
   return i18next.t(`readerUi.relativeTime.${parts.unit}`, { count: parts.count });
 }
 
-export function themeDisplayName(themeId: string) {
-  return i18next.t(`theme.names.${themeId}`, { defaultValue: themeId });
-}
-
 export function readerPaperDisplayName(label: string) {
   return i18next.t(`theme.readerPaperNames.${label}`, { defaultValue: label });
 }

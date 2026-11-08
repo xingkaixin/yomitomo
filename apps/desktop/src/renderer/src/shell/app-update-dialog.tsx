@@ -21,7 +21,6 @@ import type {
 } from '@yomitomo/shared';
 import { normalizeUiLanguage, selectHighlights, shouldShowAfterUpdate } from '@yomitomo/shared';
 import type { AppUpdateProgress, AppUpdateState } from '../../../app-update-types';
-import { resolveAppThemeId, themeRegistry } from '../theme/app-theme';
 import coverLighterImage from '../assets/update/updater-cover-lighter.webp';
 import coverDarkerImage from '../assets/update/updater-cover-darker.webp';
 import { useTranslation } from 'react-i18next';
@@ -134,8 +133,8 @@ export function UpdateReleaseDialog({
     void getDesktopApi().updates.download();
   };
 
-  const tone = themeRegistry[resolveAppThemeId(document.documentElement.dataset.theme)].meta.tone;
-  const coverImage = tone === 'dark' ? coverDarkerImage : coverLighterImage;
+  const coverImage =
+    document.documentElement.dataset.themeTone === 'dark' ? coverDarkerImage : coverLighterImage;
 
   return (
     <UpdateReleaseDialogView

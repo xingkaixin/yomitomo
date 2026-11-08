@@ -2,21 +2,12 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { Cancel01Icon } from '@hugeicons/core-free-icons';
 import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  defaultReaderBackgroundForTone,
-  readerBackgroundOptions,
-  type ReaderBackgroundTone,
-} from '@yomitomo/reader-ui/reader-settings';
-import {
-  defaultThemeIdForTone,
-  themeRegistry,
-  visibleThemeIds,
-  type AppThemeTone,
-  type AppThemeId,
-} from './app-theme';
+import type { ThemePreference } from '@yomitomo/shared';
+import { readerBackgroundOptions } from '@yomitomo/reader-ui/reader-settings';
+import { themeRegistry } from './app-theme';
 import { AppearancePreview } from './app-appearance-preview';
 import type { ThemeSelectorProps } from './app-theme-selector';
-import { readerPaperDisplayName, themeDisplayName } from '../i18n/app-i18n-labels';
+import { readerPaperDisplayName } from '../i18n/app-i18n-labels';
 import {
   Dialog,
   DialogContent,
@@ -28,30 +19,24 @@ import {
 import { IconButton } from '../components/ui/icon-button';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
 
+const themePreferences: ThemePreference[] = ['light', 'dark', 'system'];
+
 export function ThemeDialog({
   activeThemeId,
+  themePreference,
   readerBackgroundColor,
   soundSettings = {},
-  readerBackgroundsByTone = defaultReaderBackgroundsByTone,
-  themeIdsByTone = defaultThemeIdsByTone,
   onOpenChange,
   onSelectReaderBackground,
-  onSelectTheme,
+  onSelectThemePreference,
   dialogStyle,
 }: ThemeSelectorProps & { dialogStyle: CSSProperties }) {
   const { t } = useTranslation();
   const activeTone = themeRegistry[activeThemeId].meta.tone;
 
-  function selectTone(tone: AppThemeTone) {
-    if (tone === activeTone) return;
-    onSelectTheme(themeIdsByTone[tone], readerBackgroundsByTone[tone]);
-    onSelectReaderBackground(readerBackgroundsByTone[tone]);
-    playAppSoundEffect('theme.appearance_switch', soundSettings);
-  }
-
-  function selectTheme(themeId: AppThemeId) {
-    if (themeId === activeThemeId) return;
-    onSelectTheme(themeId);
+  function selectPreference(preference: ThemePreference) {
+    if (preference === themePreference) return;
+    onSelectThemePreference(preference);
     playAppSoundEffect('theme.appearance_switch', soundSettings);
   }
 
@@ -82,39 +67,21 @@ export function ThemeDialog({
             <div className="theme-dialog-body">
               <section aria-label={t('theme.title')}>
                 <div className="theme-tone-switch" role="group" aria-label={t('theme.category')}>
-                  {(['light', 'dark'] as const).map((tone) => (
+                  {themePreferences.map((preference) => (
                     <button
-                      key={tone}
+                      key={preference}
                       className={
-                        activeTone === tone ? 'theme-tone-option is-active' : 'theme-tone-option'
+                        themePreference === preference
+                          ? 'theme-tone-option is-active'
+                          : 'theme-tone-option'
                       }
-                      aria-pressed={activeTone === tone}
+                      aria-pressed={themePreference === preference}
                       type="button"
-                      onClick={() => selectTone(tone)}
+                      onClick={() => selectPreference(preference)}
                     >
-                      {t(`theme.${tone}`)}
+                      {t(`theme.${preference}`)}
                     </button>
                   ))}
-                </div>
-                <div className="theme-card-grid">
-                  {visibleThemeIds
-                    .filter((id) => themeRegistry[id].meta.tone === activeTone)
-                    .map((id) => (
-                      <button
-                        key={id}
-                        className={activeThemeId === id ? 'theme-card is-active' : 'theme-card'}
-                        aria-label={themeDisplayName(id)}
-                        aria-pressed={activeThemeId === id}
-                        type="button"
-                        onClick={() => selectTheme(id)}
-                      >
-                        <AppearancePreview themeId={id} />
-                        <strong>
-                          {themeDisplayName(id)}
-                          <SelectionCircle />
-                        </strong>
-                      </button>
-                    ))}
                 </div>
               </section>
               <section aria-labelledby="reader-paper-title" className="theme-reader-paper">
@@ -138,11 +105,7 @@ export function ThemeDialog({
                           type="button"
                           onClick={() => selectPaper(option.value)}
                         >
-                          <AppearancePreview
-                            themeId={activeThemeId}
-                            paper={option.value}
-                            scene="reader"
-                          />
+                          <AppearancePreview themeId={activeThemeId} paper={option.value} />
                           <strong>
                             {label}
                             <SelectionCircle />
@@ -178,12 +141,3 @@ function SelectionCircle() {
     </svg>
   );
 }
-
-const defaultThemeIdsByTone: Record<AppThemeTone, AppThemeId> = {
-  light: defaultThemeIdForTone('light'),
-  dark: defaultThemeIdForTone('dark'),
-};
-const defaultReaderBackgroundsByTone: Record<ReaderBackgroundTone, string> = {
-  light: defaultReaderBackgroundForTone('light'),
-  dark: defaultReaderBackgroundForTone('dark'),
-};

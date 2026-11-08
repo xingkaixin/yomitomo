@@ -1,5 +1,11 @@
 import type { Annotation, ArticleRecord, ArticleStorePatch, DesktopStore } from '@yomitomo/shared';
-import { applyAppTheme, readCachedThemeId, themeRegistry, type AppTheme } from '../theme/app-theme';
+import {
+  applyAppTheme,
+  readCachedThemeId,
+  themeRegistry,
+  watchSystemThemeTone,
+  type AppTheme,
+} from '../theme/app-theme';
 import { annotationWindowActions } from './app-annotation-window-actions';
 
 export type AnnotationWindowRoute = {
@@ -80,7 +86,7 @@ export function bindAnnotationWindowArticle(
   };
 }
 
-/** Follows theme changes made in other windows. Returns the unsubscribe function. */
+/** Follows theme changes made in other windows and by the system. Returns the unsubscribe function. */
 export function bindAnnotationWindowTheme(onApplied: (theme: AppTheme) => void = () => undefined) {
   const syncTheme = () => {
     const theme = themeRegistry[readCachedThemeId()];
@@ -89,9 +95,11 @@ export function bindAnnotationWindowTheme(onApplied: (theme: AppTheme) => void =
   };
   window.addEventListener('storage', syncTheme);
   window.addEventListener('focus', syncTheme);
+  const unwatchSystemTone = watchSystemThemeTone(syncTheme);
   return () => {
     window.removeEventListener('storage', syncTheme);
     window.removeEventListener('focus', syncTheme);
+    unwatchSystemTone();
   };
 }
 
