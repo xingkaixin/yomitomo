@@ -1,5 +1,9 @@
 import { readerBilingualTranslationStyles } from '@yomitomo/reader-ui/reader-bilingual-translation-styles';
-import { readerBackgroundTone, readerBodyLineHeight } from '@yomitomo/reader-ui/reader-settings';
+import {
+  readerBackgroundTone,
+  readerBodyLineHeight,
+  readerPaper,
+} from '@yomitomo/reader-ui/reader-settings';
 import type { ReaderTheme } from '@yomitomo/reader-ui/reader-theme';
 import type { ReaderSettings } from '@yomitomo/reader-ui/reader-types';
 import jetBrainsMonoBoldUrl from '../../assets/fonts/JetBrainsMono-Bold.woff2?url';
@@ -189,7 +193,8 @@ export function closeFoliateView(view: FoliateViewElement | null) {
 function foliateReaderCss(settings: ReaderSettings, theme: ReaderTheme) {
   const isDarkBackground = readerBackgroundTone(settings.backgroundColor) === 'dark';
   const colorScheme = isDarkBackground ? 'dark' : 'light';
-  const linkUnderline = `color-mix(in srgb, ${theme.ink} 36%, transparent)`;
+  const paper = readerPaper(settings.backgroundColor);
+  const linkUnderline = `color-mix(in srgb, ${paper.ink} 36%, transparent)`;
 
   return `
     @namespace epub "http://www.idpf.org/2007/ops";
@@ -237,12 +242,12 @@ function foliateReaderCss(settings: ReaderSettings, theme: ReaderTheme) {
     }
 
     html {
-      --reader-ink: ${theme.ink};
-      --reader-muted: ${theme.muted};
+      --reader-ink: ${paper.ink};
+      --reader-muted: ${paper.muted};
       --reader-green: ${theme.primary};
       --reader-red: ${theme.danger};
       background: ${settings.backgroundColor};
-      color: ${theme.ink};
+      color: ${paper.ink};
       color-scheme: ${colorScheme};
       font-size: ${settings.fontSize}px;
     }
@@ -290,7 +295,7 @@ function foliateReaderCss(settings: ReaderSettings, theme: ReaderTheme) {
     }
 
     figcaption, caption, small {
-      color: ${theme.muted};
+      color: ${paper.muted};
     }
 
     ${readerBilingualTranslationStyles}

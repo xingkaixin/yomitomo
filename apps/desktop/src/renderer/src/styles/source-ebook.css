@@ -853,7 +853,7 @@
 
 .source-ebook-reader-shell.ebook-reader-shell {
   gap: 0;
-  background: hsl(var(--card));
+  background: var(--app-shell-background);
 }
 
 .source-ebook-reader-shell .ebook-page-control-row,

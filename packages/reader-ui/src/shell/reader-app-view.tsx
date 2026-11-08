@@ -13,7 +13,7 @@ import type {
   SelectionAction,
 } from './reader-app-view-types';
 import { defaultReaderUiLabels } from './reader-app-view-types';
-import { readerBackgroundTone } from '../reader-settings';
+import { readerBackgroundTone, readerPaperCssVariables } from '../reader-settings';
 import { ReaderTooltipProvider } from '../shared/reader-component-primitives';
 import { useReaderShellState } from './use-reader-shell-state';
 import { useReaderActiveConnection } from './use-reader-active-connection';
@@ -23,7 +23,7 @@ type ReaderAppStyle = React.CSSProperties & {
   '--reader-content-width': string;
   '--reader-content-bg': string;
   '--reader-layout-article-width'?: string;
-};
+} & ReturnType<typeof readerPaperCssVariables>;
 
 type ChatTriggerEvent = { type: 'chatTriggered'; source: ReaderChatActivationSource };
 
@@ -224,6 +224,7 @@ function ReaderAppViewComponent(
     '--reader-font-size': `${readerSettings.fontSize}px`,
     '--reader-content-width': `${readerSettings.contentWidth}px`,
     '--reader-content-bg': readerSettings.backgroundColor,
+    ...readerPaperCssVariables(readerSettings.backgroundColor),
     ...(annotationRailLayout.articleWidth
       ? { '--reader-layout-article-width': `${annotationRailLayout.articleWidth}px` }
       : {}),

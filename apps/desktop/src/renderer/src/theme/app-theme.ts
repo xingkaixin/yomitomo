@@ -141,6 +141,10 @@ const lightReaderTheme: ReaderTheme = {
   accent: '#f1d8d1',
   accentStrong: '#9b463b',
   danger: '#a13e36',
+  paperEdge: 'rgba(28, 26, 23, 0.07)',
+  paperShadow:
+    'inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 1px 2px rgba(28, 26, 23, 0.06), 0 10px 28px -10px rgba(28, 26, 23, 0.18), 0 28px 56px -28px rgba(28, 26, 23, 0.2)',
+  ribbon: 'linear-gradient(90deg, #8f2519, #b23223 45%, #c64636)',
   toolbar: {
     background: 'rgba(255,250,243,.92)',
     border: 'rgba(47,39,32,.12)',
@@ -361,6 +365,10 @@ const darkReaderTheme: ReaderTheme = {
   accent: '#3d241b',
   accentStrong: '#e0844f',
   danger: '#e56f65',
+  paperEdge: 'rgba(0, 0, 0, 0.4)',
+  paperShadow:
+    'inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 0 1px rgba(0, 0, 0, 0.3), 0 12px 32px -10px rgba(0, 0, 0, 0.65)',
+  ribbon: 'linear-gradient(90deg, #c9584a, #e8735f 45%, #f08b79)',
   toolbar: {
     background: 'rgba(26,24,21,.88)',
     border: 'rgba(224,217,204,.1)',
