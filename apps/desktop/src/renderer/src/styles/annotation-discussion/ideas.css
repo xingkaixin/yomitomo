@@ -21,9 +21,7 @@
   flex-direction: column;
   gap: 12px;
   overflow: auto;
-  border-right: 1px solid var(--app-reader-line);
-  background: var(--app-reader-toc-bg);
-  padding: 16px;
+  padding: 4px 12px 16px 20px;
   transition:
     padding 180ms cubic-bezier(0.22, 1, 0.36, 1),
     background 180ms ease;
@@ -44,11 +42,11 @@
   align-items: stretch;
   gap: 12px;
   overflow: auto;
-  border-right: 1px solid var(--app-reader-line);
-  background: var(--app-reader-paper);
+  border-right: 1px solid var(--app-edge-soft);
+  background: hsl(var(--background));
   box-shadow:
-    inset -1px 0 0 var(--app-reader-line),
-    18px 0 46px var(--app-reader-ink-a16);
+    inset -1px 0 0 var(--app-edge-soft),
+    18px 0 46px hsl(var(--foreground) / 0.16);
   padding: 16px;
 }
 
@@ -64,14 +62,14 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  color: var(--app-reader-muted);
+  color: hsl(var(--muted-foreground));
   font-size: 12px;
   font-weight: 840;
 }
 
 .annotation-discussion-ideas header strong,
 .annotation-discussion-thread header strong {
-  color: var(--app-reader-ink);
+  color: hsl(var(--foreground));
   font-size: 13px;
   font-weight: 900;
 }
@@ -81,10 +79,10 @@
   width: 28px;
   height: 28px;
   place-items: center;
-  border: 1px solid var(--app-reader-toolbar-border);
+  border: 1px solid var(--app-edge);
   border-radius: 999px;
-  background: var(--app-reader-paper);
-  color: var(--app-reader-muted);
+  background: var(--app-raised);
+  color: hsl(var(--muted-foreground));
   transition:
     border-color 140ms ease,
     background 140ms ease,
@@ -93,9 +91,9 @@
 }
 
 .annotation-discussion-ideas-toggle:hover {
-  border-color: var(--app-reader-accent-strong);
-  background: var(--app-reader-note-bg);
-  color: var(--app-reader-ink);
+  border-color: var(--app-interactive-hover-border);
+  background: var(--app-interactive-hover-bg);
+  color: hsl(var(--foreground));
 }
 
 .annotation-discussion-ideas-toggle:active {
@@ -129,10 +127,10 @@
   min-width: 40px;
   height: 40px;
   place-items: center;
-  border: 1px solid var(--app-reader-toolbar-border);
+  border: 1px solid var(--app-edge);
   border-radius: 999px;
-  background: var(--app-reader-paper);
-  color: var(--app-reader-ink);
+  background: var(--app-raised);
+  color: hsl(var(--foreground));
   font-size: 12px;
   font-weight: 900;
 }
@@ -148,10 +146,10 @@
   height: 28px;
   place-items: center;
   margin-left: auto;
-  border: 1px solid var(--app-reader-toolbar-border);
+  border: 1px solid var(--app-edge);
   border-radius: 999px;
-  background: var(--app-reader-paper);
-  color: var(--app-reader-ink);
+  background: var(--app-raised);
+  color: hsl(var(--foreground));
   transition:
     background 140ms ease,
     border-color 140ms ease,
@@ -159,8 +157,8 @@
 }
 
 .annotation-discussion-add-thought:hover {
-  border-color: var(--app-reader-accent-strong);
-  background: var(--app-reader-note-bg);
+  border-color: var(--app-interactive-hover-border);
+  background: var(--app-interactive-hover-bg);
 }
 
 .annotation-discussion-add-thought:active {
@@ -179,7 +177,7 @@
   z-index: 50;
   display: grid;
   place-items: center;
-  background: var(--app-reader-ink-a32);
+  background: hsl(var(--foreground) / 0.32);
   padding: 22px;
 }
 
@@ -190,11 +188,11 @@
   min-width: 0;
   gap: 0;
   overflow: visible;
-  border: 1px solid var(--app-reader-toolbar-border);
+  border: 1px solid var(--app-edge);
   border-radius: 16px;
-  background: var(--app-reader-paper);
-  box-shadow: 0 28px 80px var(--app-reader-ink-a20);
-  color: var(--app-reader-ink);
+  background: var(--app-panel);
+  box-shadow: 0 28px 80px hsl(var(--foreground) / 0.2);
+  color: hsl(var(--foreground));
   padding: 0;
 }
 
@@ -203,8 +201,8 @@
   align-items: center;
   gap: 14px;
   margin: 0;
-  border-bottom: 1px solid var(--app-reader-line);
-  background: var(--app-reader-toolbar-bg);
+  border-bottom: 1px solid var(--app-edge-soft);
+  background: var(--app-raised);
   border-radius: 16px 16px 0 0;
   padding: 16px 22px;
 }
@@ -215,21 +213,21 @@
   height: 28px;
   place-items: center;
   margin-left: auto;
-  border: 1px solid var(--app-reader-toolbar-border);
+  border: 1px solid var(--app-edge);
   border-radius: 999px;
-  background: var(--app-reader-paper);
-  color: var(--app-reader-muted);
+  background: var(--app-raised);
+  color: hsl(var(--muted-foreground));
 }
 
 .annotation-discussion-add-close:hover {
-  border-color: var(--app-reader-accent-strong);
-  background: var(--app-reader-note-bg);
-  color: var(--app-reader-ink);
+  border-color: var(--app-interactive-hover-border);
+  background: var(--app-interactive-hover-bg);
+  color: hsl(var(--foreground));
 }
 
 .annotation-discussion-add-modal h2 {
   margin: 0;
-  color: var(--app-reader-ink);
+  color: hsl(var(--foreground));
   font-size: 17px;
   font-weight: 900;
   letter-spacing: 0;
@@ -245,19 +243,19 @@
 
 .annotation-discussion-add-mode button {
   height: 32px;
-  border: 1px solid var(--app-reader-toolbar-border);
+  border: 1px solid var(--app-edge);
   border-radius: 999px;
-  background: var(--app-reader-paper);
-  color: var(--app-reader-muted);
+  background: var(--app-raised);
+  color: hsl(var(--muted-foreground));
   font-size: 12px;
   font-weight: 820;
   padding: 0 14px;
 }
 
 .annotation-discussion-add-mode button.is-active {
-  border-color: var(--app-reader-ink);
-  background: var(--app-reader-ink);
-  color: var(--app-reader-paper);
+  border-color: var(--app-ink-edge);
+  background: var(--app-ink);
+  color: var(--app-ink-fg);
 }
 
 .annotation-discussion-add-agents {
@@ -286,10 +284,10 @@
   place-items: center;
   margin-left: -8px;
   appearance: none;
-  border: 2px solid var(--app-reader-paper);
+  border: 2px solid hsl(var(--card));
   border-radius: 999px;
-  background: var(--app-reader-paper);
-  box-shadow: 0 2px 7px var(--app-reader-ink-a12);
+  background: hsl(var(--card));
+  box-shadow: 0 2px 7px hsl(var(--foreground) / 0.12);
   color: inherit;
   line-height: 1;
   overflow: visible;
@@ -311,7 +309,7 @@
 .annotation-discussion-add-agents .reader-agent-avatar-stack-item:focus-visible,
 .annotation-discussion-add-agents .reader-agent-avatar-stack-item.is-revealed {
   z-index: 2;
-  box-shadow: 0 8px 18px var(--app-reader-ink-a16);
+  box-shadow: 0 8px 18px hsl(var(--foreground) / 0.16);
 }
 
 .annotation-discussion-add-agents .reader-agent-avatar-stack-item:focus-visible,
@@ -335,11 +333,11 @@
   max-width: 132px;
   overflow: hidden;
   transform: translateX(-50%);
-  border: 1px solid var(--app-reader-selection-menu-border);
+  border: 1px solid var(--app-edge);
   border-radius: 10px;
-  background: var(--app-reader-paper);
+  background: var(--app-raised);
   box-shadow: var(--app-raised-shadow);
-  color: var(--app-reader-ink);
+  color: hsl(var(--foreground));
   font-size: 11px;
   font-weight: 760;
   line-height: 1.25;
@@ -387,10 +385,10 @@
   max-height: 280px;
   gap: 3px;
   overflow: auto;
-  border: 1px solid var(--app-reader-composer-border);
+  border: 1px solid var(--app-edge);
   border-radius: 12px;
-  background: var(--app-reader-paper);
-  box-shadow: var(--app-reader-composer-shadow);
+  background: var(--app-raised);
+  box-shadow: var(--app-float-shadow);
   font-size: 12px;
   line-height: 1.2;
   padding: 6px;
@@ -413,7 +411,7 @@
 
 .annotation-discussion-sedimentation-entry {
   margin-top: auto;
-  border-top: 1px solid var(--app-reader-toolbar-border);
+  border-top: 1px solid var(--app-edge);
   padding-top: 12px;
 }
 
@@ -431,10 +429,10 @@
   align-items: center;
   justify-content: center;
   gap: 7px;
-  border: 1px solid var(--app-reader-toolbar-border);
+  border: 1px solid var(--app-edge);
   border-radius: 999px;
-  background: var(--app-reader-paper);
-  color: var(--app-reader-ink);
+  background: var(--app-raised);
+  color: hsl(var(--foreground));
   font: inherit;
   font-size: 12px;
   font-weight: 720;
@@ -447,7 +445,7 @@
 }
 
 .annotation-discussion-sedimentation-entry button:hover {
-  background: var(--app-reader-agent-panel-hover-bg);
+  background: var(--app-interactive-hover-bg);
 }
 
 .annotation-discussion-sedimentation-entry button.is-primary {
@@ -494,11 +492,11 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
   gap: 8px;
-  border: 1px solid var(--app-reader-toolbar-border);
-  border-radius: 8px;
-  background: var(--app-reader-paper);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
   color: inherit;
-  padding: 10px 8px 10px 10px;
+  padding: 12px 8px 12px 12px;
   text-align: left;
   transition:
     border-color 140ms ease,
@@ -511,14 +509,16 @@
 }
 
 .annotation-discussion-idea:hover {
-  border-color: var(--app-reader-accent-strong);
-  background: var(--app-reader-note-bg);
+  border-color: transparent;
+  background: var(--app-interactive-hover-bg);
 }
 
 .annotation-discussion-idea.is-selected {
-  border-color: var(--app-reader-toolbar-border);
-  background: var(--app-reader-accent-strong-a8);
-  box-shadow: inset 4px 0 0 var(--app-reader-accent-strong);
+  border-color: var(--app-interactive-selected-border);
+  background: var(--app-card-surface);
+  box-shadow:
+    var(--app-card-shadow),
+    0 0 0 3px var(--app-interactive-selected-bg);
 }
 
 .annotation-discussion-idea.is-pending {
@@ -533,10 +533,10 @@
   width: 18px;
   height: 18px;
   place-items: center;
-  border: 1px solid var(--app-reader-accent-strong-a32);
+  border: 1px solid var(--app-brand-a24);
   border-radius: 999px;
-  background: var(--app-reader-accent-strong-a12);
-  color: var(--app-reader-accent-strong);
+  background: var(--app-brand-a8);
+  color: var(--app-interactive-link);
 }
 
 .annotation-discussion-idea-main {
@@ -560,8 +560,8 @@
   place-items: center;
   overflow: hidden;
   border-radius: 999px;
-  background: var(--app-reader-primary);
-  color: var(--app-reader-paper);
+  background: var(--app-interactive-link);
+  color: var(--app-ink-fg);
   font-size: 11px;
   font-weight: 800;
 }
@@ -588,7 +588,7 @@
 }
 
 .annotation-discussion-idea-main strong {
-  color: var(--app-reader-ink);
+  color: hsl(var(--foreground));
   font-size: 12px;
   font-style: normal;
   font-weight: 900;
@@ -597,7 +597,7 @@
 .annotation-discussion-idea-main em,
 .annotation-discussion-ideas p {
   margin: 0;
-  color: var(--app-reader-muted);
+  color: hsl(var(--muted-foreground));
   font-size: 12px;
   font-style: normal;
   font-weight: 720;
@@ -605,7 +605,7 @@
 }
 
 .annotation-discussion-idea-main small {
-  color: var(--app-reader-muted);
+  color: hsl(var(--muted-foreground));
   font-size: 11px;
   font-weight: 780;
   line-height: 1.25;
@@ -632,7 +632,7 @@
   place-items: center;
   border: 1px solid transparent;
   background: transparent;
-  color: var(--app-reader-muted);
+  color: hsl(var(--muted-foreground));
   font: inherit;
 }
 
@@ -644,9 +644,9 @@
 
 .annotation-discussion-idea-actions button:hover,
 .annotation-discussion-idea-actions button.is-active {
-  border-color: var(--app-reader-toolbar-border);
-  background: var(--app-reader-toolbar-control-bg);
-  color: var(--app-reader-ink);
+  border-color: var(--app-edge);
+  background: var(--app-interactive-hover-bg);
+  color: hsl(var(--foreground));
 }
 
 .annotation-discussion-idea-menu {
@@ -657,9 +657,9 @@
   display: grid;
   min-width: 126px;
   gap: 4px;
-  border: 1px solid var(--app-reader-toolbar-border);
+  border: 1px solid var(--app-edge);
   border-radius: 12px;
-  background: var(--app-reader-paper);
+  background: var(--app-raised);
   box-shadow: var(--app-raised-shadow);
   padding: 6px;
 }
@@ -674,7 +674,7 @@
   gap: 7px;
   overflow: hidden;
   border-radius: 9px;
-  color: var(--app-reader-ink);
+  color: hsl(var(--foreground));
   font-size: 12px;
   font-weight: 760;
   padding: 0 8px;
@@ -682,7 +682,7 @@
 
 .annotation-discussion-idea-menu button:hover {
   border-color: transparent;
-  background: var(--app-reader-toolbar-control-bg);
+  background: var(--app-interactive-hover-bg);
 }
 
 .annotation-discussion-idea-delete,

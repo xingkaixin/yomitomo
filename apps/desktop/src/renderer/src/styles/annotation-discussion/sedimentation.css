@@ -280,7 +280,6 @@
   overflow: hidden;
 }
 
-/* The draft is the distillation itself, so it sits on the warm distillation material. */
 .annotation-sedimentation-draft-editor {
   position: relative;
   width: 100%;
@@ -288,10 +287,10 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  border: 1px solid var(--app-distill-edge);
+  border: 1px solid var(--app-edge);
   border-radius: 12px;
-  background: var(--app-distill);
-  box-shadow: var(--app-card-shadow);
+  background: var(--app-field);
+  box-shadow: var(--app-field-shadow);
 }
 
 .annotation-sedimentation-draft-editor:focus-within {

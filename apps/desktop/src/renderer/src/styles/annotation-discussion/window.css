@@ -1,15 +1,15 @@
 .annotation-discussion-window {
-  --reader-paper: var(--app-reader-paper);
-  --reader-ink: var(--app-reader-ink);
-  --reader-muted: var(--app-reader-muted);
-  --reader-green: var(--app-reader-primary);
+  --reader-paper: hsl(var(--background));
+  --reader-ink: hsl(var(--foreground));
+  --reader-muted: hsl(var(--muted-foreground));
+  --reader-green: var(--app-interactive-link);
   display: grid;
   height: 100%;
   min-height: 0;
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
-  background: var(--app-reader-paper);
-  color: var(--app-reader-ink);
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
   font-family: var(--font-ui);
 }
 
@@ -110,17 +110,14 @@
   display: grid;
   min-width: 0;
   gap: 7px;
-  border-bottom: 1px solid var(--app-reader-line);
-  background: var(--app-reader-note-bg);
-  padding: 14px 22px 16px;
+  padding: 20px 28px;
 }
 
 .annotation-discussion-quote strong {
-  color: var(--app-reader-accent-strong);
+  color: hsl(var(--muted-foreground));
   font-size: 12px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  line-height: 1.2;
+  font-weight: 400;
+  line-height: 17px;
 }
 
 .annotation-discussion-quote p {
@@ -130,9 +127,9 @@
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
-  color: var(--app-reader-note-quote-text);
+  color: hsl(var(--foreground));
   font-family: var(--font-reader-serif);
-  font-size: 15px;
-  font-weight: 620;
-  line-height: 1.66;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 32px;
 }

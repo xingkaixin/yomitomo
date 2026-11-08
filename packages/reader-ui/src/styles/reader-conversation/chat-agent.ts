@@ -8,18 +8,18 @@ export const chatAgentStyles = `.reader-chat-fab {
   width:46px;
   height:46px;
   place-items:center;
-  border:1px solid var(--app-reader-chat-panel-border);
+  border:1px solid var(--app-edge);
   border-radius:14px;
-  background:var(--app-reader-chat-panel-bg);
-  box-shadow:var(--app-reader-chat-panel-shadow);
-  color:var(--reader-ink);
+  background:var(--app-panel);
+  box-shadow:var(--app-float-shadow);
+  color:hsl(var(--foreground));
   transform-origin:center;
   transition:background .16s ease,border-color .16s ease,box-shadow .16s ease,transform .14s ease
 }
 .reader-chat-fab:hover {
-  border-color:var(--app-reader-composer-border);
-  background:var(--app-reader-composer-bg);
-  box-shadow:var(--app-reader-chat-panel-shadow)
+  border-color:var(--app-interactive-hover-border);
+  background:var(--app-raised);
+  box-shadow:var(--app-float-shadow)
 }
 .reader-chat-fab:active {
   transform:scale(.96)
@@ -36,8 +36,8 @@ export const chatAgentStyles = `.reader-chat-fab {
   height:19px;
   place-items:center;
   border-radius:999px;
-  background:var(--reader-ink);
-  box-shadow:0 6px 14px var(--app-reader-ink-a20),0 0 0 2px var(--app-reader-chat-panel-bg);
+  background:hsl(var(--foreground));
+  box-shadow:0 6px 14px var(--app-reader-ink-a20),0 0 0 2px hsl(var(--card));
   color:var(--reader-paper);
   font-family:var(--font-mono, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
   font-size:9px;
@@ -62,12 +62,12 @@ export const chatAgentStyles = `.reader-chat-fab {
   max-width:calc(100vw - 32px);
   max-height:calc(var(--app-viewport-height) - 112px);
   overflow:hidden;
-  border:1px solid var(--app-reader-chat-panel-border);
+  border:1px solid var(--app-edge);
   border-radius:18px;
-  background:var(--app-reader-chat-panel-bg);
-  box-shadow:var(--app-reader-chat-panel-shadow);
+  background:var(--app-panel);
+  box-shadow:var(--app-float-shadow);
   font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);
-  color:var(--reader-ink);
+  color:hsl(var(--foreground));
   opacity:1;
   transform:translateX(0) scale(var(--reader-chat-resize-scale-x,1),var(--reader-chat-resize-scale-y,1));
   transform-origin:100% 100%;
@@ -171,13 +171,13 @@ export const chatAgentStyles = `.reader-chat-fab {
   border:0;
   border-radius:10px;
   background:transparent;
-  color:var(--reader-muted);
+  color:hsl(var(--muted-foreground));
   padding:0;
   transition:background .14s ease,color .14s ease,transform .14s ease
 }
 .reader-chat-header button:hover {
-  background:var(--app-reader-toolbar-control-hover-bg);
-  color:var(--reader-ink)
+  background:var(--app-interactive-hover-bg);
+  color:hsl(var(--foreground))
 }
 .reader-chat-header button:active {
   transform:scale(.96)
@@ -188,8 +188,8 @@ export const chatAgentStyles = `.reader-chat-fab {
   margin:0 0 9px;
   padding:10px;
   border-radius:12px;
-  background:var(--app-reader-chat-context-bg);
-  box-shadow:inset 0 0 0 1px var(--app-reader-chat-context-border)
+  background:var(--app-brand-a8);
+  box-shadow:inset 0 0 0 1px var(--app-brand-a24)
 }
 .reader-chat-context-jump {
   justify-self:start;
@@ -197,7 +197,7 @@ export const chatAgentStyles = `.reader-chat-fab {
   overflow:hidden;
   border:0;
   background:transparent;
-  color:var(--app-reader-chat-context-fg);
+  color:hsl(var(--muted-foreground));
   font:inherit;
   font-size:11px;
   font-weight:850;
@@ -210,7 +210,7 @@ export const chatAgentStyles = `.reader-chat-fab {
   cursor:pointer
 }
 .reader-chat-context-jump:not(:disabled):hover {
-  color:var(--reader-ink);
+  color:hsl(var(--foreground));
   text-decoration:underline;
   text-underline-offset:2px
 }
@@ -221,7 +221,7 @@ export const chatAgentStyles = `.reader-chat-fab {
   max-height:84px;
   overflow:auto;
   margin:0;
-  color:var(--app-reader-chat-context-fg);
+  color:hsl(var(--muted-foreground));
   font-family:var(--font-reader-serif, Charter, Georgia, Cambria, "Times New Roman", serif);
   font-size:13px;
   font-weight:650;
@@ -231,8 +231,8 @@ export const chatAgentStyles = `.reader-chat-fab {
   justify-self:start;
   border:0;
   border-radius:999px;
-  background:var(--app-reader-toolbar-control-bg);
-  color:var(--reader-muted);
+  background:var(--app-interactive-hover-bg);
+  color:hsl(var(--muted-foreground));
   font:inherit;
   font-size:11px;
   font-weight:820;
@@ -240,8 +240,8 @@ export const chatAgentStyles = `.reader-chat-fab {
   transition:background .14s ease,color .14s ease,transform .14s ease
 }
 .reader-chat-context button:hover {
-  background:var(--app-reader-toolbar-control-hover-bg);
-  color:var(--reader-ink)
+  background:var(--app-interactive-hover-bg);
+  color:hsl(var(--foreground))
 }
 .reader-chat-context button:active {
   transform:scale(.96)
@@ -278,18 +278,24 @@ export const chatAgentStyles = `.reader-chat-fab {
   justify-self:end
 }
 .reader-chat-message.is-user .reader-chat-message-bubble {
+  border:1px solid var(--app-bubble-me-edge);
   border-bottom-right-radius:6px;
-  background:var(--app-reader-chat-user-bubble-bg);
-  color:var(--app-reader-chat-user-bubble-fg)
+  background:var(--app-bubble-me);
+  box-shadow:var(--app-bubble-me-shadow);
+  color:var(--app-bubble-me-fg);
+  text-shadow:var(--app-bubble-me-text-shadow)
 }
 .reader-chat-message.is-assistant {
   justify-self:start
 }
 .reader-chat-message.is-assistant .reader-chat-message-bubble {
   max-width:100%;
+  border:1px solid var(--app-bubble-them-edge);
   border-bottom-left-radius:6px;
-  background:var(--app-reader-chat-assistant-bubble-bg);
-  color:var(--app-reader-chat-assistant-bubble-fg)
+  background:var(--app-bubble-them);
+  box-shadow:var(--app-bubble-them-shadow);
+  color:var(--app-bubble-them-fg);
+  text-shadow:var(--app-bubble-them-text-shadow)
 }
 .reader-chat-message-bubble {
   display:grid;
@@ -428,11 +434,8 @@ export const chatAgentStyles = `.reader-chat-fab {
   display:grid;
   min-height:128px;
   place-items:center;
-  border:1px dashed var(--app-reader-chat-panel-border);
-  border-radius:14px;
-  color:var(--reader-muted);
-  font-size:13px;
-  font-weight:760
+  color:hsl(var(--muted-foreground));
+  font-size:13px
 }
 .reader-chat-error {
   border-radius:12px;
@@ -450,10 +453,12 @@ export const chatAgentStyles = `.reader-chat-fab {
   gap:9px;
   min-width:0;
   overflow:visible;
-  padding:12px 14px 14px;
-  border-top:1px solid var(--app-reader-chat-composer-border);
-  border-radius:0 0 17px 17px;
-  background:var(--app-reader-chat-composer-bg)
+  margin:0 12px 12px;
+  padding:12px 14px;
+  border:1px solid var(--app-edge);
+  border-radius:16px;
+  background:var(--app-field);
+  box-shadow:var(--app-field-shadow)
 }
 .reader-chat-composer textarea {
   display:block;
@@ -464,10 +469,10 @@ export const chatAgentStyles = `.reader-chat-fab {
   border:0;
   border-radius:0;
   background:transparent;
-  color:var(--reader-ink);
+  color:hsl(var(--foreground));
   font:inherit;
-  font-size:13px;
-  line-height:1.55;
+  font-size:14px;
+  line-height:1.6;
   outline:0;
   padding:0;
   resize:none
@@ -497,22 +502,25 @@ export const chatAgentStyles = `.reader-chat-fab {
   align-items:center;
   justify-content:center;
   gap:5px;
-  border:0;
+  border:1px solid var(--app-ink-edge);
   border-radius:999px;
-  background:var(--app-reader-chat-send-bg);
-  color:var(--app-reader-chat-send-fg);
+  background:var(--app-ink);
+  box-shadow:var(--app-ink-shadow);
+  color:var(--app-ink-fg);
   font:inherit;
-  font-size:12px;
-  font-weight:850;
-  padding:0 11px;
+  font-size:13px;
+  font-weight:500;
+  padding:0 14px;
   transition:opacity .14s ease,transform .14s ease
 }
 .reader-chat-composer .floating-composer-submit:active:not(:disabled) {
   transform:scale(.96)
 }
 .reader-chat-composer .floating-composer-submit:disabled {
-  background:var(--app-reader-chat-send-disabled-bg);
-  color:var(--app-reader-chat-send-disabled-fg);
+  border-color:transparent;
+  background:var(--app-action-primary-disabled-bg);
+  box-shadow:none;
+  color:var(--app-action-primary-disabled-fg);
   cursor:not-allowed;
   opacity:1
 }
@@ -523,7 +531,7 @@ export const chatAgentStyles = `.reader-chat-fab {
   gap:8px;
   margin-right:auto;
   overflow:visible;
-  color:var(--reader-muted);
+  color:hsl(var(--muted-foreground));
   font-size:11px;
   font-weight:850
 }
@@ -533,8 +541,8 @@ export const chatAgentStyles = `.reader-chat-fab {
 .reader-chat-agent-tray .reader-agent-avatar-stack-item {
   width:30px;
   height:30px;
-  border-color:var(--app-reader-chat-composer-bg);
-  background:var(--app-reader-chat-composer-bg)
+  border-color:hsl(var(--card));
+  background:hsl(var(--card))
 }
 .reader-chat-agent-tray .reader-agent-avatar-stack-item.is-active {
   z-index:2;

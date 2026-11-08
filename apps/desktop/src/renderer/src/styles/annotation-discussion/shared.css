@@ -7,7 +7,7 @@
   border: 0;
   border-radius: 9px;
   background: transparent;
-  color: var(--app-reader-ink);
+  color: hsl(var(--foreground));
   font: inherit;
   padding: 5px 6px;
   text-align: left;
@@ -15,7 +15,7 @@
 
 .annotation-discussion-mention-menu button:hover,
 .annotation-discussion-mention-menu button.is-active {
-  background: var(--app-reader-ink-a6);
+  background: hsl(var(--foreground) / 0.06);
 }
 
 .annotation-discussion-mention-menu .reader-avatar-badge {
@@ -25,8 +25,8 @@
   place-items: center;
   overflow: hidden;
   border-radius: 999px;
-  background: var(--app-reader-primary);
-  color: var(--app-reader-paper);
+  background: var(--app-interactive-link);
+  color: var(--app-ink-fg);
   font-size: 11px;
   font-weight: 800;
   padding: 0;
@@ -55,7 +55,7 @@
 }
 
 .annotation-discussion-mention-menu em {
-  color: var(--app-reader-muted);
+  color: hsl(var(--muted-foreground));
   font-size: 11px;
   font-style: normal;
   font-weight: 720;
@@ -68,10 +68,10 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  border: 1px solid var(--app-reader-accent-strong);
+  border: 1px solid var(--app-ink-edge);
   border-radius: 999px;
-  background: var(--app-reader-accent-strong);
-  color: var(--app-reader-paper);
+  background: var(--app-ink);
+  color: var(--app-ink-fg);
   font-size: 12px;
   font-weight: 820;
   padding: 0 12px;
@@ -79,9 +79,9 @@
 }
 
 .floating-composer-submit:disabled {
-  border-color: var(--app-reader-toolbar-border);
-  background: var(--app-reader-toolbar-control-bg);
-  color: var(--app-reader-muted);
+  border-color: var(--app-edge);
+  background: var(--app-interactive-hover-bg);
+  color: hsl(var(--muted-foreground));
 }
 
 .floating-composer-status {
@@ -89,7 +89,7 @@
   font-size: 12px;
   font-weight: 780;
   line-height: 1.4;
-  color: var(--app-reader-muted);
+  color: hsl(var(--muted-foreground));
 }
 
 .annotation-discussion-composer-input .floating-composer-status {
@@ -97,11 +97,11 @@
   left: 10px;
   bottom: calc(100% + 6px);
   min-height: 0;
-  border: 1px solid var(--app-reader-toolbar-border);
+  border: 1px solid var(--app-edge);
   border-radius: 999px;
-  background: var(--app-reader-paper);
+  background: var(--app-raised);
   box-shadow: var(--app-raised-shadow);
-  color: var(--app-reader-muted);
+  color: hsl(var(--muted-foreground));
   padding: 4px 9px;
 }
 
@@ -114,11 +114,11 @@
 .reader-tooltip-content {
   z-index: var(--app-z-tooltip);
   max-width: min(260px, calc(100vw - 24px));
-  border: 1px solid var(--app-reader-paper-a16);
+  border: 1px solid hsl(var(--background) / 0.16);
   border-radius: 8px;
-  background: var(--app-reader-ink);
-  box-shadow: 0 12px 28px var(--app-reader-ink-a20);
-  color: var(--app-reader-paper);
+  background: var(--app-ink);
+  box-shadow: 0 12px 28px hsl(var(--foreground) / 0.2);
+  color: var(--app-ink-fg);
   font-family: var(--font-ui, ui-sans-serif, system-ui, sans-serif);
   font-size: 11px;
   font-weight: 760;
@@ -148,12 +148,12 @@
   display: inline-flex;
   height: 20px;
   align-items: center;
-  border: 1px solid var(--app-reader-paper-a24);
-  border-bottom-color: var(--app-reader-paper-a32);
+  border: 1px solid hsl(var(--background) / 0.24);
+  border-bottom-color: hsl(var(--background) / 0.32);
   border-radius: 4px;
-  background: var(--app-reader-paper-a12);
+  background: hsl(var(--background) / 0.12);
   box-shadow: none;
-  color: var(--app-reader-paper);
+  color: var(--app-ink-fg);
   font-family: var(--font-mono, ui-monospace, 'SF Mono', Menlo, Consolas, monospace);
   font-size: 10px;
   font-weight: 650;
@@ -188,7 +188,7 @@
   place-items: center;
   align-content: center;
   gap: 8px;
-  color: var(--app-reader-muted);
+  color: hsl(var(--muted-foreground));
   text-align: center;
 }
 
@@ -203,7 +203,7 @@
 .annotation-discussion-reply-empty strong,
 .annotation-discussion-thread-placeholder strong,
 .annotation-discussion-empty strong {
-  color: var(--app-reader-ink);
+  color: hsl(var(--foreground));
   font-size: 14px;
   font-weight: 900;
 }

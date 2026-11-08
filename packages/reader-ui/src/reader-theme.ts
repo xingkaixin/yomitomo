@@ -55,24 +55,6 @@ export type ReaderTheme = {
     border: string;
     shadow: string;
   };
-  chat: {
-    panelBackground: string;
-    panelBorder: string;
-    panelShadow: string;
-    userBubbleBackground: string;
-    userBubbleForeground: string;
-    assistantBubbleBackground: string;
-    assistantBubbleForeground: string;
-    contextBackground: string;
-    contextBorder: string;
-    contextForeground: string;
-    composerBackground: string;
-    composerBorder: string;
-    sendBackground: string;
-    sendForeground: string;
-    sendDisabledBackground: string;
-    sendDisabledForeground: string;
-  };
   agentPanel: {
     border: string;
     hoverBackground: string;
@@ -137,22 +119,6 @@ export function readerThemeToCssVariables(theme: ReaderTheme): CssVariableMap {
     '--app-reader-composer-bg': theme.composer.background,
     '--app-reader-composer-border': theme.composer.border,
     '--app-reader-composer-shadow': theme.composer.shadow,
-    '--app-reader-chat-panel-bg': theme.chat.panelBackground,
-    '--app-reader-chat-panel-border': theme.chat.panelBorder,
-    '--app-reader-chat-panel-shadow': theme.chat.panelShadow,
-    '--app-reader-chat-user-bubble-bg': theme.chat.userBubbleBackground,
-    '--app-reader-chat-user-bubble-fg': theme.chat.userBubbleForeground,
-    '--app-reader-chat-assistant-bubble-bg': theme.chat.assistantBubbleBackground,
-    '--app-reader-chat-assistant-bubble-fg': theme.chat.assistantBubbleForeground,
-    '--app-reader-chat-context-bg': theme.chat.contextBackground,
-    '--app-reader-chat-context-border': theme.chat.contextBorder,
-    '--app-reader-chat-context-fg': theme.chat.contextForeground,
-    '--app-reader-chat-composer-bg': theme.chat.composerBackground,
-    '--app-reader-chat-composer-border': theme.chat.composerBorder,
-    '--app-reader-chat-send-bg': theme.chat.sendBackground,
-    '--app-reader-chat-send-fg': theme.chat.sendForeground,
-    '--app-reader-chat-send-disabled-bg': theme.chat.sendDisabledBackground,
-    '--app-reader-chat-send-disabled-fg': theme.chat.sendDisabledForeground,
     '--app-reader-agent-panel-border': theme.agentPanel.border,
     '--app-reader-agent-panel-hover-bg': theme.agentPanel.hoverBackground,
     '--app-reader-scrim': theme.overlay.scrim,
