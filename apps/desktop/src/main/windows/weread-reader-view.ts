@@ -4,6 +4,8 @@ import { isWeReadReaderUrl } from '../weread/weread-protocol';
 // 不能以 yomitomo-import 开头：缓存清理会删除那个前缀下的 partition，登录态会随之丢失。
 const WEREAD_READER_PARTITION = 'persist:weread-reader';
 const WEREAD_READER_ORIGIN = 'https://weread.qq.com/';
+// 网页版只通过这个接口写账号的阅读位置和阅读时长：页面打开约 1 秒时一次，之后约每 30 秒一次。
+const PROGRESS_REPORT_URL = 'https://weread.qq.com/web/book/read';
 // 提示浮层在独立的 isolated world 里运行，网页版的脚本拿不到它的变量和事件处理函数。
 const NOTICE_WORLD_ID = 1037;
 const NOTICE_ELEMENT_ID = 'yomitomo-reader-notice';
@@ -169,6 +171,15 @@ function guardReaderContents(contents: WebContents, openExternalUrl: OpenExterna
     callback(false),
   );
   contents.session.setPermissionCheckHandler(() => false);
+  // 小窗用来翻划线，定位、跳章节和翻页都不该改动账号进度；只有全屏显示时才算在读，进度照常上报。
+  contents.session.webRequest.onBeforeRequest(
+    { urls: [`${PROGRESS_REPORT_URL}*`] },
+    (details, callback) => {
+      const reportsProgress =
+        details.method === 'POST' && details.url.split('?')[0] === PROGRESS_REPORT_URL;
+      callback({ cancel: reportsProgress && readerBounds?.compact !== false });
+    },
+  );
   contents.setWindowOpenHandler(({ url }) => {
     openOutside(url);
     return { action: 'deny' };
