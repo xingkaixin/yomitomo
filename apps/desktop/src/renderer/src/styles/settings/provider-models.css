@@ -25,7 +25,7 @@
   background: hsl(var(--primary));
   color: hsl(var(--primary-foreground));
   font-size: 10px;
-  font-weight: 850;
+  font-weight: 600;
   line-height: 1;
   overflow: visible;
   padding: 4px 7px;
@@ -258,7 +258,7 @@
   flex: 0 0 auto;
   color: hsl(var(--muted-foreground));
   font-size: 10px;
-  font-weight: 760;
+  font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -295,7 +295,7 @@
 .provider-model-option:hover,
 .provider-model-option:focus-within,
 .provider-model-option.is-selected {
-  background: hsl(76 21% 72% / 0.38);
+  background: var(--app-interactive-hover-bg);
   outline: none;
 }
 
@@ -348,7 +348,7 @@
 .provider-model-hidden-presets > span {
   color: hsl(var(--muted-foreground));
   font-size: 11px;
-  font-weight: 760;
+  font-weight: 500;
 }
 
 .provider-model-hidden-presets > div {
@@ -407,7 +407,7 @@
   display: block;
   overflow: hidden;
   font-size: 14px;
-  font-weight: 850;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

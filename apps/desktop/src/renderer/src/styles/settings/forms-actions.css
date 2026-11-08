@@ -14,12 +14,12 @@
 }
 
 .action-button:hover:not(:disabled) {
-  box-shadow: 0 10px 22px hsl(31 34% 24% / 0.12);
+  box-shadow: var(--app-card-shadow);
   transform: translateY(-1px);
 }
 
 .action-button:active:not(:disabled) {
-  box-shadow: 0 4px 12px hsl(31 34% 24% / 0.1);
+  box-shadow: var(--app-well-shadow);
   transform: translateY(1px) scale(0.96);
 }
 
@@ -30,8 +30,10 @@
 }
 
 .save-action.is-saved {
-  background: hsl(83 24% 35%);
-  color: hsl(var(--primary-foreground));
+  border-color: transparent;
+  background: var(--app-interactive-success-bg);
+  box-shadow: none;
+  color: var(--app-interactive-success-fg);
 }
 
 .save-action.is-saved:disabled {
@@ -48,7 +50,7 @@
   gap: 7px;
   color: hsl(var(--muted-foreground));
   font-size: 12px;
-  font-weight: 820;
+  font-weight: 600;
   line-height: 1.25;
 }
 
@@ -61,7 +63,7 @@
 }
 
 .auto-save-status.is-saved {
-  color: hsl(141 41% 36%);
+  color: var(--app-interactive-success-fg);
 }
 
 .auto-save-status.is-error {
@@ -86,7 +88,7 @@
   color: hsl(var(--destructive));
   font: inherit;
   font-size: 12px;
-  font-weight: 860;
+  font-weight: 600;
   padding: 0 10px;
 }
 
@@ -98,12 +100,12 @@
   margin: 0;
   color: hsl(var(--destructive));
   font-size: 12px;
-  font-weight: 760;
+  font-weight: 500;
   line-height: 1.45;
 }
 
 .test-action:hover:not(:disabled) {
-  box-shadow: 0 10px 22px hsl(83 24% 30% / 0.12);
+  box-shadow: var(--app-card-shadow);
 }
 
 .test-action.is-loading svg {
@@ -111,9 +113,10 @@
 }
 
 .test-action.is-success {
-  border-color: hsl(141 41% 42% / 0.38);
-  background: hsl(141 41% 40%);
-  color: white;
+  border-color: transparent;
+  background: var(--app-interactive-success-bg);
+  box-shadow: none;
+  color: var(--app-interactive-success-fg);
 }
 
 .test-action.is-error {
@@ -132,8 +135,10 @@
 }
 
 .log-clear-action.is-cleared {
-  background: hsl(83 24% 35%);
-  color: hsl(var(--primary-foreground));
+  border-color: transparent;
+  background: var(--app-interactive-success-bg);
+  box-shadow: none;
+  color: var(--app-interactive-success-fg);
 }
 
 .log-clear-action.is-cleared:disabled {
@@ -180,26 +185,27 @@
   --toggle-spring-ease: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   position: relative;
-  width: 44px;
-  height: 26px;
+  width: 36px;
+  height: 20px;
   flex: 0 0 auto;
   border-radius: 999px;
-  background: hsl(var(--muted));
-  box-shadow: inset 0 0 0 1px hsl(var(--border));
-  transition:
-    background 140ms ease,
-    box-shadow 140ms ease;
+  background: var(--app-well);
+  box-shadow:
+    var(--app-well-shadow),
+    inset 0 0 0 1px var(--app-edge-soft);
 }
 
 .settings-toggle-switch::after {
   position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 20px;
-  height: 20px;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
   border-radius: 999px;
-  background: hsl(var(--background));
-  box-shadow: 0 2px 7px hsl(31 34% 24% / 0.22);
+  background: var(--app-raised);
+  box-shadow:
+    0 0 0 0.5px var(--app-edge),
+    var(--app-raised-shadow);
   content: '';
   transition: transform var(--toggle-spring-dur) var(--toggle-spring-ease);
 }
@@ -209,13 +215,12 @@
   align-items: center;
   justify-content: center;
   margin: 16px 0 0;
-  border: 1px dashed hsl(var(--border) / 0.72);
-  border-radius: 8px;
-  background: hsl(var(--muted) / 0.18);
+  border: 1px dashed var(--app-edge);
+  border-radius: 12px;
+  background: transparent;
   padding: 14px;
   color: hsl(var(--muted-foreground));
   font-size: 13px;
-  font-weight: 760;
 }
 
 .shortcut-conflict-badge {
@@ -223,21 +228,18 @@
   min-height: 28px;
   align-items: center;
   border-radius: 999px;
-  background: hsl(12 72% 50% / 0.12);
-  color: hsl(12 62% 32%);
+  background: hsl(var(--destructive) / 0.12);
+  color: hsl(var(--destructive));
   font-size: 12px;
-  font-weight: 820;
+  font-weight: 500;
   line-height: 1.2;
   padding: 5px 9px;
 }
 
 .theme-select-content {
-  border-color: hsl(var(--border) / 0.82);
-  background:
-    linear-gradient(180deg, hsl(var(--card) / 0.98), hsl(38 43% 93% / 0.98)), hsl(var(--card));
-  box-shadow:
-    0 20px 50px hsl(31 34% 24% / 0.16),
-    inset 0 1px 0 hsl(40 100% 98% / 0.72);
+  border-color: var(--app-edge);
+  background: var(--app-card-surface);
+  box-shadow: var(--app-float-shadow);
 }
 
 .theme-select-content [role='option'] {
@@ -246,6 +248,6 @@
 
 .theme-select-content [role='option']:focus,
 .theme-select-content [role='option'][data-highlighted] {
-  background: hsl(76 21% 72% / 0.38);
+  background: var(--app-interactive-hover-bg);
   color: hsl(var(--foreground));
 }

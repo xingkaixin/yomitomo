@@ -15,11 +15,11 @@
   width: min(760px, calc(100vw - 48px));
   max-height: calc(var(--app-viewport-height) - 48px);
   overflow: hidden;
-  border: 1px solid hsl(var(--border));
-  border-radius: 12px;
-  background: hsl(var(--popover));
-  box-shadow: var(--app-shell-panel-shadow);
-  color: hsl(var(--popover-foreground));
+  border: 1px solid var(--app-edge);
+  border-radius: 16px;
+  background: var(--app-card-surface);
+  box-shadow: var(--app-dialog-shadow);
+  color: hsl(var(--foreground));
 }
 
 .theme-dialog-header {
@@ -32,22 +32,25 @@
 
 .theme-dialog h2 {
   margin: 0;
+  font-family: var(--font-reader-serif);
   font-size: 20px;
-  font-weight: 800;
-  line-height: 1.2;
+  font-weight: 600;
+  line-height: 28px;
 }
 
 .theme-dialog h3 {
   margin: 0;
-  font-size: 14px;
-  font-weight: 760;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
 }
 
 .theme-dialog p {
-  margin: 6px 0 0;
+  margin: 4px 0 0;
   color: hsl(var(--muted-foreground));
   font-size: 12px;
-  line-height: 1.6;
+  line-height: 17px;
 }
 
 .theme-dialog-close {
@@ -62,28 +65,31 @@
 .theme-tone-switch {
   display: flex;
   width: fit-content;
-  gap: 4px;
+  gap: 2px;
   margin-bottom: 16px;
-  border-radius: 8px;
-  background: hsl(var(--muted));
-  padding: 4px;
+  border-radius: 10px;
+  background: var(--app-well);
+  padding: 3px;
+  box-shadow: var(--app-well-shadow);
 }
 
 .theme-tone-option {
   min-width: 72px;
-  border: 0;
-  border-radius: 5px;
+  min-height: 28px;
+  border: 1px solid transparent;
+  border-radius: 8px;
   background: transparent;
   color: hsl(var(--muted-foreground));
   font-size: 12px;
-  font-weight: 680;
-  padding: 7px 10px;
+  font-weight: 500;
+  padding: 0 12px;
 }
 
 .theme-tone-option.is-active {
-  background: hsl(var(--popover));
+  border-color: var(--app-edge);
+  background: var(--app-raised);
+  box-shadow: var(--app-raised-shadow);
   color: hsl(var(--foreground));
-  box-shadow: var(--app-subtle-panel-shadow);
 }
 
 .theme-reader-paper-option {
@@ -100,9 +106,9 @@
 }
 
 .theme-reader-paper-option strong {
-  font-size: 13px;
-  font-weight: 680;
-  line-height: 20px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
 }
 
 .appearance-preview {
@@ -110,9 +116,11 @@
   display: block;
   width: 100%;
   overflow: hidden;
-  border: 1px solid hsl(var(--border) / 0.7);
-  border-radius: 7px;
+  border-radius: 6px;
   background: hsl(var(--card));
+  box-shadow:
+    var(--app-raised-shadow),
+    0 0 0 1px var(--app-edge);
 }
 
 .appearance-preview iframe {
@@ -123,13 +131,16 @@
   pointer-events: none;
 }
 
-.theme-reader-paper-option:hover .appearance-preview {
-  border-color: var(--app-interactive-hover-border);
+.theme-reader-paper-option.is-active .appearance-preview {
+  box-shadow:
+    var(--app-raised-shadow),
+    0 0 0 2px hsl(var(--card)),
+    0 0 0 4px var(--app-interactive-focus-ring);
 }
 
 .theme-reader-paper {
   margin-top: 20px;
-  border-top: 1px solid hsl(var(--border) / 0.6);
+  border-top: 1px solid hsl(var(--border));
   padding-top: 16px;
 }
 
@@ -151,47 +162,8 @@
   color: hsl(var(--foreground));
 }
 
-.theme-choice-scribble {
-  position: absolute;
-  inset: -8px -10px;
-  width: calc(100% + 20px);
-  height: calc(100% + 16px);
-  overflow: visible;
-  pointer-events: none;
-}
-
-.theme-choice-scribble path {
-  fill: none;
-  stroke: hsl(var(--foreground));
-  stroke-width: 2px;
-  stroke-linecap: round;
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  vector-effect: non-scaling-stroke;
-}
-
-.theme-reader-paper-option.is-active .theme-choice-scribble path {
-  stroke-dashoffset: 0;
-  animation: theme-choice-circle-draw 320ms ease-out;
-}
-
-@keyframes theme-choice-circle-draw {
-  from {
-    stroke-dashoffset: 1;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
 .theme-dialog .theme-reader-paper-note {
   margin-top: 14px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .theme-reader-paper-option.is-active .theme-choice-scribble path {
-    animation: none;
-  }
 }
 
 :is(.theme-tone-option, .theme-reader-paper-option):focus-visible {

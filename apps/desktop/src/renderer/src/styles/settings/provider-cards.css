@@ -11,18 +11,17 @@
   margin: 0;
   color: hsl(var(--foreground));
   font-family: var(--font-reader-serif);
-  font-size: clamp(26px, 3vw, 34px);
-  font-weight: 760;
+  font-size: 28px;
+  font-weight: 600;
   letter-spacing: 0;
-  line-height: 1.18;
+  line-height: 36px;
 }
 
 .agent-library-header p {
-  margin: 10px 0 0;
+  margin: 4px 0 0;
   color: hsl(var(--muted-foreground));
-  font-size: 15px;
-  font-weight: 680;
-  line-height: 1.55;
+  font-size: 13px;
+  line-height: 20px;
 }
 
 .config-list-scroll {
@@ -50,7 +49,7 @@
   margin: 0;
   color: hsl(var(--foreground));
   font-size: 18px;
-  font-weight: 900;
+  font-weight: 600;
   line-height: 1.2;
 }
 
@@ -75,11 +74,10 @@
   min-width: 0;
   min-height: 112px;
   gap: 12px;
-  border: 1px solid hsl(var(--border) / 0.72);
-  border-radius: 8px;
-  background:
-    linear-gradient(180deg, hsl(var(--card)) 0%, hsl(var(--muted) / 0.16) 100%), hsl(var(--card));
-  box-shadow: 0 8px 24px hsl(31 22% 28% / 0.08);
+  border: 1px solid var(--app-edge);
+  border-radius: 12px;
+  background: var(--app-card-surface);
+  box-shadow: var(--app-card-shadow);
   padding: 12px;
   transition:
     border-color 140ms ease,
@@ -88,8 +86,7 @@
 }
 
 .provider-card:hover {
-  border-color: var(--app-interactive-hover-border);
-  box-shadow: 0 12px 30px hsl(31 22% 28% / 0.12);
+  box-shadow: var(--app-float-shadow);
   transform: translateY(-1px);
 }
 
@@ -128,7 +125,7 @@
   overflow: hidden;
   color: hsl(var(--foreground));
   font-size: 15px;
-  font-weight: 900;
+  font-weight: 600;
   line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -184,7 +181,7 @@
   border: 1px solid hsl(var(--border) / 0.82);
   border-radius: 8px;
   background: hsl(var(--card));
-  box-shadow: 0 18px 42px hsl(31 34% 24% / 0.14);
+  box-shadow: var(--app-float-shadow);
   padding: 6px;
 }
 
@@ -201,7 +198,7 @@
   color: hsl(var(--foreground));
   font: inherit;
   font-size: 12px;
-  font-weight: 820;
+  font-weight: 600;
   overflow: hidden;
   padding: 0 9px;
   text-align: left;
@@ -238,7 +235,7 @@
   min-width: 0;
   color: hsl(var(--muted-foreground));
   font-size: 12.5px;
-  font-weight: 760;
+  font-weight: 500;
   line-height: 1.45;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -259,7 +256,7 @@
   min-width: 0;
   color: hsl(var(--muted-foreground));
   font-size: 12px;
-  font-weight: 760;
+  font-weight: 500;
   line-height: 1.4;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -274,9 +271,8 @@
 
 .provider-create-card:hover,
 .provider-create-card:focus-visible {
-  border-color: hsl(3 62% 39% / 0.42);
-  background: hsl(var(--card));
-  box-shadow: 0 12px 28px hsl(31 22% 28% / 0.08);
+  background: var(--app-card-surface);
+  box-shadow: var(--app-card-shadow);
   outline: none;
 }
 
@@ -294,7 +290,7 @@
 .provider-create-action {
   color: var(--app-interactive-link);
   font-size: 11px;
-  font-weight: 860;
+  font-weight: 600;
   line-height: 1;
 }
 
