@@ -19,6 +19,7 @@
       "outputLogs": "new-only"
     },
     "test": {
+      "passThroughEnv": ["ELECTRON_OVERRIDE_DIST_PATH"],
       "outputLogs": "new-only"
     },
     "lint": {
