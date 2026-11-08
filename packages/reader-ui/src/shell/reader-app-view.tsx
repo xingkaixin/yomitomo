@@ -1,5 +1,4 @@
 import React from 'react';
-import { AnnotationConnection } from '../annotations/reader-annotation-connection';
 import { ReaderChatPanel } from './reader-chat-panel';
 import { ReaderFloatingPanels } from './reader-floating-panels';
 import { ReaderSurfaceView } from './reader-surface-view';
@@ -16,7 +15,6 @@ import { defaultReaderUiLabels } from './reader-app-view-types';
 import { readerBackgroundTone, readerPaperCssVariables } from '../reader-settings';
 import { ReaderTooltipProvider } from '../shared/reader-component-primitives';
 import { useReaderShellState } from './use-reader-shell-state';
-import { useReaderActiveConnection } from './use-reader-active-connection';
 
 type ReaderAppStyle = React.CSSProperties & {
   '--reader-font-size': string;
@@ -96,24 +94,7 @@ function ReaderAppViewComponent(
   const canvasRef = React.useRef<HTMLDivElement | null>(null);
   const noteRefs = React.useRef(new Map<string, HTMLElement>());
   const notesRef = React.useRef<HTMLElement | null>(null);
-  const rootRef = React.useRef<HTMLDivElement | null>(null);
   const surfaceRef = React.useRef<HTMLDivElement | null>(null);
-  const { activeConnection, recalculateActiveConnection, trackActiveConnection } =
-    useReaderActiveConnection({
-      annotationAgents: agents,
-      annotations,
-      boxes,
-      canvasRef,
-      noteRefs,
-      readerRootRef: rootRef,
-      selectedAnnotationId: activeId,
-      surfaceRef,
-      userProfile,
-    });
-  const handleAnnotationLayoutChange = React.useCallback(() => {
-    annotationActions.onAnnotationLayoutChange?.();
-    recalculateActiveConnection();
-  }, [annotationActions, recalculateActiveConnection]);
   const { embedded = false } = options ?? {};
   const tocOpen = toc.open;
   const tocItems = toc.items;
@@ -169,7 +150,7 @@ function ReaderAppViewComponent(
     selectionActionShortcuts,
     settingsOpen,
     surfaceRef,
-    onAnnotationLayoutChange: handleAnnotationLayoutChange,
+    onAnnotationLayoutChange: annotationActions.onAnnotationLayoutChange,
     onCancelComposer: selectionActions.onCancelComposer,
     onClearActiveAnnotation: annotationActions.onClearActiveAnnotation,
     onClearSelection: selectionActions.onClearSelection,
@@ -209,15 +190,10 @@ function ReaderAppViewComponent(
     () => ({ articleRef, canvasRef, notesRef, selectionMenuRef, surfaceRef }),
     [selectionMenuRef],
   );
-  // Recreated when the active annotation or its connection inputs change, so both are re-checked after that commit.
-  const attachRoot = React.useCallback(
-    (root: HTMLDivElement) => {
-      rootRef.current = root;
-      clearHiddenActiveAnnotation();
-      return trackActiveConnection();
-    },
-    [clearHiddenActiveAnnotation, trackActiveConnection],
-  );
+  // Recreated when the active annotation or the filters change, so a hidden active annotation is cleared after that commit.
+  const attachRoot = React.useCallback(() => {
+    clearHiddenActiveAnnotation();
+  }, [clearHiddenActiveAnnotation]);
   const hasToc = tocItems.length > 0;
 
   const style: ReaderAppStyle = {
@@ -320,8 +296,6 @@ function ReaderAppViewComponent(
             userProfile={userProfile}
           />
         </main>
-
-        {activeConnection ? <AnnotationConnection connection={activeConnection} /> : null}
 
         {chat && chatActions ? (
           <ReaderChatPanel

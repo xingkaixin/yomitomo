@@ -8,11 +8,6 @@ export type PendingComposer = {
   y: number;
 };
 
-export type ActiveConnection = {
-  path: string;
-  color: string;
-};
-
 export type ReaderSettings = {
   fontSize: number;
   contentWidth: number;

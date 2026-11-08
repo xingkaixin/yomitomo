@@ -323,6 +323,57 @@ export const composerTooltipHighlightResponsiveStyles = `.reader-note-comments-p
 .reader-app.is-reader-background-dark .reader-highlight-layer {
   mix-blend-mode:screen
 }
+.reader-footnote-layer {
+  position:absolute;
+  inset:0;
+  z-index:4;
+  pointer-events:none;
+  user-select:none;
+  -webkit-user-select:none
+}
+.reader-footnote {
+  position:absolute;
+  display:inline-flex;
+  height:16px;
+  margin-left:2px;
+  overflow:hidden;
+  border-radius:999px;
+  background:var(--reader-paper);
+  box-shadow:inset 0 0 0 1px var(--app-interactive-selected-border);
+  font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);
+  pointer-events:auto;
+  translate:0 -11px
+}
+.reader-footnote-mark {
+  display:inline-grid;
+  min-width:16px;
+  height:16px;
+  place-items:center;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  color:var(--app-interactive-link);
+  cursor:pointer;
+  font-size:10px;
+  font-variant-numeric:tabular-nums;
+  font-weight:600;
+  line-height:1;
+  padding:0 4px
+}
+.reader-footnote-mark+.reader-footnote-mark {
+  box-shadow:inset 1px 0 0 var(--app-interactive-selected-border)
+}
+.reader-footnote-mark[aria-current="true"] {
+  background:var(--app-interactive-selected-bg)
+}
+.reader-footnote-mark.is-distilled {
+  background:var(--app-interactive-link);
+  color:var(--app-ink-fg)
+}
+.reader-footnote-mark:focus-visible {
+  outline:2px solid var(--app-interactive-focus-ring);
+  outline-offset:-2px
+}
 .reader-highlight::after {
   content:"";
   position:absolute;
@@ -524,9 +575,6 @@ export const composerTooltipHighlightResponsiveStyles = `.reader-note-comments-p
   .reader-note-comments-panel .reader-comments {
     margin:0;
     padding:2px 0
-  }
-  .reader-app.is-annotation-stacked .reader-annotation-connection {
-    display:none
   }
 }
 @media(max-width:760px) {

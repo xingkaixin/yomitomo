@@ -3,10 +3,12 @@ import { useStableCallback } from '../hooks/use-stable-callback';
 import { annotationOrdinalsById, highlightDiscussionLabel } from './reader-highlight-labels';
 import type { Annotation, MessageSendShortcut, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { buildHighlightSegments, highlightSegmentStyle } from '@yomitomo/core';
+import { buildFootnoteGroups } from '../annotations/annotation-footnotes';
 import { AnnotationCard, type ReaderWindowSourceRect } from '../annotations/reader-annotation-card';
 import type { ReaderAnnotationRailState } from '../annotations/use-reader-annotation-rail';
 import { Composer, type ComposerPopupPhase } from './reader-composer';
 import { EmptyNotes } from './reader-empty-notes';
+import { highlightEndBoxes, ReaderFootnotes } from './reader-footnotes';
 import { HighlightChoiceMenu } from './reader-highlight-choice-menu';
 import { SelectionMenu, type SelectionMenuHandle } from './reader-selection-menu';
 import { SelectionHandles } from './reader-selection-handles';
@@ -303,6 +305,12 @@ export function ReaderSurfaceView({
     [annotations],
   );
 
+  const footnoteGroups = React.useMemo(
+    () => buildFootnoteGroups(visibleAnnotations, annotationOrdinalById),
+    [annotationOrdinalById, visibleAnnotations],
+  );
+  const endBoxByAnnotationId = React.useMemo(() => highlightEndBoxes(boxes), [boxes]);
+
   function highlightLabel(annotationId: string) {
     return highlightDiscussionLabel(annotationOrdinalById.get(annotationId));
   }
@@ -396,6 +404,13 @@ export function ReaderSurfaceView({
               />
             ) : null}
           </div>
+          <ReaderFootnotes
+            activeId={activeId}
+            endBoxByAnnotationId={endBoxByAnnotationId}
+            groups={footnoteGroups}
+            label={highlightDiscussionLabel}
+            onSelect={annotationActions.onFocusAnnotation}
+          />
           <aside
             className="reader-annotation-rail"
             ref={notesRef}
