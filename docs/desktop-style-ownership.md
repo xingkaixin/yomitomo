@@ -1,6 +1,6 @@
 # Desktop renderer style ownership
 
-本文档定义桌面端 renderer 样式的归属边界。目标是让新增或迁移样式能直接落到拥有最终语义的位置，避免再通过后置 legacy 覆盖层修补。
+本文档定义桌面端 renderer 样式的归属边界。目标是让新增或迁移样式能直接落到拥有最终语义的位置，不再通过后置覆盖层修补。
 
 ## 入口
 
@@ -8,7 +8,7 @@
 
 - Tailwind 与基础字体、base 样式先加载。
 - `styles/shell.css`、`styles/settings.css`、`styles/library.css`、`styles/source-*.css` 承载各功能区域样式。
-- `styles/theme-overrides.css` 只保留有明确原因的例外层。
+- 最后两个 import 依赖加载顺序：`styles/shell/theme-dialog.css` 的外观预览内嵌了 `.source-reader-shell`，必须排在 source reader 样式之后；`styles/popup-motion.css` 持有全局 popup/dropdown 的动效变量和开合状态，排在所有模块之后。
 
 不要把具体组件规则直接写进入口文件。新增全局 import 时，应先判断它是否属于已有功能模块；只有确实跨模块且需要固定加载顺序时，才在入口新增 import。
 
@@ -16,14 +16,14 @@
 
 `apps/desktop/src/renderer/src/styles/` 下的模块拥有对应 UI 区域的最终样式：
 
-- `shell.css`：应用外壳、侧栏、导航、profile 入口等 shell 结构。
+- `shell.css` 及 `styles/shell/*`：应用外壳、侧栏、导航、profile 入口、平台 titlebar 与锁屏状态、主题对话框。
 - `settings.css` 及 `styles/settings/*`：设置页 panel、provider、agent、表单、统计、日志等设置域样式。
 - `library.css` 及 `styles/library/*`：资料库首页、搜索过滤、卡片、书架、封面、空状态和 notebook 相关样式。
 - `annotation-discussion.css` 及其 partial：批注讨论窗口和 composer。
 - `distillation-library.css`：沉淀库列表与来源上下文，以及阅读记忆各视图共用的阅读证据卡片外观。
 - `source-reader-shared.css`、`source-reader.css`、`source-ebook.css`、`source-pdf.css`：source reader 容器、EPUB/PDF 阅读器桥接与阅读状态。
 
-如果某个 class 的语义属于一个区域，最终声明应放在该区域模块内，而不是先写在模块里再由 `theme-overrides/legacy-*` 覆盖。
+如果某个 class 的语义属于一个区域，最终声明应放在该区域模块内。响应式规则放在所属模块自己的 media 块里，不建跨模块的响应式集合文件。
 
 ## Tailwind 使用
 
@@ -36,17 +36,14 @@ Tailwind 用于局部、一次性的布局和间距。以下情况应进入 CSS 
 
 不要为绕过归属判断而把大量 Tailwind class 堆进业务组件。
 
-## theme-overrides 例外层
+## 颜色
 
-`apps/desktop/src/renderer/src/styles/theme-overrides/` 不是新样式的默认归宿。它只允许保留这些有明确原因的例外：
-
-- 全局 popup/dropdown 行为和变量。
-- 平台 titlebar、masthead、lock screen 等跨 shell 状态锁定。
-- 尚未拆分完成的大型模块文件。
-- 跨 source reader、library、settings 的响应式集合。
-- 已记录但等待独立 issue 迁移的小型补丁。
-
-不得新增 `legacy-*` 文件。迁移 legacy 规则时，应把选择器拆回实际拥有语义的目标模块；跨模块 grouped selector 需要拆开，不要原样搬入单个 partial。
+- UI 颜色只来自 AppTheme（`--app-*`）和 ReaderTheme（`--app-reader-*`）变量，分别由 `theme/app-theme.ts` 和 `packages/reader-ui/src/reader-theme.ts` 生成。浅色和深色主题输出同一组变量。
+- 半透明色使用透明度阶梯变量 `--<name>-a<百分比>`，例如 `--app-ink-a8`、`--app-reader-primary-a24`。需要新的档位时在生成函数里加，不在样式里写 `color-mix`。
+- 需要两色混合的固定值在主题生成时计算（`mixColors`），不在 CSS 里混合。
+- `color-mix` 只用于运行时才确定的颜色：助手色、书封色、@提及色、批注色、`currentColor`。
+- `reader-bilingual-translation-styles.ts` 也注入 EPUB iframe，那里只有 `--reader-*` 纸张变量，因此保留 `color-mix`，不得引用 `--app-*`。
+- 不随主题变化的物体颜色留在所属模块：书封材质、统计页印章、图片上的遮罩和文字。
 
 ## Reader UI 边界
 
@@ -68,6 +65,6 @@ desktop 对嵌入式 reader 的桥接样式应留在 source reader 模块内，�
 2. 它属于 shell、settings、library、annotation discussion 或 source reader 的某个区域吗？放入对应 CSS partial。
 3. 它是否会被多个同域组件复用？放入该域已有 partial，必要时按现有结构新增同域 partial。
 4. 它是否是 reader-ui 自身能力？放在 `packages/reader-ui`，不要引用 desktop 边界。
-5. 它是否确实跨模块并依赖后置加载顺序？才考虑 `theme-overrides/`，并在文件名和内容中表达具体原因。
+5. 它是否确实跨模块并依赖后置加载顺序？才在入口末尾新增 import，并在本文档写明顺序原因。
 
 如果答不出样式属于哪个区域，先确定归属，再写样式。
