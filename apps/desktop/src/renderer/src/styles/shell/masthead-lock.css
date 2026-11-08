@@ -1,51 +1,53 @@
 .app-shell {
-  --app-titlebar-left-padding: 82px;
-  --app-titlebar-right-padding: 24px;
-  --app-titlebar-mobile-left-padding: 72px;
-  --app-titlebar-mobile-right-padding: 18px;
+  --app-sidebar-width: 216px;
+  --app-sidebar-top-padding: 12px;
   --reader-titlebar-back-left: 18px;
   --reader-titlebar-padding-right: 22px;
   --reader-titlebar-mobile-back-left: 12px;
-  grid-template-rows: 64px minmax(0, 1fr);
+  grid-template-columns: var(--app-sidebar-width) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  gap: 8px;
+  padding: 8px;
   background: var(--app-shell-background);
 }
 
 .app-shell.is-darwin {
-  /* Keep reader controls clear of the native macOS traffic lights. */
+  /* Clear the native macOS traffic lights, which sit over the sidebar. */
+  --app-sidebar-top-padding: 36px;
   --reader-titlebar-back-left: 78px;
   --reader-titlebar-mobile-back-left: 78px;
 }
 
 .app-shell.is-win32 {
-  /* Reserve the right edge for native Windows caption controls. */
-  --app-titlebar-right-padding: 174px;
-  --app-titlebar-mobile-right-padding: 158px;
+  /* The native Windows caption controls overlay the top 36px on the right. */
+  padding-top: 36px;
   --reader-titlebar-padding-right: 158px;
+}
+
+.app-shell.is-win32::before {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 36px;
+  content: '';
+  -webkit-app-region: drag;
 }
 
 .app-masthead {
   position: relative;
   display: flex;
   min-width: 0;
-  align-items: center;
-  gap: 28px;
-  min-height: 64px;
-  border-bottom: 1px solid hsl(var(--foreground));
-  background: hsl(var(--card));
-  padding: 0 var(--app-titlebar-right-padding) 0 var(--app-titlebar-left-padding);
+  min-height: 0;
+  flex-direction: column;
+  gap: 20px;
+  padding: var(--app-sidebar-top-padding) 4px 4px;
   -webkit-app-region: drag;
-}
-
-.app-masthead-logo {
-  width: 34px;
-  height: 34px;
-  border-radius: 5px;
-  object-fit: cover;
-  outline: 1px solid rgb(0 0 0 / 0.1);
 }
 
 .app-masthead-title {
   flex: 0 0 auto;
+  padding: 0 8px;
 }
 
 .app-masthead-title h1 {
@@ -54,23 +56,18 @@
 
 .app-masthead-wordmark {
   display: inline-flex;
-  height: 44px;
+  height: 28px;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   border: 0;
-  border-radius: 4px;
+  border-radius: 6px;
   background: transparent;
   color: hsl(var(--foreground));
   cursor: default;
-  font-family: 'Fraunces', var(--font-reader-serif);
-  font-size: 30px;
-  font-variation-settings:
-    'SOFT' 80,
-    'WONK' 0,
-    'opsz' 48;
-  font-weight: 700;
-  letter-spacing: 0;
-  line-height: 1;
+  font-family: var(--font-reader-serif);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 22px;
   padding: 0;
   user-select: none;
   -webkit-app-region: no-drag;
@@ -88,8 +85,8 @@
 }
 
 .app-masthead-wordmark:focus-visible {
-  outline: 2px solid var(--app-interactive-link);
-  outline-offset: 3px;
+  outline: 2px solid var(--app-interactive-focus-ring);
+  outline-offset: 2px;
 }
 
 .app-masthead-wordmark:hover svg,
@@ -99,27 +96,29 @@
 
 .app-section-nav {
   display: flex;
-  min-width: 0;
-  height: 100%;
+  min-height: 0;
   flex: 1;
-  align-items: center;
-  -webkit-app-region: drag;
-}
-
-.app-section-links,
-.app-section-actions {
-  display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .app-section-links {
-  height: 100%;
-  gap: 24px;
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.app-section-links > :last-child {
+  margin-top: auto;
 }
 
 .app-section-actions {
+  display: flex;
+  align-items: center;
   gap: 2px;
-  margin-left: auto;
+  padding: 0 6px;
 }
 
 .app-section-nav button,
@@ -128,41 +127,49 @@
 }
 
 .app-section-nav .settings-nav-item {
-  width: auto;
-  height: 100%;
-  gap: 0;
-  border-radius: 0;
-  color: hsl(var(--foreground));
-  font-family: var(--font-reader-serif);
-  font-size: 16px;
-  font-weight: 720;
-  padding: 0;
+  width: 100%;
+  height: 34px;
+  flex: none;
+  gap: 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  font-weight: 400;
+  padding: 0 10px;
 }
 
 .app-section-nav .settings-nav-item::before {
-  top: auto;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 3px;
-  background: var(--app-interactive-link);
-  transform: scaleX(0.36);
-  transform-origin: left center;
+  display: none;
 }
 
-.app-section-nav .settings-nav-item:hover,
+.app-section-nav .settings-nav-item:hover {
+  background: var(--app-interactive-hover-bg);
+  color: hsl(var(--foreground));
+}
+
 .app-section-nav .settings-nav-item.is-active {
-  background: transparent;
-  color: var(--app-interactive-link);
+  border-color: var(--app-edge);
+  background: var(--app-raised);
+  box-shadow: var(--app-raised-shadow);
+  color: hsl(var(--foreground));
+  font-weight: 500;
+}
+
+.app-section-nav .settings-nav-item:active {
+  transform: none;
 }
 
 .app-section-nav .settings-nav-item:focus-visible {
   outline: 2px solid var(--app-interactive-focus-ring);
-  outline-offset: 3px;
+  outline-offset: 2px;
 }
 
-.app-section-nav .settings-nav-item.is-active::before {
-  transform: scaleX(1);
+.app-shell > .settings-content {
+  border: 1px solid var(--app-edge-soft);
+  border-radius: 12px;
+  background: var(--app-panel);
+  box-shadow: var(--app-shell-panel-shadow);
 }
 
 .app-nav-update-button {
@@ -236,8 +243,8 @@
 .app-nav-profile-button {
   position: relative;
   display: grid;
-  width: 44px;
-  height: 44px;
+  width: 32px;
+  height: 32px;
   place-items: center;
   border: 1px solid transparent;
   border-radius: 999px;
@@ -257,10 +264,6 @@
 .app-nav-profile-button:hover,
 .app-nav-profile-button:focus-visible {
   background-color: var(--app-interactive-hover-bg);
-  box-shadow:
-    0 0 0 1px hsl(var(--foreground) / 0.16),
-    0 9px 20px hsl(31 34% 24% / 0.1);
-  outline: 0;
 }
 
 .app-nav-lock-button:active,
@@ -273,8 +276,8 @@
 .app-nav-theme-button::after,
 .app-nav-profile-button::after {
   position: absolute;
-  top: 50%;
-  right: calc(100% + 10px);
+  bottom: calc(100% + 8px);
+  left: 0;
   z-index: 2;
   opacity: 0;
   border-radius: 999px;
@@ -287,7 +290,7 @@
   line-height: 1;
   padding: 7px 10px;
   pointer-events: none;
-  transform: translate(4px, -50%);
+  transform: translateY(4px);
   transition:
     opacity 150ms ease,
     transform 150ms ease;
@@ -301,7 +304,7 @@
 .app-nav-profile-button:hover::after,
 .app-nav-profile-button:focus-visible::after {
   opacity: 1;
-  transform: translate(0, -50%);
+  transform: translateY(0);
 }
 
 .app-lock-overlay {

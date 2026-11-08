@@ -43,13 +43,13 @@ export type AppTheme = {
     resizeDuration: string;
     resizeEase: string;
     shellBackground: string;
-    shellPanelShadow: string;
     overlayScrim: string;
     zIndex: AppThemeZIndex;
   };
   surface: {
     edge: string;
     edgeSoft: string;
+    panel: SurfaceMaterial;
     raised: SurfaceMaterial;
     card: SurfaceMaterial;
     well: SurfaceMaterial;
@@ -251,13 +251,17 @@ export const lightTheme: AppTheme = {
     resizeDuration: '300ms',
     resizeEase: 'cubic-bezier(0.22, 1, 0.36, 1)',
     shellBackground: '#f1efeb',
-    shellPanelShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 2px rgba(28, 26, 23, 0.04)',
     overlayScrim: 'rgba(28, 26, 23, 0.32)',
     zIndex: appThemeZIndex,
   },
   surface: {
     edge: 'rgba(28, 26, 23, 0.13)',
     edgeSoft: 'rgba(28, 26, 23, 0.07)',
+    panel: {
+      top: '#fbfaf8',
+      bottom: '#f6f5f1',
+      shadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 2px rgba(28, 26, 23, 0.04)',
+    },
     raised: {
       top: '#ffffff',
       bottom: '#f7f6f2',
@@ -463,13 +467,17 @@ export const darkTheme: AppTheme = {
     resizeDuration: lightTheme.effect.resizeDuration,
     resizeEase: lightTheme.effect.resizeEase,
     shellBackground: '#121110',
-    shellPanelShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.04)',
     overlayScrim: 'rgba(0, 0, 0, 0.5)',
     zIndex: appThemeZIndex,
   },
   surface: {
     edge: 'rgba(0, 0, 0, 0.55)',
     edgeSoft: 'rgba(0, 0, 0, 0.4)',
+    panel: {
+      top: '#1e1d1b',
+      bottom: '#191816',
+      shadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.04)',
+    },
     raised: {
       top: '#2e2b27',
       bottom: '#252320',
@@ -594,11 +602,12 @@ export function themeToCssVariables(theme: AppTheme): CssVariableMap {
     '--resize-dur': theme.effect.resizeDuration,
     '--resize-ease': theme.effect.resizeEase,
     '--app-shell-background': theme.effect.shellBackground,
-    '--app-shell-panel-shadow': theme.effect.shellPanelShadow,
+    '--app-shell-panel-shadow': theme.surface.panel.shadow,
     '--app-subtle-panel-shadow': theme.surface.raised.shadow,
     '--app-overlay-scrim': theme.effect.overlayScrim,
     '--app-edge': theme.surface.edge,
     '--app-edge-soft': theme.surface.edgeSoft,
+    '--app-panel': surfaceGradient(theme.surface.panel),
     '--app-raised': surfaceGradient(theme.surface.raised),
     '--app-raised-shadow': theme.surface.raised.shadow,
     '--app-card-surface': surfaceGradient(theme.surface.card),

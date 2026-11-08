@@ -720,28 +720,6 @@
 }
 
 @media (max-width: 760px) {
-  .app-masthead {
-    gap: 18px;
-    min-height: 64px;
-    padding: 0 var(--app-titlebar-mobile-right-padding) 0 var(--app-titlebar-mobile-left-padding);
-  }
-
-  .app-masthead-wordmark {
-    font-size: 26px;
-  }
-
-  .app-section-nav {
-    overflow: visible;
-  }
-
-  .app-section-links {
-    gap: 16px;
-  }
-
-  .app-nav-profile-button {
-    flex: 0 0 auto;
-  }
-
   .library-home-header,
   .library-home-body,
   .library-toolbar,

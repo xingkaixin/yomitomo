@@ -7,9 +7,9 @@ export const appToast = gooeyToast;
 const MIN_TOAST_TOP = 24;
 const HEADER_TOAST_GAP = 12;
 
-// 阅读模式下全局 nav 被隐藏，可见顶部栏是 reader 自己的 toolbar；其余视图是 app-section-nav
+// The reader hides the sidebar and shows its own toolbar; other views float toasts inside the content panel.
 export function useHeaderToastOffset(readerOpen: boolean) {
-  const selector = readerOpen ? '.reader-toolbar' : '.app-section-nav';
+  const selector = readerOpen ? '.reader-toolbar' : '.app-shell > .settings-content';
   // Resubscribing per selector measures again one frame after the header switches.
   const subscribe = useCallback(
     (onLayoutChange: () => void) => {
@@ -22,12 +22,13 @@ export function useHeaderToastOffset(readerOpen: boolean) {
     },
     [selector],
   );
-  return useSyncExternalStore(subscribe, () => headerToastTop(selector));
+  return useSyncExternalStore(subscribe, () => headerToastTop(selector, readerOpen));
 }
 
-function headerToastTop(selector: string) {
-  const bottom = document.querySelector(selector)?.getBoundingClientRect().bottom ?? 0;
-  return bottom > 0 ? Math.round(bottom) + HEADER_TOAST_GAP : MIN_TOAST_TOP;
+function headerToastTop(selector: string, belowElement: boolean) {
+  const rect = document.querySelector(selector)?.getBoundingClientRect();
+  const edge = belowElement ? rect?.bottom : rect?.top;
+  return edge && edge > 0 ? Math.round(edge) + HEADER_TOAST_GAP : MIN_TOAST_TOP;
 }
 
 export function AppToaster({ tone, topOffset }: { tone: AppThemeTone; topOffset: number }) {
