@@ -2,9 +2,7 @@
   display: grid;
   height: 100%;
   min-height: 0;
-  grid-template-rows: 40px minmax(0, 1fr);
   overflow: hidden;
-  background: var(--app-shell-background);
   color: hsl(var(--foreground));
 }
 
@@ -64,7 +62,7 @@
   display: grid;
   min-height: 100%;
   place-items: center;
-  background: linear-gradient(135deg, hsl(45 38% 94%), hsl(36 30% 90%));
+  background: var(--app-shell-background);
   padding: 32px;
   color: hsl(var(--foreground));
 }
@@ -75,7 +73,7 @@
   border: 1px solid hsl(var(--border) / 0.72);
   border-radius: 8px;
   background: hsl(var(--card) / 0.86);
-  box-shadow: 0 22px 55px hsl(31 32% 24% / 0.14);
+  box-shadow: var(--app-dialog-shadow);
   padding: 32px;
 }
 
@@ -84,15 +82,15 @@
   width: 56px;
   height: 56px;
   place-items: center;
-  border: 1px solid hsl(8 45% 46% / 0.28);
+  border: 1px solid var(--app-danger-line);
   border-radius: 8px;
-  background: hsl(8 45% 46% / 0.08);
-  color: hsl(8 45% 38%);
+  background: var(--app-danger-a8);
+  color: hsl(var(--destructive));
 }
 
 .store-load-error-kicker {
   margin: 22px 0 8px;
-  color: hsl(83 24% 35%);
+  color: hsl(var(--muted-foreground));
   font-size: 13px;
   font-weight: 800;
 }

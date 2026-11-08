@@ -40,10 +40,6 @@
   display: none;
 }
 
-.library-ebook-list {
-  border-left: 1px solid hsl(var(--border) / 0.72);
-}
-
 .library-ebook-list-item {
   min-height: 156px;
   grid-template-columns: 120px minmax(0, 1fr);

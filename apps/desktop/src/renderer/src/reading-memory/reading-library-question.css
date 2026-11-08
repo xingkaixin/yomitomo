@@ -114,7 +114,7 @@
   left: -45%;
   width: 190%;
   height: 150%;
-  border-top: 1px solid color-mix(in srgb, hsl(var(--accent-foreground)) 20%, transparent);
+  border-top: 1px solid hsl(var(--accent-foreground) / 0.2);
   border-radius: 50%;
   opacity: 0;
   box-shadow:
