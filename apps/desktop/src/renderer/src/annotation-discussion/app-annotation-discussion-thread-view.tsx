@@ -3,8 +3,8 @@ import { ArrowDown01Icon, BubbleChatIcon, SentIcon } from '@hugeicons/core-free-
 import { useCallback, useMemo, useReducer, useRef, type RefObject } from 'react';
 import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { useTranslation } from 'react-i18next';
-import type { PublicAgent, UserProfile } from '@yomitomo/shared';
-import { commentPersona, getMentionQuery } from '@yomitomo/core';
+import type { Comment, PublicAgent, UserProfile } from '@yomitomo/shared';
+import { getMentionQuery } from '@yomitomo/core';
 import { FloatingComposer } from '@yomitomo/reader-ui/floating-composer';
 import {
   matchesAgentMentionQuery,
@@ -14,23 +14,21 @@ import {
   AgentAvatarStack,
   AvatarBadge,
   ReaderTooltipProvider,
-  ReaderTooltip,
   SubmitShortcutTooltipContent,
 } from '@yomitomo/reader-ui/reader-component-primitives';
 import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
 import { useCompositionSubmit } from '@yomitomo/reader-ui/use-composition-submit';
 import type { AnnotationMessageLayoutMode } from './app-annotation-layout-control';
-import { useStreamingWordReveal, wordRevealAccent } from '../components/ui/word-reveal';
-import { AssistantRuntimeProgressList } from '../shell/app-assistant-runtime-progress';
 import { openAssistantReferenceFromClick } from '../shell/app-assistant-references';
 import {
   discussionReplyPlaceholder,
-  formatAbsoluteTime,
   insertMentionAtSelection,
   type DiscussionThread,
 } from './app-annotation-discussion-utils';
-import { renderDiscussionMessageMarkdown } from './app-annotation-discussion-mention-chips';
-import { DiscussionMessage } from './app-annotation-discussion-message';
+import {
+  DiscussionMessage,
+  type DiscussionGroupPosition,
+} from './app-annotation-discussion-message';
 
 type DiscussionLayoutMode = AnnotationMessageLayoutMode;
 export function DiscussionThreadView({
@@ -80,13 +78,7 @@ export function DiscussionThreadView({
       mentionQuery: null,
       showScrollBottom: false,
     });
-  const rootThoughtHtml = useMemo(
-    () =>
-      renderDiscussionMessageMarkdown(thread.root.content, annotationAgents, thread.root.author),
-    [annotationAgents, thread.root.author, thread.root.content],
-  );
-  const rootStreaming = Boolean(thread.root.pending) && thread.root.author.kind === 'agent';
-  const rootRevealRef = useStreamingWordReveal(thread.root.id, rootStreaming);
+  const threadMessages = useMemo(() => [thread.root, ...messages], [messages, thread.root]);
   const rootVersion = `${thread.root.content}:${thread.root.pending ? 'pending' : 'ready'}`;
   const messagesVersion = messages
     .map((message) => `${message.id}:${message.content}:${message.pending ? 'pending' : 'ready'}`)
@@ -104,7 +96,7 @@ export function DiscussionThreadView({
   const composerStatus = sendError || (sendingReply ? t('discussion.sending') : '');
   const replyPlaceholder = discussionReplyPlaceholder(thread.root, annotationAgents);
   const className = [
-    'annotation-discussion-messages',
+    'annotation-discussion-bubbles',
     layoutMode === 'left' ? 'is-left-aligned' : 'is-split',
   ].join(' ');
   const readScrollThread = useStableCallback(() => ({ hasReplies, threadId: thread.root.id }));
@@ -252,51 +244,21 @@ export function DiscussionThreadView({
           onClick={(event) => openAssistantReferenceFromClick(event, articleId)}
           onScroll={updateScrollBottomVisibility}
         >
-          <section
-            className="annotation-discussion-root-thought"
-            aria-label={t('discussion.threadView.rootThought')}
-          >
-            <div
-              className="annotation-discussion-root-thought-content"
-              style={
-                rootStreaming
-                  ? wordRevealAccent(commentPersona(thread.root, userProfile, personaAgents).color)
-                  : undefined
-              }
-            >
-              <AssistantRuntimeProgressList progress={thread.root.assistantProgress} />
-              <div
-                key={rootThoughtHtml}
-                ref={rootRevealRef}
-                dangerouslySetInnerHTML={{ __html: rootThoughtHtml }}
+          <div className={className}>
+            {threadMessages.map((message, index) => (
+              <DiscussionMessage
+                agents={personaAgents}
+                groupPosition={discussionGroupPosition(threadMessages, index)}
+                isDeleting={deletingCommentId === message.id}
+                key={message.id}
+                message={message}
+                showIdentity={layoutMode === 'left' || message.author.kind !== 'user'}
+                userProfile={userProfile}
+                onDelete={index === 0 ? undefined : () => onDelete(message.id)}
               />
-            </div>
-            <div className="annotation-discussion-thread-meta">
-              <ReaderTooltip content={formatAbsoluteTime(thread.root.createdAt)}>
-                <time dateTime={thread.root.createdAt} tabIndex={0}>
-                  {formatAbsoluteTime(thread.root.createdAt)}
-                </time>
-              </ReaderTooltip>
-              {thread.pending ? <span>{t('discussion.threadView.assistantReplying')}</span> : null}
-            </div>
-          </section>
-          <div className="annotation-discussion-thread-divider" role="separator">
-            <span>{t('discussion.threadView.expanded')}</span>
+            ))}
           </div>
-          {messages.length > 0 ? (
-            <div className={className}>
-              {messages.map((message) => (
-                <DiscussionMessage
-                  agents={personaAgents}
-                  isDeleting={deletingCommentId === message.id}
-                  key={message.id}
-                  message={message}
-                  userProfile={userProfile}
-                  onDelete={() => onDelete(message.id)}
-                />
-              ))}
-            </div>
-          ) : (
+          {hasReplies ? null : (
             <div className="annotation-discussion-reply-empty">
               <HugeiconsIcon icon={BubbleChatIcon} size={24} />
               <strong>{t('discussion.threadView.noDiscussionTitle')}</strong>
@@ -468,4 +430,23 @@ function cancelAnimationFrameRef(frameRef: RefObject<number | null>) {
   if (frameRef.current === null) return;
   window.cancelAnimationFrame(frameRef.current);
   frameRef.current = null;
+}
+
+function discussionGroupPosition(
+  messages: readonly Comment[],
+  index: number,
+): DiscussionGroupPosition {
+  const key = messageAuthorKey(messages[index]);
+  const joinsPrevious = index > 0 && messageAuthorKey(messages[index - 1]) === key;
+  const joinsNext = index < messages.length - 1 && messageAuthorKey(messages[index + 1]) === key;
+  if (joinsPrevious && joinsNext) return 'mid';
+  if (joinsPrevious) return 'last';
+  if (joinsNext) return 'first';
+  return 'single';
+}
+
+function messageAuthorKey(message: Comment) {
+  return message.author.kind === 'agent'
+    ? `agent:${message.author.agentId}`
+    : `user:${message.author.userId}`;
 }

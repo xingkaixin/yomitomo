@@ -258,12 +258,6 @@
   line-height: 1.15;
 }
 
-.annotation-discussion-root-thought-content > .assistant-runtime-progress {
-  font-size: 9px;
-  font-weight: 590;
-  line-height: 1.15;
-}
-
 .assistant-runtime-progress ol {
   display: flex;
   flex-wrap: wrap;

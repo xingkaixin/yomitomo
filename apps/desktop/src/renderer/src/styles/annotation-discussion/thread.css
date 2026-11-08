@@ -66,83 +66,6 @@
   padding: 2px 6px 10px 2px;
 }
 
-.annotation-discussion-root-thought {
-  display: grid;
-  min-width: 0;
-  gap: 10px;
-  color: var(--app-reader-ink);
-  padding: 0 2px;
-}
-
-.annotation-discussion-root-thought-content {
-  max-width: min(860px, 100%);
-}
-
-.annotation-discussion-root-thought-content > div {
-  font-size: 14px;
-  font-weight: 460;
-  line-height: 1.7;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-.annotation-discussion-root-thought :first-child {
-  margin-top: 0;
-}
-
-.annotation-discussion-root-thought :last-child {
-  margin-bottom: 0;
-}
-
-.annotation-discussion-root-thought p,
-.annotation-discussion-root-thought ul,
-.annotation-discussion-root-thought ol,
-.annotation-discussion-root-thought blockquote,
-.annotation-discussion-root-thought pre {
-  margin: 0 0 8px;
-}
-
-.annotation-discussion-thread-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  color: var(--app-reader-muted);
-  font-size: 12px;
-  font-weight: 780;
-}
-
-.annotation-discussion-thread-meta span {
-  color: var(--app-reader-accent-strong);
-  font-weight: 900;
-}
-
-.annotation-discussion-thread-divider {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-  color: var(--app-reader-muted);
-  font-size: 11px;
-  font-weight: 840;
-}
-
-.annotation-discussion-thread-divider::before,
-.annotation-discussion-thread-divider::after {
-  height: 1px;
-  background: color-mix(in srgb, var(--app-reader-line) 72%, transparent);
-  content: '';
-}
-
-.annotation-discussion-thread-divider span {
-  min-width: 0;
-  border: 1px solid color-mix(in srgb, var(--app-reader-line) 84%, transparent);
-  border-radius: 999px;
-  background: var(--app-reader-paper);
-  line-height: 1;
-  padding: 5px 10px;
-}
-
 .annotation-discussion-messages {
   display: grid;
   min-height: 0;
@@ -158,82 +81,6 @@
   grid-template-columns: 34px minmax(0, 1fr);
   align-items: start;
   gap: 10px;
-}
-
-.annotation-discussion-messages.is-split .annotation-discussion-message.is-user {
-  justify-self: end;
-  width: max-content;
-  max-width: min(680px, 82%);
-  grid-template-columns: minmax(0, auto) 34px;
-  text-align: left;
-}
-
-.annotation-discussion-messages.is-split
-  .annotation-discussion-message.is-user
-  > .reader-avatar-badge {
-  order: 2;
-}
-
-.annotation-discussion-messages.is-split
-  .annotation-discussion-message.is-user
-  .annotation-discussion-message-bubble {
-  position: relative;
-  display: grid;
-  justify-items: end;
-}
-
-.annotation-discussion-messages.is-split
-  .annotation-discussion-message.is-user
-  .annotation-discussion-message-bubble
-  header {
-  width: max-content;
-  max-width: 100%;
-  justify-content: end;
-  text-align: right;
-}
-
-.annotation-discussion-messages.is-split
-  .annotation-discussion-message.is-user
-  .annotation-discussion-message-bubble
-  header
-  span {
-  order: 1;
-}
-
-.annotation-discussion-messages.is-split
-  .annotation-discussion-message.is-user
-  .annotation-discussion-message-bubble
-  header
-  strong {
-  order: 2;
-}
-
-.annotation-discussion-messages.is-split
-  .annotation-discussion-message.is-user
-  .annotation-discussion-message-bubble
-  header
-  em {
-  order: 3;
-}
-
-.annotation-discussion-messages.is-split
-  .annotation-discussion-message.is-user
-  .annotation-discussion-message-bubble
-  header
-  button {
-  position: absolute;
-  right: -38px;
-  top: 34px;
-  order: 4;
-  margin-left: 0;
-}
-
-.annotation-discussion-messages.is-split
-  .annotation-discussion-message.is-user
-  .annotation-discussion-markdown {
-  width: fit-content;
-  max-width: 100%;
-  text-align: right;
 }
 
 .annotation-discussion-messages.is-left-aligned .annotation-discussion-message {
@@ -255,14 +102,6 @@
   border: 0;
   background: transparent;
   padding: 0;
-}
-
-.annotation-discussion-message.is-user .annotation-discussion-message-bubble {
-  background: transparent;
-}
-
-.annotation-discussion-message.is-pending .annotation-discussion-message-bubble {
-  opacity: 0.72;
 }
 
 .annotation-discussion-message-bubble header {
@@ -288,19 +127,6 @@
 .annotation-discussion-message-bubble header em {
   color: var(--app-reader-accent-strong);
   font-style: normal;
-}
-
-.annotation-discussion-message-bubble header button {
-  width: 24px;
-  height: 24px;
-  margin-left: auto;
-  border-radius: 999px;
-  opacity: 0;
-}
-
-.annotation-discussion-message-bubble:hover header button,
-.annotation-discussion-message-bubble:focus-within header button {
-  opacity: 1;
 }
 
 .annotation-discussion-markdown {
@@ -377,4 +203,371 @@
   padding: 2px 7px;
   vertical-align: baseline;
   white-space: nowrap;
+}
+
+.annotation-discussion-bubbles {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.annotation-discussion-bubble-row {
+  position: relative;
+  display: grid;
+  max-width: 84%;
+  align-self: flex-start;
+  grid-template-columns: 28px minmax(0, 1fr);
+  column-gap: 10px;
+}
+
+/* Bubbles from one sender sit 4px apart: the 16px row gap minus 12px. */
+.annotation-discussion-bubble-row.is-mid,
+.annotation-discussion-bubble-row.is-last {
+  margin-top: -12px;
+}
+
+.annotation-discussion-bubble-row > .reader-avatar-badge {
+  grid-column: 1;
+  width: 28px;
+  height: 28px;
+  font-size: 12px;
+}
+
+.annotation-discussion-bubble-body {
+  display: flex;
+  min-width: 0;
+  grid-column: 2;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.annotation-discussion-bubbles.is-split .annotation-discussion-bubble-row.is-user {
+  max-width: 78%;
+  align-self: flex-end;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.annotation-discussion-bubbles.is-split .is-user .annotation-discussion-bubble-body {
+  grid-column: 1;
+  align-items: flex-end;
+}
+
+.annotation-discussion-bubble-body header {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--app-reader-muted);
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.annotation-discussion-bubble-body header strong {
+  overflow: hidden;
+  color: var(--app-reader-ink);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.annotation-discussion-bubble-body header em {
+  font-style: normal;
+}
+
+.annotation-discussion-bubble {
+  max-width: 100%;
+  border: 1px solid var(--app-bubble-them-edge);
+  border-radius: 20px;
+  background: var(--app-bubble-them);
+  box-shadow: var(--app-bubble-them-shadow);
+  color: var(--app-bubble-them-fg);
+  padding: 9px 15px;
+  text-shadow: var(--app-bubble-them-text-shadow);
+}
+
+.annotation-discussion-bubble .annotation-discussion-markdown {
+  color: inherit;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 24px;
+}
+
+.annotation-discussion-bubble .annotation-discussion-markdown a,
+.annotation-discussion-bubble .annotation-discussion-markdown a:hover {
+  color: inherit;
+  text-decoration-color: var(--app-interactive-selected-border);
+  text-underline-offset: 3px;
+}
+
+.annotation-discussion-bubble .annotation-discussion-mention-chip {
+  min-height: 0;
+  transform: none;
+  border-radius: 6px;
+  background: var(--app-bubble-them-chip);
+  box-shadow: none;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: inherit;
+  padding: 1px 6px;
+  text-shadow: none;
+}
+
+.annotation-discussion-bubble-row.is-user .annotation-discussion-bubble {
+  border-color: var(--app-bubble-me-edge);
+  background: var(--app-bubble-me);
+  box-shadow: var(--app-bubble-me-shadow);
+  color: var(--app-bubble-me-fg);
+  text-shadow: var(--app-bubble-me-text-shadow);
+}
+
+.annotation-discussion-bubble-row.is-user .annotation-discussion-mention-chip {
+  background: var(--app-bubble-me-chip);
+}
+
+.annotation-discussion-bubble-row.is-first .annotation-discussion-bubble {
+  border-bottom-left-radius: 6px;
+}
+
+.annotation-discussion-bubble-row.is-mid .annotation-discussion-bubble {
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+
+.annotation-discussion-bubble-row.is-last .annotation-discussion-bubble {
+  border-top-left-radius: 6px;
+}
+
+.annotation-discussion-bubbles.is-split .is-user.is-first .annotation-discussion-bubble {
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 6px;
+}
+
+.annotation-discussion-bubbles.is-split .is-user.is-mid .annotation-discussion-bubble {
+  border-radius: 20px 6px 6px 20px;
+}
+
+.annotation-discussion-bubbles.is-split .is-user.is-last .annotation-discussion-bubble {
+  border-top-left-radius: 20px;
+  border-top-right-radius: 6px;
+}
+
+.annotation-discussion-bubble-row .assistant-runtime-progress {
+  margin: 0;
+  padding: 2px 0;
+  color: var(--app-reader-muted);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 16px;
+}
+
+.annotation-discussion-bubble-row .assistant-runtime-progress ol {
+  gap: 6px;
+}
+
+.annotation-discussion-bubble-row .assistant-runtime-progress li,
+.annotation-discussion-bubble-row .assistant-runtime-progress p {
+  height: 22px;
+  gap: 4px;
+  max-width: 220px;
+  border: 0;
+  background: var(--app-well);
+  box-shadow: var(--app-well-shadow);
+  padding: 0 9px;
+}
+
+.annotation-discussion-bubble-row .assistant-runtime-progress li.is-active {
+  background: var(--app-raised);
+  box-shadow: var(--app-raised-shadow);
+  color: var(--app-reader-ink);
+  font-weight: 500;
+}
+
+.annotation-discussion-bubble-row .assistant-runtime-progress li.is-done {
+  color: var(--app-reader-muted);
+}
+
+.annotation-discussion-bubble-row .assistant-runtime-progress svg {
+  width: 10px;
+  height: 10px;
+}
+
+.annotation-discussion-reply-dots {
+  display: grid;
+  grid-template-columns: repeat(4, 6px);
+  gap: 4px;
+  padding: 4px 0;
+}
+
+.annotation-discussion-reply-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--app-reader-ink);
+  opacity: 0.1;
+  animation: annotation-discussion-reply-dot 0.62s cubic-bezier(0, 0, 0.2, 1) infinite alternate;
+}
+
+.annotation-discussion-reply-dots i:nth-child(4n + 2) {
+  animation-delay: 0.08s;
+}
+
+.annotation-discussion-reply-dots i:nth-child(4n + 3) {
+  animation-delay: 0.16s;
+}
+
+.annotation-discussion-reply-dots i:nth-child(4n + 4) {
+  animation-delay: 0.24s;
+}
+
+.annotation-discussion-reply-dots i:nth-child(n + 5) {
+  animation-delay: 0.31s;
+}
+
+.annotation-discussion-reply-dots i:nth-child(n + 9) {
+  animation-delay: 0.39s;
+}
+
+.annotation-discussion-reply-dots i:nth-child(n + 13) {
+  animation-delay: 0.47s;
+}
+
+.annotation-discussion-message-delete {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 6px);
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  opacity: 0;
+  translate: 0 -50%;
+}
+
+.annotation-discussion-bubbles.is-split .is-user .annotation-discussion-message-delete {
+  right: calc(100% + 6px);
+  left: auto;
+}
+
+.annotation-discussion-bubble-row:hover .annotation-discussion-message-delete,
+.annotation-discussion-message-delete:focus-visible {
+  opacity: 1;
+}
+
+.annotation-discussion-message-delete:hover {
+  background: var(--app-interactive-hover-bg);
+}
+
+.annotation-discussion-bubble-row.is-entering .annotation-discussion-bubble {
+  transform-origin: 100% 100%;
+  animation: annotation-discussion-bubble-send 420ms cubic-bezier(0.22, 0.8, 0.36, 1) both;
+}
+
+/* Fill backwards only: a clip left on after landing would cut off the bubble's shadow. */
+.annotation-discussion-bubble-row.is-assistant.is-pending .annotation-discussion-bubble {
+  animation: annotation-discussion-bubble-land 520ms cubic-bezier(0.22, 0.8, 0.36, 1) backwards;
+}
+
+.annotation-discussion-bubble-row.is-leaving {
+  interpolate-size: allow-keywords;
+  overflow: clip;
+  overflow-clip-margin: 24px;
+  pointer-events: none;
+  animation: annotation-discussion-bubble-leave 480ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.annotation-discussion-bubble-row.is-deleting {
+  height: 0;
+  margin-bottom: -16px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes annotation-discussion-reply-dot {
+  to {
+    opacity: 0.9;
+  }
+}
+
+@keyframes annotation-discussion-bubble-send {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(1.1);
+  }
+
+  60% {
+    opacity: 1;
+    transform: translateY(0) scale(0.98);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
+@keyframes annotation-discussion-bubble-land {
+  from {
+    opacity: 0;
+    clip-path: inset(0 calc(100% - 28px) calc(100% - 28px) 0 round 20px);
+  }
+
+  to {
+    opacity: 1;
+    clip-path: inset(0 round 20px);
+  }
+}
+
+@keyframes annotation-discussion-bubble-leave {
+  0% {
+    height: auto;
+    margin-bottom: 0;
+    opacity: 1;
+    transform: none;
+  }
+
+  15% {
+    transform: scale(0.94);
+  }
+
+  66% {
+    height: auto;
+    margin-bottom: 0;
+    opacity: 0;
+    transform: translateY(36px) scale(0.94);
+  }
+
+  100% {
+    height: 0;
+    margin-bottom: -16px;
+    opacity: 0;
+    transform: translateY(36px) scale(0.94);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .annotation-discussion-reply-dots i {
+    animation: none;
+  }
+
+  .annotation-discussion-bubble-row.is-entering .annotation-discussion-bubble,
+  .annotation-discussion-bubble-row.is-assistant.is-pending .annotation-discussion-bubble {
+    animation: annotation-discussion-bubble-fade 160ms ease-out backwards;
+  }
+
+  /* Keeps a fade so animationend still fires and the delete goes through. */
+  .annotation-discussion-bubble-row.is-leaving {
+    animation: annotation-discussion-bubble-fade 160ms ease-out reverse forwards;
+  }
+}
+
+@keyframes annotation-discussion-bubble-fade {
+  from {
+    opacity: 0;
+  }
 }
