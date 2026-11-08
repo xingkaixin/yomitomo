@@ -317,33 +317,43 @@ export const composerTooltipHighlightResponsiveStyles = `.reader-note-comments-p
   background:transparent;
   box-shadow:none
 }
+.reader-highlight-layer {
+  mix-blend-mode:multiply
+}
+.reader-app.is-reader-background-dark .reader-highlight-layer {
+  mix-blend-mode:screen
+}
+.reader-highlight::after {
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:2px;
+  background:var(--highlight-line);
+  opacity:var(--reader-paper-hl,.5);
+  transform-origin:left center;
+  transition:opacity .16s ease
+}
+.reader-highlight.is-active::after {
+  opacity:var(--reader-paper-hl-on,.78)
+}
 .reader-highlight::before {
   content:"";
   position:absolute;
   z-index:1;
   left:min(var(--highlight-edge-size,0px),42%);
   right:min(var(--highlight-edge-size,0px),42%);
-  bottom:var(--highlight-offset,-2px);
-  height:var(--highlight-thickness,4px);
-  border-radius:999px;
+  bottom:-2px;
+  height:2px;
   background:var(--highlight-line);
-  opacity:var(--highlight-opacity,.78);
-  -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 6' preserveAspectRatio='none'%3E%3Cpath d='M0 3 C4 0 8 6 12 3 S20 0 24 3' stroke='black' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-  mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 6' preserveAspectRatio='none'%3E%3Cpath d='M0 3 C4 0 8 6 12 3 S20 0 24 3' stroke='black' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-  -webkit-mask-repeat:repeat-x;
-  mask-repeat:repeat-x;
-  -webkit-mask-size:24px 100%;
-  mask-size:24px 100%;
-  filter:drop-shadow(0 1px 0 var(--reader-paper))
+  opacity:0;
+  transition:opacity .16s ease
 }
-.reader-highlight.is-new::before {
-  transform-origin:left center;
+.reader-highlight.is-new::after {
   animation:reader-highlight-grow .42s cubic-bezier(.22,1,.36,1) both;
   animation-delay:var(--highlight-grow-delay,0ms)
 }
 .reader-highlight.is-active::before {
-  opacity:1;
-  filter:drop-shadow(0 1px 0 var(--reader-paper)) drop-shadow(0 0 5px rgba(37,29,22,.2))
+  opacity:1
 }
 .reader-highlight.is-filter-dimmed {
   cursor:default
@@ -359,7 +369,7 @@ export const composerTooltipHighlightResponsiveStyles = `.reader-note-comments-p
   border-radius:3px;
   background:rgba(77,155,114,.18)
 }
-.reader-highlight.is-temporary::before,.reader-highlight.is-temporary .reader-highlight-dots {
+.reader-highlight.is-temporary::before,.reader-highlight.is-temporary::after,.reader-highlight.is-temporary .reader-highlight-dots {
   display:none
 }
 .reader-highlight.is-search {
@@ -373,7 +383,7 @@ export const composerTooltipHighlightResponsiveStyles = `.reader-note-comments-p
   background:var(--reader-search-highlight-active);
   box-shadow:0 0 0 1px color-mix(in srgb,var(--reader-green) 46%,transparent),0 0 0 3px color-mix(in srgb,var(--reader-green) 10%,transparent)
 }
-.reader-highlight.is-search::before {
+.reader-highlight.is-search::before,.reader-highlight.is-search::after {
   display:none
 }
 .reader-article ::selection,.reader-article::selection {
@@ -411,17 +421,11 @@ export const composerTooltipHighlightResponsiveStyles = `.reader-note-comments-p
   box-shadow:none
 }
 .reader-highlight:focus-visible::before {
-  opacity:1;
-  filter:drop-shadow(0 1px 0 var(--reader-paper)) drop-shadow(0 0 6px var(--reader-focus-ring))
+  opacity:1
 }
 @keyframes reader-highlight-grow {
   from {
-    opacity:.35;
     transform:scaleX(0)
-  }
-  to {
-    opacity:var(--highlight-opacity,.78);
-    transform:scaleX(1)
   }
 }
 @keyframes reader-highlight-dots-in {
@@ -453,7 +457,7 @@ export const composerTooltipHighlightResponsiveStyles = `.reader-note-comments-p
   .reader-thought-review-motion>span,
   .reader-pending-agent-avatar::after,
   .reader-pending-thought-progress i,
-  .reader-highlight.is-new::before,
+  .reader-highlight.is-new::after,
   .reader-highlight.is-new .reader-highlight-dots {
     animation:none!important
   }
