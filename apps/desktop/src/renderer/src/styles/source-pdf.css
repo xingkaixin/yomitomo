@@ -15,8 +15,7 @@
   gap: 0;
   height: 100%;
   min-height: 0;
-  background: var(--app-paper-pattern-image), var(--app-paper-pattern-bg);
-  background-size: var(--app-paper-pattern-size) var(--app-paper-pattern-size);
+  background: hsl(var(--background));
   padding: 0;
 }
 
@@ -31,8 +30,7 @@
   height: 100%;
   min-height: 0;
   border: 0;
-  background: var(--app-paper-pattern-image), var(--app-paper-pattern-bg);
-  background-size: var(--app-paper-pattern-size) var(--app-paper-pattern-size);
+  background: hsl(var(--background));
 }
 
 .source-pdf-reader-shell .reader-app.is-embedded {
@@ -248,8 +246,7 @@
 .pdfium-spike-viewport {
   height: 100%;
   min-height: 100%;
-  background: var(--app-paper-pattern-image), var(--app-paper-pattern-bg);
-  background-size: var(--app-paper-pattern-size) var(--app-paper-pattern-size);
+  background: hsl(var(--background));
 }
 
 .pdfium-spike-page-shell {

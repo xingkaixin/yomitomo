@@ -8,8 +8,6 @@
   overflow: auto;
   overflow-x: hidden;
   background-color: hsl(var(--background));
-  background-image: var(--app-paper-pattern-image);
-  background-size: var(--app-paper-pattern-size);
   color: hsl(var(--foreground));
   scrollbar-gutter: stable;
 }

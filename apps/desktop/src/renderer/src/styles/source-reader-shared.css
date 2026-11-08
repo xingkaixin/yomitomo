@@ -225,8 +225,7 @@
 
 .source-reader-shell .reader-main,
 .source-ebook-reader-shell .reader-main {
-  background: var(--app-paper-pattern-image), var(--app-paper-pattern-bg);
-  background-size: var(--app-paper-pattern-size) var(--app-paper-pattern-size);
+  background: hsl(var(--background));
 }
 
 .source-reader-shell .reader-edge-blur,
