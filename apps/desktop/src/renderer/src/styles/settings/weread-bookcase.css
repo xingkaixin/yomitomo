@@ -78,8 +78,7 @@
   height: 100%;
   min-height: 0;
   grid-template-rows: auto minmax(0, 1fr);
-  background: var(--app-paper-pattern-image), var(--app-paper-pattern-bg);
-  background-size: var(--app-paper-pattern-size) var(--app-paper-pattern-size);
+  background: hsl(var(--background));
 }
 
 .weread-bookcase-header {

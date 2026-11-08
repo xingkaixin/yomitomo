@@ -70,7 +70,6 @@ export type AppTheme = {
     successForeground: string;
     successBackground: string;
   };
-  paperPattern: PaperPatternTheme;
   dataColor: {
     chart1: string;
     chart2: string;
@@ -90,17 +89,6 @@ export type ThemeControlState = {
   activeBackground: string;
   disabledBackground: string;
   disabledForeground: string;
-};
-
-export type PaperPatternKind = 'plain' | 'grid' | 'dot' | 'ruled' | 'dash-grid';
-
-export type PaperPatternTheme = {
-  kind: PaperPatternKind;
-  background: string;
-  color: string;
-  secondaryColor?: string;
-  opacity: string;
-  size: string;
 };
 
 export type AppThemeZIndex = {
@@ -300,14 +288,6 @@ export const lightTheme: AppTheme = {
     successForeground: 'hsl(142 44% 30%)',
     successBackground: 'hsl(142 42% 92%)',
   },
-  paperPattern: {
-    kind: 'grid',
-    background: 'hsl(42 50% 99%)',
-    color: 'hsl(28 21% 13%)',
-    secondaryColor: 'hsl(28 21% 13%)',
-    opacity: '0.016',
-    size: '16px',
-  },
   dataColor: {
     chart1: 'hsl(83 24% 35%)',
     chart2: 'hsl(8 45% 46%)',
@@ -484,14 +464,6 @@ export const darkTheme: AppTheme = {
     successForeground: 'hsl(140 50% 72%)',
     successBackground: 'hsl(142 32% 18%)',
   },
-  paperPattern: {
-    kind: 'dash-grid',
-    background: 'hsl(34 9% 9%)',
-    color: 'hsl(40 16% 87%)',
-    secondaryColor: 'hsl(8 76% 63%)',
-    opacity: '0.035',
-    size: '18px',
-  },
   dataColor: {
     chart1: 'hsl(140 30% 52%)',
     chart2: 'hsl(8 56% 60%)',
@@ -587,13 +559,6 @@ export function themeToCssVariables(theme: AppTheme): CssVariableMap {
     '--app-interactive-badge-border': theme.interactive.badgeBorder,
     '--app-interactive-success-fg': theme.interactive.successForeground,
     '--app-interactive-success-bg': theme.interactive.successBackground,
-    '--app-paper-pattern-bg': theme.paperPattern.background,
-    '--app-paper-pattern-color': theme.paperPattern.color,
-    '--app-paper-pattern-secondary-color':
-      theme.paperPattern.secondaryColor || theme.paperPattern.color,
-    '--app-paper-pattern-opacity': theme.paperPattern.opacity,
-    '--app-paper-pattern-size': theme.paperPattern.size,
-    '--app-paper-pattern-image': paperPatternImage(theme.paperPattern),
     '--chart-1': theme.dataColor.chart1,
     '--chart-2': theme.dataColor.chart2,
     '--chart-3': theme.dataColor.chart3,
@@ -658,31 +623,6 @@ export function writeCachedThemePreference(
   } catch {
     // Theme cache is a startup optimization; settings remain the source of truth.
   }
-}
-
-function paperPatternImage(pattern: PaperPatternTheme) {
-  const color = colorWithOpacity(pattern.color, pattern.opacity);
-  const secondaryColor = colorWithOpacity(pattern.secondaryColor || pattern.color, pattern.opacity);
-
-  switch (pattern.kind) {
-    case 'plain':
-      return 'none';
-    case 'dot':
-      return `radial-gradient(circle, ${color} 0 1px, transparent 1.35px)`;
-    case 'ruled':
-      return `linear-gradient(180deg, transparent calc(100% - 1px), ${color} 100%)`;
-    case 'dash-grid':
-      return `repeating-linear-gradient(90deg, ${color} 0 1px, transparent 1px 6px, transparent 6px 18px), repeating-linear-gradient(180deg, ${secondaryColor} 0 1px, transparent 1px 6px, transparent 6px 18px)`;
-    case 'grid':
-      return `linear-gradient(90deg, ${color} 1px, transparent 1px), linear-gradient(180deg, ${secondaryColor} 1px, transparent 1px)`;
-  }
-}
-
-function colorWithOpacity(color: string, opacity: string) {
-  if (color.startsWith('hsl(')) {
-    return color.replace(/\)$/, ` / ${opacity})`);
-  }
-  return color;
 }
 
 function browserLocalStorage() {
