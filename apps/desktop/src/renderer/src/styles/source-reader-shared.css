@@ -38,8 +38,8 @@
 
 .source-reader-back-button:hover,
 .source-reader-back-button:focus-visible {
-  background: var(--app-reader-toolbar-control-hover-bg);
-  color: var(--app-reader-primary);
+  background: var(--app-interactive-hover-bg);
+  color: hsl(var(--foreground));
   outline: 0;
 }
 
@@ -59,7 +59,7 @@
   --reader-yellow: var(--app-reader-accent);
   --reader-yellow-strong: var(--app-reader-accent-strong);
   border-radius: 0;
-  background: var(--app-reader-paper);
+  background: var(--app-shell-background);
 }
 
 .source-reader-shell .reader-toolbar,
@@ -68,7 +68,7 @@
   z-index: 20;
   min-height: 66px;
   border-bottom: 0;
-  background: hsl(var(--card));
+  background: var(--app-shell-background);
   padding: 12px var(--reader-titlebar-padding-right) 12px var(--reader-titlebar-back-left);
   backdrop-filter: none;
   -webkit-app-region: drag;
@@ -177,55 +177,78 @@
 .source-ebook-reader-shell .reader-floating-toolbar,
 .source-pdf-reader-shell .reader-floating-toolbar {
   z-index: var(--app-z-overlay);
+  border-color: var(--app-edge);
+  border-radius: 9999px;
+  background: var(--app-card-surface);
+  box-shadow: var(--app-float-shadow);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
-.source-reader-shell .reader-floating-toolbar .reader-icon-button,
-.source-ebook-reader-shell .reader-floating-toolbar .reader-icon-button,
-.source-pdf-reader-shell .reader-floating-toolbar .reader-icon-button,
-.source-reader-shell .reader-floating-toolbar .reader-icon-button:hover:not(:disabled),
-.source-reader-shell .reader-floating-toolbar .reader-icon-button.is-active,
-.source-ebook-reader-shell .reader-floating-toolbar .reader-icon-button:hover:not(:disabled),
-.source-ebook-reader-shell .reader-floating-toolbar .reader-icon-button.is-active,
-.source-pdf-reader-shell .reader-floating-toolbar .reader-icon-button:hover:not(:disabled),
-.source-pdf-reader-shell .reader-floating-toolbar .reader-icon-button.is-active,
-.source-reader-shell .reader-floating-toolbar .reader-icon-button:focus-visible:not(:disabled),
-.source-ebook-reader-shell
+:is(.source-reader-shell, .source-ebook-reader-shell, .source-pdf-reader-shell)
   .reader-floating-toolbar
-  .reader-icon-button:focus-visible:not(:disabled),
-.source-pdf-reader-shell .reader-floating-toolbar .reader-icon-button:focus-visible:not(:disabled),
-.source-reader-shell
-  .reader-floating-toolbar
-  .reader-annotation-nav
-  .reader-icon-button:hover:not(:disabled),
-.source-reader-shell
-  .reader-floating-toolbar
-  .reader-annotation-nav
-  .reader-icon-button:focus-visible:not(:disabled),
-.source-ebook-reader-shell
-  .reader-floating-toolbar
-  .reader-annotation-nav
-  .reader-icon-button:hover:not(:disabled),
-.source-ebook-reader-shell
-  .reader-floating-toolbar
-  .reader-annotation-nav
-  .reader-icon-button:focus-visible:not(:disabled),
-.source-pdf-reader-shell
-  .reader-floating-toolbar
-  .reader-annotation-nav
-  .reader-icon-button:hover:not(:disabled),
-.source-pdf-reader-shell
-  .reader-floating-toolbar
-  .reader-annotation-nav
-  .reader-icon-button:focus-visible:not(:disabled) {
+  .reader-icon-button {
   border-color: transparent;
+  border-radius: 8px;
   background: transparent;
-  color: var(--reader-ink);
+  box-shadow: none;
+  color: hsl(var(--muted-foreground));
   outline: 0;
+}
+
+:is(.source-reader-shell, .source-ebook-reader-shell, .source-pdf-reader-shell)
+  .reader-floating-toolbar
+  .reader-icon-button:is(:hover, :focus-visible):not(:disabled) {
+  border-color: transparent;
+  background: var(--app-interactive-hover-bg);
+  color: hsl(var(--foreground));
+}
+
+:is(.source-reader-shell, .source-ebook-reader-shell, .source-pdf-reader-shell)
+  .reader-floating-toolbar
+  .reader-icon-button:focus-visible:not(:disabled) {
+  outline: 2px solid var(--app-interactive-focus-ring);
+  outline-offset: 2px;
+}
+
+:is(.source-reader-shell, .source-ebook-reader-shell, .source-pdf-reader-shell)
+  .reader-floating-toolbar
+  .reader-icon-button.is-active {
+  background: var(--app-well);
+  box-shadow: var(--app-well-shadow);
+  color: hsl(var(--foreground));
+}
+
+:is(.source-reader-shell, .source-ebook-reader-shell, .source-pdf-reader-shell)
+  .reader-toolbar-progress {
+  height: 2px;
+  background: var(--app-edge-soft);
+}
+
+:is(.source-reader-shell, .source-ebook-reader-shell, .source-pdf-reader-shell)
+  .reader-toolbar-progress
+  span {
+  background: var(--app-interactive-link);
+}
+
+:is(.source-reader-shell, .source-ebook-reader-shell, .source-pdf-reader-shell)
+  .reader-toolbar-article-title {
+  color: hsl(var(--foreground));
+  font-family: var(--font-reader-serif);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 22px;
+}
+
+:is(.source-reader-shell, .source-ebook-reader-shell, .source-pdf-reader-shell)
+  .reader-toolbar-article-meta {
+  color: hsl(var(--muted-foreground));
+  font-weight: 400;
 }
 
 .source-reader-shell .reader-main,
 .source-ebook-reader-shell .reader-main {
-  background: hsl(var(--background));
+  background: var(--app-shell-background);
 }
 
 .source-reader-shell .reader-edge-blur,
@@ -240,55 +263,52 @@
 }
 
 /* Not scoped to .is-toc-open: these must hold while the closing clip-path runs. */
-.source-reader-shell .reader-app.has-toc .reader-toc,
-.source-ebook-reader-shell .reader-app.has-toc .reader-toc,
-.source-pdf-reader-shell .reader-app.has-toc .reader-toc {
+:is(.source-reader-shell, .source-ebook-reader-shell, .source-pdf-reader-shell)
+  .reader-app.has-toc
+  .reader-toc {
   z-index: var(--app-z-panel);
-  border-color: hsl(var(--border) / 0.82);
-  border-radius: 0;
-  background: hsl(var(--card));
-  box-shadow: none;
+  border-color: var(--app-edge-soft);
+  border-radius: 12px;
+  background: var(--app-panel);
+  box-shadow: var(--app-float-shadow);
 }
 
-.source-reader-shell .reader-toc-title,
-.source-ebook-reader-shell .reader-toc-title,
-.source-pdf-reader-shell .reader-toc-title {
-  color: hsl(var(--foreground));
-}
-
-.source-reader-shell .reader-toc-item,
-.source-ebook-reader-shell .reader-toc-item,
-.source-pdf-reader-shell .reader-toc-item {
-  border-radius: 0;
+:is(.source-reader-shell, .source-ebook-reader-shell, .source-pdf-reader-shell) .reader-toc-title {
   color: hsl(var(--muted-foreground));
 }
 
-.source-reader-shell .reader-toc-item:hover,
-.source-ebook-reader-shell .reader-toc-item:hover,
-.source-pdf-reader-shell .reader-toc-item:hover {
-  background: hsl(0 0% 0% / 0.045);
+:is(.source-reader-shell, .source-ebook-reader-shell, .source-pdf-reader-shell) .reader-toc-item {
+  border-radius: 8px;
+  color: hsl(var(--muted-foreground));
+}
+
+:is(.source-reader-shell, .source-ebook-reader-shell, .source-pdf-reader-shell)
+  .reader-toc-item:hover {
+  background: var(--app-interactive-hover-bg);
   color: hsl(var(--foreground));
 }
 
-.source-reader-shell .reader-toc-line,
-.source-ebook-reader-shell .reader-toc-line,
-.source-pdf-reader-shell .reader-toc-line {
-  background: hsl(var(--foreground) / 0.22);
+:is(.source-reader-shell, .source-ebook-reader-shell, .source-pdf-reader-shell)
+  .reader-toc-item.is-active {
+  background: var(--app-raised);
+  box-shadow:
+    0 0 0 1px var(--app-edge),
+    var(--app-raised-shadow);
+  color: hsl(var(--foreground));
 }
 
-.source-reader-shell .reader-toc-item:hover .reader-toc-line,
-.source-reader-shell .reader-toc-item.is-active .reader-toc-line,
-.source-ebook-reader-shell .reader-toc-item:hover .reader-toc-line,
-.source-ebook-reader-shell .reader-toc-item.is-active .reader-toc-line,
-.source-pdf-reader-shell .reader-toc-item:hover .reader-toc-line,
-.source-pdf-reader-shell .reader-toc-item.is-active .reader-toc-line {
-  background: hsl(var(--foreground));
+:is(.source-reader-shell, .source-ebook-reader-shell, .source-pdf-reader-shell) .reader-toc-line {
+  background: var(--app-edge);
 }
 
-.source-reader-shell .reader-toc-count,
-.source-ebook-reader-shell .reader-toc-count,
-.source-pdf-reader-shell .reader-toc-count {
-  border-color: hsl(var(--border) / 0.82);
+:is(.source-reader-shell, .source-ebook-reader-shell, .source-pdf-reader-shell)
+  .reader-toc-item:is(:hover, .is-active)
+  .reader-toc-line {
+  background: var(--app-interactive-link);
+}
+
+:is(.source-reader-shell, .source-ebook-reader-shell, .source-pdf-reader-shell) .reader-toc-count {
+  border-color: var(--app-edge);
   background: color-mix(
     in srgb,
     var(--reader-toc-count-color, hsl(var(--foreground))) 52%,
@@ -298,12 +318,11 @@
   box-shadow: none;
 }
 
-.source-reader-shell .reader-toc-summary,
-.source-ebook-reader-shell .reader-toc-summary,
-.source-pdf-reader-shell .reader-toc-summary {
-  border-color: hsl(var(--border) / 0.72);
-  border-radius: 0;
-  background: hsl(var(--card));
+:is(.source-reader-shell, .source-ebook-reader-shell, .source-pdf-reader-shell)
+  .reader-toc-summary {
+  border-color: var(--app-edge-soft);
+  border-radius: 8px;
+  background: transparent;
   color: hsl(var(--muted-foreground));
 }
 
@@ -1602,10 +1621,41 @@
 .source-ebook-reader-shell .reader-article,
 .source-ebook-reader-shell .ebook-foliate-frame,
 .source-ebook-reader-shell .ebook-reader-status {
-  border-color: var(--app-reader-line);
-  border-radius: 0;
+  border-color: var(--app-reader-paper-edge);
+  border-radius: 6px;
   background: var(--reader-content-bg, var(--app-reader-paper));
-  box-shadow: none;
+  box-shadow: var(--app-reader-paper-shadow);
+}
+
+/* The article carries the paper's own ink so body text follows the paper, not the theme. */
+.source-reader-shell .reader-article {
+  --reader-ink: var(--reader-paper-ink, var(--app-reader-ink));
+  --reader-muted: var(--reader-paper-muted, var(--app-reader-muted));
+  color: var(--reader-ink);
+}
+
+.source-ebook-reader-shell .ebook-foliate-frame {
+  position: relative;
+}
+
+/* Starts the paper below the fixed floating toolbar so the toolbar rests on the desk and leaves the ribbon visible. */
+.source-reader-shell .reader-app .reader-main .reader-surface-frame > .reader-surface {
+  padding-top: 70px;
+}
+
+.source-reader-shell .reader-article::after,
+.source-ebook-reader-shell .ebook-foliate-frame::after,
+.source-pdf-reader-shell [data-pdfium-page-index='0'] .pdfium-spike-page::after {
+  content: '';
+  position: absolute;
+  top: -1px;
+  right: 52px;
+  z-index: 2;
+  width: 14px;
+  height: 52px;
+  background: var(--app-reader-ribbon);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%);
+  pointer-events: none;
 }
 
 /* 文本/Markdown 的 front matter 元数据块：正文最前、小字号、属性信息样式 */

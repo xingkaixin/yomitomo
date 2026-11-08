@@ -15,7 +15,7 @@
   gap: 0;
   height: 100%;
   min-height: 0;
-  background: hsl(var(--background));
+  background: var(--app-shell-background);
   padding: 0;
 }
 
@@ -30,7 +30,7 @@
   height: 100%;
   min-height: 0;
   border: 0;
-  background: hsl(var(--background));
+  background: var(--app-shell-background);
 }
 
 .source-pdf-reader-shell .reader-app.is-embedded {
@@ -43,7 +43,7 @@
   z-index: 20;
   min-height: var(--pdf-reader-toolbar-height);
   border-bottom: 0;
-  background: hsl(var(--card));
+  background: var(--app-shell-background);
   padding: 12px var(--reader-titlebar-padding-right) 12px var(--reader-titlebar-back-left);
   backdrop-filter: none;
   -webkit-app-region: drag;
@@ -158,7 +158,7 @@
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  padding: 18px 0 12px;
+  padding: 60px 0 12px;
 }
 
 .source-pdfium-spike-reader .reader-toc {
@@ -246,7 +246,7 @@
 .pdfium-spike-viewport {
   height: 100%;
   min-height: 100%;
-  background: hsl(var(--background));
+  background: var(--app-shell-background);
 }
 
 .pdfium-spike-page-shell {
@@ -281,8 +281,11 @@
 .pdfium-spike-page {
   position: relative;
   overflow: hidden;
+  border-radius: 6px;
   background: white;
-  box-shadow: 0 18px 42px rgb(15 23 42 / 0.16);
+  box-shadow:
+    0 0 0 1px var(--app-reader-paper-edge),
+    var(--app-reader-paper-shadow);
 }
 
 .pdfium-spike-page canvas {
