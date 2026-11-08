@@ -258,24 +258,22 @@ export const composerTooltipHighlightResponsiveStyles = `.reader-composer textar
 .reader-highlight::after {
   content:"";
   position:absolute;
-  inset:0;
-  border-radius:2px;
+  z-index:1;
+  left:min(var(--highlight-edge-size,0px),42%);
+  right:min(var(--highlight-edge-size,0px),42%);
+  bottom:var(--highlight-offset,-2px);
+  height:var(--highlight-thickness,3px);
+  border-radius:999px;
   background:var(--highlight-line);
-  opacity:var(--reader-paper-hl,.5);
+  opacity:var(--highlight-opacity,.62);
   transform-origin:left center;
-  transition:opacity .16s ease
-}
-.reader-highlight.is-active::after {
-  opacity:var(--reader-paper-hl-on,.78)
+  transition:opacity .16s ease,height .16s ease
 }
 .reader-highlight::before {
   content:"";
   position:absolute;
-  z-index:1;
-  left:min(var(--highlight-edge-size,0px),42%);
-  right:min(var(--highlight-edge-size,0px),42%);
-  bottom:-2px;
-  height:2px;
+  inset:0;
+  border-radius:2px;
   background:var(--highlight-line);
   opacity:0;
   transition:opacity .16s ease
@@ -285,7 +283,7 @@ export const composerTooltipHighlightResponsiveStyles = `.reader-composer textar
   animation-delay:var(--highlight-grow-delay,0ms)
 }
 .reader-highlight.is-active::before {
-  opacity:1
+  opacity:.14
 }
 .reader-highlight.is-filter-dimmed {
   cursor:default

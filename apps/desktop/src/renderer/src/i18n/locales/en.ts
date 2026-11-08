@@ -359,6 +359,8 @@ export const enResources = {
       annotationNavigation: 'Highlight navigation',
       annotationProcessing: 'assistant processing',
       articleWidth: 'Article width',
+      distillationColor: 'Distillation line',
+      readerAppearance: 'Reading appearance',
       adjustSelectionEnd: 'Adjust selection end',
       adjustSelectionStart: 'Adjust selection start',
       askSelection: 'Ask',

@@ -263,16 +263,27 @@ export function ReaderSurfaceView({
     }),
     [],
   );
+  // A string key keeps segments stable while unrelated annotation fields change.
+  const distilledIdsKey = annotations
+    .filter((annotation) => annotation.distillation?.status === 'published')
+    .map((annotation) => annotation.id)
+    .join('\n');
   const highlightSegments = React.useMemo(() => {
+    const distilledIds = new Set(distilledIdsKey.split('\n'));
+    const coloredBoxes = boxes.map((box) =>
+      distilledIds.has(box.annotationId)
+        ? { ...box, color: 'var(--reader-distillation-line)' }
+        : box,
+    );
     const occurrences = new Map<string, number>();
-    return buildHighlightSegments(boxes).map((segment) => {
+    return buildHighlightSegments(coloredBoxes).map((segment) => {
       const group = JSON.stringify(segment.annotationIds);
       const occurrence = occurrences.get(group) ?? 0;
       occurrences.set(group, occurrence + 1);
       // Global line numbers shift on reflow; keep each annotation's fragments mounted.
       return Object.assign(segment, { renderKey: `${group}:${occurrence}` });
     });
-  }, [boxes]);
+  }, [boxes, distilledIdsKey]);
   const temporarySegments = React.useMemo(
     () => buildHighlightSegments(temporaryBoxes),
     [temporaryBoxes],

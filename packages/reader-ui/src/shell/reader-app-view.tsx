@@ -20,6 +20,7 @@ type ReaderAppStyle = React.CSSProperties & {
   '--reader-font-size': string;
   '--reader-content-width': string;
   '--reader-content-bg': string;
+  '--reader-distillation-line': string;
   '--reader-layout-article-width'?: string;
 } & ReturnType<typeof readerPaperCssVariables>;
 
@@ -200,6 +201,7 @@ function ReaderAppViewComponent(
     '--reader-font-size': `${readerSettings.fontSize}px`,
     '--reader-content-width': `${readerSettings.contentWidth}px`,
     '--reader-content-bg': readerSettings.backgroundColor,
+    '--reader-distillation-line': readerSettings.distillationColor,
     ...readerPaperCssVariables(readerSettings.backgroundColor),
     ...(annotationRailLayout.articleWidth
       ? { '--reader-layout-article-width': `${annotationRailLayout.articleWidth}px` }

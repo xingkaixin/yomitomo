@@ -358,6 +358,8 @@ export const jaResources = {
       annotationNavigation: 'ハイライトナビゲーション',
       annotationProcessing: 'アシスタント処理',
       articleWidth: '記事の幅',
+      distillationColor: '蒸留の線',
+      readerAppearance: '表示設定',
       adjustSelectionEnd: '選択範囲の調整終了',
       adjustSelectionStart: '選択開始の調整',
       askSelection: '質問する',

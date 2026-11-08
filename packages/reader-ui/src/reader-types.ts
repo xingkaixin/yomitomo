@@ -12,6 +12,7 @@ export type ReaderSettings = {
   fontSize: number;
   contentWidth: number;
   backgroundColor: string;
+  distillationColor: string;
 };
 
 export type HighlightChoiceAction = {
