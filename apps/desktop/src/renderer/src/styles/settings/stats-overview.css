@@ -236,44 +236,12 @@
   overflow: hidden;
 }
 
-.stats-period h3,
 .stats-section-heading h3 {
   margin: 0 0 4px;
   font-family: var(--font-reader-serif);
   font-size: 17px;
   font-weight: 600;
   line-height: 24px;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.stats-metric {
-  border: 1px solid var(--app-edge);
-  border-radius: 12px;
-  background: var(--app-card-surface);
-  box-shadow: var(--app-card-shadow);
-  padding: 14px;
-}
-
-.stats-metric strong {
-  display: block;
-  font-family: var(--font-reader-serif);
-  font-size: 24px;
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  line-height: 1;
-}
-
-.stats-metric span {
-  display: block;
-  margin-top: 7px;
-  color: hsl(var(--muted-foreground));
-  font-size: 12px;
-  font-weight: 500;
 }
 
 .stats-visual-grid {

@@ -153,8 +153,7 @@
   display: grid;
   place-items: center;
   filter: none;
-  background:
-    linear-gradient(135deg, hsl(205 30% 38% / 0.16), hsl(83 24% 35% / 0.12)), hsl(var(--background));
+  background: var(--app-well);
 }
 
 .agent-list-nameplate {
@@ -218,7 +217,7 @@
   top: 50%;
   left: 50%;
   max-width: calc(100% - 24px);
-  border: 1px solid color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--agent-accent, var(--chart-1)) 18%, transparent);
   border-radius: 12px;
   background: var(--app-card-surface);
   box-shadow: var(--app-float-shadow);
@@ -233,7 +232,7 @@
 }
 
 .agent-list-line-bubble.is-entering {
-  background: color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 8%, hsl(var(--card)) 92%);
+  background: color-mix(in srgb, var(--agent-accent, var(--chart-1)) 8%, hsl(var(--card)) 92%);
 }
 
 .agent-list-line-bubble.is-resting {
@@ -423,8 +422,7 @@
 .agent-detail-cover.is-placeholder {
   display: grid;
   place-items: center;
-  background:
-    linear-gradient(135deg, hsl(205 30% 38% / 0.16), hsl(83 24% 35% / 0.12)), hsl(var(--background));
+  background: var(--app-well);
 }
 
 .agent-detail-body {
@@ -439,7 +437,7 @@
 
 .agent-detail-intro {
   margin: 0;
-  color: hsl(27 22% 24%);
+  color: hsl(var(--foreground));
   font-size: 14px;
   line-height: 1.75;
   white-space: pre-line;

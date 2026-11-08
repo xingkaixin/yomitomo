@@ -143,7 +143,7 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  border: 1px solid rgb(0 0 0 / 0.1);
+  border: 1px solid var(--app-edge-soft);
   border-radius: 999px;
   background: hsl(var(--card));
   box-shadow: var(--app-card-shadow);
@@ -242,8 +242,7 @@
   gap: 8px;
 }
 
-.diagnostics-run-card,
-.diagnostics-table-wrap {
+.diagnostics-run-card {
   overflow: hidden;
   border: 1px solid hsl(var(--border) / 0.64);
   border-radius: 8px;
@@ -315,11 +314,11 @@
 }
 
 .diagnostics-status-dot.is-success {
-  background: hsl(152 55% 42%);
+  background: var(--app-interactive-success-fg);
 }
 
 .diagnostics-status-dot.is-fallback {
-  background: hsl(36 87% 52%);
+  background: var(--app-interactive-warning-fg);
 }
 
 .diagnostics-status-dot.is-error {
@@ -388,34 +387,6 @@
 .diagnostics-step-row em {
   color: hsl(var(--muted-foreground));
   font-style: normal;
-}
-
-.diagnostics-table-wrap {
-  overflow-x: auto;
-}
-
-.diagnostics-table {
-  width: 100%;
-  min-width: 980px;
-  border-collapse: collapse;
-  font-size: 12px;
-}
-
-.diagnostics-table th,
-.diagnostics-table td {
-  border-bottom: 1px solid hsl(var(--border) / 0.46);
-  padding: 10px;
-  text-align: left;
-  white-space: nowrap;
-}
-
-.diagnostics-table th {
-  color: hsl(var(--muted-foreground));
-  font-weight: 600;
-}
-
-.diagnostics-table tr:last-child td {
-  border-bottom: 0;
 }
 
 @media (max-width: 720px) {
