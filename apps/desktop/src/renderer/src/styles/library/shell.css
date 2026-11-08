@@ -59,11 +59,11 @@
   align-items: center;
   height: 36px;
   gap: 8px;
-  border: 1px solid var(--app-reader-toolbar-border);
+  border: 1px solid var(--app-edge);
   border-radius: 10px;
-  background: var(--app-reader-paper-a94);
-  box-shadow: var(--app-reader-composer-shadow);
-  color: var(--app-reader-ink);
+  background: var(--app-raised);
+  box-shadow: var(--app-float-shadow);
+  color: hsl(var(--foreground));
   font-size: 13px;
   font-weight: 650;
   pointer-events: auto;
@@ -84,15 +84,15 @@
 }
 
 .annotation-discussion-capsules-toggle:hover {
-  border-color: var(--app-reader-accent-strong);
-  box-shadow: 0 14px 28px var(--app-reader-ink-a16);
+  border-color: var(--app-interactive-hover-border);
+  box-shadow: 0 14px 28px hsl(var(--foreground) / 0.16);
   transform: translateY(-1px);
 }
 
 .annotation-discussion-capsules-toggle:focus-visible,
 .annotation-discussion-capsules-collapse:focus-visible,
 .annotation-discussion-capsule:focus-visible {
-  outline: 2px solid var(--app-reader-accent-strong);
+  outline: 2px solid var(--app-interactive-focus-ring);
   outline-offset: 2px;
 }
 
@@ -103,8 +103,8 @@
   height: 20px;
   place-items: center;
   border-radius: 999px;
-  background: var(--app-reader-accent-strong);
-  color: var(--app-reader-paper);
+  background: var(--app-interactive-badge-bg);
+  color: var(--app-interactive-badge-fg);
   font-size: 12px;
   font-weight: 700;
   line-height: 1;
@@ -116,18 +116,18 @@
   height: 26px;
   margin-left: auto;
   place-items: center;
-  border: 1px solid var(--app-reader-toolbar-border);
+  border: 1px solid var(--app-edge);
   border-radius: 8px;
-  background: var(--app-reader-paper-a88);
-  color: var(--app-reader-muted);
+  background: var(--app-raised);
+  color: hsl(var(--muted-foreground));
   transition:
     border-color 160ms ease,
     color 160ms ease;
 }
 
 .annotation-discussion-capsules-collapse:hover {
-  border-color: var(--app-reader-accent-strong);
-  color: var(--app-reader-ink);
+  border-color: var(--app-interactive-hover-border);
+  color: hsl(var(--foreground));
 }
 
 .annotation-discussion-capsule-list {
@@ -151,11 +151,11 @@
   min-height: 58px;
   gap: 6px 10px;
   padding: 10px 12px;
-  border: 1px solid var(--app-reader-toolbar-border);
+  border: 1px solid var(--app-edge);
   border-radius: 10px;
-  background: var(--app-reader-paper-a94);
+  background: var(--app-raised);
   box-shadow: none;
-  color: var(--app-reader-ink);
+  color: hsl(var(--foreground));
   font-size: 13px;
   font-weight: 560;
   line-height: 1.25;
@@ -168,13 +168,13 @@
 }
 
 .annotation-discussion-capsule:hover {
-  border-color: var(--app-reader-accent-strong);
-  box-shadow: 0 8px 18px var(--app-reader-ink-a8);
+  border-color: var(--app-interactive-hover-border);
+  box-shadow: 0 8px 18px hsl(var(--foreground) / 0.08);
   transform: translateY(-1px);
 }
 
 .annotation-discussion-capsule.is-replying {
-  border-color: var(--app-reader-accent-strong-a72);
+  border-color: var(--app-interactive-selected-border);
 }
 
 .annotation-discussion-capsule-title {
@@ -197,7 +197,7 @@
   overflow: hidden;
   min-width: 0;
   flex: 0 1 auto;
-  color: var(--app-reader-muted);
+  color: hsl(var(--muted-foreground));
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -215,11 +215,11 @@
   width: 24px;
   height: 24px;
   place-items: center;
-  border: 2px solid var(--app-reader-paper);
+  border: 2px solid hsl(var(--card));
   border-radius: 999px;
-  background: var(--app-reader-toolbar-bg);
-  box-shadow: 0 0 0 1px var(--app-reader-toolbar-border);
-  color: var(--app-reader-muted);
+  background: var(--app-raised);
+  box-shadow: 0 0 0 1px var(--app-edge);
+  color: hsl(var(--muted-foreground));
   font-size: 11px;
   font-weight: 700;
   object-fit: cover;
@@ -234,7 +234,7 @@
 
 .annotation-discussion-capsule-replying {
   margin-left: auto;
-  color: var(--app-reader-accent-strong);
+  color: var(--app-interactive-link);
   font-size: 12px;
   font-weight: 650;
 }

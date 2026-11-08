@@ -60,7 +60,7 @@ export const sourceEbookReaderStyles = `
   width:42px;
   height:10px;
   border-radius:999px;
-  background:var(--reader-border);
+  background:var(--reader-ink-subtle);
   opacity:.7;
   filter:blur(3px);
 }
@@ -96,7 +96,7 @@ export const sourceEbookReaderStyles = `
   width:38px;
   height:54px;
   place-items:center;
-  border:1px solid color-mix(in srgb,var(--reader-border) 72%,transparent);
+  border:1px solid color-mix(in srgb,var(--reader-ink-subtle) 72%,transparent);
   border-radius:8px;
   background:color-mix(in srgb,var(--reader-paper) 76%,transparent);
   box-shadow:var(--reader-soft-shadow);
