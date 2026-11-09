@@ -458,105 +458,95 @@
   text-overflow: ellipsis;
 }
 
-/* 扁平封面 hover：卡片轻抬 + chrome 滑入，不做书本打开 */
-.library-web-item:hover .article-cover-card,
-.library-web-item:focus-within .article-cover-card,
-.library-ebook-list-item:hover .is-flat-cover .article-cover-card,
-.library-ebook-list-item:focus-within .is-flat-cover .article-cover-card {
+/* 扁平封面 hover：卡片轻抬 + chrome 滑入，不做书本打开。只作用于条目自己的封面，合集扇形里的成员封面不动。 */
+.library-shelf-item:is(:hover, :focus-within)
+  .library-shelf-item-cover
+  > .article-book
+  .article-cover-card {
   box-shadow:
     var(--app-panel-shadow),
     inset 0 0 0 1px hsl(var(--border) / 0.6);
 }
 
-.library-ebook-list-item:hover .pdf-cover-bar,
-.library-ebook-list-item:focus-within .pdf-cover-bar {
-  transform: translateY(0);
-}
-
-.library-web-item:hover .web-cover-chrome,
-.library-web-item:focus-within .web-cover-chrome {
+.library-shelf-item:is(:hover, :focus-within)
+  .library-shelf-item-cover
+  > .article-book
+  .pdf-cover-bar,
+.library-shelf-item:is(:hover, :focus-within)
+  .library-shelf-item-cover
+  > .article-book
+  .web-cover-chrome {
   transform: translateY(0);
 }
 
 /* 文本稿纸 hover：后层叠纸向右下扇出 */
-.library-web-item:hover .is-text-cover .text-cover-sheet.s2,
-.library-web-item:focus-within .is-text-cover .text-cover-sheet.s2,
-.library-ebook-list-item:hover .is-text-cover .text-cover-sheet.s2,
-.library-ebook-list-item:focus-within .is-text-cover .text-cover-sheet.s2 {
+.library-shelf-item:is(:hover, :focus-within)
+  .library-shelf-item-cover
+  > .is-text-cover
+  .text-cover-sheet.s2 {
   transform: translate(6px, 2px) rotate(2.4deg);
 }
 
-.library-web-item:hover .is-text-cover .text-cover-sheet.s3,
-.library-web-item:focus-within .is-text-cover .text-cover-sheet.s3,
-.library-ebook-list-item:hover .is-text-cover .text-cover-sheet.s3,
-.library-ebook-list-item:focus-within .is-text-cover .text-cover-sheet.s3 {
+.library-shelf-item:is(:hover, :focus-within)
+  .library-shelf-item-cover
+  > .is-text-cover
+  .text-cover-sheet.s3 {
   transform: translate(11px, 5px) rotate(5deg);
+}
+
+.library-shelf-item:is(:hover, :focus-within)
+  .library-shelf-item-cover
+  > .article-book
+  .article-book-scene {
+  transform: rotateY(var(--book-hover-rotate)) scale(var(--book-hover-scale))
+    translateX(var(--book-hover-translate-x));
+}
+
+.library-shelf-item:is(:hover, :focus-within) .library-shelf-item-cover > .article-book {
+  transform: translateY(-2px);
+}
+
+.library-shelf-item:is(:hover, :focus-within)
+  .library-shelf-item-cover
+  > .article-book
+  .article-book-ground-shadow {
+  opacity: 0.82;
+  transform: translate3d(12px, 2px, -24px) scaleX(1.02);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .article-cover-card,
   .pdf-cover-bar,
   .web-cover-chrome,
-  .text-cover-sheet {
-    transition-duration: 1ms;
-  }
-
-  .library-web-item:hover .is-text-cover .text-cover-sheet.s2,
-  .library-web-item:focus-within .is-text-cover .text-cover-sheet.s2,
-  .library-ebook-list-item:hover .is-text-cover .text-cover-sheet.s2,
-  .library-ebook-list-item:focus-within .is-text-cover .text-cover-sheet.s2 {
-    transform: translate(3px, 1px) rotate(1deg);
-  }
-
-  .library-web-item:hover .is-text-cover .text-cover-sheet.s3,
-  .library-web-item:focus-within .is-text-cover .text-cover-sheet.s3,
-  .library-ebook-list-item:hover .is-text-cover .text-cover-sheet.s3,
-  .library-ebook-list-item:focus-within .is-text-cover .text-cover-sheet.s3 {
-    transform: translate(5px, 2px) rotate(2deg);
-  }
-}
-
-.library-ebook-list-item:hover .article-book-scene,
-.library-ebook-list-item:focus-within .article-book-scene,
-.library-web-item:hover .article-book-scene,
-.library-web-item:focus-within .article-book-scene {
-  transform: rotateY(var(--book-hover-rotate)) scale(var(--book-hover-scale))
-    translateX(var(--book-hover-translate-x));
-}
-
-.library-ebook-list-item:hover .article-book,
-.library-ebook-list-item:focus-within .article-book,
-.library-web-item:hover .article-book,
-.library-web-item:focus-within .article-book {
-  transform: translateY(-2px);
-}
-
-.library-ebook-list-item:hover .article-book-ground-shadow,
-.library-ebook-list-item:focus-within .article-book-ground-shadow,
-.library-web-item:hover .article-book-ground-shadow,
-.library-web-item:focus-within .article-book-ground-shadow {
-  opacity: 0.82;
-  transform: translate3d(12px, 2px, -24px) scaleX(1.02);
-}
-
-@media (prefers-reduced-motion: reduce) {
+  .text-cover-sheet,
   .article-book-ground-shadow,
   .article-book,
   .article-book-scene {
     transition-duration: 1ms;
   }
 
-  .library-ebook-list-item:hover .article-book-scene,
-  .library-ebook-list-item:focus-within .article-book-scene,
-  .library-web-item:hover .article-book-scene,
-  .library-web-item:focus-within .article-book-scene {
+  .library-shelf-item:is(:hover, :focus-within)
+    .library-shelf-item-cover
+    > .is-text-cover
+    .text-cover-sheet.s2 {
+    transform: translate(3px, 1px) rotate(1deg);
+  }
+
+  .library-shelf-item:is(:hover, :focus-within)
+    .library-shelf-item-cover
+    > .is-text-cover
+    .text-cover-sheet.s3 {
+    transform: translate(5px, 2px) rotate(2deg);
+  }
+
+  .library-shelf-item:is(:hover, :focus-within)
+    .library-shelf-item-cover
+    > .article-book
+    .article-book-scene {
     transform: rotateY(-10deg) scale(1.03) translateX(-4px);
   }
 
-  .library-ebook-list-item:hover .article-book,
-  .library-ebook-list-item:focus-within .article-book,
-  .library-web-item:hover .article-book,
-  .library-web-item:focus-within .article-book {
+  .library-shelf-item:is(:hover, :focus-within) .library-shelf-item-cover > .article-book {
     transform: translateY(-1px);
   }
 }
