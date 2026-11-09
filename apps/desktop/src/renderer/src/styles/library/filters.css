@@ -88,7 +88,7 @@
   flex: 0 1 auto;
   width: min(560px, 48vw);
   min-width: 260px;
-  grid-template-columns: auto auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   border: 1px solid var(--app-edge);
   border-radius: 12px;
@@ -102,17 +102,12 @@
   outline-offset: 2px;
 }
 
-.library-search-typed > svg {
-  margin-left: 14px;
-  color: hsl(var(--muted-foreground));
-}
-
 .library-type-filter-button {
   display: inline-flex;
   height: 30px;
   align-items: center;
   gap: 5px;
-  margin: 0 8px;
+  margin-left: 5px;
   border: 1px solid var(--app-edge);
   border-radius: 8px;
   background: var(--app-raised);
@@ -143,6 +138,7 @@
   --clear-out-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --clear-in-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --library-search-clear-pad: 36px;
+  --library-search-icon-pad: 24px;
   position: relative;
   display: block;
   height: 40px;
@@ -163,7 +159,7 @@
   caret-color: hsl(var(--foreground));
   color: hsl(var(--foreground));
   padding-right: var(--library-search-clear-pad);
-  padding-left: 0;
+  padding-left: var(--library-search-icon-pad);
   appearance: none;
   -webkit-appearance: none;
 }
@@ -200,7 +196,49 @@
 }
 
 .library-search-input-clear .t-clear-placeholder {
+  padding-left: var(--library-search-icon-pad);
   color: hsl(var(--muted-foreground));
+}
+
+.library-search-input-clear.has-value {
+  --library-search-icon-pad: 0px;
+}
+
+.library-search-icon {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  z-index: 2;
+  margin-top: -7.5px;
+  color: hsl(var(--muted-foreground));
+  pointer-events: none;
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+}
+
+.library-search-input-clear input:focus ~ .library-search-icon {
+  animation: library-search-icon-wiggle 420ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+.library-search-input-clear.has-value .library-search-icon {
+  opacity: 0;
+  transform: scale(0.6);
+}
+
+@keyframes library-search-icon-wiggle {
+  20% {
+    transform: rotate(-16deg);
+  }
+  45% {
+    transform: rotate(12deg);
+  }
+  70% {
+    transform: rotate(-6deg);
+  }
+  100% {
+    transform: rotate(0);
+  }
 }
 
 .library-search-input-clear .t-clear-mirror {
@@ -268,8 +306,13 @@
     opacity: 0 !important;
   }
 
+  .library-search-icon {
+    animation: none !important;
+  }
+
   .library-search-input-clear .t-clear-mirror,
   .library-search-input-clear .t-clear-placeholder,
+  .library-search-icon,
   .library-search-clear-button {
     filter: none !important;
     transition: none;
@@ -281,7 +324,7 @@
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 2px;
+  gap: 8px;
   padding-right: 10px;
   border-right: 1px solid hsl(var(--border) / 0.72);
 }
@@ -300,26 +343,35 @@
   padding: 0 8px;
   white-space: nowrap;
   cursor: default;
-  overflow: hidden;
 }
 
-/* 删除按钮默认隐藏，hover 整个 chip 时居中浮现覆盖层 */
+/* 删除按钮默认隐藏，hover 整个 chip 时在右上角浮现，不遮挡标签文字 */
 .library-type-filter-chip-remove {
   position: absolute;
-  inset: 0;
+  top: -5px;
+  right: -6px;
   display: grid;
+  width: 14px;
+  height: 14px;
   place-items: center;
   border: 0;
-  background: var(--app-brand-a24);
-  color: var(--app-interactive-badge-fg);
+  border-radius: 999px;
+  background: var(--app-action-danger-bg);
+  box-shadow: 0 0 0 1.5px hsl(var(--card));
+  color: var(--app-action-danger-fg);
+  padding: 0;
   cursor: default;
   opacity: 0;
-  transition: opacity 120ms ease;
+  transform: scale(0.6);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
 }
 
 .library-type-filter-chip:hover .library-type-filter-chip-remove,
 .library-type-filter-chip-remove:focus-visible {
   opacity: 1;
+  transform: scale(1);
 }
 
 /* 类型多选菜单 */

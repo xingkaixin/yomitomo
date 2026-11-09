@@ -335,7 +335,6 @@ export function LibraryHome({
             </button>
           ) : null}
           <div className="library-search-typed">
-            <HugeiconsIcon icon={Search01Icon} size={16} />
             <Popover
               open={typeMenuOpen}
               onOpenChange={(open) => dispatchOverlay({ type: 'typeMenuOpenChanged', open })}
@@ -400,7 +399,7 @@ export function LibraryHome({
                         aria-label={t('library.typeFilter.remove', { type: chip.label })}
                         onClick={() => libraryQueryActions.toggleType(chip.value)}
                       >
-                        <HugeiconsIcon icon={Cancel01Icon} size={12} />
+                        <HugeiconsIcon icon={Cancel01Icon} size={9} strokeWidth={2.6} />
                       </button>
                     </span>
                   ))}
@@ -425,6 +424,12 @@ export function LibraryHome({
                   onChange={(event) =>
                     libraryQueryActions.updateSearchQuery(event.currentTarget.value)
                   }
+                />
+                <HugeiconsIcon
+                  className="library-search-icon"
+                  icon={Search01Icon}
+                  size={15}
+                  aria-hidden="true"
                 />
                 <div ref={searchClear.mirrorRef} className="t-clear-mirror" aria-hidden="true">
                   {searchClear.mirrorText}
