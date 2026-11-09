@@ -1,76 +1,121 @@
-.library-collection-fan-deck {
+/* 合集是一个敞口木箱：成员封面立在箱里露出上半截，空合集能直接看到箱内底色。 */
+.library-collection-crate {
   position: relative;
-  width: 150px;
+  width: 140px;
   height: 128px;
 }
 
-.library-collection-fan-card {
-  --fan-rel: calc(var(--fan-index, 0) - (var(--fan-count, 1) - 1) / 2);
+.library-collection-crate-back {
   position: absolute;
-  bottom: 0;
+  right: 5px;
+  bottom: 8px;
+  left: 5px;
+  height: 68px;
+  border-radius: 3px 3px 0 0;
+  background: var(--app-crate-inner);
+  box-shadow:
+    inset 0 8px 12px -6px var(--app-shadow-a24),
+    inset 0 2px 0 var(--app-crate-edge);
+}
+
+.library-collection-crate-member {
+  --crate-rel: calc(var(--crate-index, 0) - (var(--crate-count, 1) - 1) / 2);
+  position: absolute;
+  bottom: 14px;
   left: 50%;
-  z-index: calc(10 - var(--fan-index, 0));
+  z-index: calc(10 - var(--crate-index, 0));
   transform-origin: 50% 100%;
-  transform: translateX(-50%) translateX(calc(var(--fan-rel) * 16px))
-    rotate(calc(var(--fan-rel) * 6deg));
-  transition: transform 440ms var(--ease-out);
+  transform: translateX(-50%) translateX(calc(var(--crate-rel) * 24px))
+    rotate(calc(var(--crate-rel) * 5deg));
+  transition: transform 380ms var(--ease-out);
+}
+
+.library-shelf-item:is(:hover, :focus-within) .library-collection-crate-member {
+  transform: translateX(-50%) translateX(calc(var(--crate-rel) * 24px)) translateY(-8px)
+    rotate(calc(var(--crate-rel) * 5deg));
+}
+
+.library-collection-crate-front {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 20;
+  height: 52px;
+  border-radius: 3px;
+  background: linear-gradient(var(--app-crate-top), var(--app-crate-bottom));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.25),
+    0 10px 14px -10px var(--app-shadow-a24);
+}
+
+.library-collection-crate-front::before {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: var(--app-crate-edge);
+  content: '';
+  opacity: 0.5;
+}
+
+.library-collection-crate-front::after {
+  position: absolute;
+  top: 9px;
+  left: 50%;
+  width: 30px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--app-crate-inner);
+  box-shadow: inset 0 2px 3px var(--app-shadow-a24);
+  content: '';
+  transform: translateX(-50%);
 }
 
 /* Inner covers reuse the shared book cover, flattened to a thumbnail. */
-.library-collection-fan-card .article-book,
-.library-collection-fan-card .weread-book-cover {
-  --book-cover-height: 112px;
+.library-collection-crate-member .article-book,
+.library-collection-crate-member .weread-book-cover {
+  --book-cover-height: 100px;
   --book-depth: 0px;
   width: var(--book-cover-width);
   height: var(--book-cover-height);
-  filter: drop-shadow(0 10px 16px var(--app-shadow-a24));
 }
 
-.library-collection-fan-card .article-book-ground-shadow,
-.library-collection-fan-card .article-book-pages,
-.library-collection-fan-card .article-book-back {
+.library-collection-crate-member .article-book-ground-shadow,
+.library-collection-crate-member .article-book-pages,
+.library-collection-crate-member .article-book-back,
+.library-collection-crate-member .text-cover-sheet,
+.library-collection-crate-member .pdf-cover-bar,
+.library-collection-crate-member .web-cover-chrome {
   display: none;
 }
 
-.library-collection-fan-card .article-book-scene {
+.library-collection-crate-member .article-book-scene {
   top: 0;
   left: 0;
   transform: none;
 }
 
-.library-collection-fan-card .article-book-front {
+.library-collection-crate-member .article-book-front {
   box-shadow:
     0 1px 1px hsl(var(--foreground) / 0.05),
     0 8px 18px -10px hsl(var(--foreground) / 0.28);
   transform: none;
 }
 
-.library-collection-fan-card .article-cover-card {
+.library-collection-crate-member .article-cover-card {
   inset-block-start: 0;
   inset-inline: 0;
   margin-inline: 0;
 }
 
-.library-collection-fan-card .article-book.is-pdf-cover .article-cover-card {
+.library-collection-crate-member .article-book.is-pdf-cover .article-cover-card {
   inset-inline-start: 0;
 }
 
-.library-collection-fan-card .pdf-cover-bar,
-.library-collection-fan-card .web-cover-chrome {
-  display: none;
-}
-
-.library-collection-fan-placeholder {
-  display: block;
-  width: 78px;
-  height: 112px;
-  border: 1.5px dashed hsl(var(--border) / 0.85);
-  border-radius: 3px;
-  background: hsl(var(--card));
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .library-collection-fan-card {
+  .library-collection-crate-member {
     transition: none;
   }
 }

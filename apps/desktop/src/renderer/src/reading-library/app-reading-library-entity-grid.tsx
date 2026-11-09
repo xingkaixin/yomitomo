@@ -356,31 +356,21 @@ function LibraryCollectionCard({
       }
       cover={
         <div
-          className="library-collection-fan-deck"
-          style={{ '--fan-count': previewMembers.length || 3 } as React.CSSProperties}
+          className="library-collection-crate"
+          style={{ '--crate-count': previewMembers.length } as React.CSSProperties}
         >
-          {previewMembers.length > 0
-            ? previewMembers.map((item, index) => (
-                <div
-                  className="library-collection-fan-card"
-                  key={contentRefKey(libraryCatalogItemRef(item))}
-                  style={{ '--fan-index': index } as React.CSSProperties}
-                >
-                  {item.source === 'article' ? <ArticleBook article={item.article} /> : null}
-                  {item.source === 'weread' ? (
-                    <WeReadCover book={item.weread} variant="cover" />
-                  ) : null}
-                </div>
-              ))
-            : [0, 1, 2].map((index) => (
-                <div
-                  className="library-collection-fan-card"
-                  key={index}
-                  style={{ '--fan-index': index } as React.CSSProperties}
-                >
-                  <span className="library-collection-fan-placeholder" />
-                </div>
-              ))}
+          <span className="library-collection-crate-back" />
+          {previewMembers.map((item, index) => (
+            <div
+              className="library-collection-crate-member"
+              key={contentRefKey(libraryCatalogItemRef(item))}
+              style={{ '--crate-index': index } as React.CSSProperties}
+            >
+              {item.source === 'article' ? <ArticleBook article={item.article} /> : null}
+              {item.source === 'weread' ? <WeReadCover book={item.weread} variant="cover" /> : null}
+            </div>
+          ))}
+          <span className="library-collection-crate-front" />
         </div>
       }
       label={title}
