@@ -60,9 +60,8 @@ import { AppUpdateCard } from './shell/app-update-card';
 import { useAppUpdateState } from './shell/use-app-update-state';
 import { initializeAppI18n } from './i18n/app-i18n';
 import { readCachedUiLanguage } from './i18n/app-language-cache';
-import { AppToaster, useHeaderToastOffset } from './shell/app-toast';
+import { AppIsland } from './shell/app-island';
 import './styles.css';
-import 'goey-toast/styles.css';
 
 const startupUiLanguage = readCachedUiLanguage();
 initializeAppI18n(startupUiLanguage);
@@ -130,7 +129,6 @@ function ReadyApp({
   const libraryCatalogRevision = useDesktopStore((state) => state.libraryCatalogRevision);
   const appLockEnabled = store.settings.appLockEnabled;
   const appLocked = appLockEnabled && store.settings.appLockLocked;
-  const toastTopOffset = useHeaderToastOffset(session.readerOpen);
   const sidebar = useAppSidebar();
 
   useMountEffect(() => recordStoreReadyForUi(true));
@@ -375,7 +373,7 @@ function ReadyApp({
               onSaveSettings={saveSettings}
             />
           ) : null}
-          <AppToaster tone={theme.tone} topOffset={toastTopOffset} />
+          <AppIsland />
         </main>
       )}
     </AppLockGate>

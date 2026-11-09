@@ -11,8 +11,9 @@ import { useWebBilingualTranslation } from '../source/web/use-web-bilingual-tran
 const toastMocks = vi.hoisted(() => ({
   dismiss: vi.fn(),
   error: vi.fn(),
-  info: vi.fn(() => 'translation-toast'),
-  update: vi.fn(),
+  complete: vi.fn(),
+  progress: vi.fn(() => 1),
+  updateProgress: vi.fn(),
   warning: vi.fn(),
 }));
 

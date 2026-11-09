@@ -13,9 +13,10 @@ import { useEbookBilingualTranslation } from '../source/ebook/use-ebook-bilingua
 const toastMocks = vi.hoisted(() => ({
   dismiss: vi.fn(),
   error: vi.fn(),
-  info: vi.fn(() => 'translation-toast'),
+  complete: vi.fn(),
+  progress: vi.fn(() => 1),
   success: vi.fn(),
-  update: vi.fn(),
+  updateProgress: vi.fn(),
   warning: vi.fn(),
 }));
 
