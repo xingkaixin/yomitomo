@@ -353,6 +353,9 @@
   background: hsl(var(--background) / 0.68);
   backdrop-filter: blur(10px);
   padding: 24px;
+  /* Electron resolves window drag regions regardless of stacking, so the sidebar's drag
+     region would otherwise capture pointer drags inside the dialog. */
+  -webkit-app-region: no-drag;
 }
 
 .library-collection-dialog,
@@ -513,27 +516,82 @@
   opacity: 0.36;
 }
 
-.library-drag-overlay {
-  z-index: 9999;
-  max-width: 320px;
-  border: 1px solid var(--app-edge);
-  border-radius: 10px;
-  background: var(--app-card-surface);
-  color: hsl(var(--popover-foreground));
-  padding: 10px 12px;
-  box-shadow: var(--app-float-shadow);
-  font-size: 13px;
-  font-weight: 760;
+.library-collection-picker-item.is-dragging .library-collection-picker-cover {
+  visibility: hidden;
 }
 
-.library-drag-overlay > span {
-  display: flex;
-  min-width: 0;
+/* dnd-kit sizes the overlay to the source row, so the preview starts as an exact copy of
+   the row and then folds the card away, leaving only the lifted cover. */
+.library-drag-overlay {
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.library-collection-picker-drag-preview,
+.library-collection-picker-drag-preview-card {
+  display: grid;
+  grid-template-columns: 24px 82px minmax(0, 1fr) 32px;
   align-items: center;
-  gap: 8px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  gap: 12px;
+  border: 1px solid transparent;
+  padding: 8px 10px;
+}
+
+.library-collection-picker-drag-preview {
+  position: relative;
+  height: 100%;
+}
+
+.library-collection-picker-drag-preview-card {
+  position: absolute;
+  inset: 0;
+  border-color: var(--app-edge);
+  border-radius: 10px;
+  background: var(--app-card-surface);
+  box-shadow: var(--app-float-shadow);
+  color: hsl(var(--popover-foreground));
+  transform-origin: 88px 50%;
+  animation: library-picker-card-fold 200ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.library-collection-picker-drag-preview-card > .library-collection-picker-copy {
+  grid-column: 3;
+  animation: library-picker-copy-fade 90ms ease-out forwards;
+}
+
+@keyframes library-picker-copy-fade {
+  to {
+    opacity: 0;
+  }
+}
+
+.library-collection-picker-drag-preview > .library-collection-picker-cover {
+  position: relative;
+  grid-column: 2;
+  grid-row: 1;
+  animation: library-picker-cover-lift 260ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes library-picker-card-fold {
+  to {
+    opacity: 0;
+    transform: scale(0.4, 0.8);
+  }
+}
+
+@keyframes library-picker-cover-lift {
+  to {
+    filter: drop-shadow(0 14px 16px hsl(var(--foreground) / 0.24));
+    transform: translate(-30px, -4px) rotate(-4deg) scale(1.1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .library-collection-picker-drag-preview-card,
+  .library-collection-picker-drag-preview-card > .library-collection-picker-copy,
+  .library-collection-picker-drag-preview > .library-collection-picker-cover {
+    animation-duration: 1ms;
+  }
 }
 
 .library-collection-picker-drag-handle {

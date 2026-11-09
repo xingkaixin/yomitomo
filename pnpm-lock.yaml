@@ -313,6 +313,9 @@ importers:
       '@base-ui/react':
         specifier: 'catalog:'
         version: 1.9.0(@date-fns/tz@1.5.0)(@types/react@19.3.0)(date-fns@4.4.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@dnd-kit/collision':
+        specifier: 0.5.3
+        version: 0.5.3
       '@dnd-kit/dom':
         specifier: 0.5.3
         version: 0.5.3
