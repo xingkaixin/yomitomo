@@ -5,7 +5,6 @@ import {
   ArrowRight01Icon,
   Cancel01Icon,
   DragDropVerticalIcon,
-  LibraryIcon,
   Search01Icon,
 } from '@hugeicons/core-free-icons';
 import React, { useMemo, useReducer } from 'react';
@@ -43,6 +42,7 @@ import { ArticleBook } from '../shell/app-article-book';
 import { contentRefKey, libraryItemTitle } from './app-reading-library-entities';
 import { formatLibraryShortDate } from './app-reading-library-utils';
 import { WeReadCover } from './app-reading-library-covers';
+import { CollectionIcon } from './collection-icon';
 import {
   LibraryDndProvider,
   useLibraryDraggable,
@@ -332,7 +332,7 @@ function CollectionPickerDialogContent({
                     </div>
                   ) : (
                     <div className="library-collection-picker-empty-drop">
-                      <HugeiconsIcon icon={LibraryIcon} size={26} />
+                      <HugeiconsIcon icon={CollectionIcon} size={26} />
                       <strong>{t('library.collection.dropHintTitle')}</strong>
                       <span>{t('library.collection.dropHint')}</span>
                     </div>

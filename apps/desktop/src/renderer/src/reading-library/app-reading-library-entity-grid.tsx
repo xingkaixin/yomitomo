@@ -4,7 +4,6 @@ import {
   FolderOpenIcon,
   HighlighterIcon,
   Layers02Icon,
-  LibraryIcon,
   MoreHorizontalIcon,
   PencilEdit01Icon,
   PinIcon,
@@ -34,6 +33,7 @@ import {
   LibraryShelfItem,
 } from './app-reading-library-card';
 import { WeReadCover } from './app-reading-library-covers';
+import { CollectionIcon } from './collection-icon';
 import { contentRefKey } from './app-reading-library-entities';
 import { formatLibraryShortDate, weReadBookLibraryDate } from './app-reading-library-utils';
 import { libraryMenuReducer, type LibraryMenuEvent } from './library-menu-state';
@@ -386,7 +386,7 @@ function LibraryCollectionCard({
       <div className="library-shelf-item-meta">
         <span className="library-item-date-source">
           <span className="library-count-stat" aria-label={statsLabel}>
-            <HugeiconsIcon icon={LibraryIcon} size={13} />
+            <HugeiconsIcon icon={CollectionIcon} size={13} />
             <span className="library-count-value">{memberCount}</span>
           </span>
           <PinnedIndicator pinned={pinned} />
