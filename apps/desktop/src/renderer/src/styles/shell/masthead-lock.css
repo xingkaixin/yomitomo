@@ -136,15 +136,15 @@
   gap: 2px;
 }
 
-.app-section-links > :last-child {
-  margin-top: auto;
-}
-
 .app-section-actions {
   display: flex;
   align-items: center;
   gap: 2px;
-  padding: 0 6px;
+  padding: 0 4px;
+}
+
+.app-section-actions > .app-nav-profile-button {
+  margin-right: auto;
 }
 
 .app-section-nav button,
@@ -253,74 +253,102 @@
   outline-offset: 2px;
 }
 
-.app-nav-update-button {
-  position: relative;
-  isolation: isolate;
-  display: inline-flex;
-  align-items: center;
-  height: 28px;
-  overflow: hidden;
-  padding: 0 11px;
-  border: 1px solid hsl(var(--foreground) / 0.18);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--app-interactive-link);
+.app-update-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--app-edge-soft);
+  border-radius: 10px;
+  background: var(--app-card-surface);
+  box-shadow: var(--app-card-shadow);
+  color: hsl(var(--foreground));
   font-family: var(--font-ui);
-  font-size: 12.5px;
-  font-weight: 500;
-  letter-spacing: 0.01em;
+  text-align: left;
   cursor: default;
   transition:
-    background-color 150ms ease,
     border-color 150ms ease,
     transform 150ms ease;
 }
 
-.app-nav-update-button::before {
-  position: absolute;
-  z-index: -1;
-  inset: 0;
-  border-radius: inherit;
-  background: var(--app-interactive-selected-bg);
-  content: '';
-  transform: scaleX(var(--app-nav-update-progress, 0));
-  transform-origin: left center;
-  transition: transform 180ms linear;
+.app-update-card:hover {
+  border-color: var(--app-edge);
 }
 
-.app-nav-update-button-content {
-  display: inline-flex;
+.app-update-card:focus-visible {
+  outline: 2px solid var(--app-interactive-focus-ring);
+  outline-offset: 2px;
+}
+
+.app-update-card:active {
+  transform: scale(0.98);
+}
+
+.app-update-card-status {
+  display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
+  color: var(--app-interactive-link);
+  font-size: 12px;
+  line-height: 16px;
 }
 
-.app-nav-update-button[data-downloading='true'] {
-  border-color: var(--app-interactive-selected-border);
-  color: var(--app-interactive-selected-fg);
+.app-update-card[data-status='downloading'] .app-update-card-status {
+  color: hsl(var(--muted-foreground));
+}
+
+.app-update-card[data-status='downloaded'] .app-update-card-status {
+  color: var(--app-interactive-success-fg);
+}
+
+.app-update-card[data-status='download-error'] .app-update-card-status {
+  color: var(--app-action-danger-bg);
+}
+
+.app-update-card-percent {
+  margin-left: auto;
   font-variant-numeric: tabular-nums;
-  min-width: 88px;
-  justify-content: center;
 }
 
-.app-nav-update-button:hover,
-.app-nav-update-button:focus-visible {
-  background-color: var(--app-interactive-hover-bg);
-  border-color: var(--app-interactive-link);
-  outline: 0;
+.app-update-card-version {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
 }
 
-.app-nav-update-button:active {
-  transform: scale(0.97);
+.app-update-card-version svg {
+  color: hsl(var(--muted-foreground));
+}
+
+.app-update-card-progress {
+  height: 3px;
+  margin-top: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--app-ink-a8);
+}
+
+.app-update-card-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--app-action-primary-bg);
+  transition: width 180ms linear;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .app-nav-update-button::before {
+  .app-update-card-progress > span {
     transition: none;
   }
 }
 
 .app-nav-lock-button,
-.app-nav-profile-button {
+.app-nav-profile-button,
+.app-nav-settings-button {
   position: relative;
   display: grid;
   width: 32px;
@@ -340,17 +368,21 @@
 .app-nav-lock-button:hover,
 .app-nav-lock-button:focus-visible,
 .app-nav-profile-button:hover,
-.app-nav-profile-button:focus-visible {
+.app-nav-profile-button:focus-visible,
+.app-nav-settings-button:hover,
+.app-nav-settings-button:focus-visible {
   background-color: var(--app-interactive-hover-bg);
 }
 
 .app-nav-lock-button:active,
-.app-nav-profile-button:active {
+.app-nav-profile-button:active,
+.app-nav-settings-button:active {
   transform: scale(0.96);
 }
 
 .app-nav-lock-button::after,
-.app-nav-profile-button::after {
+.app-nav-profile-button::after,
+.app-nav-settings-button::after {
   position: absolute;
   bottom: calc(100% + 8px);
   left: 0;
@@ -376,9 +408,24 @@
 .app-nav-lock-button:hover::after,
 .app-nav-lock-button:focus-visible::after,
 .app-nav-profile-button:hover::after,
-.app-nav-profile-button:focus-visible::after {
+.app-nav-profile-button:focus-visible::after,
+.app-nav-settings-button:hover::after,
+.app-nav-settings-button:focus-visible::after {
   opacity: 1;
   transform: translateY(0);
+}
+
+/* These sit at the sidebar's right edge; a left-anchored label would run into the panel. */
+.app-nav-lock-button::after,
+.app-nav-settings-button::after {
+  right: 0;
+  left: auto;
+}
+
+.app-nav-settings-button[aria-current='page'] {
+  border-color: var(--app-edge);
+  background: var(--app-raised);
+  box-shadow: var(--app-raised-shadow);
 }
 
 .segmented-control.app-nav-theme-switch {

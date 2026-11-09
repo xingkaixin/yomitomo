@@ -576,9 +576,9 @@ export const zhCNResources = {
       settings: '设置',
       profile: '个人设置',
       updateAvailable: '有新版本',
-      updateAvailableTooltip: '有新版本可更新，点击前往更新',
-      updateDownloading: '下载中 {{percent}}%',
-      updateDownloadingTooltip: '正在后台下载更新，已完成 {{percent}}%，点击查看详情',
+      updateDownloading: '正在下载',
+      updateReady: '已准备好',
+      updateFailed: '下载失败',
     },
     distillationLibrary: {
       title: '沉淀',
@@ -1459,7 +1459,6 @@ export const zhCNResources = {
       library: '阅读库',
       agents: '助手',
       stats: '统计',
-      settings: '设置',
     },
     settings: {
       navLabel: '设置分类',

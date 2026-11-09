@@ -611,9 +611,9 @@ export const enResources = {
       settings: 'Settings',
       profile: 'Open profile settings',
       updateAvailable: 'Update available',
-      updateAvailableTooltip: 'A new version is available — click to update',
-      updateDownloading: 'Downloading {{percent}}%',
-      updateDownloadingTooltip: 'Update download is {{percent}}% complete — click for details',
+      updateDownloading: 'Downloading',
+      updateReady: 'Ready to install',
+      updateFailed: 'Download failed',
     },
     distillationLibrary: {
       title: 'Distillations',
@@ -1526,7 +1526,6 @@ export const enResources = {
       library: 'Library',
       agents: 'Assistants',
       stats: 'Stats',
-      settings: 'Settings',
     },
     settings: {
       navLabel: 'Settings categories',

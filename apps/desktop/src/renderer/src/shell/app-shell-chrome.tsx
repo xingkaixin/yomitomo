@@ -95,9 +95,6 @@ function StartupNav() {
         <button className="settings-nav-item" disabled type="button">
           <span>{t('startup.stats')}</span>
         </button>
-        <button className="settings-nav-item" disabled type="button">
-          <span>{t('startup.settings')}</span>
-        </button>
       </div>
     </nav>
   );
