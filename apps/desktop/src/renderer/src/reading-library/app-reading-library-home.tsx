@@ -334,7 +334,6 @@ export function LibraryHome({
             </button>
           ) : null}
           <div className="library-search-typed">
-            <HugeiconsIcon icon={Search01Icon} size={16} />
             <Popover
               open={typeMenuOpen}
               onOpenChange={(open) => dispatchOverlay({ type: 'typeMenuOpenChanged', open })}
@@ -424,6 +423,12 @@ export function LibraryHome({
                   onChange={(event) =>
                     libraryQueryActions.updateSearchQuery(event.currentTarget.value)
                   }
+                />
+                <HugeiconsIcon
+                  className="library-search-icon"
+                  icon={Search01Icon}
+                  size={15}
+                  aria-hidden="true"
                 />
                 <div ref={searchClear.mirrorRef} className="t-clear-mirror" aria-hidden="true">
                   {searchClear.mirrorText}
