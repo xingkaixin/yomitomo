@@ -819,7 +819,7 @@ export const enResources = {
         saveName: 'Save name',
         saveFailed: 'Collection save failed',
         emptyCover: 'Empty collection · Add later',
-        emptyTitle: 'This collection is empty',
+        emptyTitle: '“{{name}}” is empty',
         emptyDescription: 'Pick existing items from the library to add.',
         emptyNoLibraryDescription:
           'The library is still empty. Add some reading first, then group it into this collection.',

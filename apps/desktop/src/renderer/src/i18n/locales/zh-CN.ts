@@ -782,7 +782,7 @@ export const zhCNResources = {
         saveName: '保存名称',
         saveFailed: '合集保存失败',
         emptyCover: '空合集 · 待添加',
-        emptyTitle: '这个合集还是空的',
+        emptyTitle: '「{{name}}」还是空的',
         emptyDescription: '从阅读库挑已有的内容加进来。',
         emptyNoLibraryDescription: '阅读库还没有内容，先添加一些，再归入这个合集。',
         pickFromLibrary: '从阅读库选择',

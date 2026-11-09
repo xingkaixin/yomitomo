@@ -827,7 +827,7 @@ export const jaResources = {
         saveName: '名前を保存',
         saveFailed: 'コレクションの保存に失敗しました',
         emptyCover: '空のコレクション · 後で追加',
-        emptyTitle: 'このコレクションは空です',
+        emptyTitle: '「{{name}}」はまだ空です',
         emptyDescription: 'ライブラリから既存のアイテムを選択して追加します。',
         emptyNoLibraryDescription:
           'ライブラリはまだ空です。最初にいくつかの読み物を追加してから、このコレクションにグループ化します。',
