@@ -819,11 +819,12 @@ export const enResources = {
         saveName: 'Save name',
         saveFailed: 'Collection save failed',
         emptyCover: 'Empty collection · Add later',
-        emptyTitle: 'This collection is empty',
+        emptyTitle: '“{{name}}” is empty',
         emptyDescription: 'Pick existing items from the library to add.',
         emptyNoLibraryDescription:
           'The library is still empty. Add some reading first, then group it into this collection.',
         pickFromLibrary: 'Choose from library',
+        quickAdd: 'Quick add',
         searchPlaceholder: 'Search in this collection...',
         pickerTitle: 'Choose from library',
         pickerDescription: 'Add to “{{name}}”',

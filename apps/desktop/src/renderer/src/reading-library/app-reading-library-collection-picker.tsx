@@ -410,7 +410,7 @@ function CollectionPickerItem({
   );
 }
 
-function CollectionPickerCover({
+export function CollectionPickerCover({
   className,
   item,
 }: {
@@ -425,7 +425,10 @@ function CollectionPickerCover({
   );
 }
 
-function libraryTypeLabel(type: LibraryCatalogItemType, t: ReturnType<typeof useTranslation>['t']) {
+export function libraryTypeLabel(
+  type: LibraryCatalogItemType,
+  t: ReturnType<typeof useTranslation>['t'],
+) {
   if (type === 'web') return t('library.sources.webShort');
   if (type === 'ebook') return t('library.sources.ebookShort');
   if (type === 'pdf') return t('library.sources.pdfShort');

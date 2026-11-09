@@ -6,7 +6,6 @@ import {
   Book02Icon,
   Cancel01Icon,
   FilterIcon,
-  FolderOpenIcon,
   Globe02Icon,
   LibraryIcon,
   Pdf01Icon,
@@ -56,6 +55,7 @@ import {
   type TextImportCommitInput,
 } from '../../../ipc-contract';
 import { libraryContentSourceBaseOptions } from './app-library-content-sources';
+import { LibraryCollectionEmpty } from './app-reading-library-collection-empty';
 import { CollectionPickerDialog } from './app-reading-library-collection-picker';
 import { LibraryEntityGrid } from './app-reading-library-entity-grid';
 import { CollectionIcon } from './collection-icon';
@@ -543,20 +543,20 @@ export function LibraryHome({
                 onSyncWeRead={onSyncWeRead}
                 onConnectWeRead={onOpenDataSources}
               />
-            ) : emptyReason.variant === 'collection' ? (
+            ) : emptyReason.variant === 'collection' && activeCollection ? (
               <LibraryCollectionEmpty
+                catalogRevision={catalogRevision}
+                collection={activeCollection}
                 libraryHasItems={emptyReason.libraryHasItems}
                 weReadConfigured={wereadSettings.configured}
                 weReadSyncing={wereadSyncing}
-                onAddExisting={
-                  activeCollection
-                    ? () =>
-                        dispatchOverlay({
-                          type: 'collectionPickerOpened',
-                          collectionId: activeCollection.id,
-                        })
-                    : undefined
+                onAddExisting={() =>
+                  dispatchOverlay({
+                    type: 'collectionPickerOpened',
+                    collectionId: activeCollection.id,
+                  })
                 }
+                onAddMember={(member) => addCollectionMembers(activeCollection.id, [member])}
                 onAddWebArticle={importDialogs.openArticleImport}
                 onAddEbook={importDialogs.openEbookImport}
                 onAddPdf={importDialogs.openPdfImport}
@@ -865,45 +865,6 @@ function LibraryFirstUseEmpty(handlers: LibraryImportEntryHandlers) {
       <h3>{t('library.empty.libraryTitle')}</h3>
       <p>{t('library.empty.libraryDescription')}</p>
       <LibraryImportEntryGrid {...handlers} />
-    </section>
-  );
-}
-
-function LibraryCollectionEmpty({
-  libraryHasItems,
-  onAddExisting,
-  ...entryHandlers
-}: LibraryImportEntryHandlers & {
-  libraryHasItems: boolean;
-  onAddExisting?: () => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <section className="library-empty is-collection">
-      <div className="library-empty-pile" aria-hidden="true">
-        <i />
-        <i />
-        <i />
-      </div>
-      <h3>{t('library.collection.emptyTitle')}</h3>
-      {libraryHasItems ? (
-        <>
-          <p>{t('library.collection.emptyDescription')}</p>
-          {onAddExisting ? (
-            <div className="library-empty-actions">
-              <Button type="button" variant="secondary" onClick={onAddExisting}>
-                <HugeiconsIcon icon={FolderOpenIcon} size={15} />
-                {t('library.collection.addExisting')}
-              </Button>
-            </div>
-          ) : null}
-        </>
-      ) : (
-        <>
-          <p>{t('library.collection.emptyNoLibraryDescription')}</p>
-          <LibraryImportEntryGrid {...entryHandlers} />
-        </>
-      )}
     </section>
   );
 }

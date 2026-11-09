@@ -90,7 +90,8 @@
 .library-empty.is-first-use > .library-empty-marks,
 .library-empty.is-first-use > h3,
 .library-empty.is-first-use > p,
-.library-empty.is-first-use > .library-empty-entries {
+.library-empty.is-first-use > .library-empty-entries,
+.library-empty.is-collection > * {
   --library-first-use-final-opacity: 1;
   animation: library-first-use-enter 240ms cubic-bezier(0.23, 1, 0.32, 1) both;
 }
@@ -99,16 +100,21 @@
   --library-first-use-final-opacity: 0.5;
 }
 
-.library-empty.is-first-use > h3 {
+.library-empty:is(.is-first-use, .is-collection) > h3 {
   animation-delay: 50ms;
 }
 
-.library-empty.is-first-use > p {
+.library-empty:is(.is-first-use, .is-collection) > p {
   animation-delay: 100ms;
 }
 
-.library-empty.is-first-use > .library-empty-entries {
+.library-empty:is(.is-first-use, .is-collection)
+  > :is(.library-empty-entries, .library-empty-actions) {
   animation-delay: 150ms;
+}
+
+.library-empty.is-collection > .library-empty-quick-add {
+  animation-delay: 200ms;
 }
 
 @keyframes library-first-use-enter {
@@ -137,7 +143,8 @@
   .library-empty.is-first-use > .library-empty-marks,
   .library-empty.is-first-use > h3,
   .library-empty.is-first-use > p,
-  .library-empty.is-first-use > .library-empty-entries {
+  .library-empty.is-first-use > .library-empty-entries,
+  .library-empty.is-collection > * {
     animation: library-first-use-fade 160ms cubic-bezier(0.23, 1, 0.32, 1) both;
   }
 }
@@ -156,37 +163,6 @@
   border: 1.5px dashed hsl(var(--border));
   border-radius: 3px;
   background: hsl(var(--background) / 0.4);
-}
-
-.library-empty-pile {
-  position: relative;
-  width: 132px;
-  height: 92px;
-  margin-bottom: 18px;
-  opacity: 0.55;
-}
-
-.library-empty-pile i {
-  position: absolute;
-  inset: 0;
-  margin: auto;
-  width: 50px;
-  height: 66px;
-  border: 1.5px dashed hsl(var(--border));
-  border-radius: 3px;
-  background: hsl(var(--background) / 0.4);
-}
-
-.library-empty-pile i:nth-child(1) {
-  transform: rotate(-9deg) translate(-24px, 4px);
-}
-
-.library-empty-pile i:nth-child(2) {
-  transform: rotate(6deg) translate(22px, -2px);
-}
-
-.library-empty-pile i:nth-child(3) {
-  transform: rotate(-2deg);
 }
 
 .library-empty-entries {
