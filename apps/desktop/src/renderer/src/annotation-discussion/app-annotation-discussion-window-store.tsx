@@ -10,7 +10,6 @@ import type {
   UserProfile,
 } from '@yomitomo/shared';
 import { normalizeUiLanguage } from '@yomitomo/shared';
-import { readCachedThemeId, themeRegistry, type AppThemeTone } from '../theme/app-theme';
 import { assistantRunScope, type AssistantRunView } from '../shell/app-assistant-runs';
 import { getOptionalDesktopApi } from '../shell/app-desktop-api';
 import { discussionWindowTitle } from './app-annotation-discussion-utils';
@@ -39,7 +38,6 @@ type DiscussionReadyStatus = Extract<DiscussionWindowStatus, { type: 'ready' }>;
 type DiscussionWindowState = {
   assistantRuns: AssistantRunView[];
   status: DiscussionWindowStatus;
-  themeTone: AppThemeTone;
   actions: {
     annotationRemoved: () => void;
     articleChanged: (article: ArticleRecord) => void;
@@ -47,7 +45,6 @@ type DiscussionWindowState = {
     assistantRunsReceived: (events: AssistantRunEvent[], initial: boolean) => void;
     loaded: (status: Omit<DiscussionReadyStatus, 'type'>) => void;
     loadFailed: (message: string) => void;
-    themeApplied: (tone: AppThemeTone) => void;
   };
 };
 
@@ -93,7 +90,6 @@ export function createDiscussionWindowStore({
     return {
       assistantRuns: [],
       status: { type: 'loading' },
-      themeTone: themeRegistry[readCachedThemeId()].meta.tone,
       actions: {
         annotationRemoved: () => showStatus({ type: 'removed' }),
         articleChanged: (article) =>
@@ -112,7 +108,6 @@ export function createDiscussionWindowStore({
           })),
         loaded: (status) => showStatus({ type: 'ready', ...status }),
         loadFailed: (message) => showStatus({ type: 'error', message }),
-        themeApplied: (themeTone) => set({ themeTone }),
       },
     };
   });
@@ -131,7 +126,7 @@ export function bindDiscussionWindow(
   const unsubscribeTitle = store.subscribe((state, previousState) => {
     if (state.status !== previousState.status) syncTitle();
   });
-  const unbindTheme = bindAnnotationWindowTheme((theme) => actions.themeApplied(theme.meta.tone));
+  const unbindTheme = bindAnnotationWindowTheme();
   const unbindArticle = bindAnnotationWindowArticle(route, {
     failed: (error) =>
       actions.loadFailed(

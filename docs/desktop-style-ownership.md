@@ -16,7 +16,7 @@
 
 `apps/desktop/src/renderer/src/styles/` 下的模块拥有对应 UI 区域的最终样式：
 
-- `shell.css` 及 `styles/shell/*`：应用外壳、侧栏、导航、profile 入口、平台 titlebar、锁屏状态与主题开关。
+- `shell.css` 及 `styles/shell/*`：应用外壳、侧栏、导航、profile 入口、平台 titlebar、锁屏状态、主题开关与灵动岛通知。
 - `settings.css` 及 `styles/settings/*`：设置页 panel、provider、agent、表单、统计、日志等设置域样式。
 - `library.css` 及 `styles/library/*`：资料库首页、搜索过滤、卡片、书架、封面、空状态和 notebook 相关样式；`reader-transition.css` 是书架与阅读器之间开合过渡层的样式，过渡的时间线在 `reading-library/reader-open-transition.ts`。
 - `annotation-discussion.css` 及其 partial：批注讨论窗口和 composer。

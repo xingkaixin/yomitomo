@@ -1,0 +1,182 @@
+.app-island-anchor {
+  position: fixed;
+  top: 9px;
+  right: 0;
+  left: 0;
+  z-index: var(--app-z-top-overlay);
+  display: flex;
+  height: 0;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.app-island {
+  position: relative;
+  flex: none;
+  overflow: hidden;
+  background: var(--app-raised);
+  box-shadow:
+    inset 0 0 0 1px var(--app-edge),
+    var(--app-float-shadow);
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  pointer-events: auto;
+  user-select: none;
+  -webkit-app-region: no-drag;
+}
+
+.app-island:focus-visible {
+  outline: 2px solid var(--app-interactive-focus-ring);
+  outline-offset: 3px;
+}
+
+.app-island-view {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  width: max-content;
+  margin-inline: auto;
+}
+
+.app-island-body.is-compact {
+  display: flex;
+  height: 34px;
+  max-width: 280px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px 0 10px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.app-island-compact-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-island-count {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.app-island-body.is-expanded {
+  display: grid;
+  width: min(380px, calc(100vw - 32px));
+  box-sizing: border-box;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  padding: 13px 14px;
+}
+
+.app-island-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.app-island-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.app-island-description {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: hsl(var(--muted-foreground));
+  font-size: 12.5px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.app-island-progress {
+  display: block;
+  height: 3px;
+  margin-top: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--app-ink-a8);
+}
+
+.app-island-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: hsl(var(--foreground));
+  transition: width 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.app-island-icon {
+  display: grid;
+  place-items: center;
+  color: hsl(var(--muted-foreground));
+}
+
+.app-island-icon[data-tone='success'] {
+  color: var(--app-interactive-success-fg);
+}
+
+.app-island-icon[data-tone='warning'] {
+  color: var(--app-interactive-warning-fg);
+}
+
+.app-island-icon[data-tone='error'] {
+  color: var(--app-action-danger-bg);
+}
+
+.app-island-ring svg {
+  transform: rotate(-90deg);
+}
+
+.app-island-ring circle {
+  fill: none;
+  stroke: var(--app-ink-a16);
+  stroke-width: 2.2;
+}
+
+.app-island-ring circle + circle {
+  stroke: hsl(var(--foreground));
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.app-island-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--app-ink-a6);
+  padding: 6px 12px;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.app-island-action:hover {
+  background: var(--app-ink-a16);
+}
+
+.app-island-action:focus-visible {
+  outline: 2px solid var(--app-interactive-focus-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-island-progress > span,
+  .app-island-ring circle + circle {
+    transition: none;
+  }
+}

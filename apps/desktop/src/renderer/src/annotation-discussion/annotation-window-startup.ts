@@ -4,7 +4,6 @@ import {
   readCachedThemeId,
   themeRegistry,
   watchSystemThemeTone,
-  type AppTheme,
 } from '../theme/app-theme';
 import { annotationWindowActions } from './app-annotation-window-actions';
 
@@ -87,12 +86,8 @@ export function bindAnnotationWindowArticle(
 }
 
 /** Follows theme changes made in other windows and by the system. Returns the unsubscribe function. */
-export function bindAnnotationWindowTheme(onApplied: (theme: AppTheme) => void = () => undefined) {
-  const syncTheme = () => {
-    const theme = themeRegistry[readCachedThemeId()];
-    applyAppTheme(theme);
-    onApplied(theme);
-  };
+export function bindAnnotationWindowTheme() {
+  const syncTheme = () => applyAppTheme(themeRegistry[readCachedThemeId()]);
   window.addEventListener('storage', syncTheme);
   window.addEventListener('focus', syncTheme);
   const unwatchSystemTone = watchSystemThemeTone(syncTheme);

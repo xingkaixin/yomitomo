@@ -63,7 +63,8 @@ import {
 import { readAnnotationWindowRoute, type AnnotationWindowRoute } from './annotation-window-startup';
 import { annotationWindowActions } from './app-annotation-window-actions';
 import { getDesktopApi } from '../shell/app-desktop-api';
-import { AppToaster, appToast } from '../shell/app-toast';
+import { AppIsland } from '../shell/app-island';
+import { appToast } from '../shell/app-toast';
 
 export { insertMentionAtSelection } from './app-annotation-discussion-utils';
 
@@ -89,7 +90,6 @@ export function createAnnotationDiscussionWindow() {
 function AnnotationDiscussionWindowApp({ route }: { route: AnnotationWindowRoute }) {
   const { t } = useTranslation();
   const status = useDiscussionWindow((state) => state.status);
-  const themeTone = useDiscussionWindow((state) => state.themeTone);
   const className = annotationDiscussionWindowClassName();
   const windowTransition = useSourceAwareWindowTransition(route.params);
   const windowClassName = [className, windowTransition.className].filter(Boolean).join(' ');
@@ -117,7 +117,7 @@ function AnnotationDiscussionWindowApp({ route }: { route: AnnotationWindowRoute
           uiLanguage={status.uiLanguage}
           user={status.user}
         />
-        <AppToaster tone={themeTone} topOffset={24} />
+        <AppIsland />
       </>
     );
   }
