@@ -786,6 +786,7 @@ export const zhCNResources = {
         emptyDescription: '从阅读库挑已有的内容加进来。',
         emptyNoLibraryDescription: '阅读库还没有内容，先添加一些，再归入这个合集。',
         pickFromLibrary: '从阅读库选择',
+        quickAdd: '快速加入',
         searchPlaceholder: '搜索合集内文章…',
         pickerTitle: '从阅读库选择',
         pickerDescription: '添加到「{{name}}」',

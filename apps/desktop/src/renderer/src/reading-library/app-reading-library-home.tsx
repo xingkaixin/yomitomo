@@ -544,6 +544,7 @@ export function LibraryHome({
               />
             ) : emptyReason.variant === 'collection' && activeCollection ? (
               <LibraryCollectionEmpty
+                catalogRevision={catalogRevision}
                 collection={activeCollection}
                 libraryHasItems={emptyReason.libraryHasItems}
                 weReadConfigured={wereadSettings.configured}
@@ -554,6 +555,7 @@ export function LibraryHome({
                     collectionId: activeCollection.id,
                   })
                 }
+                onAddMember={(member) => addCollectionMembers(activeCollection.id, [member])}
                 onAddWebArticle={importDialogs.openArticleImport}
                 onAddEbook={importDialogs.openEbookImport}
                 onAddPdf={importDialogs.openPdfImport}

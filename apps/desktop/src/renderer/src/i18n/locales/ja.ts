@@ -832,6 +832,7 @@ export const jaResources = {
         emptyNoLibraryDescription:
           'ライブラリはまだ空です。最初にいくつかの読み物を追加してから、このコレクションにグループ化します。',
         pickFromLibrary: 'ライブラリから選択',
+        quickAdd: 'すぐに追加',
         searchPlaceholder: 'このコレクション内を検索...',
         pickerTitle: 'ライブラリから選択',
         pickerDescription: '「{{name}}」に追加',

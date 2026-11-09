@@ -113,6 +113,10 @@
   animation-delay: 150ms;
 }
 
+.library-empty.is-collection > .library-empty-quick-add {
+  animation-delay: 200ms;
+}
+
 @keyframes library-first-use-enter {
   from {
     opacity: 0;
