@@ -57,6 +57,7 @@ export type AppTheme = {
     well: SurfaceMaterial;
     field: SurfaceMaterial;
     shelf: { top: string; bottom: string; shade: string };
+    crate: { top: string; bottom: string; edge: string; inner: string };
     ink: SurfaceMaterial & { edge: string; foreground: string };
     shadowColor: string;
     floatShadow: string;
@@ -291,6 +292,12 @@ export const lightTheme: AppTheme = {
       bottom: '#d8cdb9',
       shade: 'rgba(28, 26, 23, 0.1)',
     },
+    crate: {
+      top: '#d4b88f',
+      bottom: '#bb9a70',
+      edge: '#9c7c55',
+      inner: '#6f5440',
+    },
     field: {
       top: '#f9f8f5',
       bottom: '#ffffff',
@@ -511,6 +518,12 @@ export const darkTheme: AppTheme = {
       bottom: '#28231d',
       shade: 'rgba(0, 0, 0, 0.35)',
     },
+    crate: {
+      top: '#8a7155',
+      bottom: '#6f5a43',
+      edge: '#574533',
+      inner: '#2a2119',
+    },
     field: {
       top: '#181715',
       bottom: '#1e1c1a',
@@ -643,6 +656,10 @@ export function themeToCssVariables(theme: AppTheme): CssVariableMap {
     '--app-shelf-top': theme.surface.shelf.top,
     '--app-shelf-bottom': theme.surface.shelf.bottom,
     '--app-shelf-shade': theme.surface.shelf.shade,
+    '--app-crate-top': theme.surface.crate.top,
+    '--app-crate-bottom': theme.surface.crate.bottom,
+    '--app-crate-edge': theme.surface.crate.edge,
+    '--app-crate-inner': theme.surface.crate.inner,
     '--app-ink': surfaceGradient(theme.surface.ink),
     '--app-ink-edge': theme.surface.ink.edge,
     '--app-ink-fg': theme.surface.ink.foreground,
