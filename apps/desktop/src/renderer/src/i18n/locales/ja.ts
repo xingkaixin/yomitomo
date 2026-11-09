@@ -607,6 +607,8 @@ export const jaResources = {
     },
     nav: {
       readingMemory: '読書メモリー',
+      collapseSidebar: 'サイドバーを閉じる',
+      expandSidebar: 'サイドバーを開く',
       main: 'メインナビゲーション',
       library: 'ライブラリ',
       agents: 'アシスタント',

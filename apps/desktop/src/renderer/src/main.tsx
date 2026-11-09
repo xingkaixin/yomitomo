@@ -46,6 +46,7 @@ import {
   useSettingsDrafts,
 } from './settings/app-settings-drafts';
 import { SettingsNavButton } from './settings/app-settings-nav-button';
+import { AppSidebarToggle, useAppSidebar } from './shell/app-sidebar';
 import { getDesktopApi } from './shell/app-desktop-api';
 import { StoreLoadErrorScreen } from './shell/app-store-load-error';
 import { ThemeSelector } from './theme/app-theme-selector';
@@ -130,6 +131,7 @@ function ReadyApp({
   const appLockEnabled = store.settings.appLockEnabled;
   const appLocked = appLockEnabled && store.settings.appLockLocked;
   const toastTopOffset = useHeaderToastOffset(session.readerOpen);
+  const sidebar = useAppSidebar();
 
   useMountEffect(() => recordStoreReadyForUi(true));
 
@@ -173,6 +175,7 @@ function ReadyApp({
     'app-shell',
     `is-${desktopPlatform()}`,
     session.readerOpen ? 'is-reader-open' : '',
+    ...sidebar.className,
   ]
     .filter(Boolean)
     .join(' ');
@@ -252,7 +255,7 @@ function ReadyApp({
             </nav>
           </AppMasthead>
 
-          <section className="settings-content">
+          <section className="settings-content" onTransitionEnd={sidebar.onContentTransitionEnd}>
             <Suspense fallback={<LibrarySkeleton />}>
               {session.surface === 'library' ? (
                 <ReadingLibrary
@@ -349,6 +352,8 @@ function ReadyApp({
               ) : null}
             </Suspense>
           </section>
+          {/* Stays after the masthead: a later drag region overrides an earlier no-drag one. */}
+          <AppSidebarToggle collapsed={sidebar.collapsed} onToggle={sidebar.toggle} />
           {session.profileDialogOpen ? (
             <Suspense fallback={null}>
               <surfaces.UserProfileSettingsDialog
