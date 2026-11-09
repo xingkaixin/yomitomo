@@ -33,6 +33,7 @@ export function WeReadBookcase({
   detail,
   inAppReader,
   readerMode,
+  readerShown,
   syncing,
   onClose,
   onOpenExternal,
@@ -43,6 +44,7 @@ export function WeReadBookcase({
   detail: WeReadBookDetail;
   inAppReader: boolean;
   readerMode: WeReadReaderMode | null;
+  readerShown: boolean;
   syncing: boolean;
   onClose: () => void;
   onOpenExternal: (target: WeReadOpenTarget) => void;
@@ -159,7 +161,7 @@ export function WeReadBookcase({
           <span style={{ width: `${readingProgressPercent}%` }} />
         </div>
       </header>
-      {reading ? <WeReadReaderFull /> : null}
+      {reading && readerShown ? <WeReadReaderFull /> : null}
       <div className="weread-bookcase-body" hidden={reading}>
         <aside className="weread-toc" aria-label={t('wereadBook.tocLabel')}>
           {chapters.map((chapter) => (
@@ -216,7 +218,7 @@ export function WeReadBookcase({
           )}
         </main>
       </div>
-      {readerMode === 'compact' ? (
+      {readerMode === 'compact' && readerShown ? (
         <WeReadReaderCompact
           onClose={closeReader}
           onExpand={() => onReaderEvent({ type: 'readerExpanded' })}
