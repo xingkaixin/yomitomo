@@ -63,45 +63,35 @@
   height: 36px;
 }
 
-.library-skeleton-grid {
-  display: grid;
-  grid-template-columns: repeat(
-    auto-fit,
-    minmax(min(100%, var(--library-entity-card-min-width)), 1fr)
-  );
-  align-content: start;
-  gap: 12px;
-  min-height: 0;
-}
-
 .library-skeleton-card {
   display: grid;
-  width: 100%;
-  max-width: var(--library-entity-card-max-width);
-  min-height: 156px;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 12px;
-  border: 1px solid var(--app-edge-soft);
-  border-radius: 12px;
-  background: var(--app-card-surface);
-  padding: 22px 26px 20px;
-}
-
-.library-skeleton-card i {
-  width: 40%;
-  height: 11px;
+  grid-template-rows: var(--shelf-zone) var(--shelf-board) auto auto;
+  justify-items: center;
+  gap: 0;
+  padding: 0 14px;
 }
 
 .library-skeleton-card b {
-  width: 86%;
-  height: 58px;
-  align-self: start;
+  grid-row: 1;
+  align-self: end;
+  width: 96px;
+  height: 136px;
+  border-radius: 4px;
+}
+
+.library-skeleton-card i {
+  grid-row: 3;
+  justify-self: stretch;
+  height: 14px;
+  margin-top: 22px;
 }
 
 .library-skeleton-card em {
+  grid-row: 4;
+  justify-self: start;
   width: 62%;
-  height: 14px;
-  justify-self: end;
+  height: 12px;
+  margin-top: 10px;
 }
 
 .library-skeleton-card:nth-child(2n) i,

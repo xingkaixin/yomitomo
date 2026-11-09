@@ -28,7 +28,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../components/ui/dropdown-menu';
-import { ArticleLibraryCard } from './app-reading-library-card';
+import {
+  ArticleLibraryCard,
+  LibraryCoverProgress,
+  LibraryShelfItem,
+} from './app-reading-library-card';
 import { WeReadCover } from './app-reading-library-covers';
 import { contentRefKey } from './app-reading-library-entities';
 import { formatLibraryShortDate, weReadBookLibraryDate } from './app-reading-library-utils';
@@ -44,7 +48,7 @@ export function LibraryEntityGrid({
 }) {
   return (
     <div className="library-entity-scroll">
-      <div className="library-entity-grid">
+      <div className="library-shelf-grid">
         {entities.map((entity) => (
           <LibraryEntityCard
             activeCollectionId={activeCollectionId}
@@ -149,100 +153,93 @@ function WeReadLibraryCard({
   const libraryDate = weReadBookLibraryDate(book);
 
   return (
-    <article className="library-list-item library-article-list-item library-ebook-list-item library-weread-list-item">
-      <button
-        className="library-list-item-open"
-        type="button"
-        aria-label={t('library.actions.openWeRead', { title: book.title })}
-        onClick={onOpen}
-      />
-      <div className={menuOpen ? 'library-item-actions is-active' : 'library-item-actions'}>
-        <DropdownMenu
-          open={menuOpen}
-          onOpenChange={(open) => dispatchMenu({ type: 'openChanged', open })}
-        >
-          <div className="library-card-menu">
-            <DropdownMenuTrigger asChild>
-              <button
-                className={menuOpen ? 'library-card-more is-active' : 'library-card-more'}
-                type="button"
-                aria-label={t('library.actions.more', { title: book.title })}
+    <LibraryShelfItem
+      actions={
+        <div className={menuOpen ? 'library-item-actions is-active' : 'library-item-actions'}>
+          <DropdownMenu
+            open={menuOpen}
+            onOpenChange={(open) => dispatchMenu({ type: 'openChanged', open })}
+          >
+            <div className="library-card-menu">
+              <DropdownMenuTrigger asChild>
+                <button
+                  className={menuOpen ? 'library-card-more is-active' : 'library-card-more'}
+                  type="button"
+                  aria-label={t('library.actions.more', { title: book.title })}
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <HugeiconsIcon icon={MoreHorizontalIcon} size={17} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                className="library-card-menu-popover"
                 onClick={(event) => event.stopPropagation()}
               >
-                <HugeiconsIcon icon={MoreHorizontalIcon} size={17} />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              className="library-card-menu-popover"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <LibraryPinMenuItem
-                pinned={pinned}
-                onSelect={() => {
-                  dispatchMenu({ type: 'itemChosen' });
-                  onSetPinned(!pinned);
-                }}
-              />
-              <DropdownMenuItem asChild>
-                <button
-                  type="button"
-                  onClick={() => {
+                <LibraryPinMenuItem
+                  pinned={pinned}
+                  onSelect={() => {
                     dispatchMenu({ type: 'itemChosen' });
-                    onOpenExternal();
+                    onSetPinned(!pinned);
                   }}
-                >
-                  <HugeiconsIcon icon={SmartPhone01Icon} size={14} />
-                  <span>{t('library.actions.openWeReadExternal')}</span>
-                </button>
-              </DropdownMenuItem>
-              {onRemoveFromCollection ? (
+                />
                 <DropdownMenuItem asChild>
                   <button
                     type="button"
                     onClick={() => {
                       dispatchMenu({ type: 'itemChosen' });
-                      void onRemoveFromCollection();
+                      onOpenExternal();
                     }}
                   >
-                    <HugeiconsIcon icon={Layers02Icon} size={14} />
-                    <span>{t('library.collection.removeMember')}</span>
+                    <HugeiconsIcon icon={SmartPhone01Icon} size={14} />
+                    <span>{t('library.actions.openWeReadExternal')}</span>
                   </button>
                 </DropdownMenuItem>
-              ) : null}
-            </DropdownMenuContent>
-          </div>
-        </DropdownMenu>
-      </div>
-      <div className="library-ebook-cover-column" aria-hidden="true">
-        <WeReadCover book={book} />
-        <LibraryCoverProgress progress={book.readingProgress / 100} />
-      </div>
-      <div className="library-ebook-list-copy">
-        <p className="library-card-author">
-          <span>{book.author || t('library.fallback.weread')}</span>
-        </p>
-        <div className="library-ebook-list-main">
-          <h3 title={book.title}>{book.title}</h3>
+                {onRemoveFromCollection ? (
+                  <DropdownMenuItem asChild>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        dispatchMenu({ type: 'itemChosen' });
+                        void onRemoveFromCollection();
+                      }}
+                    >
+                      <HugeiconsIcon icon={Layers02Icon} size={14} />
+                      <span>{t('library.collection.removeMember')}</span>
+                    </button>
+                  </DropdownMenuItem>
+                ) : null}
+              </DropdownMenuContent>
+            </div>
+          </DropdownMenu>
         </div>
-        <div className="library-ebook-list-meta">
-          <span className="library-item-date-source">
-            <time dateTime={libraryDate}>{formatLibraryShortDate(libraryDate)}</time>
-            <span className="library-source-badge">{t('library.sources.wereadShort')}</span>
-            <PinnedIndicator pinned={pinned} />
+      }
+      cover={<WeReadCover book={book} />}
+      openLabel={t('library.actions.openWeRead', { title: book.title })}
+      progress={<LibraryCoverProgress progress={book.readingProgress / 100} />}
+      onOpen={onOpen}
+    >
+      <p className="library-card-author">
+        <span>{book.author || t('library.fallback.weread')}</span>
+      </p>
+      <h3 title={book.title}>{book.title}</h3>
+      <div className="library-shelf-item-meta">
+        <span className="library-item-date-source">
+          <time dateTime={libraryDate}>{formatLibraryShortDate(libraryDate)}</time>
+          <span className="library-source-badge">{t('library.sources.wereadShort')}</span>
+          <PinnedIndicator pinned={pinned} />
+        </span>
+        <div className="library-count-stats" aria-label={statsLabel} data-tooltip={statsLabel}>
+          <span className="library-count-stat">
+            <HugeiconsIcon icon={HighlighterIcon} size={13} />
+            <span className="library-count-value">{book.noteCount}</span>
           </span>
-          <div className="library-count-stats" aria-label={statsLabel} data-tooltip={statsLabel}>
-            <span className="library-count-stat">
-              <HugeiconsIcon icon={HighlighterIcon} size={13} />
-              <span className="library-count-value">{book.noteCount}</span>
-            </span>
-            <span className="library-count-stat">
-              <HugeiconsIcon icon={Layers02Icon} size={13} />
-              <span className="library-count-value">0</span>
-            </span>
-          </div>
+          <span className="library-count-stat">
+            <HugeiconsIcon icon={Layers02Icon} size={13} />
+            <span className="library-count-value">0</span>
+          </span>
         </div>
       </div>
-    </article>
+    </LibraryShelfItem>
   );
 }
 
@@ -273,101 +270,93 @@ function LibraryCollectionCard({
   const statsLabel = t('library.collection.memberCount', { count: memberCount });
   const previewMembers = entity.coverMembers.slice(0, 3);
   return (
-    <article className="library-list-item library-collection-list-item" aria-label={title}>
-      <button
-        className="library-list-item-open"
-        type="button"
-        aria-label={t('library.collection.open', { name: title })}
-        onClick={onOpen}
-      />
-      <div className={menuOpen ? 'library-item-actions is-active' : 'library-item-actions'}>
-        <DropdownMenu
-          open={menuOpen}
-          onOpenChange={(open) => dispatchMenu({ type: 'openChanged', open })}
-        >
-          <div className="library-card-menu">
-            <DropdownMenuTrigger asChild>
-              <button
-                className={menuOpen ? 'library-card-more is-active' : 'library-card-more'}
-                type="button"
-                aria-label={t('library.actions.more', { title })}
-                onClick={(event) => event.stopPropagation()}
-              >
-                <HugeiconsIcon icon={MoreHorizontalIcon} size={17} />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              className="library-card-menu-popover"
-              onClick={(event) => event.stopPropagation()}
+    <LibraryShelfItem
+      actions={
+        <>
+          <div className={menuOpen ? 'library-item-actions is-active' : 'library-item-actions'}>
+            <DropdownMenu
+              open={menuOpen}
+              onOpenChange={(open) => dispatchMenu({ type: 'openChanged', open })}
             >
-              <LibraryPinMenuItem
-                pinned={pinned}
-                onSelect={() => {
-                  dispatchMenu({ type: 'itemChosen' });
-                  onSetPinned(!pinned);
-                }}
-              />
-              <DropdownMenuItem asChild>
-                <button
-                  type="button"
-                  onClick={() => {
-                    dispatchMenu({ type: 'itemChosen' });
-                    onRename();
-                  }}
+              <div className="library-card-menu">
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className={menuOpen ? 'library-card-more is-active' : 'library-card-more'}
+                    type="button"
+                    aria-label={t('library.actions.more', { title })}
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <HugeiconsIcon icon={MoreHorizontalIcon} size={17} />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  className="library-card-menu-popover"
+                  onClick={(event) => event.stopPropagation()}
                 >
-                  <HugeiconsIcon icon={PencilEdit01Icon} size={14} />
-                  <span>{t('library.collection.rename')}</span>
-                </button>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <button
-                  type="button"
-                  onClick={() => {
-                    dispatchMenu({ type: 'itemChosen' });
-                    onOpenPicker();
-                  }}
-                >
-                  <HugeiconsIcon icon={FolderOpenIcon} size={14} />
-                  <span>{t('library.collection.addMembers')}</span>
-                </button>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <button
-                  className="library-item-delete"
-                  type="button"
-                  onClick={() => {
-                    dispatchMenu({ type: 'deleteRequested' });
-                  }}
-                >
-                  <HugeiconsIcon icon={Delete02Icon} size={14} />
-                  <span>{t('library.collection.delete')}</span>
-                </button>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
+                  <LibraryPinMenuItem
+                    pinned={pinned}
+                    onSelect={() => {
+                      dispatchMenu({ type: 'itemChosen' });
+                      onSetPinned(!pinned);
+                    }}
+                  />
+                  <DropdownMenuItem asChild>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        dispatchMenu({ type: 'itemChosen' });
+                        onRename();
+                      }}
+                    >
+                      <HugeiconsIcon icon={PencilEdit01Icon} size={14} />
+                      <span>{t('library.collection.rename')}</span>
+                    </button>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        dispatchMenu({ type: 'itemChosen' });
+                        onOpenPicker();
+                      }}
+                    >
+                      <HugeiconsIcon icon={FolderOpenIcon} size={14} />
+                      <span>{t('library.collection.addMembers')}</span>
+                    </button>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <button
+                      className="library-item-delete"
+                      type="button"
+                      onClick={() => {
+                        dispatchMenu({ type: 'deleteRequested' });
+                      }}
+                    >
+                      <HugeiconsIcon icon={Delete02Icon} size={14} />
+                      <span>{t('library.collection.delete')}</span>
+                    </button>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </div>
+            </DropdownMenu>
           </div>
-        </DropdownMenu>
-      </div>
-      <div className="library-collection-fan">
-        <div className="library-collection-fan-copy">
-          <div className="library-collection-fan-head">
-            <span className="library-collection-fan-kicker">
-              {t('library.collection.coverKicker')}
-            </span>
-            <h3 title={title}>
-              <span>{title}</span>
-            </h3>
-          </div>
-          <div className="library-collection-fan-foot">
-            <span className="library-collection-fan-count" aria-label={statsLabel}>
-              <HugeiconsIcon icon={LibraryIcon} size={13} />
-              <span className="library-count-value">{memberCount}</span>
-            </span>
-            <PinnedIndicator pinned={pinned} />
-          </div>
-        </div>
+          <SettingsConfirmDialog
+            cancelLabel={t('settings.confirm.cancel')}
+            confirmLabel={t('library.collection.deleteConfirm')}
+            description={t('library.collection.deleteConfirmDescription')}
+            open={deleteConfirmOpen}
+            title={t('library.collection.deleteConfirmTitle', { name: title })}
+            onCancel={() => dispatchMenu({ type: 'deleteDismissed' })}
+            onConfirm={() => {
+              dispatchMenu({ type: 'deleteDismissed' });
+              onDelete();
+            }}
+          />
+        </>
+      }
+      cover={
         <div
           className="library-collection-fan-deck"
-          aria-hidden="true"
           style={{ '--fan-count': previewMembers.length || 3 } as React.CSSProperties}
         >
           {previewMembers.length > 0
@@ -393,20 +382,23 @@ function LibraryCollectionCard({
                 </div>
               ))}
         </div>
+      }
+      label={title}
+      openLabel={t('library.collection.open', { name: title })}
+      onOpen={onOpen}
+    >
+      <p className="library-shelf-item-kicker">{t('library.collection.coverKicker')}</p>
+      <h3 title={title}>{title}</h3>
+      <div className="library-shelf-item-meta">
+        <span className="library-item-date-source">
+          <span className="library-count-stat" aria-label={statsLabel}>
+            <HugeiconsIcon icon={LibraryIcon} size={13} />
+            <span className="library-count-value">{memberCount}</span>
+          </span>
+          <PinnedIndicator pinned={pinned} />
+        </span>
       </div>
-      <SettingsConfirmDialog
-        cancelLabel={t('settings.confirm.cancel')}
-        confirmLabel={t('library.collection.deleteConfirm')}
-        description={t('library.collection.deleteConfirmDescription')}
-        open={deleteConfirmOpen}
-        title={t('library.collection.deleteConfirmTitle', { name: title })}
-        onCancel={() => dispatchMenu({ type: 'deleteDismissed' })}
-        onConfirm={() => {
-          dispatchMenu({ type: 'deleteDismissed' });
-          onDelete();
-        }}
-      />
-    </article>
+    </LibraryShelfItem>
   );
 }
 
@@ -458,23 +450,7 @@ function PinnedIndicator({ pinned }: { pinned: boolean }) {
   );
 }
 
-function LibraryCoverProgress({ progress }: { progress: number }) {
-  const { t } = useTranslation();
-  return (
-    <span
-      className="library-cover-progress library-ebook-progress"
-      style={coverProgressStyle(progress)}
-      aria-label={t('library.actions.progress')}
-    />
-  );
-}
-
 function libraryEntityKey(entity: LibraryCatalogEntity) {
   if (entity.kind === 'col') return `collection:${entity.collection.id}`;
   return contentRefKey(libraryCatalogItemRef(entity));
-}
-
-function coverProgressStyle(value: number) {
-  const progress = Math.min(1, Math.max(0, value));
-  return { '--ebook-progress': `${Math.round(progress * 100)}%` } as React.CSSProperties;
 }

@@ -1,0 +1,231 @@
+/* 书架：每行高度固定，搁板画在网格背景上，一行一条通到底，末行没放满也是整条。 */
+.library-shelf-grid,
+.library-skeleton-grid {
+  --shelf-zone: 164px;
+  --shelf-board: 12px;
+  --shelf-copy: 146px;
+  --shelf-row: calc(var(--shelf-zone) + var(--shelf-board) + var(--shelf-copy));
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
+  grid-auto-rows: var(--shelf-row);
+  align-content: start;
+  background: linear-gradient(
+      to bottom,
+      transparent var(--shelf-zone),
+      var(--app-shelf-top) var(--shelf-zone),
+      var(--app-shelf-bottom) calc(var(--shelf-zone) + var(--shelf-board)),
+      var(--app-shelf-shade) calc(var(--shelf-zone) + var(--shelf-board)),
+      transparent calc(var(--shelf-zone) + var(--shelf-board) + 10px)
+    )
+    0 0 / 100% var(--shelf-row) repeat-y;
+}
+
+.library-shelf-item {
+  position: relative;
+  display: grid;
+  grid-template-rows: var(--shelf-zone) var(--shelf-board) minmax(0, 1fr);
+  min-width: 0;
+  padding: 0 14px;
+}
+
+.library-shelf-item-open {
+  position: absolute;
+  inset: 0 0 18px;
+  z-index: 1;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.library-shelf-item-open:focus-visible {
+  outline: 2px solid var(--app-interactive-focus-ring);
+  outline-offset: -2px;
+}
+
+.library-shelf-item > :not(.library-shelf-item-open, .library-item-actions) {
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.library-shelf-item .library-item-actions {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  z-index: 3;
+  display: inline-flex;
+  opacity: 0;
+  pointer-events: auto;
+  transition: opacity 140ms ease;
+}
+
+.library-shelf-item:is(:hover, :focus-within) .library-item-actions,
+.library-shelf-item .library-item-actions.is-active {
+  opacity: 1;
+}
+
+.library-shelf-item-cover {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  min-width: 0;
+  perspective: 920px;
+}
+
+/* .article-book 的外框在封面下方留了 22px 给 3D 阴影，抵消掉才能让封面底边落在搁板上。 */
+.library-shelf-item-cover > .article-book {
+  --book-cover-height: 120px;
+  --book-depth: 22px;
+  margin-bottom: -22px;
+}
+
+/* 立体书和 PDF 的封面在外框里偏左 10px（右侧留给翻转），平移回列中线。 */
+.library-shelf-item-cover > .article-book:not(.is-text-cover, .is-web-cover) {
+  translate: 10px 0;
+}
+
+/* 书的高度跟着开本比例走：窄长的书更高，宽矮的书更矮，书脊宽度大致一致。 */
+.library-shelf-item-cover > .article-book:not(.is-flat-cover) {
+  --book-cover-height: clamp(128px, calc(100px / var(--book-cover-ratio)), 152px);
+}
+
+.library-shelf-item-cover > .article-book.is-pdf-cover {
+  --book-cover-height: 132px;
+}
+
+.library-shelf-item-cover > .article-book.is-web-cover {
+  --book-cover-height: 112px;
+}
+
+.library-shelf-item:is(:hover, :focus-within) .library-collection-fan-card {
+  transform: translateX(-50%) translateX(calc(var(--fan-rel) * 38px)) translateY(-4px)
+    rotate(calc(var(--fan-rel) * 3deg));
+}
+
+.library-shelf-item .library-cover-progress {
+  grid-row: 2;
+  align-self: center;
+  justify-self: center;
+  width: 64px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--app-ink-a16);
+}
+
+.library-shelf-item .library-cover-progress::before {
+  display: block;
+  width: var(--ebook-progress);
+  height: 100%;
+  border-radius: inherit;
+  background: var(--app-interactive-link);
+  content: '';
+}
+
+.library-shelf-item-copy {
+  grid-row: 3;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  padding-top: 14px;
+}
+
+.library-shelf-item-kicker {
+  margin: 0;
+  color: var(--app-interactive-link);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 18px;
+}
+
+.library-shelf-item h3 {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: hsl(var(--foreground));
+  font-family: var(--font-reader-serif);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.library-shelf-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+  margin-top: 2px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  line-height: 20px;
+}
+
+.library-shelf-item .library-item-date-source {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.library-shelf-item time {
+  color: hsl(var(--muted-foreground));
+  font-weight: 500;
+}
+
+.library-shelf-item .library-count-stats {
+  gap: 8px;
+  color: hsl(var(--foreground));
+  font-weight: 500;
+}
+
+.library-shelf-item .library-count-stat {
+  gap: 3px;
+}
+
+.library-shelf-item .library-count-stat svg {
+  width: 12px;
+  height: 12px;
+}
+
+.library-shelf-item .library-count-value {
+  text-align: left;
+}
+
+.library-shelf-item .library-card-pin-indicator {
+  width: 18px;
+  height: 18px;
+  border-color: var(--app-interactive-selected-border);
+  background: var(--app-interactive-selected-bg);
+  color: var(--app-interactive-link);
+}
+
+.library-shelf-item .library-card-pin-indicator svg {
+  width: 10px;
+  height: 10px;
+}
+
+@media (max-width: 760px) {
+  .library-shelf-grid,
+  .library-skeleton-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+
+  .library-shelf-item {
+    padding: 0 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .library-shelf-item .library-item-actions {
+    transition: none;
+  }
+}

@@ -6,7 +6,7 @@ import {
   PinIcon,
   PinOffIcon,
 } from '@hugeicons/core-free-icons';
-import { useReducer, type CSSProperties } from 'react';
+import { useReducer, type CSSProperties, type ReactNode } from 'react';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { readingProgressRatio } from '@yomitomo/core';
@@ -61,8 +61,6 @@ export function ArticleLibraryCard({
       : isText
         ? t('library.sources.textShort')
         : t('library.sources.webShort');
-  const itemClassName = isEbook || isPdf ? 'library-ebook-list-item' : 'library-web-item';
-  const coverClassName = isEbook || isPdf ? 'library-ebook-cover-column' : 'library-web-item-cover';
   const openLabel =
     isEbook || isPdf
       ? t('library.actions.openDocument', {
@@ -72,114 +70,146 @@ export function ArticleLibraryCard({
       : t('library.actions.openArticle', { title });
 
   return (
-    <article className={`library-list-item library-article-list-item ${itemClassName}`}>
+    <LibraryShelfItem
+      actions={
+        <>
+          <div className={menuOpen ? 'library-item-actions is-active' : 'library-item-actions'}>
+            <DropdownMenu
+              open={menuOpen}
+              onOpenChange={(open) => dispatchMenu({ type: 'openChanged', open })}
+            >
+              <div className="library-card-menu">
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className={menuOpen ? 'library-card-more is-active' : 'library-card-more'}
+                    type="button"
+                    aria-label={t('library.actions.more', { title })}
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <HugeiconsIcon icon={MoreHorizontalIcon} size={17} />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  className="library-card-menu-popover"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  {onSetPinned ? (
+                    <DropdownMenuItem asChild>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          dispatchMenu({ type: 'itemChosen' });
+                          void onSetPinned(!pinned);
+                        }}
+                      >
+                        {pinned ? (
+                          <HugeiconsIcon icon={PinOffIcon} size={14} />
+                        ) : (
+                          <HugeiconsIcon icon={PinIcon} size={14} />
+                        )}
+                        <span>
+                          {pinned ? t('library.actions.unpin') : t('library.actions.pin')}
+                        </span>
+                      </button>
+                    </DropdownMenuItem>
+                  ) : null}
+                  {onRemoveFromCollection ? (
+                    <DropdownMenuItem asChild>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          dispatchMenu({ type: 'itemChosen' });
+                          void onRemoveFromCollection();
+                        }}
+                      >
+                        <HugeiconsIcon icon={Layers02Icon} size={14} />
+                        <span>{t('library.collection.removeMember')}</span>
+                      </button>
+                    </DropdownMenuItem>
+                  ) : null}
+                  <ArticleDeleteMenuItem
+                    title={title}
+                    onSelect={() => {
+                      dispatchMenu({ type: 'itemChosen' });
+                      requestDelete();
+                    }}
+                  />
+                </DropdownMenuContent>
+              </div>
+            </DropdownMenu>
+          </div>
+          {deleteDialog}
+        </>
+      }
+      cover={<ArticleBook article={article} />}
+      openLabel={openLabel}
+      progress={<LibraryCoverProgress progress={readingProgressRatio(article.readingProgress)} />}
+      onOpen={onOpen}
+    >
+      <p className="library-card-author" aria-hidden={authorLabel ? undefined : true}>
+        <span>{authorLabel || ' '}</span>
+      </p>
+      <h3 title={title}>{title}</h3>
+      <div className="library-shelf-item-meta">
+        <span className="library-item-date-source">
+          <time dateTime={article.createdAt}>{formatLibraryShortDate(article.createdAt)}</time>
+          <span className="library-source-badge">{sourceLabel}</span>
+          {pinned ? (
+            <span
+              className="library-card-pin-indicator"
+              aria-label={t('library.actions.pinned')}
+              data-tooltip={t('library.actions.pinned')}
+            >
+              <HugeiconsIcon icon={PinIcon} size={15} />
+            </span>
+          ) : null}
+        </span>
+        <div className="library-count-stats" aria-label={statsLabel} data-tooltip={statsLabel}>
+          <span className="library-count-stat">
+            <HugeiconsIcon icon={PencilEdit01Icon} size={13} />
+            <span className="library-count-value">{annotations}</span>
+          </span>
+          <span className="library-count-stat">
+            <HugeiconsIcon icon={Layers02Icon} size={13} />
+            <span className="library-count-value">{distillations}</span>
+          </span>
+        </div>
+      </div>
+    </LibraryShelfItem>
+  );
+}
+
+export function LibraryShelfItem({
+  actions,
+  children,
+  cover,
+  label,
+  onOpen,
+  openLabel,
+  progress,
+}: {
+  actions: ReactNode;
+  children: ReactNode;
+  cover: ReactNode;
+  label?: string;
+  onOpen: () => void;
+  openLabel: string;
+  progress?: ReactNode;
+}) {
+  return (
+    <article className="library-shelf-item" aria-label={label}>
       <button
-        className="library-list-item-open"
+        className="library-shelf-item-open"
         type="button"
         aria-label={openLabel}
         onClick={onOpen}
       />
-      <div className={menuOpen ? 'library-item-actions is-active' : 'library-item-actions'}>
-        <DropdownMenu
-          open={menuOpen}
-          onOpenChange={(open) => dispatchMenu({ type: 'openChanged', open })}
-        >
-          <div className="library-card-menu">
-            <DropdownMenuTrigger asChild>
-              <button
-                className={menuOpen ? 'library-card-more is-active' : 'library-card-more'}
-                type="button"
-                aria-label={t('library.actions.more', { title })}
-                onClick={(event) => event.stopPropagation()}
-              >
-                <HugeiconsIcon icon={MoreHorizontalIcon} size={17} />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              className="library-card-menu-popover"
-              onClick={(event) => event.stopPropagation()}
-            >
-              {onSetPinned ? (
-                <DropdownMenuItem asChild>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      dispatchMenu({ type: 'itemChosen' });
-                      void onSetPinned(!pinned);
-                    }}
-                  >
-                    {pinned ? (
-                      <HugeiconsIcon icon={PinOffIcon} size={14} />
-                    ) : (
-                      <HugeiconsIcon icon={PinIcon} size={14} />
-                    )}
-                    <span>{pinned ? t('library.actions.unpin') : t('library.actions.pin')}</span>
-                  </button>
-                </DropdownMenuItem>
-              ) : null}
-              {onRemoveFromCollection ? (
-                <DropdownMenuItem asChild>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      dispatchMenu({ type: 'itemChosen' });
-                      void onRemoveFromCollection();
-                    }}
-                  >
-                    <HugeiconsIcon icon={Layers02Icon} size={14} />
-                    <span>{t('library.collection.removeMember')}</span>
-                  </button>
-                </DropdownMenuItem>
-              ) : null}
-              <ArticleDeleteMenuItem
-                title={title}
-                onSelect={() => {
-                  dispatchMenu({ type: 'itemChosen' });
-                  requestDelete();
-                }}
-              />
-            </DropdownMenuContent>
-          </div>
-        </DropdownMenu>
+      {actions}
+      <div className="library-shelf-item-cover" aria-hidden="true">
+        {cover}
       </div>
-      {deleteDialog}
-      <div className={coverClassName} aria-hidden="true">
-        <ArticleBook article={article} />
-        <LibraryCardCoverProgress progress={readingProgressRatio(article.readingProgress)} />
-      </div>
-      <div className={isEbook || isPdf ? 'library-ebook-list-copy' : 'library-article-list-copy'}>
-        <p className="library-card-author" aria-hidden={authorLabel ? undefined : true}>
-          <span>{authorLabel || ' '}</span>
-        </p>
-        <div className={isEbook || isPdf ? 'library-ebook-list-main' : 'library-web-item-main'}>
-          <h3 title={title}>{title}</h3>
-        </div>
-        <div className={isEbook || isPdf ? 'library-ebook-list-meta' : 'library-web-item-meta'}>
-          <span className="library-item-date-source">
-            <time dateTime={article.createdAt}>{formatLibraryShortDate(article.createdAt)}</time>
-            <span className="library-source-badge">{sourceLabel}</span>
-            {pinned ? (
-              <span
-                className="library-card-pin-indicator"
-                aria-label={t('library.actions.pinned')}
-                data-tooltip={t('library.actions.pinned')}
-              >
-                <HugeiconsIcon icon={PinIcon} size={15} />
-              </span>
-            ) : null}
-          </span>
-          <div className="library-count-stats" aria-label={statsLabel} data-tooltip={statsLabel}>
-            <span className="library-count-stat">
-              <HugeiconsIcon icon={PencilEdit01Icon} size={13} />
-              <span className="library-count-value">{annotations}</span>
-            </span>
-            <span className="library-count-stat">
-              <HugeiconsIcon icon={Layers02Icon} size={13} />
-              <span className="library-count-value">{distillations}</span>
-            </span>
-          </div>
-        </div>
-      </div>
+      {progress}
+      <div className="library-shelf-item-copy">{children}</div>
     </article>
   );
 }
@@ -197,11 +227,11 @@ function libraryArticleAuthorLabel(article: ArticleSummaryRecord) {
   );
 }
 
-function LibraryCardCoverProgress({ progress }: { progress: number }) {
+export function LibraryCoverProgress({ progress }: { progress: number }) {
   const { t } = useTranslation();
   return (
     <span
-      className="library-cover-progress library-ebook-progress"
+      className="library-cover-progress"
       style={coverProgressStyle(progress)}
       aria-label={t('library.actions.progress')}
     />
