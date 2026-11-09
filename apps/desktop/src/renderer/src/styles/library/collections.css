@@ -353,6 +353,9 @@
   background: hsl(var(--background) / 0.68);
   backdrop-filter: blur(10px);
   padding: 24px;
+  /* Electron resolves window drag regions regardless of stacking, so the sidebar's drag
+     region would otherwise capture pointer drags inside the dialog. */
+  -webkit-app-region: no-drag;
 }
 
 .library-collection-dialog,
