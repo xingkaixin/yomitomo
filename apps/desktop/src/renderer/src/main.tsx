@@ -1,5 +1,5 @@
 import { HugeiconsIcon } from '@hugeicons/react';
-import { LockKeyIcon } from '@hugeicons/core-free-icons';
+import { LockKeyIcon, Settings02Icon } from '@hugeicons/core-free-icons';
 import { lazy, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { AppSettingsPatch, DesktopStore } from '@yomitomo/shared';
@@ -56,7 +56,7 @@ import {
   useReaderThemeController,
 } from './theme/use-reader-theme-controller';
 import { UpdateReleaseDialog } from './shell/app-update-dialog';
-import { AppUpdateNavButton } from './shell/app-update-nav-button';
+import { AppUpdateCard } from './shell/app-update-card';
 import { useAppUpdateState } from './shell/use-app-update-state';
 import { initializeAppI18n } from './i18n/app-i18n';
 import { readCachedUiLanguage } from './i18n/app-language-cache';
@@ -209,35 +209,12 @@ function ReadyApp({
                   label={t('nav.stats')}
                   onClick={session.actions.openStats}
                 />
-                <SettingsNavButton
-                  active={session.surface === 'settings'}
-                  label={t('nav.settings')}
-                  onClick={session.actions.openSettings}
-                />
               </div>
+              <AppUpdateCard
+                state={appUpdateState}
+                onClick={() => session.actions.requestUpdateDialog(appUpdateState)}
+              />
               <div className="app-section-actions">
-                <AppUpdateNavButton
-                  state={appUpdateState}
-                  onClick={() => session.actions.requestUpdateDialog(appUpdateState)}
-                />
-                {lockEnabled ? (
-                  <button
-                    aria-label={t('appLock.lockNow', { shortcut: shortcutLabel })}
-                    className="app-nav-lock-button"
-                    data-tooltip={t('appLock.lockNow', { shortcut: shortcutLabel })}
-                    type="button"
-                    onClick={() => void lockApp()}
-                  >
-                    <HugeiconsIcon icon={LockKeyIcon} aria-hidden="true" size={18} />
-                  </button>
-                ) : null}
-                <ThemeSelector
-                  themePreference={theme.themePreference}
-                  soundSettings={store.settings}
-                  onSelectThemePreference={(preference) =>
-                    void theme.selectThemePreference(preference)
-                  }
-                />
                 <button
                   aria-label={t('nav.profile')}
                   className="app-nav-profile-button"
@@ -250,6 +227,33 @@ function ReadyApp({
                     className="app-nav-profile-avatar"
                     fallback={store.user.nickname?.slice(0, 1) || t('common.me')}
                   />
+                </button>
+                <ThemeSelector
+                  themePreference={theme.themePreference}
+                  onSelectThemePreference={(preference) =>
+                    void theme.selectThemePreference(preference)
+                  }
+                />
+                {lockEnabled ? (
+                  <button
+                    aria-label={t('appLock.lockNow', { shortcut: shortcutLabel })}
+                    className="app-nav-lock-button"
+                    data-tooltip={t('appLock.lockNow', { shortcut: shortcutLabel })}
+                    type="button"
+                    onClick={() => void lockApp()}
+                  >
+                    <HugeiconsIcon icon={LockKeyIcon} aria-hidden="true" size={18} />
+                  </button>
+                ) : null}
+                <button
+                  aria-current={session.surface === 'settings' ? 'page' : undefined}
+                  aria-label={t('nav.settings')}
+                  className="app-nav-settings-button"
+                  data-tooltip={t('nav.settings')}
+                  type="button"
+                  onClick={session.actions.openSettings}
+                >
+                  <HugeiconsIcon icon={Settings02Icon} aria-hidden="true" size={18} />
                 </button>
               </div>
             </nav>

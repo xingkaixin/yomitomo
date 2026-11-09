@@ -616,10 +616,9 @@ export const jaResources = {
       settings: '設定',
       profile: 'プロフィール設定を開く',
       updateAvailable: 'アップデートが利用可能です',
-      updateAvailableTooltip: '新しいバージョンが利用可能です — クリックして更新してください',
-      updateDownloading: 'ダウンロード中 {{percent}}%',
-      updateDownloadingTooltip:
-        '更新のダウンロードは {{percent}}% 完了しました — クリックして詳細を表示',
+      updateDownloading: 'ダウンロード中',
+      updateReady: 'インストール準備完了',
+      updateFailed: 'ダウンロードに失敗しました',
     },
     distillationLibrary: {
       title: '蒸留',
@@ -1547,7 +1546,6 @@ export const jaResources = {
       library: 'ライブラリ',
       agents: 'アシスタント',
       stats: '統計',
-      settings: '設定',
     },
     settings: {
       navLabel: '設定カテゴリ',

@@ -12,7 +12,6 @@ import appLockSlideSoundUrl from '../assets/audio/app-lock-slide.mp3';
 import paperBinTossSoundUrl from '../assets/audio/paper-bin-toss.mp3';
 import penClickSoundUrl from '../assets/audio/pen-click.mp3';
 import pencilWritingLoopSoundUrl from '../assets/audio/pencil-writing-loop.mp3';
-import scribbleCircleSoundUrl from '../assets/audio/scribble-circle.m4a';
 import soundPreviewUrl from '../assets/audio/sound-preview.mp3';
 
 export type AppSoundEffectId =
@@ -27,8 +26,7 @@ export type AppSoundEffectId =
   | 'reader.annotation_created'
   | 'reader.distillation_committed'
   | 'reader.distillation_flipped'
-  | 'settings.sound_preview'
-  | 'theme.appearance_switch';
+  | 'settings.sound_preview';
 
 type SoundEffectDefinition = {
   baseVolume: number;
@@ -91,10 +89,6 @@ const soundEffects: Record<AppSoundEffectId, SoundEffectDefinition> = {
   'settings.sound_preview': {
     baseVolume: 1,
     urls: [soundPreviewUrl],
-  },
-  'theme.appearance_switch': {
-    baseVolume: 0.4,
-    urls: [scribbleCircleSoundUrl],
   },
 };
 
