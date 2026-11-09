@@ -398,7 +398,7 @@ export function LibraryHome({
                         aria-label={t('library.typeFilter.remove', { type: chip.label })}
                         onClick={() => libraryQueryActions.toggleType(chip.value)}
                       >
-                        <HugeiconsIcon icon={Cancel01Icon} size={12} />
+                        <HugeiconsIcon icon={Cancel01Icon} size={9} strokeWidth={2.6} />
                       </button>
                     </span>
                   ))}
