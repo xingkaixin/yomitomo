@@ -1,6 +1,5 @@
-import { HugeiconsIcon } from '@hugeicons/react';
-import { DragDropVerticalIcon } from '@hugeicons/core-free-icons';
 import { useReducer, type ReactNode } from 'react';
+import { pointerIntersection } from '@dnd-kit/collision';
 import { Accessibility, PointerActivationConstraints, PointerSensor } from '@dnd-kit/dom';
 import {
   DragDropProvider,
@@ -21,6 +20,7 @@ type LibraryDragData = {
   kind: typeof LIBRARY_CONTENT_DRAG_TYPE;
   ref: ContentRef;
   title: string;
+  preview: ReactNode;
 };
 
 type LibraryDropData = {
@@ -86,22 +86,25 @@ export function LibraryDndProvider({ children }: { children: ReactNode }) {
     >
       {children}
       <DragOverlay className="library-drag-overlay" dropAnimation={null}>
-        {activeDrag ? (
-          <span>
-            <HugeiconsIcon icon={DragDropVerticalIcon} size={15} aria-hidden="true" />
-            {activeDrag.title}
-          </span>
-        ) : null}
+        {activeDrag?.preview}
       </DragOverlay>
     </DragDropProvider>
   );
 }
 
-export function useLibraryDraggable({ ref, title }: { ref: ContentRef; title: string }) {
+export function useLibraryDraggable({
+  preview,
+  ref,
+  title,
+}: {
+  preview: ReactNode;
+  ref: ContentRef;
+  title: string;
+}) {
   return useDraggable<LibraryDragData>({
     id: `picker:${contentRefKey(ref)}`,
     type: LIBRARY_CONTENT_DRAG_TYPE,
-    data: { kind: LIBRARY_CONTENT_DRAG_TYPE, ref, title },
+    data: { kind: LIBRARY_CONTENT_DRAG_TYPE, ref, title, preview },
   });
 }
 
@@ -119,6 +122,9 @@ export function useLibraryDroppable({
   return useDroppable<LibraryDropData>({
     id,
     type: 'library-drop-target',
+    // The preview shrinks to a cover beside the pointer, so only the pointer entering the
+    // target counts; the default shape test would accept the full-size drag frame early.
+    collisionDetector: pointerIntersection,
     accept: (source) => {
       const data = libraryDragData(source.data);
       return Boolean(data && accepts(data.ref));

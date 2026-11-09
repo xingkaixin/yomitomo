@@ -377,6 +377,7 @@ function CollectionPickerItem({
   const { handleRef, isDragging, ref } = useLibraryDraggable({
     ref: libraryCatalogItemRef(item),
     title,
+    preview: <CollectionPickerDragPreview item={item} />,
   });
 
   return (
@@ -390,15 +391,7 @@ function CollectionPickerItem({
         <HugeiconsIcon icon={DragDropVerticalIcon} size={15} aria-hidden="true" />
       </button>
       <CollectionPickerCover item={item} className="library-collection-picker-cover" />
-      <span className="library-collection-picker-copy">
-        <strong>{title}</strong>
-        <span className="library-collection-picker-meta">
-          <span className="library-source-badge">
-            {libraryTypeLabel(libraryCatalogItemType(item), t)}
-          </span>
-          <time dateTime={item.sortTime}>{formatLibraryShortDate(item.sortTime)}</time>
-        </span>
-      </span>
+      <CollectionPickerItemCopy item={item} />
       <button
         type="button"
         className="library-collection-picker-add"
@@ -408,6 +401,32 @@ function CollectionPickerItem({
         <HugeiconsIcon icon={Add01Icon} size={15} />
       </button>
     </div>
+  );
+}
+
+function CollectionPickerItemCopy({ item }: { item: LibraryCatalogItem }) {
+  const { t } = useTranslation();
+  return (
+    <span className="library-collection-picker-copy">
+      <strong>{libraryItemTitle(item)}</strong>
+      <span className="library-collection-picker-meta">
+        <span className="library-source-badge">
+          {libraryTypeLabel(libraryCatalogItemType(item), t)}
+        </span>
+        <time dateTime={item.sortTime}>{formatLibraryShortDate(item.sortTime)}</time>
+      </span>
+    </span>
+  );
+}
+
+function CollectionPickerDragPreview({ item }: { item: LibraryCatalogItem }) {
+  return (
+    <span className="library-collection-picker-drag-preview" aria-hidden="true">
+      <span className="library-collection-picker-drag-preview-card">
+        <CollectionPickerItemCopy item={item} />
+      </span>
+      <CollectionPickerCover item={item} className="library-collection-picker-cover" />
+    </span>
   );
 }
 
