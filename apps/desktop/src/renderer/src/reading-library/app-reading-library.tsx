@@ -57,6 +57,12 @@ import { useLibraryQuerySession } from './use-library-query-session';
 import { useMinimizedDiscussionWindows } from './use-minimized-discussion-windows';
 import { useWeReadLibrarySession } from './use-weread-library-session';
 import { recordReadingMemoryUsage } from '../reading-memory/reading-memory-usage';
+import { contentRefKey } from './app-reading-library-entities';
+import {
+  readerTransitionIdle,
+  startReaderCloseTransition,
+  startReaderOpenTransition,
+} from './reader-open-transition';
 
 export { groupLibraryArticles };
 export type { LibrarySort };
@@ -327,9 +333,24 @@ export function ReadingLibrary({
     }
   }
 
+  function openWeReadReaderView(
+    book: WeReadBook,
+    target?: Parameters<typeof weRead.openExternal>[1],
+  ) {
+    void weRead
+      .openExternal(book, target)
+      .then(readerTransitionIdle)
+      .then(() => dispatchWeReadReader({ type: 'readerShown', bookId: book.bookId }));
+  }
+
   function openLibraryShelf() {
     sourceJumpRef.current = null;
-    navigation.actions.returnToLibrary();
+    const ref: ContentRef | null = selectedArticle
+      ? { kind: 'article', id: selectedArticle.id }
+      : selectedWeReadBook
+        ? { kind: 'weread', id: selectedWeReadBook.book.bookId }
+        : null;
+    startReaderCloseTransition(ref && contentRefKey(ref), navigation.actions.returnToLibrary);
   }
 
   async function setLibraryPin(input: SetLibraryPinInput) {
@@ -363,11 +384,18 @@ export function ReadingLibrary({
     },
     itemActions: {
       onDeleteArticle: deleteLibraryArticle,
-      onOpenArticle: (article: ArticleRecord | ArticleSummaryRecord) =>
-        void openLibraryArticle(article),
+      onOpenArticle: (article: ArticleRecord | ArticleSummaryRecord) => {
+        const transition = startReaderOpenTransition(
+          contentRefKey({ kind: 'article', id: article.id }),
+        );
+        void openLibraryArticle(article).then((opened) => transition?.settle(Boolean(opened)));
+      },
       onOpenWeReadBook: (book: WeReadBook) => {
         sourceJumpRef.current = null;
-        void weRead.openBook(book);
+        const transition = startReaderOpenTransition(
+          contentRefKey({ kind: 'weread', id: book.bookId }),
+        );
+        void weRead.openBook(book).then((detail) => transition?.settle(Boolean(detail)));
         if (weRead.settings.openMethod !== 'in-app' || weReadReader?.bookId === book.bookId) return;
         dispatchWeReadReader({
           type: 'readerOpened',
@@ -375,7 +403,7 @@ export function ReadingLibrary({
           mode: 'compact',
           noteKey: null,
         });
-        void weRead.openExternal(book);
+        openWeReadReaderView(book);
       },
       onOpenWeReadExternal: (book: WeReadBook) => {
         if (weRead.settings.openMethod !== 'in-app') return void weRead.openExternal(book);
@@ -387,7 +415,7 @@ export function ReadingLibrary({
           noteKey: null,
         });
         void weRead.openBook(book);
-        void weRead.openExternal(book);
+        openWeReadReaderView(book);
       },
       onSetLibraryPin: setLibraryPin,
     },
@@ -414,7 +442,7 @@ export function ReadingLibrary({
       data-route-transition={routeTransition}
     >
       {activeShelf === 'library' ? (
-        <div className="library-shelf is-expanded is-library-bookcase is-drawn-from-bookmark">
+        <div className="library-shelf is-expanded is-library-bookcase">
           <div className="library-shelf-content">
             <LibraryHome {...libraryHomeProps} />
           </div>
@@ -434,11 +462,12 @@ export function ReadingLibrary({
                 readerMode={
                   weReadReader?.bookId === selectedWeReadBook.book.bookId ? weReadReader.mode : null
                 }
+                readerShown={
+                  weReadReader?.bookId === selectedWeReadBook.book.bookId && weReadReader.shown
+                }
                 syncing={weRead.bookSyncing}
                 onClose={openLibraryShelf}
-                onOpenExternal={(target) =>
-                  void weRead.openExternal(selectedWeReadBook.book, target)
-                }
+                onOpenExternal={(target) => openWeReadReaderView(selectedWeReadBook.book, target)}
                 onReaderEvent={dispatchWeReadReader}
                 onSync={() => void weRead.syncBook(selectedWeReadBook.book.bookId)}
               />

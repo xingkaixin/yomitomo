@@ -1,0 +1,98 @@
+/* 阅读库 ↔ 阅读器的过渡层：书从书架飞到中间翻开、内页展开成阅读纸面；扁平卡片直接长成纸面。 */
+.reader-transition {
+  position: fixed;
+  inset: 0;
+  z-index: var(--app-z-overlay);
+  pointer-events: none;
+}
+
+.reader-transition-backdrop {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+
+.reader-transition-book {
+  position: absolute;
+  transform-origin: 0 0;
+  perspective: 1600px;
+}
+
+.reader-transition-page,
+.reader-transition-sheet {
+  position: absolute;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--app-reader-paper);
+  box-shadow: var(--app-reader-paper-shadow);
+}
+
+.reader-transition-page {
+  opacity: 0;
+}
+
+.reader-transition .article-book {
+  position: absolute;
+}
+
+.reader-transition .article-book-ground-shadow,
+.reader-transition .text-cover-sheet {
+  display: none;
+}
+
+.reader-transition .article-book-front {
+  transform-origin: left center;
+}
+
+.reader-transition .article-cover-card {
+  box-shadow: none;
+}
+
+.reader-transition-inside {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: color-mix(in srgb, var(--app-shelf-top), var(--app-shelf-bottom));
+  opacity: 0;
+}
+
+/* 内容还没准备好时停在翻开的内页上，用一道扫光表示在加载。 */
+.reader-transition.is-waiting :is(.reader-transition-page, .reader-transition-sheet)::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 30%, var(--app-ink-a6) 50%, transparent 70%) 0 0 /
+    250% 100%;
+  content: '';
+  animation: reader-transition-sheen 1.1s linear infinite;
+}
+
+@keyframes reader-transition-sheen {
+  from {
+    background-position: 100% 0;
+  }
+
+  to {
+    background-position: -150% 0;
+  }
+}
+
+/* 过渡层盖住了阅读器，阅读器自己的进场滑动会让量到的纸面位置偏移。 */
+:root[data-reader-transition]
+  .library-bookcase-screen[data-route-transition]
+  .library-shelf-content {
+  animation: none;
+}
+
+/* 快照里的面板自带 z-index，不隔离会压在底色和书上面。 */
+.reader-transition-snapshot {
+  position: absolute;
+  inset: 0;
+  isolation: isolate;
+}
+
+/* 快照是静止画面，复制出来的节点会把书架里的进场动画和过渡重新播一遍。 */
+.reader-transition-snapshot,
+.reader-transition-snapshot * {
+  animation: none !important;
+  transition: none !important;
+}

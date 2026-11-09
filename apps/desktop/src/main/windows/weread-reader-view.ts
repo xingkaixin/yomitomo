@@ -122,6 +122,8 @@ function createReader(window: BrowserWindow, openExternalUrl: OpenExternalUrl): 
   });
   view.setVisible(false);
   window.contentView.addChildView(view);
+  // 窗口关闭时 window.webContents 已经销毁，读它会抛错；创建时先取好宿主页面。
+  const host = window.webContents;
   const closeWithHost = () => {
     readerBounds = null;
     closeWeReadReader();
@@ -131,13 +133,13 @@ function createReader(window: BrowserWindow, openExternalUrl: OpenExternalUrl): 
     window,
     release: () => {
       window.off('closed', closeWithHost);
-      window.webContents.off('did-navigate', closeWithHost);
+      host.off('did-navigate', closeWithHost);
     },
   };
   reader = created;
   window.once('closed', closeWithHost);
   // 主窗口页面重新加载后，原来的占位区域已经不存在，留着的视图会盖在新页面上。
-  window.webContents.once('did-navigate', closeWithHost);
+  host.once('did-navigate', closeWithHost);
   guardReaderContents(view.webContents, openExternalUrl);
   applyReaderBounds(view);
   return created;

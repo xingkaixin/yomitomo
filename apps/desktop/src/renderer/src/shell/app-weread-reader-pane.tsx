@@ -5,18 +5,22 @@ import { useTranslation } from 'react-i18next';
 import { useEventListener } from '@yomitomo/reader-ui/use-event-listener';
 import { getDesktopApi } from './app-desktop-api';
 import { readerPageTurnDirectionFromKey } from './use-reader-page-turn-keys';
+import { readerTransitionIdle } from '../reading-library/reader-open-transition';
 
 export type WeReadReaderMode = 'full' | 'compact';
 
 // 阅读器状态放在阅读库这一层：离开书页再回来，同一本书的阅读器保持原来的形态。
+// shown：网页第一次加载完之前不显示阅读器，避免先出现一个空白的小窗。
 export type WeReadReaderState = {
   bookId: string;
   mode: WeReadReaderMode;
   noteKey: string | null;
+  shown: boolean;
 } | null;
 
 export type WeReadReaderEvent =
   | { type: 'readerOpened'; bookId: string; mode: WeReadReaderMode; noteKey: string | null }
+  | { type: 'readerShown'; bookId: string }
   | { type: 'readerCompacted' }
   | { type: 'readerExpanded' }
   | { type: 'readerClosed' };
@@ -31,7 +35,10 @@ export function weReadReaderState(
         bookId: event.bookId,
         mode: state?.bookId === event.bookId ? state.mode : event.mode,
         noteKey: event.noteKey,
+        shown: state?.bookId === event.bookId && state.shown,
       };
+    case 'readerShown':
+      return state?.bookId === event.bookId ? { ...state, shown: true } : state;
     case 'readerCompacted':
       return state && { ...state, mode: 'compact' };
     case 'readerExpanded':
@@ -171,12 +178,18 @@ function useReaderBounds(compact: boolean) {
       if (!element) return;
       const send = () => sendReaderBounds(element, compact);
       const observer = new ResizeObserver(send);
-      observer.observe(element);
-      window.addEventListener('resize', send);
-      // 进入书页时外层有滑入动画；位置变了但尺寸不变，ResizeObserver 不会触发，动画结束后要再同步一次。
-      window.addEventListener('animationend', send);
-      window.addEventListener('transitionend', send);
+      let detached = false;
+      // 原生视图盖在打开书页的过渡层之上，过渡结束前不上报位置，视图保持隐藏。
+      void readerTransitionIdle().then(() => {
+        if (detached) return;
+        observer.observe(element);
+        window.addEventListener('resize', send);
+        // 进入书页时外层有滑入动画；位置变了但尺寸不变，ResizeObserver 不会触发，动画结束后要再同步一次。
+        window.addEventListener('animationend', send);
+        window.addEventListener('transitionend', send);
+      });
       return () => {
+        detached = true;
         observer.disconnect();
         window.removeEventListener('resize', send);
         window.removeEventListener('animationend', send);
