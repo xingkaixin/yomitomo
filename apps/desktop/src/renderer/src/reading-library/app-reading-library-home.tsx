@@ -58,6 +58,7 @@ import {
 import { libraryContentSourceBaseOptions } from './app-library-content-sources';
 import { CollectionPickerDialog } from './app-reading-library-collection-picker';
 import { LibraryEntityGrid } from './app-reading-library-entity-grid';
+import { CollectionIcon } from './collection-icon';
 import {
   LibraryImportControls,
   useLibraryImportDialogs,
@@ -75,7 +76,7 @@ import { LIBRARY_PAGE_SIZE_OPTIONS } from './library-query-session';
 import type { LibraryQuerySession } from './use-library-query-session';
 
 const TYPE_FILTER_ICONS: Record<LibraryTypeFilter, React.ReactNode> = {
-  collection: <HugeiconsIcon icon={LibraryIcon} size={15} />,
+  collection: <HugeiconsIcon icon={CollectionIcon} size={15} />,
   web: <HugeiconsIcon icon={Globe02Icon} size={15} />,
   ebook: <HugeiconsIcon icon={Book02Icon} size={15} />,
   pdf: <HugeiconsIcon icon={Pdf01Icon} size={15} />,
@@ -581,7 +582,7 @@ export function LibraryHome({
             <span className="library-collection-footer-label">
               <strong>{activeCollection.name}</strong>
               <span className="library-count-stat">
-                <HugeiconsIcon icon={LibraryIcon} size={13} />
+                <HugeiconsIcon icon={CollectionIcon} size={13} />
                 <span className="library-count-value">{activeCollectionMemberCount}</span>
               </span>
             </span>
