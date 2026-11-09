@@ -197,6 +197,7 @@ type DiscussionShellState = {
   ideasAutoCollapsed: boolean;
   ideasCollapsed: boolean;
   ideasOverlayOpen: boolean;
+  ideasRailSettled: boolean;
   layoutMode: DiscussionLayoutMode;
   newThoughtCaretIndex: number;
   newThoughtDraft: string;
@@ -222,6 +223,7 @@ type DiscussionShellEvent =
   | { type: 'commentDeleted'; commentId: string; selectedThoughtId: string | null }
   | { type: 'errorShown'; error: string }
   | { type: 'ideasSidebarToggled' }
+  | { type: 'ideasSlideEnded' }
   | { type: 'layoutModeChanged'; layoutMode: DiscussionLayoutMode }
   | { type: 'layoutWidthMeasured'; narrow: boolean }
   | { type: 'newThoughtCaretMoved'; caretIndex: number }
@@ -249,6 +251,7 @@ function initialDiscussionShellState(annotation: Annotation): DiscussionShellSta
     ideasAutoCollapsed: false,
     ideasCollapsed: false,
     ideasOverlayOpen: false,
+    ideasRailSettled: false,
     layoutMode: 'split',
     newThoughtCaretIndex: 0,
     newThoughtDraft: '',
@@ -330,7 +333,16 @@ function discussionShellReducer(
     case 'ideasSidebarToggled':
       return state.ideasAutoCollapsed
         ? { ...state, ideasOverlayOpen: !state.ideasOverlayOpen }
-        : { ...state, ideasCollapsed: !state.ideasCollapsed, ideasOverlayOpen: false };
+        : {
+            ...state,
+            ideasCollapsed: !state.ideasCollapsed,
+            ideasOverlayOpen: false,
+            ideasRailSettled: false,
+          };
+    case 'ideasSlideEnded':
+      return state.ideasCollapsed && !state.ideasRailSettled
+        ? { ...state, ideasRailSettled: true }
+        : state;
     case 'layoutModeChanged':
       return { ...state, layoutMode: event.layoutMode };
     case 'layoutWidthMeasured':
@@ -439,6 +451,7 @@ function AnnotationDiscussionShell({
     ideasAutoCollapsed,
     ideasCollapsed,
     ideasOverlayOpen,
+    ideasRailSettled,
     layoutMode,
     newThoughtCaretIndex,
     newThoughtDraft,
@@ -485,11 +498,15 @@ function AnnotationDiscussionShell({
     threads.find((thread) => thread.root.id === selectedThoughtId) || threads[0] || null;
   const ideasRailCollapsed = ideasCollapsed || ideasAutoCollapsed;
   const ideasContentCollapsed = ideasAutoCollapsed ? !ideasOverlayOpen : ideasCollapsed;
+  // The expanded list stays laid out under the sliding thread until it covers the list.
+  const ideasRailShown = ideasAutoCollapsed
+    ? !ideasOverlayOpen
+    : ideasCollapsed && ideasRailSettled;
   const ideasOverlayVisible = ideasAutoCollapsed && ideasOverlayOpen;
   const layoutClassName = [
     'annotation-discussion-layout',
     ideasRailCollapsed ? 'is-ideas-collapsed' : '',
-    ideasContentCollapsed ? 'is-ideas-content-collapsed' : '',
+    ideasRailShown ? 'is-ideas-content-collapsed' : '',
     ideasAutoCollapsed ? 'is-ideas-auto-collapsed' : '',
     ideasOverlayVisible ? 'is-ideas-overlay-open' : '',
   ]
@@ -896,7 +913,14 @@ function AnnotationDiscussionShell({
             </button>
           </footer>
         </aside>
-        <section className="annotation-discussion-thread">
+        <section
+          className="annotation-discussion-thread"
+          onTransitionEnd={(event) => {
+            if (event.target === event.currentTarget && event.propertyName === 'margin-left') {
+              dispatch({ type: 'ideasSlideEnded' });
+            }
+          }}
+        >
           <header>
             <strong>{t('discussion.thread')}</strong>
             <div className="annotation-discussion-thread-actions">
