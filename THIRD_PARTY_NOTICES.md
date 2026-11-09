@@ -62,7 +62,7 @@ Bundled font notices are discovered from:
 | CC0-1.0 | 1 |
 | ISC | 21 |
 | LGPL-3.0-or-later | 1 |
-| MIT | 227 |
+| MIT | 225 |
 | MIT AND ISC | 1 |
 | MIT-0 | 2 |
 | OFL-1.1 | 11 |
@@ -285,7 +285,6 @@ Bundled font notices are discovered from:
 | gcp-metadata | 8.1.2 | Apache-2.0 | [link](https://github.com/googleapis/google-cloud-node-core/tree/main/packages/gcp-metadata) |
 | global-agent | 3.0.0 | BSD-3-Clause | [link](https://github.com/gajus/global-agent#readme) |
 | globalthis | 1.0.4 | MIT | [link](https://github.com/ljharb/System.global#readme) |
-| goey-toast | 0.5.0 | MIT | [link](https://goey-toast.vercel.app) |
 | google-auth-library | 10.9.1 | Apache-2.0 | [link](https://github.com/googleapis/google-cloud-node/tree/main/core/packages/google-auth-library-nodejs) |
 | google-logging-utils | 1.1.3 | Apache-2.0 | [link](https://github.com/googleapis/google-cloud-node-core/tree/main/dev-packages/logging-utils) |
 | gopd | 1.2.0 | MIT | [link](https://github.com/ljharb/gopd#readme) |
@@ -381,7 +380,6 @@ Bundled font notices are discovered from:
 | serialize-error | 7.0.1 | MIT | [link](https://github.com/sindresorhus/serialize-error#readme) |
 | setimmediate | 1.0.5 | MIT | [link](https://github.com/YuzuJS/setImmediate#readme) |
 | sharp | 0.35.5 | Apache-2.0 | [link](https://sharp.pixelplumbing.com) |
-| sonner | 2.0.8 | MIT | [link](https://sonner.emilkowal.ski/) |
 | Source Serif 4 | 4.005 | OFL-1.1 | [link](https://github.com/adobe-fonts/source-serif) |
 | source-map-js | 1.2.2 | BSD-3-Clause | [link](https://github.com/7rulnik/source-map-js) |
 | sprintf-js | 1.1.3 | BSD-3-Clause | [link](https://github.com/alexei/sprintf.js#readme) |
