@@ -230,7 +230,6 @@ function ReadyApp({
                 </button>
                 <ThemeSelector
                   themePreference={theme.themePreference}
-                  soundSettings={store.settings}
                   onSelectThemePreference={(preference) =>
                     void theme.selectThemePreference(preference)
                   }

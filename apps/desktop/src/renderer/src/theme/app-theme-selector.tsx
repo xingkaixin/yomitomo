@@ -1,9 +1,8 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ComputerIcon, Moon02Icon, Sun03Icon } from '@hugeicons/core-free-icons';
 import { useTranslation } from 'react-i18next';
-import type { ResolvedAppSettings, ThemePreference } from '@yomitomo/shared';
+import type { ThemePreference } from '@yomitomo/shared';
 import { SegmentedControl } from '../components/ui/segmented-control';
-import { playAppSoundEffect } from '../sound/app-sound-effects';
 
 const themeIcons = {
   system: ComputerIcon,
@@ -13,11 +12,9 @@ const themeIcons = {
 
 export function ThemeSelector({
   themePreference,
-  soundSettings = {},
   onSelectThemePreference,
 }: {
   themePreference: ThemePreference;
-  soundSettings?: Partial<Pick<ResolvedAppSettings, 'soundEffectsEnabled' | 'soundEffectsVolume'>>;
   onSelectThemePreference: (preference: ThemePreference) => void;
 }) {
   const { t } = useTranslation();
@@ -34,7 +31,6 @@ export function ThemeSelector({
       onValueChange={(preference) => {
         if (preference === themePreference) return;
         onSelectThemePreference(preference);
-        playAppSoundEffect('theme.appearance_switch', soundSettings);
       }}
     />
   );
