@@ -103,7 +103,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .library-card-more,
-  .library-shelf.is-drawn-from-bookmark,
   .library-shelf-content {
     animation: none !important;
     transition: none !important;

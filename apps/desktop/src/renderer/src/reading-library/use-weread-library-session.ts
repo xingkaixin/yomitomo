@@ -108,8 +108,8 @@ export function useWeReadLibrarySession({ onOpenBook }: UseWeReadLibrarySessionI
   );
 
   const openBook = useCallback(
-    async (book: WeReadBook) => {
-      await onOpenBook(book.bookId, async () => {
+    (book: WeReadBook) =>
+      onOpenBook(book.bookId, async () => {
         const cached = await getDesktopApi().weRead.getBook(book.bookId);
         if (
           cached &&
@@ -118,8 +118,7 @@ export function useWeReadLibrarySession({ onOpenBook }: UseWeReadLibrarySessionI
           return cached;
         }
         return readSyncedBook(book.bookId);
-      }).catch(notifyWeReadSyncFailed);
-    },
+      }).catch(notifyWeReadSyncFailed),
     [onOpenBook, readSyncedBook],
   );
 

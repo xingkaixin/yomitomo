@@ -49,14 +49,18 @@ export function LibraryEntityGrid({
   return (
     <div className="library-entity-scroll">
       <div className="library-shelf-grid">
-        {entities.map((entity) => (
-          <LibraryEntityCard
-            activeCollectionId={activeCollectionId}
-            actions={actions}
-            entity={entity}
-            key={libraryEntityKey(entity)}
-          />
-        ))}
+        {entities.map((entity) => {
+          const key = libraryEntityKey(entity);
+          return (
+            <div className="library-shelf-slot" data-library-item={key} key={key}>
+              <LibraryEntityCard
+                activeCollectionId={activeCollectionId}
+                actions={actions}
+                entity={entity}
+              />
+            </div>
+          );
+        })}
       </div>
     </div>
   );

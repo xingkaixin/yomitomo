@@ -57,6 +57,8 @@ import { useLibraryQuerySession } from './use-library-query-session';
 import { useMinimizedDiscussionWindows } from './use-minimized-discussion-windows';
 import { useWeReadLibrarySession } from './use-weread-library-session';
 import { recordReadingMemoryUsage } from '../reading-memory/reading-memory-usage';
+import { contentRefKey } from './app-reading-library-entities';
+import { startReaderCloseTransition, startReaderOpenTransition } from './reader-open-transition';
 
 export { groupLibraryArticles };
 export type { LibrarySort };
@@ -329,7 +331,12 @@ export function ReadingLibrary({
 
   function openLibraryShelf() {
     sourceJumpRef.current = null;
-    navigation.actions.returnToLibrary();
+    const ref: ContentRef | null = selectedArticle
+      ? { kind: 'article', id: selectedArticle.id }
+      : selectedWeReadBook
+        ? { kind: 'weread', id: selectedWeReadBook.book.bookId }
+        : null;
+    startReaderCloseTransition(ref && contentRefKey(ref), navigation.actions.returnToLibrary);
   }
 
   async function setLibraryPin(input: SetLibraryPinInput) {
@@ -363,11 +370,18 @@ export function ReadingLibrary({
     },
     itemActions: {
       onDeleteArticle: deleteLibraryArticle,
-      onOpenArticle: (article: ArticleRecord | ArticleSummaryRecord) =>
-        void openLibraryArticle(article),
+      onOpenArticle: (article: ArticleRecord | ArticleSummaryRecord) => {
+        const transition = startReaderOpenTransition(
+          contentRefKey({ kind: 'article', id: article.id }),
+        );
+        void openLibraryArticle(article).then((opened) => transition?.settle(Boolean(opened)));
+      },
       onOpenWeReadBook: (book: WeReadBook) => {
         sourceJumpRef.current = null;
-        void weRead.openBook(book);
+        const transition = startReaderOpenTransition(
+          contentRefKey({ kind: 'weread', id: book.bookId }),
+        );
+        void weRead.openBook(book).then((detail) => transition?.settle(Boolean(detail)));
         if (weRead.settings.openMethod !== 'in-app' || weReadReader?.bookId === book.bookId) return;
         dispatchWeReadReader({
           type: 'readerOpened',
@@ -414,7 +428,7 @@ export function ReadingLibrary({
       data-route-transition={routeTransition}
     >
       {activeShelf === 'library' ? (
-        <div className="library-shelf is-expanded is-library-bookcase is-drawn-from-bookmark">
+        <div className="library-shelf is-expanded is-library-bookcase">
           <div className="library-shelf-content">
             <LibraryHome {...libraryHomeProps} />
           </div>

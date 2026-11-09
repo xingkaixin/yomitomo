@@ -20,6 +20,10 @@
     0 0 / 100% var(--shelf-row) repeat-y;
 }
 
+.library-shelf-slot {
+  display: contents;
+}
+
 .library-shelf-item {
   position: relative;
   display: grid;

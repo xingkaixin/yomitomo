@@ -341,12 +341,7 @@ function readingLibraryNavigationModel(route: ReadingLibraryRoute) {
     article: route.type === 'article' ? route.article : null,
     focusAnnotationId: route.type === 'article' ? route.focusAnnotationId : null,
     routeType: route.type,
-    routeTransition:
-      route.type === 'library'
-        ? ('none' as const)
-        : location === 'source'
-          ? ('enter-source' as const)
-          : ('enter-library' as const),
+    routeTransition: location === 'source' ? ('enter-source' as const) : ('none' as const),
     selectedAnnotationId: route.type === 'article' ? route.selectedAnnotationId : null,
     wereadBook: route.type === 'weread' ? route.detail : null,
   };
