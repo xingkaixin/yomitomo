@@ -24,7 +24,9 @@
   gap: 2px;
   min-height: 0;
   overflow-y: auto;
+  margin-top: var(--app-titlebar-overlap, 0px);
   padding: 12px 12px 12px 8px;
+  transition: margin-top var(--app-sidebar-slide-duration, 0s) var(--app-sidebar-slide-ease, ease);
   border-right: 1px solid var(--app-edge-soft);
   scrollbar-width: thin;
 }

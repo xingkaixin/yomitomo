@@ -602,6 +602,8 @@ export const enResources = {
     },
     nav: {
       readingMemory: 'Reading memory',
+      collapseSidebar: 'Collapse sidebar',
+      expandSidebar: 'Expand sidebar',
       main: 'Main navigation',
       library: 'Library',
       agents: 'Assistants',

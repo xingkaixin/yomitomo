@@ -567,6 +567,8 @@ export const zhCNResources = {
     },
     nav: {
       readingMemory: '阅读记忆',
+      collapseSidebar: '收起侧栏',
+      expandSidebar: '展开侧栏',
       main: '主导航',
       library: '阅读库',
       agents: '助手',

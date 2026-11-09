@@ -1,30 +1,37 @@
 .app-shell {
   --app-sidebar-width: 216px;
-  --app-sidebar-top-padding: 12px;
+  /* The top row holds the sidebar toggle, and on macOS the traffic lights. */
+  --app-sidebar-top-padding: 36px;
+  --app-sidebar-toggle-top: 4px;
+  --app-sidebar-toggle-left: 12px;
+  --app-sidebar-slide-duration: 280ms;
+  --app-sidebar-slide-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --reader-titlebar-back-left: 18px;
   --reader-titlebar-padding-right: 22px;
   --reader-titlebar-mobile-back-left: 12px;
-  grid-template-columns: var(--app-sidebar-width) minmax(0, 1fr);
+  position: relative;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
-  gap: 8px;
   padding: 8px;
   background: var(--app-shell-background);
 }
 
 .app-shell.is-darwin {
-  /* Clear the native macOS traffic lights, which sit over the sidebar. */
-  --app-sidebar-top-padding: 36px;
+  --app-sidebar-toggle-left: 78px;
   --reader-titlebar-back-left: 78px;
   --reader-titlebar-mobile-back-left: 78px;
 }
 
 .app-shell.is-win32 {
   /* The native Windows caption controls overlay the top 36px on the right. */
+  --app-sidebar-top-padding: 12px;
+  --app-sidebar-toggle-left: 8px;
   padding-top: 36px;
   --reader-titlebar-padding-right: 158px;
 }
 
-.app-shell.is-win32::before {
+.app-shell.is-win32::before,
+.app-shell.is-sidebar-collapsed::before {
   position: fixed;
   top: 0;
   right: 0;
@@ -34,10 +41,29 @@
   -webkit-app-region: drag;
 }
 
+.app-shell.is-sidebar-collapsed {
+  --app-sidebar-slide-duration: 200ms;
+  --app-sidebar-slide-ease: cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* The collapsed panel fills the window, so the traffic lights and the toggle sit inside
+   its top-left corner. Content there yields this much height. */
+.app-shell.is-sidebar-collapsed:not(.is-win32) {
+  --app-titlebar-overlap: 28px;
+}
+
+/* Only the corner around the toggle drags, so controls along the panel's top stay clickable. */
+.app-shell.is-sidebar-collapsed:not(.is-win32)::before {
+  right: auto;
+  width: calc(var(--app-sidebar-toggle-left) + 36px);
+}
+
 .app-masthead {
   position: relative;
   display: flex;
+  width: var(--app-sidebar-width);
   min-width: 0;
+  grid-area: 1 / 1;
   min-height: 0;
   flex-direction: column;
   gap: 20px;
@@ -166,10 +192,65 @@
 }
 
 .app-shell > .settings-content {
+  position: relative;
+  z-index: 1;
+  grid-area: 1 / 1;
+  margin-left: calc(var(--app-sidebar-width) + 8px);
   border: 1px solid var(--app-edge-soft);
   border-radius: 12px;
   background: var(--app-panel);
   box-shadow: var(--app-panel-shadow);
+}
+
+.app-shell.is-sidebar-collapsed > .settings-content {
+  margin: -8px;
+  border-color: transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.app-shell.is-win32.is-sidebar-collapsed > .settings-content {
+  margin-top: 0;
+}
+
+.app-shell.is-sidebar-sliding > .settings-content {
+  transition-duration: var(--app-sidebar-slide-duration);
+  transition-property: margin, border-color, border-radius, box-shadow;
+  transition-timing-function: var(--app-sidebar-slide-ease);
+}
+
+.app-shell.is-sidebar-collapsed:not(.is-sidebar-sliding) .app-masthead {
+  visibility: hidden;
+}
+
+.app-sidebar-toggle {
+  position: absolute;
+  top: var(--app-sidebar-toggle-top);
+  left: var(--app-sidebar-toggle-left);
+  z-index: 2;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  padding: 0;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+  -webkit-app-region: no-drag;
+}
+
+.app-sidebar-toggle:hover {
+  background: var(--app-interactive-hover-bg);
+  color: hsl(var(--foreground));
+}
+
+.app-sidebar-toggle:focus-visible {
+  outline: 2px solid var(--app-interactive-focus-ring);
+  outline-offset: 2px;
 }
 
 .app-nav-update-button {
