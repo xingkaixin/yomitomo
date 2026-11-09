@@ -98,11 +98,6 @@
   --book-cover-height: 112px;
 }
 
-.library-shelf-item:is(:hover, :focus-within) .library-collection-fan-card {
-  transform: translateX(-50%) translateX(calc(var(--fan-rel) * 38px)) translateY(-4px)
-    rotate(calc(var(--fan-rel) * 3deg));
-}
-
 .library-shelf-item .library-cover-progress {
   grid-row: 2;
   align-self: center;
