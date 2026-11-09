@@ -35,4 +35,16 @@ describe('desktop app environment', () => {
     });
     expect(appState.paths.get('userData')).toBe('/tmp/yomitomo-app-data/@yomitomo/desktop');
   });
+
+  it('keeps isolated data directories out of the real keychain service', () => {
+    for (const isPackaged of [true, false]) {
+      appState.isPackaged = isPackaged;
+      vi.stubEnv('YOMITOMO_USER_DATA_DIR', '');
+      const realService = getDesktopAppProfile().keychainService;
+      vi.stubEnv('YOMITOMO_USER_DATA_DIR', '/tmp/yomitomo-isolated');
+
+      expect(getDesktopAppProfile().keychainService).not.toBe(realService);
+    }
+    vi.unstubAllEnvs();
+  });
 });

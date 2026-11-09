@@ -81,6 +81,8 @@ telemetry → shared
   id 推导的固定 keyring 条目。旧版本留在 SQLite 的明文 provider key 在迁移进 keyring 前原样保留
   以便重试，运行时不读取。完整备份
   （`apps/desktop/src/main/full-backup.ts`）清除这些引用，不包含 keyring、本地模型和日志。
+  设置 `YOMITOMO_USER_DATA_DIR` 的隔离运行（e2e、启动基准）使用带 `.isolated` 后缀的 keyring
+  服务名，不读写正式和开发 profile 的密钥（`apps/desktop/src/main/app/app-environment.ts`）。
 - **文章写入与阅读记忆镜像不是原子的，这是有意的降级。** 保存文章或批注时，阅读记忆镜像在
   事务外执行，失败只记录警告，不回滚文章（`apps/desktop/src/main/articles/article-row-writes.ts`）；
   删除路径在同一事务内完成（`apps/desktop/src/main/articles/article-repository-lifecycle.ts`）。

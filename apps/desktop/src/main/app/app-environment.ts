@@ -22,7 +22,11 @@ const DEVELOPMENT_PROFILE: DesktopAppProfile = {
 };
 
 export function getDesktopAppProfile(): DesktopAppProfile {
-  return app.isPackaged ? PRODUCTION_PROFILE : DEVELOPMENT_PROFILE;
+  const profile = app.isPackaged ? PRODUCTION_PROFILE : DEVELOPMENT_PROFILE;
+  if (!process.env.YOMITOMO_USER_DATA_DIR) return profile;
+  // Fixed accounts such as app-lock:default:pin would otherwise be overwritten and deleted by
+  // isolated runs while the real profile's database still points at them.
+  return { ...profile, keychainService: `${profile.keychainService}.isolated` };
 }
 
 export function configureDesktopAppStorage() {
