@@ -61,6 +61,7 @@ type CollectionPickerState = {
   selectedRefs: Map<string, LibraryCatalogItem>;
   error: string;
   submitting: boolean;
+  guideDismissed: boolean;
 };
 
 type CollectionPickerEvent =
@@ -89,6 +90,7 @@ function collectionPickerReducer(
     case 'itemToggled':
       return {
         ...state,
+        guideDismissed: true,
         selectedRefs: toggleCatalogSelection(
           state.selectedRefs,
           libraryCatalogItemRef(event.item),
@@ -128,18 +130,16 @@ function CollectionPickerDialogContent({
   onClose,
 }: CollectionPickerDialogProps) {
   const { t } = useTranslation();
-  const [{ query, typeScope, page, selectedRefs, error, submitting }, dispatch] = useReducer(
-    collectionPickerReducer,
-    undefined,
-    (): CollectionPickerState => ({
+  const [{ query, typeScope, page, selectedRefs, error, submitting, guideDismissed }, dispatch] =
+    useReducer(collectionPickerReducer, undefined, (): CollectionPickerState => ({
       query: '',
       typeScope: 'all',
       page: 1,
       selectedRefs: new Map(),
       error: '',
       submitting: false,
-    }),
-  );
+      guideDismissed: false,
+    }));
   const catalogInput = useMemo<LibraryCatalogListInput>(
     () => ({
       scope: { kind: 'picker', collectionId: collection.id },
@@ -218,6 +218,7 @@ function CollectionPickerDialogContent({
                 </div>
               </header>
               <div className="library-collection-picker-toolbar">
+                <CollectionPickerGuide dismissed={guideDismissed} />
                 <div className="library-search library-search-combo">
                   <HugeiconsIcon icon={Search01Icon} size={16} />
                   <Input
@@ -406,6 +407,46 @@ function CollectionPickerItem({
       >
         <HugeiconsIcon icon={Add01Icon} size={15} />
       </button>
+    </div>
+  );
+}
+
+function CollectionPickerGuide({ dismissed }: { dismissed: boolean }) {
+  const row = (cover: 'web' | 'pdf', index: 1 | 2) => (
+    <span className={`library-collection-guide-row is-row-${index}`}>
+      <span className="library-collection-guide-row-dots" />
+      <span className="library-collection-guide-row-cover">
+        <span className={`library-collection-guide-paper is-${cover}`} />
+      </span>
+      <span className="library-collection-guide-row-title" />
+      <span className="library-collection-guide-row-meta" />
+      <span className="library-collection-guide-row-add" />
+    </span>
+  );
+
+  return (
+    <div
+      className={`library-collection-guide${dismissed ? ' is-dismissed' : ''}`}
+      aria-hidden="true"
+    >
+      <div className="library-collection-guide-stage">
+        <span className="library-collection-guide-glow" />
+        <span className="library-collection-guide-crate-back" />
+        {row('web', 1)}
+        {row('pdf', 2)}
+        <span className="library-collection-guide-fly is-fly-1">
+          <span className="library-collection-guide-fly-arc">
+            <span className="library-collection-guide-paper is-web" />
+          </span>
+        </span>
+        <span className="library-collection-guide-fly is-fly-2">
+          <span className="library-collection-guide-paper is-pdf" />
+        </span>
+        <span className="library-collection-guide-crate-front" />
+        <svg className="library-collection-guide-cursor" width="18" height="22" viewBox="0 0 18 22">
+          <path d="M2 2v15.5l4.1-3.9 2.6 6.1 2.7-1.2-2.6-6h5.8z" />
+        </svg>
+      </div>
     </div>
   );
 }

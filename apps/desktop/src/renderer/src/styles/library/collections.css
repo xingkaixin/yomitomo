@@ -844,6 +844,546 @@
   transform: translate(-50%, -50%) scale(1);
 }
 
+/* 选择器顶部的引导动画：点加号飞入木箱、拖入木箱各演示一次，8s 一轮。
+   用户加入第一项后收起，把高度还给列表。它和搜索框同在 toolbar 里，
+   用自己的下边距隔开：放在弹窗 grid 里时，收起后仍会留下一道行间距。 */
+.library-collection-guide {
+  display: grid;
+  height: 136px;
+  margin-bottom: 14px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--app-edge-soft);
+  border-radius: 12px;
+  background: var(--app-panel);
+  transition:
+    height 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    margin-bottom 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-width 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 200ms ease;
+}
+
+.library-collection-guide.is-dismissed {
+  height: 0;
+  margin-bottom: 0;
+  border-width: 0;
+  opacity: 0;
+}
+
+.library-collection-guide-stage {
+  position: relative;
+  width: 520px;
+  height: 124px;
+}
+
+.library-collection-guide-stage,
+.library-collection-guide-stage * {
+  animation-duration: 8s;
+  animation-fill-mode: both;
+  animation-iteration-count: infinite;
+}
+
+.library-collection-guide.is-dismissed .library-collection-guide-stage,
+.library-collection-guide.is-dismissed .library-collection-guide-stage * {
+  animation-play-state: paused;
+}
+
+.library-collection-guide-stage {
+  animation-name: library-guide-stage;
+}
+
+.library-collection-guide-row {
+  position: absolute;
+  left: 0;
+  width: 236px;
+  height: 40px;
+  border: 1px solid var(--app-edge);
+  border-radius: 8px;
+  background: var(--app-card-surface);
+  box-shadow: var(--app-card-shadow);
+}
+
+.library-collection-guide-row.is-row-1 {
+  top: 18px;
+  z-index: 1;
+  animation-name: library-guide-row-1;
+}
+
+/* 原点放在拖动手柄上，缩放时手柄始终停在光标下 */
+.library-collection-guide-row.is-row-2 {
+  top: 66px;
+  transform-origin: 11px 20px;
+  animation-name: library-guide-row-2;
+}
+
+.library-collection-guide-row-dots {
+  position: absolute;
+  top: 14px;
+  left: 8px;
+  width: 6px;
+  height: 11px;
+  background: radial-gradient(circle, var(--app-ink-a16) 1px, transparent 1.4px) 0 0 / 3px 3.7px;
+}
+
+.library-collection-guide-row-cover {
+  position: absolute;
+  top: 5px;
+  left: 22px;
+  width: 22px;
+  height: 28px;
+}
+
+.library-collection-guide-row.is-row-1 .library-collection-guide-row-cover {
+  animation-name: library-guide-row-1-cover;
+}
+
+.library-collection-guide-row-title,
+.library-collection-guide-row-meta {
+  position: absolute;
+  left: 54px;
+  border-radius: 3px;
+}
+
+.library-collection-guide-row-title {
+  top: 11px;
+  width: 112px;
+  height: 6px;
+  background: var(--app-ink-a16);
+}
+
+.library-collection-guide-row-meta {
+  top: 23px;
+  width: 46px;
+  height: 5px;
+  background: var(--app-ink-a8);
+}
+
+.library-collection-guide-row-add {
+  position: absolute;
+  top: 8px;
+  left: 204px;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 1px solid var(--app-edge);
+  border-radius: 999px;
+  background: var(--app-card-surface);
+  box-shadow: var(--app-card-shadow);
+}
+
+.library-collection-guide-row-add::before,
+.library-collection-guide-row-add::after {
+  position: absolute;
+  width: 9px;
+  height: 1.5px;
+  border-radius: 1px;
+  background: hsl(var(--foreground));
+  content: '';
+}
+
+.library-collection-guide-row-add::after {
+  transform: rotate(90deg);
+}
+
+.library-collection-guide-row.is-row-1 .library-collection-guide-row-add {
+  animation-name: library-guide-press;
+}
+
+.library-collection-guide-paper {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 2px;
+  background: #fff;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.2),
+    0 0 0 0.5px rgb(0 0 0 / 0.08);
+}
+
+.library-collection-guide-paper::before {
+  position: absolute;
+  inset: 22% 16% auto;
+  height: 46%;
+  background: repeating-linear-gradient(#d6d2cb 0 1.5px, transparent 1.5px 4.5px);
+  content: '';
+}
+
+.library-collection-guide-paper.is-web::after {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 14%;
+  background: #e9e5de;
+  content: '';
+}
+
+.library-collection-guide-paper.is-pdf::after {
+  position: absolute;
+  top: 8%;
+  left: 16%;
+  width: 40%;
+  height: 7%;
+  background: var(--app-brand);
+  content: '';
+}
+
+.library-collection-guide-glow {
+  position: absolute;
+  top: 38px;
+  left: 372px;
+  width: 152px;
+  height: 70px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, var(--app-brand-a24), transparent);
+  animation-name: library-guide-glow;
+}
+
+.library-collection-guide-crate-back {
+  position: absolute;
+  top: 58px;
+  left: 396px;
+  width: 104px;
+  height: 52px;
+  border-radius: 3px 3px 0 0;
+  background: var(--app-crate-inner);
+  box-shadow:
+    inset 0 8px 12px -6px var(--app-shadow-a24),
+    inset 0 2px 0 var(--app-crate-edge);
+}
+
+.library-collection-guide-crate-front {
+  position: absolute;
+  top: 82px;
+  left: 392px;
+  z-index: 4;
+  width: 112px;
+  height: 34px;
+  border-radius: 3px;
+  background: linear-gradient(var(--app-crate-top), var(--app-crate-bottom));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.25),
+    0 10px 14px -10px var(--app-shadow-a24);
+  animation-name: library-guide-bump;
+}
+
+.library-collection-guide-crate-front::before {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: var(--app-crate-edge);
+  content: '';
+  opacity: 0.5;
+}
+
+.library-collection-guide-crate-front::after {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  width: 24px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--app-crate-inner);
+  box-shadow: inset 0 2px 3px var(--app-shadow-a24);
+  content: '';
+  transform: translateX(-50%);
+}
+
+/* 飞行的封面停在木箱里的最终位置，动画从列表位置反推回去；
+   外层只管水平、内层只管竖直，两条曲线叠成抛物线 */
+.library-collection-guide-fly {
+  position: absolute;
+  top: 64px;
+  z-index: 3;
+  width: 30px;
+  height: 40px;
+}
+
+.library-collection-guide-fly.is-fly-1 {
+  left: 420px;
+  animation-name: library-guide-fly-1-x;
+}
+
+.library-collection-guide-fly-arc {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 100%;
+  animation-name: library-guide-fly-1-y;
+}
+
+.library-collection-guide-fly.is-fly-2 {
+  left: 446px;
+  transform-origin: 50% 100%;
+  animation-name: library-guide-fly-2;
+}
+
+/* 位置用 translate、按下用 scale，两条动画各占一个属性互不覆盖 */
+.library-collection-guide-cursor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 9;
+  transform-origin: 2px 2px;
+  animation-name: library-guide-cursor, library-guide-cursor-press;
+}
+
+.library-collection-guide-cursor path {
+  fill: #fff;
+  stroke: #1c1a17;
+  stroke-linejoin: round;
+  stroke-width: 1.4;
+}
+
+/* 时间轴（8s）：0.3s 光标出现 → 1.1s 点加号 → 1.2–2.0s 封面飞入 → 2.9s 抓起第二行
+   → 3.1–4.2s 拖到木箱 → 4.3s 松手落箱 → 停留 → 6.8s 淡出 */
+@keyframes library-guide-stage {
+  0% {
+    opacity: 0;
+  }
+  3%,
+  85% {
+    opacity: 1;
+  }
+  91%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes library-guide-cursor {
+  0%,
+  3.75% {
+    translate: 300px 112px;
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1);
+  }
+  5% {
+    opacity: 1;
+  }
+  12.5%,
+  28.1% {
+    translate: 215px 38px;
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1);
+  }
+  36.25%,
+  38.75% {
+    translate: 11px 38px;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.3, 1);
+  }
+  52.5%,
+  62.5% {
+    translate: 384px 50px;
+    opacity: 1;
+    animation-timing-function: ease-in;
+  }
+  67.5%,
+  100% {
+    translate: 398px 78px;
+    opacity: 0;
+  }
+}
+
+@keyframes library-guide-cursor-press {
+  0%,
+  12.5% {
+    scale: 1;
+  }
+  13.75% {
+    scale: 0.8;
+  }
+  16.25%,
+  36.25% {
+    scale: 1;
+  }
+  37.5%,
+  52.5% {
+    scale: 0.82;
+  }
+  53.75%,
+  100% {
+    scale: 1;
+  }
+}
+
+@keyframes library-guide-press {
+  0%,
+  12.5% {
+    transform: scale(1);
+    background: var(--app-card-surface);
+  }
+  13.75% {
+    transform: scale(0.84);
+    background: var(--app-interactive-hover-bg);
+  }
+  16.25%,
+  100% {
+    transform: scale(1);
+    background: var(--app-card-surface);
+  }
+}
+
+@keyframes library-guide-row-1 {
+  0%,
+  16.25% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  21.25%,
+  100% {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@keyframes library-guide-row-1-cover {
+  0%,
+  14.9% {
+    opacity: 1;
+  }
+  15%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes library-guide-row-2 {
+  0%,
+  19% {
+    z-index: 1;
+    transform: translate(0, 0);
+    box-shadow: var(--app-card-shadow);
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  24%,
+  36.25% {
+    z-index: 1;
+    transform: translate(0, -48px);
+    box-shadow: var(--app-card-shadow);
+  }
+  36.5% {
+    z-index: 6;
+  }
+  38.75% {
+    z-index: 6;
+    opacity: 1;
+    transform: translate(0, -48px) scale(1.02);
+    box-shadow: var(--app-float-shadow);
+    animation-timing-function: cubic-bezier(0.45, 0, 0.3, 1);
+  }
+  52.5%,
+  53.75% {
+    z-index: 6;
+    opacity: 1;
+    transform: translate(373px, -36px) scale(0.6) rotate(2deg);
+    box-shadow: var(--app-float-shadow);
+    animation-timing-function: ease-in;
+  }
+  56.25%,
+  100% {
+    z-index: 6;
+    opacity: 0;
+    transform: translate(373px, -30px) scale(0.3) rotate(2deg);
+  }
+}
+
+@keyframes library-guide-fly-1-x {
+  0%,
+  14.9% {
+    opacity: 0;
+    transform: translateX(-402px);
+  }
+  15% {
+    opacity: 1;
+    transform: translateX(-402px);
+    animation-timing-function: cubic-bezier(0.4, 0, 0.5, 1);
+  }
+  25%,
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes library-guide-fly-1-y {
+  0%,
+  15% {
+    transform: translateY(-46px) scale(0.73);
+    animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1);
+  }
+  20% {
+    transform: translateY(-64px) scale(0.9) rotate(-2deg);
+    animation-timing-function: cubic-bezier(0.6, 0, 0.8, 0.4);
+  }
+  25%,
+  100% {
+    transform: translateY(0) scale(1) rotate(-5deg);
+  }
+}
+
+@keyframes library-guide-fly-2 {
+  0%,
+  53.75% {
+    opacity: 0;
+    transform: translateY(-34px) scale(0.8);
+  }
+  54.5% {
+    opacity: 1;
+    transform: translateY(-34px) scale(0.8);
+    animation-timing-function: cubic-bezier(0.6, 0, 0.8, 0.4);
+  }
+  58.75%,
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(5deg);
+  }
+}
+
+@keyframes library-guide-bump {
+  0%,
+  25%,
+  28.75%,
+  58.75%,
+  62.5%,
+  100% {
+    transform: translateY(0);
+  }
+  26.25%,
+  60% {
+    transform: translateY(2px);
+  }
+}
+
+@keyframes library-guide-glow {
+  0%,
+  42%,
+  60%,
+  100% {
+    opacity: 0;
+  }
+  48%,
+  54% {
+    opacity: 1;
+  }
+}
+
+/* 静止时停在拖入木箱的那一帧，两种操作都还看得出来 */
+@media (prefers-reduced-motion: reduce) {
+  .library-collection-guide-stage,
+  .library-collection-guide-stage * {
+    animation-delay: -4.6s;
+    animation-play-state: paused;
+  }
+
+  .library-collection-guide {
+    transition: none;
+  }
+}
+
 @media (max-width: 760px) {
   .library-collection-picker-body {
     grid-template-columns: minmax(0, 1fr);
