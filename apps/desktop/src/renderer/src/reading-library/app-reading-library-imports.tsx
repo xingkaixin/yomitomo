@@ -4,8 +4,6 @@ import {
   AlertCircleIcon,
   Book02Icon,
   Cancel01Icon,
-  FolderAddIcon,
-  FolderOpenIcon,
   Globe02Icon,
   LinkSquare01Icon,
   Loading03Icon,
@@ -43,6 +41,7 @@ import {
   queueImportShelfTrip,
   type ImportShelfState,
 } from './app-reading-library-import-scenes';
+import { CollectionAddIcon } from './collection-icon';
 import { libraryMenuReducer } from './library-menu-state';
 import rabbitWalkSprite from '../assets/reading-library/rabbit-walk.webp';
 import {
@@ -700,7 +699,7 @@ export function LibraryImportControls({
               {onOpenCollectionPicker ? (
                 <DropdownMenuItem asChild>
                   <button type="button" onClick={openCollectionPicker}>
-                    <HugeiconsIcon icon={FolderOpenIcon} size={15} />
+                    <HugeiconsIcon icon={CollectionAddIcon} size={15} />
                     {t('library.collection.addExisting')}
                   </button>
                 </DropdownMenuItem>
@@ -708,7 +707,7 @@ export function LibraryImportControls({
               {onCreateCollection ? (
                 <DropdownMenuItem asChild>
                   <button type="button" onClick={createCollection}>
-                    <HugeiconsIcon icon={FolderAddIcon} size={15} />
+                    <HugeiconsIcon icon={CollectionAddIcon} size={15} />
                     {t('library.collection.create')}
                   </button>
                 </DropdownMenuItem>

@@ -1,7 +1,6 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   Delete02Icon,
-  FolderOpenIcon,
   HighlighterIcon,
   Layers02Icon,
   MoreHorizontalIcon,
@@ -33,7 +32,7 @@ import {
   LibraryShelfItem,
 } from './app-reading-library-card';
 import { WeReadCover } from './app-reading-library-covers';
-import { CollectionIcon } from './collection-icon';
+import { CollectionAddIcon, CollectionIcon, CollectionRemoveIcon } from './collection-icon';
 import { contentRefKey } from './app-reading-library-entities';
 import { formatLibraryShortDate, weReadBookLibraryDate } from './app-reading-library-utils';
 import { libraryMenuReducer, type LibraryMenuEvent } from './library-menu-state';
@@ -207,7 +206,7 @@ function WeReadLibraryCard({
                         void onRemoveFromCollection();
                       }}
                     >
-                      <HugeiconsIcon icon={Layers02Icon} size={14} />
+                      <HugeiconsIcon icon={CollectionRemoveIcon} size={14} />
                       <span>{t('library.collection.removeMember')}</span>
                     </button>
                   </DropdownMenuItem>
@@ -324,7 +323,7 @@ function LibraryCollectionCard({
                         onOpenPicker();
                       }}
                     >
-                      <HugeiconsIcon icon={FolderOpenIcon} size={14} />
+                      <HugeiconsIcon icon={CollectionAddIcon} size={14} />
                       <span>{t('library.collection.addMembers')}</span>
                     </button>
                   </DropdownMenuItem>
