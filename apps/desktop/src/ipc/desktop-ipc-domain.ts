@@ -28,6 +28,13 @@ export type AppInfo = {
   desktopVersion: string;
 };
 
+/** Raw BGRA pixels at device scale. */
+export type CapturedRegion = {
+  width: number;
+  height: number;
+  pixels: Uint8Array;
+};
+
 export type UserStorePatch = Pick<DesktopStore, 'user'>;
 
 export type ProviderStorePatch = Pick<DesktopStore, 'agents' | 'providers' | 'settings'>;
