@@ -158,6 +158,7 @@ function ReadyApp({
       <Suspense fallback={null}>
         <OnboardingFlow
           key={session.onboardingFlowKey}
+          settings={store.settings}
           onSaveSettings={saveSettings}
           onStartReading={(command) => {
             session.actions.completeOnboarding();

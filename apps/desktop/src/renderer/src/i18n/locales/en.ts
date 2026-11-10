@@ -54,10 +54,14 @@ export const enResources = {
     },
     onboarding: {
       ariaLabel: 'Start your first reading',
-      title: 'Read a passage. Save a thought.',
+      titleStart: 'Read a passage.',
+      titleEnd: 'Save a thought.',
       description:
         'Highlight the text, write down a thought, and talk it over with a reading assistant.',
       enter: 'Enter Yomitomo',
+      skipShow: 'Skip',
+      muteMusic: 'Mute music',
+      unmuteMusic: 'Unmute music',
       entering: 'Entering',
       enterFailed: 'Failed to enter the app.',
       languageFailed: 'Failed to change the language.',
