@@ -74,44 +74,46 @@
   transform: translateX(-50%);
 }
 
-/* Inner covers reuse the shared book cover, flattened to a thumbnail. */
-.library-collection-crate-member .article-book,
-.library-collection-crate-member .weread-book-cover {
-  --book-cover-height: 100px;
+/* 木箱成员和导入书架上的封面复用书库书封，压平成缩略图；导入书架在 home-import.css 里改高度。 */
+:is(.library-collection-crate-member, .library-import-shelf-cover) .article-book,
+:is(.library-collection-crate-member, .library-import-shelf-cover) .weread-book-cover {
+  --book-cover-height: var(--library-flat-cover-height, 100px);
   --book-depth: 0px;
   width: var(--book-cover-width);
   height: var(--book-cover-height);
 }
 
-.library-collection-crate-member .article-book-ground-shadow,
-.library-collection-crate-member .article-book-pages,
-.library-collection-crate-member .article-book-back,
-.library-collection-crate-member .text-cover-sheet,
-.library-collection-crate-member .pdf-cover-bar,
-.library-collection-crate-member .web-cover-chrome {
+:is(.library-collection-crate-member, .library-import-shelf-cover) .article-book-ground-shadow,
+:is(.library-collection-crate-member, .library-import-shelf-cover) .article-book-pages,
+:is(.library-collection-crate-member, .library-import-shelf-cover) .article-book-back,
+:is(.library-collection-crate-member, .library-import-shelf-cover) .text-cover-sheet,
+:is(.library-collection-crate-member, .library-import-shelf-cover) .pdf-cover-bar,
+:is(.library-collection-crate-member, .library-import-shelf-cover) .web-cover-chrome {
   display: none;
 }
 
-.library-collection-crate-member .article-book-scene {
+:is(.library-collection-crate-member, .library-import-shelf-cover) .article-book-scene {
   top: 0;
   left: 0;
   transform: none;
 }
 
-.library-collection-crate-member .article-book-front {
+:is(.library-collection-crate-member, .library-import-shelf-cover) .article-book-front {
   box-shadow:
     0 1px 1px hsl(var(--foreground) / 0.05),
     0 8px 18px -10px hsl(var(--foreground) / 0.28);
   transform: none;
 }
 
-.library-collection-crate-member .article-cover-card {
+:is(.library-collection-crate-member, .library-import-shelf-cover) .article-cover-card {
   inset-block-start: 0;
   inset-inline: 0;
   margin-inline: 0;
 }
 
-.library-collection-crate-member .article-book.is-pdf-cover .article-cover-card {
+:is(.library-collection-crate-member, .library-import-shelf-cover)
+  .article-book.is-pdf-cover
+  .article-cover-card {
   inset-inline-start: 0;
 }
 

@@ -4,7 +4,6 @@ import {
   AlertCircleIcon,
   Book02Icon,
   Cancel01Icon,
-  FileUploadIcon,
   FolderAddIcon,
   FolderOpenIcon,
   Globe02Icon,
@@ -13,7 +12,6 @@ import {
   Pdf01Icon,
   Refresh01Icon,
   TextIcon,
-  Upload01Icon,
 } from '@hugeicons/core-free-icons';
 import React, { useReducer, useRef } from 'react';
 import { useInterval } from '@yomitomo/reader-ui/use-interval';
@@ -36,6 +34,15 @@ import type {
 import { useLibrarySession } from '../shell/app-session';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
 import { TextImportDialog } from './app-reading-library-text-import';
+import {
+  LibraryImportCrate,
+  LibraryImportShelf,
+  emptyImportShelf,
+  finishImportShelfTrip,
+  isImportShelfSettled,
+  queueImportShelfTrip,
+  type ImportShelfState,
+} from './app-reading-library-import-scenes';
 import { libraryMenuReducer } from './library-menu-state';
 import rabbitWalkSprite from '../assets/reading-library/rabbit-walk.webp';
 import {
@@ -50,9 +57,6 @@ import { isDesktopIpcErrorLike } from '../../../ipc-errors';
 const MAX_BATCH_IMPORT_FILES = 10;
 const ARTICLE_IMPORT_CANCEL_DELAY_MS = 650;
 const ARTICLE_IMPORT_CLOSE_DELAY_MS = 900;
-const FILE_IMPORT_CLOSE_DELAY_MS = 900;
-const EBOOK_IMPORT_CELEBRATION_CLOSE_DELAY_MS = 900;
-const EBOOK_IMPORT_CELEBRATION_MAX_VISIBLE = 7;
 const EBOOK_IMPORT_MAX_CONCURRENT = 3;
 // PDF imports share one PDFium engine in the main process, so parallel requests only queue there.
 const PDF_IMPORT_MAX_CONCURRENT = 1;
@@ -106,6 +110,7 @@ type FileImportItemStatus = 'pending' | 'importing' | 'imported' | 'duplicate' |
 type FileImportItem = {
   id: string;
   fileName: string;
+  fileSize: number;
   progress: number;
   status: FileImportItemStatus;
   article?: ArticleRecord;
@@ -121,25 +126,21 @@ type FileImportState =
       progress: number;
     };
 
-type FileImportDialogState = { importState: FileImportState; dragging: boolean };
+type FileImportDialogState = {
+  importState: FileImportState;
+  dragging: boolean;
+  shelf: ImportShelfState;
+};
 
 type FileImportDialogEvent =
   | { type: 'batchRejected'; message: string; items: FileImportItem[] }
   | { type: 'batchStarted'; message: string; items: FileImportItem[] }
   | { type: 'batchProgressed'; message: string; items: FileImportItem[]; progress: number }
   | { type: 'batchFinished'; state: Exclude<FileImportState, { type: 'idle' }> }
+  | { type: 'shelfTripFinished'; tripId: number }
   | { type: 'reset' }
   | { type: 'dragEntered' }
   | { type: 'dragEnded' };
-
-type ImportedBookCelebrationItem = {
-  id: string;
-  title: string;
-  coverUrl?: string;
-  position: number;
-  lift: number;
-  order: number;
-};
 
 type FileImportDialogConfig = {
   kind: 'ebook' | 'pdf';
@@ -252,6 +253,7 @@ function fileImportDialogReducer(
       return {
         ...state,
         importState: { type: 'error', message: event.message, items: event.items, progress: 0 },
+        shelf: emptyImportShelf,
       };
     case 'batchStarted':
       return {
@@ -262,6 +264,7 @@ function fileImportDialogReducer(
           items: event.items,
           progress: 0,
         },
+        shelf: emptyImportShelf,
       };
     case 'batchProgressed':
       return importState.type === 'submitting'
@@ -273,12 +276,24 @@ function fileImportDialogReducer(
               items: event.items,
               progress: event.progress,
             },
+            shelf: queueImportShelfTrip(state.shelf, event.items),
           }
         : state;
     case 'batchFinished':
-      return { ...state, importState: event.state };
+      return {
+        ...state,
+        importState: event.state,
+        shelf: queueImportShelfTrip(state.shelf, event.state.items),
+      };
+    case 'shelfTripFinished':
+      return importState.type === 'idle'
+        ? state
+        : {
+            ...state,
+            shelf: finishImportShelfTrip(state.shelf, event.tripId, importState.items),
+          };
     case 'reset':
-      return { importState: { type: 'idle' }, dragging: false };
+      return { importState: { type: 'idle' }, dragging: false, shelf: emptyImportShelf };
     case 'dragEntered':
       return state.dragging ? state : { ...state, dragging: true };
     case 'dragEnded':
@@ -442,47 +457,12 @@ function articleImportRequestId(requestId: number) {
   return `article-import-${requestId}`;
 }
 
-function coverPlaceholderTitle(title: string) {
-  const compactTitle = title.trim();
-  return compactTitle.length > 4 ? `${compactTitle.slice(0, 4)}...` : compactTitle;
-}
-
 function fileImportItemStateLabel(item: FileImportItem, t: AppT) {
   if (item.status === 'pending') return t('library.import.itemState.pending');
   if (item.status === 'importing') return `${Math.round(item.progress)}%`;
   if (item.status === 'duplicate') return t('library.import.itemState.duplicate');
   if (item.status === 'error') return t('library.import.itemState.error');
   return t('library.import.itemState.imported');
-}
-
-function importedBookCelebrationItems(items: FileImportItem[]): ImportedBookCelebrationItem[] {
-  const successItems = items.filter(
-    (item) => (item.status === 'imported' || item.status === 'duplicate') && item.article,
-  );
-  const visibleItems = successItems.slice(0, EBOOK_IMPORT_CELEBRATION_MAX_VISIBLE);
-  const center = (visibleItems.length - 1) / 2;
-  const centerOrder = centerFirstOrder(visibleItems.length);
-
-  return visibleItems.map((item, index) => ({
-    id: item.id,
-    title: item.article?.title || item.fileName,
-    coverUrl: item.article?.leadImageUrl,
-    position: index - center,
-    lift: Math.abs(index - center) * 7,
-    order: centerOrder.get(index) || 0,
-  }));
-}
-
-function centerFirstOrder(count: number) {
-  const indexes = Array.from({ length: count }, (_, index) => index);
-  const center = (count - 1) / 2;
-  indexes.sort((left, right) => {
-    const leftDistance = Math.abs(left - center);
-    const rightDistance = Math.abs(right - center);
-    if (leftDistance !== rightDistance) return leftDistance - rightDistance;
-    return left - right;
-  });
-  return new Map(indexes.map((index, order) => [index, order]));
 }
 
 function playImportSuccessSound(importedCount: number, settings: ResolvedAppSettings) {
@@ -1180,22 +1160,18 @@ function FileImportDialog({
   onOpenArticle: (article: ArticleRecord) => void;
 }) {
   const { t } = useTranslation();
-  const [{ importState, dragging }, dispatch] = useReducer(fileImportDialogReducer, {
+  const [{ importState, dragging, shelf }, dispatch] = useReducer(fileImportDialogReducer, {
     importState: { type: 'idle' },
     dragging: false,
+    shelf: emptyImportShelf,
   });
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const importCloseTimerRef = useRef<number | null>(null);
 
-  useMountEffect(() => () => {
-    clearImportCloseTimer();
-    onBusyChange(false);
-  });
+  useMountEffect(() => () => onBusyChange(false));
 
   async function importFiles(fileList: FileList | File[] | undefined) {
     const files = Array.from(fileList || []);
     if (files.length === 0) return;
-    clearImportCloseTimer();
 
     if (files.length > config.maxFileCount) {
       dispatch({ type: 'batchRejected', message: config.tooManyFilesMessage, items: [] });
@@ -1208,6 +1184,7 @@ function FileImportDialog({
         return {
           id: fileImportItemId(file, index),
           fileName: file.name,
+          fileSize: file.size,
           progress: 0,
           status: 'error',
           message: config.invalidFileMessage,
@@ -1217,6 +1194,7 @@ function FileImportDialog({
         return {
           id: fileImportItemId(file, index),
           fileName: file.name,
+          fileSize: file.size,
           progress: 0,
           status: 'error',
           message: config.oversizeMessage,
@@ -1225,6 +1203,7 @@ function FileImportDialog({
       return {
         id: fileImportItemId(file, index),
         fileName: file.name,
+        fileSize: file.size,
         progress: 0,
         status: 'pending',
       };
@@ -1311,15 +1290,8 @@ function FileImportDialog({
     finishImportBatch(currentItems);
   }
 
-  function clearImportCloseTimer() {
-    if (importCloseTimerRef.current === null) return;
-    window.clearTimeout(importCloseTimerRef.current);
-    importCloseTimerRef.current = null;
-  }
-
   function closeImportDialog() {
     if (importState.type === 'submitting') return;
-    clearImportCloseTimer();
     dispatch({ type: 'dragEnded' });
     onClose();
   }
@@ -1329,7 +1301,6 @@ function FileImportDialog({
   }
 
   function resetImport() {
-    clearImportCloseTimer();
     dispatch({ type: 'reset' });
     resetInput();
   }
@@ -1385,45 +1356,22 @@ function FileImportDialog({
       },
     });
     playImportSuccessSound(importedCount, settings);
-    if (failedCount === 0) {
-      importCloseTimerRef.current = window.setTimeout(
-        () => {
-          importCloseTimerRef.current = null;
-          onClose();
-          dispatch({ type: 'dragEnded' });
-        },
-        config.kind === 'ebook'
-          ? EBOOK_IMPORT_CELEBRATION_CLOSE_DELAY_MS
-          : FILE_IMPORT_CLOSE_DELAY_MS,
-      );
-    }
   }
 
-  function importDropTitle() {
-    if (importState.type === 'imported') return config.importedDropTitle;
-    if (dragging) return config.draggingDropTitle;
-    return config.idleDropTitle;
+  function openImportedArticle(article: ArticleRecord) {
+    onClose();
+    onOpenArticle(article);
   }
 
   const importItems = importState.type === 'idle' ? [] : importState.items;
   const importMessage = importState.type === 'idle' ? '' : importState.message;
   const batchProgress = importState.type === 'idle' ? 0 : importState.progress;
-  const duplicateArticle =
-    importItems.find((item) => item.status === 'duplicate' && item.article)?.article || null;
-  const celebrationItems = config.kind === 'ebook' ? importedBookCelebrationItems(importItems) : [];
-  const hiddenCelebrationCount = Math.max(
-    0,
-    importItems.filter(
-      (item) => (item.status === 'imported' || item.status === 'duplicate') && item.article,
-    ).length - celebrationItems.length,
-  );
-  const showCelebration =
-    config.kind === 'ebook' &&
-    celebrationItems.length > 0 &&
-    (importState.type === 'imported' || importState.type === 'error');
-  const showProgress = importState.type !== 'idle' && importItems.length > 0;
-  const showResults = importItems.length > 0;
-  const importProgressPercent = Math.round(clampNumber(batchProgress, 0, 100, 0));
+  const finished = importState.type !== 'idle' && importState.type !== 'submitting';
+  const settled = finished && isImportShelfSettled(shelf, importItems);
+  const succeeded =
+    settled &&
+    importItems.some((item) => item.status === 'imported' || item.status === 'duplicate');
+  const listedItems = importItems.filter((item) => item.status !== 'imported');
 
   return (
     <Dialog open onOpenChange={(nextOpen) => !nextOpen && closeImportDialog()}>
@@ -1443,7 +1391,9 @@ function FileImportDialog({
           >
             <header>
               <div>
-                <strong id={config.titleId}>{config.title}</strong>
+                <strong id={config.titleId}>
+                  {succeeded ? config.importedDropTitle : config.title}
+                </strong>
                 <span>{importMessage || config.batchIdleMessage}</span>
                 {importState.type === 'idle' ? (
                   <span>{t('library.import.localOnlyNotice')}</span>
@@ -1453,167 +1403,104 @@ function FileImportDialog({
                 <HugeiconsIcon icon={Cancel01Icon} size={17} />
               </button>
             </header>
-            <label
-              className={[
-                'library-ebook-dropzone',
-                dragging ? 'is-dragging' : '',
-                importState.type === 'submitting' ? 'is-submitting' : '',
-                importState.type === 'imported' ? 'is-imported' : '',
-                importState.type === 'error' ? 'is-error' : '',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              htmlFor={config.inputId}
-              onDragLeave={(event) => {
-                event.preventDefault();
-                dispatch({ type: 'dragEnded' });
-              }}
-              onDragOver={(event) => {
-                event.preventDefault();
-                if (importState.type !== 'submitting') dispatch({ type: 'dragEntered' });
-              }}
-              onDrop={(event) => {
-                event.preventDefault();
-                dispatch({ type: 'dragEnded' });
-                if (importState.type === 'submitting') return;
-                void importFiles(event.dataTransfer.files);
-              }}
-            >
-              <input
-                accept={config.accept}
-                disabled={importState.type === 'submitting'}
-                id={config.inputId}
-                multiple
-                ref={inputRef}
-                type="file"
-                onChange={(event) => void importFiles(event.target.files || undefined)}
+            {importItems.length > 0 ? (
+              <LibraryImportShelf
+                ariaLabel={config.progressLabel}
+                items={importItems}
+                openLabel={(title) => t('library.import.openBook', { title })}
+                progress={clampNumber(batchProgress, 0, 100, 0)}
+                settled={settled}
+                shelf={shelf}
+                onOpenArticle={openImportedArticle}
+                onTripFinished={(tripId) => dispatch({ type: 'shelfTripFinished', tripId })}
               />
-              <span
+            ) : (
+              <label
                 className={[
-                  'library-ebook-dropzone-icon',
-                  importState.type === 'imported' ? 'is-success' : '',
+                  'library-ebook-dropzone',
+                  'library-import-crate-zone',
+                  dragging ? 'is-dragging' : '',
                   importState.type === 'error' ? 'is-error' : '',
                 ]
                   .filter(Boolean)
                   .join(' ')}
+                htmlFor={config.inputId}
+                onDragLeave={(event) => {
+                  event.preventDefault();
+                  dispatch({ type: 'dragEnded' });
+                }}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  dispatch({ type: 'dragEntered' });
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  dispatch({ type: 'dragEnded' });
+                  void importFiles(event.dataTransfer.files);
+                }}
               >
-                {importState.type === 'submitting' ? (
-                  <HugeiconsIcon icon={Loading03Icon} className="is-spinning" size={22} />
-                ) : importState.type === 'imported' ? (
-                  <LibraryImportSuccessCheck className="library-import-success-icon" size={24} />
-                ) : importState.type === 'error' ? (
-                  <HugeiconsIcon icon={Cancel01Icon} size={24} />
-                ) : dragging ? (
-                  <HugeiconsIcon icon={FileUploadIcon} size={24} />
-                ) : (
-                  <HugeiconsIcon icon={Upload01Icon} size={24} />
-                )}
-              </span>
-              <span className="library-ebook-dropzone-copy">
-                <strong>{importDropTitle()}</strong>
-                <em>{config.dropHint}</em>
-              </span>
-              {showProgress ? (
-                <LibraryImportProgressBar
-                  percent={importProgressPercent}
-                  ariaLabel={config.progressLabel}
+                <input
+                  accept={config.accept}
+                  id={config.inputId}
+                  multiple
+                  ref={inputRef}
+                  type="file"
+                  onChange={(event) => void importFiles(event.target.files || undefined)}
                 />
-              ) : null}
-            </label>
-            {showCelebration ? (
-              <div
-                className="library-ebook-import-celebration"
-                role="status"
-                aria-label={t('library.import.ebook.celebration')}
-              >
-                <div className="library-ebook-import-cover-stack" aria-hidden="true">
-                  {celebrationItems.map((item) => (
-                    <span
-                      className={[
-                        'library-ebook-import-cover-card',
-                        item.coverUrl ? 'has-cover' : '',
-                      ]
-                        .filter(Boolean)
-                        .join(' ')}
+                <LibraryImportCrate
+                  dragging={dragging}
+                  fileLabel={config.kind === 'pdf' ? 'PDF' : 'EPUB'}
+                />
+                <span className="library-ebook-dropzone-copy">
+                  <strong>{dragging ? config.draggingDropTitle : config.idleDropTitle}</strong>
+                  <em>{config.dropHint}</em>
+                </span>
+              </label>
+            )}
+            {listedItems.length > 0 ? (
+              <div className="library-file-import-results" role="status">
+                {listedItems.map((item) => {
+                  const duplicateArticle = item.status === 'duplicate' ? item.article : undefined;
+                  return (
+                    <article
+                      className={`library-file-import-result is-${item.status}`}
                       key={item.id}
-                      style={
-                        {
-                          '--ebook-import-cover-position': item.position,
-                          '--ebook-import-cover-lift': `${item.lift}px`,
-                          '--ebook-import-cover-order': item.order,
-                          '--ebook-import-cover-z': celebrationItems.length - item.order,
-                        } as React.CSSProperties
-                      }
                     >
-                      {item.coverUrl ? (
-                        <img alt="" src={item.coverUrl} />
+                      <span className="library-file-import-result-copy">
+                        <strong>{item.article?.title || item.fileName}</strong>
+                        {item.message ? <em>{item.message}</em> : null}
+                      </span>
+                      {settled && duplicateArticle ? (
+                        <Button
+                          size="sm"
+                          type="button"
+                          variant="ghost"
+                          onClick={() => openImportedArticle(duplicateArticle)}
+                        >
+                          {config.openDuplicateLabel}
+                        </Button>
                       ) : (
-                        <span className="library-ebook-import-cover-placeholder">
-                          {coverPlaceholderTitle(item.title)}
+                        <span className="library-file-import-result-state">
+                          {fileImportItemStateLabel(item, t)}
                         </span>
                       )}
-                    </span>
-                  ))}
-                  {hiddenCelebrationCount > 0 ? (
-                    <span className="library-ebook-import-cover-more">
-                      +{hiddenCelebrationCount}
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-            ) : null}
-            {showResults ? (
-              <div className="library-file-import-results" role="status">
-                {importItems.map((item) => (
-                  <article
-                    className={[
-                      'library-file-import-result',
-                      `is-${item.status}`,
-                      item.article?.leadImageUrl ? 'has-cover' : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    key={item.id}
-                  >
-                    <span className="library-file-import-cover" aria-hidden="true">
-                      {item.article?.leadImageUrl ? (
-                        <img alt="" src={item.article.leadImageUrl} />
-                      ) : item.status === 'importing' ? (
-                        <HugeiconsIcon icon={Loading03Icon} className="is-spinning" size={18} />
-                      ) : item.status === 'error' ? (
-                        <HugeiconsIcon icon={Cancel01Icon} size={18} />
-                      ) : config.kind === 'pdf' ? (
-                        <HugeiconsIcon icon={Pdf01Icon} size={18} />
-                      ) : (
-                        <HugeiconsIcon icon={Book02Icon} size={18} />
-                      )}
-                    </span>
-                    <span className="library-file-import-result-copy">
-                      <strong>{item.article?.title || item.fileName}</strong>
-                      <em>{item.message || item.fileName}</em>
-                    </span>
-                    <span className="library-file-import-result-state">
-                      {fileImportItemStateLabel(item, t)}
-                    </span>
-                  </article>
-                ))}
+                    </article>
+                  );
+                })}
               </div>
             ) : null}
             <footer>
-              <span>{importMessage || config.footerHint}</span>
-              {duplicateArticle ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    clearImportCloseTimer();
-                    onClose();
-                    onOpenArticle(duplicateArticle);
-                  }}
-                >
-                  <HugeiconsIcon icon={LinkSquare01Icon} size={14} />
-                  {config.openDuplicateLabel}
-                </button>
-              ) : importState.type === 'error' ? (
+              <span>{finished ? '' : config.footerHint}</span>
+              {succeeded ? (
+                <span className="library-import-dialog-actions">
+                  <Button size="sm" type="button" variant="secondary" onClick={resetImport}>
+                    {t('library.import.addMore')}
+                  </Button>
+                  <Button size="sm" type="button" onClick={closeImportDialog}>
+                    {t('library.import.done')}
+                  </Button>
+                </span>
+              ) : settled ? (
                 <button type="button" onClick={resetImport}>
                   {config.kind === 'pdf'
                     ? t('library.import.pdf.reselect')

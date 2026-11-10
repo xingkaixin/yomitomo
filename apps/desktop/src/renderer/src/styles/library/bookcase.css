@@ -47,23 +47,6 @@
   }
 }
 
-@keyframes ebook-import-cover-fan-in {
-  from {
-    opacity: 0;
-    filter: blur(var(--library-import-reveal-blur));
-    transform: translateX(-50%)
-      translateY(calc(var(--ebook-import-cover-lift) + var(--library-import-cover-distance)))
-      rotate(0deg) scale(var(--library-import-cover-scale-from));
-  }
-
-  to {
-    opacity: 1;
-    filter: blur(0);
-    transform: translateX(calc(-50% + var(--ebook-import-cover-x)))
-      translateY(var(--ebook-import-cover-lift)) rotate(var(--ebook-import-cover-rotate)) scale(1);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .library-article-import-box.has-parsed-title .library-article-import-input input,
   .library-file-import-result,
@@ -77,13 +60,5 @@
     stroke-dashoffset: 0 !important;
     transform: none;
     translate: 0 0;
-  }
-
-  .library-ebook-import-cover-card {
-    animation: none !important;
-    filter: none;
-    opacity: 1;
-    transform: translateX(calc(-50% + var(--ebook-import-cover-x)))
-      translateY(var(--ebook-import-cover-lift)) rotate(var(--ebook-import-cover-rotate)) scale(1);
   }
 }

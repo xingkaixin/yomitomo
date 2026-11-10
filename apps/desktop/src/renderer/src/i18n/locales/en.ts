@@ -929,6 +929,9 @@ export const enResources = {
         canceled: 'Canceled',
         failed: 'Import failed',
         localOnlyNotice: 'Files are saved only on this device and are not uploaded to any server.',
+        addMore: 'Add more',
+        done: 'Done',
+        openBook: 'Open {{title}}',
         duplicateAndFailed: '{{duplicates}} already exist, {{failed}} failed',
         duplicateFiles: '{{count}} files are already in the library',
         importedAndFailed: 'Imported {{imported}}, {{failed}} failed',
@@ -990,7 +993,6 @@ export const enResources = {
           footerHint: 'After parsing, title, author, cover, and chapters are extracted.',
           progress: 'Ebook import progress',
           openDuplicate: 'Open existing ebook',
-          celebration: 'Imported ebook covers',
           reselect: 'Choose again',
         },
         pdf: {
