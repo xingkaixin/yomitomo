@@ -6,6 +6,12 @@
   pointer-events: none;
 }
 
+.reader-open-halo {
+  position: fixed;
+  z-index: var(--app-z-overlay);
+  pointer-events: none;
+}
+
 .reader-transition-backdrop {
   position: absolute;
   inset: 0;

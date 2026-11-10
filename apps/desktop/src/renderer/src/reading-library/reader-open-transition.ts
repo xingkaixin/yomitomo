@@ -1,3 +1,5 @@
+import { playReaderOpenHalo, stopReaderOpenHalo } from './reader-open-halo';
+
 const MOVE = 'cubic-bezier(0.22, 1, 0.36, 1)';
 const HINGE = 'cubic-bezier(0.32, 0.08, 0.24, 1)';
 const FADE = 'cubic-bezier(0.2, 0, 0, 1)';
@@ -36,6 +38,7 @@ export type ReaderOpenTransition = { settle: (opened: boolean) => void };
 
 export function startReaderOpenTransition(key: string): ReaderOpenTransition | null {
   finishActive();
+  stopReaderOpenHalo();
   if (prefersReducedMotion()) return null;
   const item = findShelfItem(key);
   const cover = item?.querySelector<HTMLElement>('.library-shelf-item-cover > .article-book');
@@ -49,6 +52,7 @@ export function startReaderOpenTransition(key: string): ReaderOpenTransition | n
 
 export function startReaderCloseTransition(key: string | null, returnToLibrary: () => void) {
   finishActive();
+  stopReaderOpenHalo();
   const shape = lastShape?.key === key ? lastShape : null;
   const paper = shape ? findPaper(shape.paperSelector) : null;
   if (!shape || !paper || prefersReducedMotion()) {
@@ -376,7 +380,12 @@ function waitForPaper(
     previous = paper?.box ?? null;
     if (paper && stable) {
       run.overlay?.classList.remove('is-waiting');
-      void proceed(paper, now).then(() => finishRun(run), noop);
+      void proceed(paper, now).then(() => {
+        if (active !== run) return;
+        finishRun(run);
+        // 微信读书正文是盖在页面上的原生视图，画布画不到它上面。
+        if (!shape.key.startsWith('weread:')) playReaderOpenHalo(shape.paperSelector);
+      }, noop);
       return;
     }
     if (now > 300) run.overlay?.classList.add('is-waiting');

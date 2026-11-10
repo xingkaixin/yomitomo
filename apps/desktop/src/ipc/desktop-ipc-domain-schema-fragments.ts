@@ -459,6 +459,14 @@ export const annotationWindowDomainIpcInvokeSchemas = {
 };
 
 export const appDomainIpcInvokeSchemas = {
+  'app:capture-region': z.tuple([
+    z.object({
+      x: nonnegativeIntegerSchema,
+      y: nonnegativeIntegerSchema,
+      width: z.number().int().positive().max(16_384),
+      height: z.number().int().positive().max(16_384),
+    }),
+  ]),
   'performance:timing': z.tuple([
     z.object({
       event: z.string().min(1).max(256),

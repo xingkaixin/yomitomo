@@ -32,6 +32,7 @@ import type {
   AnnotationSedimentationWindowOpenResult,
   AppInfo,
   AppLockStatus,
+  CapturedRegion,
   AppLockVerifyPinResult,
   ArticleImportResult,
   ArticleLibraryListResult,
@@ -156,6 +157,15 @@ export const appIpcInvokeDescriptors = {
     roles: annotationAndMain,
     validation: { exempt: 'no-args' },
     appLockBypass: true,
+    databaseIndependent: true,
+  }),
+  'app:capture-region': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'app:capture-region'>,
+    CapturedRegion | null
+  >()({
+    route: ['app', 'captureRegion'],
+    roles: mainOnly,
+    validation: 'schema',
     databaseIndependent: true,
   }),
   'app:pdfium-wasm-url': desktopIpcInvoke<[], string>()({

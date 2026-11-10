@@ -12,6 +12,18 @@ type AppIpcContext = Pick<
 
 export function registerAppIpc(context: AppIpcContext) {
   handleDesktopIpc('app:info', () => ({ desktopVersion: context.getAppVersion() }));
+  handleDesktopIpc('app:capture-region', async (event, rect) => {
+    const image = await event.sender.capturePage(rect);
+    if (image.isEmpty()) return null;
+    const scaleFactor = Math.max(...image.getScaleFactors());
+    const { width, height } = image.getSize(scaleFactor);
+    const bitmap = image.toBitmap({ scaleFactor });
+    return {
+      width,
+      height,
+      pixels: new Uint8Array(bitmap.buffer, bitmap.byteOffset, bitmap.byteLength),
+    };
+  });
   handleDesktopIpc('app:pdfium-wasm-url', () => pathToFileURL(pdfiumWasmPath()).href);
   onDesktopIpcMainEvent('app:renderer-ready', (event) => {
     const browserWindow = BrowserWindow.fromWebContents(event.sender);
