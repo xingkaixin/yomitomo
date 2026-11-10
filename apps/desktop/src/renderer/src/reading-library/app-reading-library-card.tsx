@@ -14,6 +14,7 @@ import type { ArticleSummaryRecord } from '@yomitomo/shared';
 import { urlHost } from '../shell/app-article-presentation';
 import { ArticleBook, formatPdfAuthors } from '../shell/app-article-book';
 import { ArticleDeleteMenuItem, useArticleDeleteConfirm } from './app-reading-library-delete';
+import { CollectionRemoveIcon } from './collection-icon';
 import { libraryMenuReducer } from './library-menu-state';
 import { removeShelfItem } from './library-shelf-removal';
 import {
@@ -126,7 +127,7 @@ export function ArticleLibraryCard({
                           void onRemoveFromCollection();
                         }}
                       >
-                        <HugeiconsIcon icon={Layers02Icon} size={14} />
+                        <HugeiconsIcon icon={CollectionRemoveIcon} size={14} />
                         <span>{t('library.collection.removeMember')}</span>
                       </button>
                     </DropdownMenuItem>
