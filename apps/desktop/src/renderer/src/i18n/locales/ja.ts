@@ -938,6 +938,9 @@ export const jaResources = {
         failed: 'インポートに失敗しました',
         localOnlyNotice:
           'ファイルはこのデバイスにのみ保存され、サーバーにはアップロードされません。',
+        addMore: 'さらに追加',
+        done: '完了',
+        openBook: '「{{title}}」を開く',
         duplicateAndFailed: '{{duplicates}} はすでに存在します、{{failed}} は失敗しました',
         duplicateFiles: '{{count}} 個のファイルがすでにライブラリにあります',
         importedAndFailed: '{{imported}}のインポート、{{failed}}のインポートに失敗しました',
@@ -1002,7 +1005,6 @@ export const jaResources = {
           footerHint: '解析後、タイトル、著者、表紙、章が抽出されます。',
           progress: '電子書籍のインポートの進行状況',
           openDuplicate: '既存の電子ブックを開く',
-          celebration: 'インポートされた電子ブックのカバー',
           reselect: 'もう一度選択してください',
         },
         pdf: {

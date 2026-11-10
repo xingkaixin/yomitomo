@@ -887,6 +887,9 @@ export const zhCNResources = {
         canceled: '已取消',
         failed: '导入失败',
         localOnlyNotice: '文件仅保存在本机，不会上传到任何服务器。',
+        addMore: '继续添加',
+        done: '完成',
+        openBook: '打开《{{title}}》',
         duplicateAndFailed: '{{duplicates}} 个已存在，{{failed}} 个失败',
         duplicateFiles: '{{count}} 个文件已在阅读库',
         importedAndFailed: '已导入 {{imported}} 个，{{failed}} 个失败',
@@ -948,7 +951,6 @@ export const zhCNResources = {
           footerHint: '解析完成后会提取标题、作者、封面和章节正文。',
           progress: '电子书导入进度',
           openDuplicate: '打开已有电子书',
-          celebration: '已导入的电子书封面',
           reselect: '重新选择',
         },
         pdf: {

@@ -119,10 +119,6 @@
 
 .library-import-dialog {
   --library-import-check-path: 1;
-  --library-import-cover-distance: 12px;
-  --library-import-cover-dur: var(--library-import-reveal-dur);
-  --library-import-cover-scale-from: 0.96;
-  --library-import-cover-stagger: 70ms;
   --library-import-reveal-blur: 2px;
   --library-import-reveal-distance: 4px;
   --library-import-reveal-dur: 400ms;
@@ -565,96 +561,9 @@
   line-height: 1;
 }
 
-.library-ebook-import-celebration {
-  display: grid;
-  min-height: 142px;
-  place-items: center;
-  overflow: hidden;
-  border: 1px solid var(--app-edge);
-  border-radius: 8px;
-  background: var(--app-card-surface);
-  padding: 18px 14px 16px;
-}
-
-.library-ebook-import-cover-stack {
-  position: relative;
-  width: min(420px, 100%);
-  height: 122px;
-}
-
-.library-ebook-import-cover-card {
-  --ebook-import-cover-x: calc(var(--ebook-import-cover-position) * 38px);
-  --ebook-import-cover-rotate: calc(var(--ebook-import-cover-position) * 8deg);
-  position: absolute;
-  left: 50%;
-  bottom: 4px;
-  z-index: var(--ebook-import-cover-z);
-  display: grid;
-  width: 74px;
-  height: 104px;
-  place-items: center;
-  overflow: hidden;
-  border: 1px solid var(--app-edge);
-  border-radius: 6px;
-  background: var(--app-raised);
-  color: hsl(var(--foreground));
-  box-shadow: var(--app-card-shadow);
-  transform: translateX(calc(-50% + var(--ebook-import-cover-x)))
-    translateY(var(--ebook-import-cover-lift)) rotate(var(--ebook-import-cover-rotate));
-  transform-origin: 50% 100%;
-  animation: ebook-import-cover-fan-in var(--library-import-cover-dur)
-    var(--library-import-success-ease) both;
-  animation-delay: calc(var(--ebook-import-cover-order) * var(--library-import-cover-stagger));
-}
-
-.library-ebook-import-cover-card.has-cover {
-  background: hsl(var(--card));
-}
-
-.library-ebook-import-cover-card img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.library-ebook-import-cover-placeholder {
-  display: grid;
-  width: 100%;
-  height: 100%;
-  align-items: end;
-  justify-items: start;
-  background: var(--app-well);
-  color: hsl(var(--foreground));
-  font-size: 12px;
-  font-weight: 900;
-  line-height: 1.18;
-  overflow-wrap: anywhere;
-  padding: 10px 9px;
-  text-align: left;
-}
-
-.library-ebook-import-cover-more {
-  position: absolute;
-  right: 12px;
-  bottom: 13px;
-  z-index: 20;
-  display: grid;
-  min-width: 34px;
-  height: 28px;
-  place-items: center;
-  border: 1px solid var(--app-edge);
-  border-radius: 999px;
-  background: var(--app-interactive-hover-bg);
-  color: hsl(var(--foreground));
-  font-size: 12px;
-  font-weight: 900;
-  padding: 0 8px;
-  box-shadow: var(--app-card-shadow);
-}
-
 .library-file-import-results {
   display: grid;
-  max-height: 220px;
+  max-height: 168px;
   gap: 8px;
   overflow: auto;
   padding-right: 2px;
@@ -662,33 +571,14 @@
 
 .library-file-import-result {
   display: grid;
-  min-height: 58px;
-  grid-template-columns: 42px minmax(0, 1fr) auto;
+  min-height: 48px;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   border: 1px solid var(--app-edge);
   padding: 8px 10px;
   animation: library-import-content-reveal var(--library-import-reveal-dur)
     var(--library-import-reveal-ease) both;
-}
-
-.library-file-import-cover {
-  display: grid;
-  width: 36px;
-  height: 42px;
-  place-items: center;
-  overflow: hidden;
-  border: 1px solid var(--app-edge-soft);
-}
-
-.library-file-import-cover img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.library-file-import-cover .is-spinning {
-  animation: app-spin 900ms linear infinite;
 }
 
 .library-file-import-result-copy {
@@ -759,6 +649,554 @@
 .library-import-dialog > footer button:not([data-variant]):active {
   box-shadow: var(--app-well-shadow);
   transform: translateY(1px);
+}
+
+/* ===== 电子书 / PDF 导入：空闲时的书箱，导入中和完成后的书架 ===== */
+
+.library-import-crate-zone {
+  min-height: 0;
+  gap: 8px;
+  padding: 14px 20px 22px;
+}
+
+/* 书箱示范：光标把文件拖到书箱上方，松手后文件变成书落进箱里，兔子跳一下。
+   5.2s 一轮，播两轮后停在兔子站在书箱旁的画面。 */
+.library-import-crate {
+  position: relative;
+  display: block;
+  width: 320px;
+  height: 148px;
+}
+
+.library-import-crate * {
+  animation-duration: 5.2s;
+  animation-fill-mode: both;
+  animation-iteration-count: 2;
+}
+
+.library-import-crate-floor {
+  position: absolute;
+  top: 128px;
+  right: 70px;
+  left: 70px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, var(--app-shadow-a16), transparent);
+}
+
+.library-import-crate-rabbit,
+.library-import-shelf-rabbit {
+  position: absolute;
+  width: 46px;
+  height: 44px;
+  background-image: var(--library-import-walker-sprite);
+  background-repeat: no-repeat;
+  background-size: 552px 44px;
+  filter: drop-shadow(0 3px 2px var(--app-shadow-a16));
+  scale: 1.25;
+  transform-origin: 50% 100%;
+}
+
+.library-import-crate-rabbit {
+  top: 90px;
+  left: 44px;
+  animation-name: library-import-crate-hop;
+}
+
+.library-import-crate-box {
+  position: absolute;
+  top: 70px;
+  left: 100px;
+  width: 140px;
+  height: 64px;
+  transform-origin: 50% 100%;
+  animation-name: library-import-crate-squash;
+  transition: scale 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.library-import-crate-back {
+  position: absolute;
+  top: 0;
+  right: 4px;
+  left: 4px;
+  height: 20px;
+  border-radius: 3px 3px 0 0;
+  background: var(--app-crate-inner);
+  box-shadow:
+    inset 0 8px 12px -6px var(--app-shadow-a24),
+    inset 0 2px 0 var(--app-crate-edge);
+}
+
+.library-import-crate-front {
+  position: absolute;
+  top: 14px;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: 3px;
+  background: linear-gradient(var(--app-crate-top), var(--app-crate-bottom));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.25),
+    0 10px 14px -10px var(--app-shadow-a24);
+}
+
+.library-import-crate-front::before {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: var(--app-crate-edge);
+  content: '';
+  opacity: 0.5;
+}
+
+.library-import-crate-front::after {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  width: 32px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--app-crate-inner);
+  box-shadow: inset 0 2px 3px var(--app-shadow-a24);
+  content: '';
+  transform: translateX(-50%);
+}
+
+.library-import-crate-peek,
+.library-import-crate-book {
+  position: absolute;
+  border-radius: 1px 3px 3px 1px;
+  box-shadow: inset 3px 0 0 rgb(0 0 0 / 0.16);
+}
+
+.library-import-crate-peek {
+  top: 4px;
+  width: 26px;
+  height: 36px;
+}
+
+.library-import-crate-peek.is-1 {
+  left: 24px;
+  background: #34506b;
+  rotate: -8deg;
+}
+
+.library-import-crate-peek.is-2 {
+  left: 86px;
+  background: #d9aa73;
+  rotate: 6deg;
+}
+
+/* 文件停在书箱正上方，位移从拖动起点反推回来 */
+.library-import-crate-drop {
+  position: absolute;
+  top: -62px;
+  left: 47px;
+  width: 46px;
+  height: 58px;
+  animation-name: library-import-crate-drop;
+}
+
+.library-import-crate-file {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--app-edge);
+  border-radius: 4px 12px 4px 4px;
+  background:
+    repeating-linear-gradient(#e4e0d8 0 2px, transparent 2px 6px) 7px 15px / 28px 16px no-repeat,
+    #fff;
+  box-shadow: 0 8px 18px -8px var(--app-shadow-a24);
+  animation-name: library-import-crate-file-out;
+}
+
+.library-import-crate-file em {
+  position: absolute;
+  bottom: 7px;
+  left: 6px;
+  border-radius: 3px;
+  background: #1c1a17;
+  color: #fff;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 12px;
+  padding: 0 4px;
+}
+
+.library-import-crate-book {
+  inset: 0 3px;
+  background: #9a4f33;
+  animation-name: library-import-crate-book-in;
+}
+
+.library-import-crate-cursor {
+  position: absolute;
+  top: 42px;
+  left: 178px;
+  z-index: 2;
+  animation-name: library-import-crate-cursor;
+}
+
+.library-import-crate-cursor path {
+  fill: #fff;
+  stroke: #1c1a17;
+  stroke-linejoin: round;
+  stroke-width: 1.4;
+}
+
+.library-import-crate.is-dragging .library-import-crate-box {
+  scale: 1.06;
+}
+
+.library-import-crate.is-dragging :is(.library-import-crate-drop, .library-import-crate-cursor) {
+  animation: none;
+  opacity: 0;
+}
+
+.library-import-crate.is-dragging .library-import-crate-rabbit {
+  animation: library-import-crate-hop 900ms cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+@keyframes library-import-crate-drop {
+  0% {
+    opacity: 0;
+    transform: translate(150px, -10px) rotate(10deg);
+  }
+
+  8% {
+    opacity: 1;
+  }
+
+  36% {
+    transform: translate(0, 0) rotate(-3deg);
+  }
+
+  44% {
+    transform: translate(0, 0) rotate(0);
+    animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.6);
+  }
+
+  56%,
+  90% {
+    opacity: 1;
+    transform: translate(0, 66px);
+  }
+
+  98%,
+  100% {
+    opacity: 0;
+    transform: translate(0, 66px);
+  }
+}
+
+@keyframes library-import-crate-file-out {
+  0%,
+  44% {
+    opacity: 1;
+  }
+
+  52%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes library-import-crate-book-in {
+  0%,
+  44% {
+    opacity: 0;
+  }
+
+  52%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes library-import-crate-cursor {
+  0% {
+    opacity: 0;
+    transform: translate(150px, -10px);
+  }
+
+  8% {
+    opacity: 1;
+  }
+
+  36%,
+  44% {
+    opacity: 1;
+    transform: translate(0, 0);
+  }
+
+  58%,
+  100% {
+    opacity: 0;
+    transform: translate(36px, -26px);
+  }
+}
+
+@keyframes library-import-crate-squash {
+  0%,
+  55%,
+  74%,
+  100% {
+    transform: none;
+  }
+
+  60% {
+    transform: scale(1.03, 0.94);
+  }
+
+  68% {
+    transform: scale(0.99, 1.02);
+  }
+}
+
+@keyframes library-import-crate-hop {
+  0%,
+  57%,
+  70%,
+  78%,
+  100% {
+    translate: 0 0;
+  }
+
+  63% {
+    translate: 0 -10px;
+  }
+
+  74% {
+    translate: 0 -3px;
+  }
+}
+
+/* 书架：每个文件占一个位置。1–5 本立封面，6–10 本立书脊。
+   完成的书由兔子按趟搬上去，时间轴在 app-reading-library-import-scenes.tsx。 */
+.library-import-shelf {
+  display: grid;
+  justify-items: center;
+  overflow: hidden;
+  border: 1px solid var(--app-edge);
+  border-radius: 12px;
+  background: var(--app-well);
+  box-shadow: var(--app-well-shadow);
+}
+
+.library-import-shelf-stage {
+  position: relative;
+  height: 150px;
+}
+
+.library-import-shelf-board {
+  position: absolute;
+  top: 112px;
+  right: -24px;
+  left: -24px;
+  z-index: 2;
+  height: 12px;
+  border-radius: 2px;
+  background: linear-gradient(var(--app-shelf-top), var(--app-shelf-bottom));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.5),
+    0 10px 14px -8px var(--app-shelf-shade);
+}
+
+.library-import-shelf-slot {
+  position: absolute;
+  bottom: 38px;
+  z-index: 1;
+  box-sizing: border-box;
+}
+
+.library-import-shelf-slot.is-ghost {
+  border: 1.5px dashed hsl(var(--muted-foreground) / 0.4);
+  border-radius: 2px 4px 4px 2px;
+}
+
+.library-import-shelf-slot.is-parsing {
+  animation: library-import-shelf-parsing 1.4s ease-in-out infinite alternate;
+}
+
+.library-import-shelf-slot.is-error {
+  display: grid;
+  place-items: center;
+  border-color: var(--app-danger-line);
+  color: var(--app-danger);
+}
+
+.library-import-shelf-slot.is-book {
+  display: grid;
+  align-items: end;
+  justify-items: center;
+  border: 0;
+  background: none;
+  padding: 0;
+  transform-origin: 50% 100%;
+  transition: translate 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+button.library-import-shelf-slot.is-book:hover {
+  translate: 0 -4px;
+}
+
+.library-import-shelf-slot.is-duplicate {
+  filter: grayscale(1);
+  opacity: 0.45;
+}
+
+.library-import-shelf-slot.is-landing {
+  animation: library-import-shelf-land 420ms cubic-bezier(0.22, 1, 0.36, 1)
+    var(--library-import-land-delay) both;
+}
+
+.library-import-shelf-cover {
+  --library-flat-cover-height: 62px;
+  display: block;
+}
+
+.library-import-shelf-spine {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 2px 2px 1px 1px;
+  background:
+    linear-gradient(
+      transparent 5px,
+      rgb(255 255 255 / 0.22) 5px 6px,
+      transparent 6px calc(100% - 7px),
+      rgb(255 255 255 / 0.22) calc(100% - 7px) calc(100% - 6px),
+      transparent calc(100% - 6px)
+    ),
+    var(--library-import-spine-color);
+  box-shadow:
+    inset -2px 0 0 rgb(0 0 0 / 0.16),
+    inset 1px 0 0 rgb(255 255 255 / 0.2),
+    0 1px 1px var(--app-shadow-a16);
+  color: var(--library-import-spine-text);
+  font-family: var(--font-reader-serif);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  padding-top: 10px;
+  white-space: nowrap;
+  writing-mode: vertical-rl;
+}
+
+.library-import-shelf-spine.is-tone-0 {
+  --library-import-spine-color: #66775c;
+  --library-import-spine-text: #fff;
+}
+
+.library-import-shelf-spine.is-tone-1 {
+  --library-import-spine-color: #9a4f33;
+  --library-import-spine-text: #fff;
+}
+
+.library-import-shelf-spine.is-tone-2 {
+  --library-import-spine-color: #2b4570;
+  --library-import-spine-text: #fff;
+}
+
+.library-import-shelf-spine.is-tone-3 {
+  --library-import-spine-color: #d9aa73;
+  --library-import-spine-text: #2f2720;
+}
+
+.library-import-shelf-spine.is-tone-4 {
+  --library-import-spine-color: #2f2a26;
+  --library-import-spine-text: #f3ece3;
+}
+
+.library-import-shelf-rabbit {
+  top: 68px;
+  left: 0;
+  z-index: 3;
+}
+
+.library-import-shelf-rabbit.is-walking {
+  animation: library-import-shelf-step 0.6s steps(12) infinite;
+}
+
+.library-import-shelf-rabbit.is-waiting {
+  translate: -36px 0;
+}
+
+.library-import-shelf-rabbit.is-resting {
+  animation: library-import-shelf-rest 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes library-import-shelf-parsing {
+  from {
+    background: hsl(var(--foreground) / 0.02);
+  }
+
+  to {
+    background: hsl(var(--foreground) / 0.09);
+  }
+}
+
+@keyframes library-import-shelf-land {
+  from {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.92);
+  }
+
+  60% {
+    opacity: 1;
+    transform: translateY(2px) scale(1.03, 0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes library-import-shelf-step {
+  to {
+    background-position-x: -552px;
+  }
+}
+
+@keyframes library-import-shelf-rest {
+  0% {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+
+  40%,
+  80%,
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+
+  60% {
+    transform: translateY(-6px);
+  }
+}
+
+.library-import-dialog-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .library-import-crate *,
+  .library-import-shelf-slot,
+  .library-import-shelf-rabbit {
+    animation: none !important;
+    transition: none;
+  }
+
+  .library-import-crate :is(.library-import-crate-drop, .library-import-crate-cursor) {
+    opacity: 0;
+  }
 }
 
 /* ===== 文本 / Markdown 导入 ===== */
@@ -1079,13 +1517,6 @@
 .library-file-import-result.is-error {
   border-color: var(--app-danger-line);
   background: var(--app-danger-surface);
-}
-
-.library-file-import-cover {
-  border-color: var(--app-edge-soft);
-  border-radius: 4px;
-  background: var(--app-interactive-hover-bg);
-  color: hsl(var(--foreground));
 }
 
 .library-file-import-result-copy strong {
