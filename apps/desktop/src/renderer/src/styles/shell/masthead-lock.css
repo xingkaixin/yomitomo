@@ -30,8 +30,7 @@
   --reader-titlebar-padding-right: 158px;
 }
 
-.app-shell.is-win32::before,
-.app-shell.is-sidebar-collapsed::before {
+.app-shell::before {
   position: fixed;
   top: 0;
   right: 0;
@@ -39,6 +38,12 @@
   height: 36px;
   content: '';
   -webkit-app-region: drag;
+}
+
+/* Expanded, the strip stops above the panel's first controls: the 8px shell padding plus
+   the 20px a surface header leaves above them. */
+.app-shell:not(.is-win32):not(.is-sidebar-collapsed)::before {
+  height: 28px;
 }
 
 .app-shell.is-sidebar-collapsed {
