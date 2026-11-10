@@ -9,7 +9,7 @@ import distillationCommitStampUrl from '../assets/audio/distillation-commit-stam
 import importSuccessMultipleSoundUrl from '../assets/audio/import-success-multiple.mp3';
 import importSuccessSingleSoundUrl from '../assets/audio/import-success-single.mp3';
 import appLockSlideSoundUrl from '../assets/audio/app-lock-slide.mp3';
-import paperBinTossSoundUrl from '../assets/audio/paper-bin-toss.mp3';
+import pagesScatterSoundUrl from '../assets/audio/pages-scatter.mp3';
 import penClickSoundUrl from '../assets/audio/pen-click.mp3';
 import pencilWritingLoopSoundUrl from '../assets/audio/pencil-writing-loop.mp3';
 import soundPreviewUrl from '../assets/audio/sound-preview.mp3';
@@ -62,7 +62,7 @@ const soundEffects: Record<AppSoundEffectId, SoundEffectDefinition> = {
   },
   'library.delete_item': {
     baseVolume: 0.8,
-    urls: [paperBinTossSoundUrl],
+    urls: [pagesScatterSoundUrl],
   },
   'app_lock.locked': {
     baseVolume: 0.72,
