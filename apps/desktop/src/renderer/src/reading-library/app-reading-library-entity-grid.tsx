@@ -67,7 +67,7 @@ export function LibraryEntityGrid({
 }
 
 type LibraryEntityActions = {
-  deleteArticle: (article: ArticleSummaryRecord) => void;
+  deleteArticle: (article: ArticleSummaryRecord) => Promise<boolean>;
   deleteCollection: (collection: Collection) => void;
   openArticle: (article: ArticleSummaryRecord) => void;
   openCollection: (collection: Collection) => void;

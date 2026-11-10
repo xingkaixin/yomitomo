@@ -64,7 +64,7 @@
   transition: opacity 140ms ease;
 }
 
-.library-shelf-item:is(:hover, :focus-within) .library-item-actions,
+.library-shelf-item:is(:hover, :has(:focus-visible)):not([data-leaving]) .library-item-actions,
 .library-shelf-item .library-item-actions.is-active {
   opacity: 1;
 }
@@ -210,6 +210,56 @@
 .library-shelf-item .library-card-pin-indicator svg {
   width: 10px;
   height: 10px;
+}
+
+/* 删除：书本回正上浮、文字退场；散页开始后原封面隐藏，由覆盖层里的碎片接替。
+   碎片克隆的是静止状态的封面，所以上浮量要同时作用在两处，碎片才能接上。 */
+.library-shelf-item .library-shelf-item-copy,
+.library-shelf-item .library-cover-progress {
+  transition:
+    opacity 200ms ease,
+    translate 200ms ease;
+}
+
+.library-shelf-item[data-leaving] .library-shelf-item-copy,
+.library-shelf-item[data-leaving] .library-cover-progress {
+  opacity: 0;
+  translate: 0 4px;
+  transition-delay: 80ms;
+}
+
+.library-shelf-item[data-leaving] .library-item-actions {
+  opacity: 0;
+}
+
+.library-shelf-item[data-leaving] .library-shelf-item-cover > .article-book,
+.library-shelf-scatter-tile .library-shelf-item-cover > .article-book {
+  transform: translateY(-10px);
+}
+
+.library-shelf-item[data-leaving='scatter'] .library-shelf-item-cover {
+  visibility: hidden;
+}
+
+.library-shelf-scatter {
+  position: fixed;
+  z-index: var(--app-z-floating);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.library-shelf-scatter-tile {
+  position: absolute;
+  overflow: hidden;
+  will-change: transform, opacity;
+}
+
+.library-shelf-scatter-tile > .library-shelf-item-cover {
+  position: absolute;
+}
+
+.library-shelf-scatter-tile .article-book-ground-shadow {
+  display: none;
 }
 
 @media (max-width: 760px) {

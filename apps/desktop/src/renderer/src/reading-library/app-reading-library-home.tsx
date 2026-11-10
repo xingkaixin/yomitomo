@@ -104,7 +104,7 @@ type LibraryHomeImports = {
 };
 
 type LibraryHomeItemActions = {
-  onDeleteArticle: (articleId: string) => Promise<void>;
+  onDeleteArticle: (articleId: string) => Promise<boolean>;
   onOpenArticle: (article: ArticleRecord | ArticleSummaryRecord) => void;
   onOpenWeReadBook: (book: WeReadBook) => void;
   onOpenWeReadExternal: (book: WeReadBook) => void;
@@ -273,9 +273,6 @@ export function LibraryHome({
           wereadConfigured: wereadSettings.configured,
         },
   );
-  const deleteArticle = async (articleId: string) => {
-    await onDeleteArticle(articleId);
-  };
   const importArticleUrl = async (url: string, requestId?: string) =>
     onImportArticleUrl(url, requestId);
   const importEbookFile = async (file: File, onProgress?: EbookImportProgressCallback) =>
@@ -513,7 +510,7 @@ export function LibraryHome({
               <LibraryEntityGrid
                 activeCollectionId={activeCollection?.id || null}
                 actions={{
-                  deleteArticle: (article) => void deleteArticle(article.id),
+                  deleteArticle: (article) => onDeleteArticle(article.id),
                   deleteCollection: (collection) => void deleteCollection(collection.id),
                   openArticle: onOpenArticle,
                   openCollection: (collection) => libraryQueryActions.openCollection(collection.id),

@@ -459,7 +459,7 @@
 }
 
 /* 扁平封面 hover：卡片轻抬 + chrome 滑入，不做书本打开。只作用于条目自己的封面，合集扇形里的成员封面不动。 */
-.library-shelf-item:is(:hover, :focus-within)
+.library-shelf-item:is(:hover, :has(:focus-visible)):not([data-leaving])
   .library-shelf-item-cover
   > .article-book
   .article-cover-card {
@@ -468,11 +468,11 @@
     inset 0 0 0 1px hsl(var(--border) / 0.6);
 }
 
-.library-shelf-item:is(:hover, :focus-within)
+.library-shelf-item:is(:hover, :has(:focus-visible)):not([data-leaving])
   .library-shelf-item-cover
   > .article-book
   .pdf-cover-bar,
-.library-shelf-item:is(:hover, :focus-within)
+.library-shelf-item:is(:hover, :has(:focus-visible)):not([data-leaving])
   .library-shelf-item-cover
   > .article-book
   .web-cover-chrome {
@@ -480,21 +480,21 @@
 }
 
 /* 文本稿纸 hover：后层叠纸向右下扇出 */
-.library-shelf-item:is(:hover, :focus-within)
+.library-shelf-item:is(:hover, :has(:focus-visible)):not([data-leaving])
   .library-shelf-item-cover
   > .is-text-cover
   .text-cover-sheet.s2 {
   transform: translate(6px, 2px) rotate(2.4deg);
 }
 
-.library-shelf-item:is(:hover, :focus-within)
+.library-shelf-item:is(:hover, :has(:focus-visible)):not([data-leaving])
   .library-shelf-item-cover
   > .is-text-cover
   .text-cover-sheet.s3 {
   transform: translate(11px, 5px) rotate(5deg);
 }
 
-.library-shelf-item:is(:hover, :focus-within)
+.library-shelf-item:is(:hover, :has(:focus-visible)):not([data-leaving])
   .library-shelf-item-cover
   > .article-book
   .article-book-scene {
@@ -502,11 +502,13 @@
     translateX(var(--book-hover-translate-x));
 }
 
-.library-shelf-item:is(:hover, :focus-within) .library-shelf-item-cover > .article-book {
+.library-shelf-item:is(:hover, :has(:focus-visible)):not([data-leaving])
+  .library-shelf-item-cover
+  > .article-book {
   transform: translateY(-2px);
 }
 
-.library-shelf-item:is(:hover, :focus-within)
+.library-shelf-item:is(:hover, :has(:focus-visible)):not([data-leaving])
   .library-shelf-item-cover
   > .article-book
   .article-book-ground-shadow {
@@ -525,28 +527,30 @@
     transition-duration: 1ms;
   }
 
-  .library-shelf-item:is(:hover, :focus-within)
+  .library-shelf-item:is(:hover, :has(:focus-visible)):not([data-leaving])
     .library-shelf-item-cover
     > .is-text-cover
     .text-cover-sheet.s2 {
     transform: translate(3px, 1px) rotate(1deg);
   }
 
-  .library-shelf-item:is(:hover, :focus-within)
+  .library-shelf-item:is(:hover, :has(:focus-visible)):not([data-leaving])
     .library-shelf-item-cover
     > .is-text-cover
     .text-cover-sheet.s3 {
     transform: translate(5px, 2px) rotate(2deg);
   }
 
-  .library-shelf-item:is(:hover, :focus-within)
+  .library-shelf-item:is(:hover, :has(:focus-visible)):not([data-leaving])
     .library-shelf-item-cover
     > .article-book
     .article-book-scene {
     transform: rotateY(-10deg) scale(1.03) translateX(-4px);
   }
 
-  .library-shelf-item:is(:hover, :focus-within) .library-shelf-item-cover > .article-book {
+  .library-shelf-item:is(:hover, :has(:focus-visible)):not([data-leaving])
+    .library-shelf-item-cover
+    > .article-book {
     transform: translateY(-1px);
   }
 }
