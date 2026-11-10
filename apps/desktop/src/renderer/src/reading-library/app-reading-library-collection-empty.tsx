@@ -1,5 +1,5 @@
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Add01Icon, FolderOpenIcon, Tick01Icon } from '@hugeicons/core-free-icons';
+import { Add01Icon, Tick01Icon } from '@hugeicons/core-free-icons';
 import React, { useReducer } from 'react';
 import type { Collection, ContentRef } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +16,7 @@ import {
   LibraryImportEntryGrid,
   type LibraryImportEntryHandlers,
 } from './app-reading-library-import-entries';
+import { CollectionAddIcon } from './collection-icon';
 import { useLibraryCatalog } from './use-library-catalog';
 
 const QUICK_ADD_COUNT = 4;
@@ -104,7 +105,7 @@ export function LibraryCollectionEmpty({
           <p>{t('library.collection.emptyDescription')}</p>
           <div className="library-empty-actions">
             <Button type="button" size="sm" onClick={onAddExisting}>
-              <HugeiconsIcon icon={FolderOpenIcon} size={15} />
+              <HugeiconsIcon icon={CollectionAddIcon} size={15} />
               {t('library.collection.pickFromLibrary')}
             </Button>
           </div>

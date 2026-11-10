@@ -7,11 +7,15 @@ const stroke = {
   strokeWidth: '1.5',
 } as const;
 
+const crate: IconSvgElement = [
+  ['rect', { x: '3', y: '12.5', width: '18', height: '8', rx: '1.5', ...stroke, key: '0' }],
+  ['path', { d: 'M10.25 15.75H13.75', ...stroke, key: '1' }],
+];
+
 // Matches the open crate collections use on the bookshelf; drawn in the Hugeicons
 // 24px grid so it renders through HugeiconsIcon like the stock icons.
 export const CollectionIcon: IconSvgElement = [
-  ['rect', { x: '3', y: '12.5', width: '18', height: '8', rx: '1.5', ...stroke, key: '0' }],
-  ['path', { d: 'M10.25 15.75H13.75', ...stroke, key: '1' }],
+  ...crate,
   ['path', { d: 'M5.75 12.5V5A1 1 0 0 1 6.75 4H9.25A1 1 0 0 1 10.25 5V12.5', ...stroke, key: '2' }],
   [
     'path',
@@ -21,4 +25,14 @@ export const CollectionIcon: IconSvgElement = [
       key: '3',
     },
   ],
+];
+
+export const CollectionAddIcon: IconSvgElement = [
+  ...crate,
+  ['path', { d: 'M12 4.25V10.25M9 7.25H15', ...stroke, key: '2' }],
+];
+
+export const CollectionRemoveIcon: IconSvgElement = [
+  ...crate,
+  ['path', { d: 'M9 7.25H15', ...stroke, key: '2' }],
 ];
