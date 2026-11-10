@@ -8,11 +8,12 @@ import distillationCardFlipUrl from '../assets/audio/distillation-card-flip.mp3'
 import distillationCommitStampUrl from '../assets/audio/distillation-commit-stamp.mp3';
 import importSuccessMultipleSoundUrl from '../assets/audio/import-success-multiple.mp3';
 import importSuccessSingleSoundUrl from '../assets/audio/import-success-single.mp3';
-import appLockSlideSoundUrl from '../assets/audio/app-lock-slide.mp3';
+import appLockLockedSoundUrl from '../assets/audio/app-lock-locked.mp3';
+import appLockUnlockedSoundUrl from '../assets/audio/app-lock-unlocked.mp3';
 import pagesScatterSoundUrl from '../assets/audio/pages-scatter.mp3';
-import penClickSoundUrl from '../assets/audio/pen-click.mp3';
 import pencilWritingLoopSoundUrl from '../assets/audio/pencil-writing-loop.mp3';
 import soundPreviewUrl from '../assets/audio/sound-preview.mp3';
+import thoughtDoneSoundUrl from '../assets/audio/thought-done.mp3';
 
 export type AppSoundEffectId =
   | 'brand.pronunciation'
@@ -42,37 +43,37 @@ const soundEffects: Record<AppSoundEffectId, SoundEffectDefinition> = {
     urls: [brandPronunciationUrl],
   },
   'discussion.assistant_thought_done': {
-    baseVolume: 0.55,
+    baseVolume: 0.6,
     replayBehavior: 'restart',
-    urls: [penClickSoundUrl],
+    urls: [thoughtDoneSoundUrl],
   },
   'discussion.assistant_thought_writing': {
-    baseVolume: 0.5,
+    baseVolume: 0.9,
     loop: true,
     replayBehavior: 'skip_while_playing',
     urls: [pencilWritingLoopSoundUrl],
   },
   'library.import_success_multiple': {
-    baseVolume: 0.8,
+    baseVolume: 0.75,
     urls: [importSuccessMultipleSoundUrl],
   },
   'library.import_success_single': {
-    baseVolume: 0.8,
+    baseVolume: 0.75,
     urls: [importSuccessSingleSoundUrl],
   },
   'library.delete_item': {
-    baseVolume: 0.8,
+    baseVolume: 0.74,
     urls: [pagesScatterSoundUrl],
   },
   'app_lock.locked': {
-    baseVolume: 0.72,
+    baseVolume: 0.47,
     replayBehavior: 'restart',
-    urls: [appLockSlideSoundUrl],
+    urls: [appLockLockedSoundUrl],
   },
   'app_lock.unlocked': {
-    baseVolume: 0.72,
+    baseVolume: 0.6,
     replayBehavior: 'restart',
-    urls: [appLockSlideSoundUrl],
+    urls: [appLockUnlockedSoundUrl],
   },
   'reader.annotation_created': {
     baseVolume: 0.75,
@@ -87,7 +88,7 @@ const soundEffects: Record<AppSoundEffectId, SoundEffectDefinition> = {
     urls: [distillationCardFlipUrl],
   },
   'settings.sound_preview': {
-    baseVolume: 1,
+    baseVolume: 0.6,
     urls: [soundPreviewUrl],
   },
 };
