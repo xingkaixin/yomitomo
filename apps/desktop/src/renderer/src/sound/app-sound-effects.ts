@@ -48,7 +48,7 @@ const soundEffects: Record<AppSoundEffectId, SoundEffectDefinition> = {
     urls: [thoughtDoneSoundUrl],
   },
   'discussion.assistant_thought_writing': {
-    baseVolume: 0.5,
+    baseVolume: 0.9,
     loop: true,
     replayBehavior: 'skip_while_playing',
     urls: [pencilWritingLoopSoundUrl],
@@ -62,7 +62,7 @@ const soundEffects: Record<AppSoundEffectId, SoundEffectDefinition> = {
     urls: [importSuccessSingleSoundUrl],
   },
   'library.delete_item': {
-    baseVolume: 0.8,
+    baseVolume: 0.74,
     urls: [pagesScatterSoundUrl],
   },
   'app_lock.locked': {
