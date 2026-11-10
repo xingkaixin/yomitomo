@@ -49,6 +49,8 @@
   transition:
     background 140ms ease,
     color 140ms ease;
+  /* The first item reaches into the shell's top drag strip. */
+  -webkit-app-region: no-drag;
 }
 
 .settings-side-nav-icon {
