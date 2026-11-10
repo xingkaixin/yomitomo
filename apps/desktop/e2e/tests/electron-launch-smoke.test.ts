@@ -39,7 +39,7 @@ describe('electron launch smoke', () => {
 
 function runElectronLaunchSmoke() {
   return new Promise<ElectronSmokeResult>((resolve, reject) => {
-    const child = spawn(electronPath, ['--no-sandbox', '.'], {
+    const child = spawn(electronPath, ['--no-sandbox', '--mute-audio', '.'], {
       cwd: join(import.meta.dirname, '../..'),
       env: {
         ...process.env,

@@ -150,7 +150,10 @@ export async function launchDesktopE2eApp(
   let closed = false;
 
   const app = await electron.launch({
-    args: packagedExecutable ? ['--no-sandbox'] : ['--no-sandbox', '.'],
+    // A fresh profile opens on onboarding, which plays music; keep test runs silent.
+    args: packagedExecutable
+      ? ['--no-sandbox', '--mute-audio']
+      : ['--no-sandbox', '--mute-audio', '.'],
     cwd: packagedExecutable ? runData.rootDir : desktopRoot,
     env: createE2eDesktopEnv(runData, { ...process.env, ...options.env }),
     executablePath: packagedExecutable ?? electronPath,
