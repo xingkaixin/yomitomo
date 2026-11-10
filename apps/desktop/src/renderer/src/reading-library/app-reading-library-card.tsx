@@ -6,7 +6,7 @@ import {
   PinIcon,
   PinOffIcon,
 } from '@hugeicons/core-free-icons';
-import { useReducer, type CSSProperties, type ReactNode } from 'react';
+import { useReducer, useRef, type CSSProperties, type ReactNode, type Ref } from 'react';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { readingProgressRatio } from '@yomitomo/core';
@@ -15,6 +15,7 @@ import { urlHost } from '../shell/app-article-presentation';
 import { ArticleBook, formatPdfAuthors } from '../shell/app-article-book';
 import { ArticleDeleteMenuItem, useArticleDeleteConfirm } from './app-reading-library-delete';
 import { libraryMenuReducer } from './library-menu-state';
+import { removeShelfItem } from './library-shelf-removal';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,7 +38,7 @@ export function ArticleLibraryCard({
   pinned = false,
 }: {
   article: ArticleSummaryRecord;
-  onDelete: () => void;
+  onDelete: () => Promise<boolean>;
   onOpen: () => void;
   onRemoveFromCollection?: () => Promise<void> | void;
   onSetPinned?: (pinned: boolean) => Promise<void> | void;
@@ -53,7 +54,10 @@ export function ArticleLibraryCard({
   const isText = article.sourceType === 'text';
   const authorLabel = libraryArticleAuthorLabel(article);
   const title = articleDisplayTitle(article);
-  const { dialog: deleteDialog, requestDelete } = useArticleDeleteConfirm(title, onDelete);
+  const itemRef = useRef<HTMLElement>(null);
+  const { dialog: deleteDialog, requestDelete } = useArticleDeleteConfirm(title, () => {
+    void removeShelfItem(itemRef.current, onDelete);
+  });
   const sourceLabel = isEbook
     ? t('library.sources.ebookShort')
     : isPdf
@@ -142,6 +146,7 @@ export function ArticleLibraryCard({
         </>
       }
       cover={<ArticleBook article={article} />}
+      itemRef={itemRef}
       openLabel={openLabel}
       progress={<LibraryCoverProgress progress={readingProgressRatio(article.readingProgress)} />}
       onOpen={onOpen}
@@ -183,6 +188,7 @@ export function LibraryShelfItem({
   actions,
   children,
   cover,
+  itemRef,
   label,
   onOpen,
   openLabel,
@@ -191,13 +197,14 @@ export function LibraryShelfItem({
   actions: ReactNode;
   children: ReactNode;
   cover: ReactNode;
+  itemRef?: Ref<HTMLElement>;
   label?: string;
   onOpen: () => void;
   openLabel: string;
   progress?: ReactNode;
 }) {
   return (
-    <article className="library-shelf-item" aria-label={label}>
+    <article className="library-shelf-item" aria-label={label} ref={itemRef}>
       <button
         className="library-shelf-item-open"
         type="button"

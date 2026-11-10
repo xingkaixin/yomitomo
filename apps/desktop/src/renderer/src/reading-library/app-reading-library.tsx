@@ -327,9 +327,11 @@ export function ReadingLibrary({
     try {
       await deleteArticle(articleId);
       playAppSoundEffect('library.delete_item', settings);
+      return true;
     } catch (error) {
       const fallback = t('library.actions.deleteArticleFailed');
       appToast.error(fallback, { description: errorMessageOrFallback(error, fallback) });
+      return false;
     }
   }
 

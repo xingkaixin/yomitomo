@@ -30,7 +30,8 @@
   transition: transform 380ms var(--ease-out);
 }
 
-.library-shelf-item:is(:hover, :focus-within) .library-collection-crate-member {
+.library-shelf-item:is(:hover, :has(:focus-visible)):not([data-leaving])
+  .library-collection-crate-member {
   transform: translateX(-50%) translateX(calc(var(--crate-rel) * 24px)) translateY(-8px)
     rotate(calc(var(--crate-rel) * 5deg));
 }
