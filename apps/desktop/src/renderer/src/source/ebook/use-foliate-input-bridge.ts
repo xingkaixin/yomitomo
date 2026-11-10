@@ -3,6 +3,7 @@ import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import { isContinuousTextSelectionMouseEvent } from '../bookcase/source-reader-selection-events';
 import {
+  isEditableKeyboardTarget,
   readerPageTurnDirectionFromKeyboardEvent,
   type ReaderPageTurnDirection,
 } from '../../shell/use-reader-page-turn-keys';
@@ -226,9 +227,15 @@ export function useFoliateInputBridge({
         const handleKeyDown = (event: KeyboardEvent) => {
           foliateSelectionShortcutPressed(event);
           const direction = readerPageTurnDirectionFromKeyboardEvent(event);
-          if (!direction) return;
-          event.preventDefault();
-          foliatePageTurnKeyPressed(direction);
+          if (direction) {
+            event.preventDefault();
+            foliatePageTurnKeyPressed(direction);
+            return;
+          }
+          if (event.defaultPrevented || isEditableKeyboardTarget(event.target)) return;
+          // Keys pressed inside the section iframe never reach the host window, where the reader's
+          // own shortcuts listen.
+          window.dispatchEvent(new KeyboardEvent('keydown', event));
         };
 
         doc.addEventListener('mousedown', handleMouseDown, true);
