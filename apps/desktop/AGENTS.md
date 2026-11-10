@@ -32,3 +32,4 @@
 - 新增 UI 必须接入主题变量。核心 surface、文字、边框、阴影、遮罩、强调色和阅读器相关颜色来自 `AppTheme` 输出的 CSS variables。优先复用现有语义 token；确需新增语义时，先扩展主题契约并同时给亮色、暗色两套主题赋值，不在组件或 CSS 中写死核心色。
 - renderer 图片按最大显示尺寸的 2 倍存储，不放原图：助手头像 256×256，助手封面宽 1120，写字动画每帧 96×96。生成参数与官网一致：`cwebp -quiet -q 82 -m 6 -resize WIDTH HEIGHT SOURCE -o OUTPUT`。
 - 应用内反馈音效通过 `apps/desktop/src/renderer/src/sound/app-sound-effects.ts` 统一注册和播放，不在组件里直接 `new Audio(...)`。新增音效需注册 effect id、音频资源和基准响度，并传入当前 `AppSettings`。只在业务动作成功后播放，取消或失败不播放。
+- Onboarding 的开场音乐是唯一的例外：`apps/desktop/src/renderer/src/sound/onboarding-music.ts` 用 Web Audio 按乐谱实时合成，不走音效注册表。它同样遵循音效开关和音量；画面 cue 在 `shell/app-onboarding-show.ts`，两者按同一条时间线对齐，改其中一个要同时看另一个。

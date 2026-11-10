@@ -1,15 +1,45 @@
 .onboarding-screen {
   --onboarding-gutter: max(clamp(48px, 6vw, 88px), calc((100% - 1200px) / 2));
+  /* One design pixel of the 1200x750 opening, capped so the rabbit never upscales past its file. */
+  --onboarding-unit: min(100vw / 1200, 100vh / 750, 1px);
+  /* The opening is the app icon at window size, so its colors stay the icon's in both themes. */
+  --onboarding-icon-red: #f2473c;
+  --onboarding-icon-book: #8a1b1e;
+  --onboarding-icon-cream: #fbeedb;
+  --onboarding-icon-highlight: #ffd75e;
 
   position: fixed;
   inset: 0;
   z-index: var(--app-z-modal);
-  display: grid;
-  grid-template-rows: auto 1fr;
   overflow: auto;
   background: hsl(var(--background));
   color: hsl(var(--foreground));
   word-break: auto-phrase;
+}
+
+/* The show adds one `at-*` class per cue here; see shell/app-onboarding-show.ts. */
+.onboarding-stage {
+  --onboarding-book-y: calc(100vh + 12vw);
+  --onboarding-book-move: 800ms cubic-bezier(0.22, 1, 0.36, 1);
+
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 100%;
+}
+
+.onboarding-stage.at-book {
+  --onboarding-book-y: 60vh;
+}
+
+.onboarding-stage.at-cover {
+  --onboarding-book-y: -12vw;
+  --onboarding-book-move: 500ms cubic-bezier(0.5, 0, 0.75, 0);
+}
+
+.onboarding-stage.is-instant,
+.onboarding-stage.is-instant * {
+  transition: none !important;
+  animation: none !important;
 }
 
 /* Top padding keeps the brand clear of the macOS inset traffic lights. */
@@ -27,8 +57,28 @@
   font-weight: 500;
 }
 
-.onboarding-language {
+.onboarding-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   -webkit-app-region: no-drag;
+}
+
+.onboarding-mute {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+}
+
+.onboarding-mute:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
 }
 
 .onboarding-main {
@@ -56,6 +106,14 @@
   font-weight: 500;
   line-height: 1.2;
   outline: none;
+}
+
+.onboarding-start h1 span {
+  display: inline-block;
+}
+
+.onboarding-title-start:lang(en) {
+  margin-right: 0.25em;
 }
 
 .onboarding-start > p {
@@ -88,7 +146,33 @@
   margin: 0;
 }
 
+.onboarding-demo-sheet {
+  position: relative;
+}
+
+/* The rabbit looks over the top edge of the page, as it looks over the book in the app icon. */
+.onboarding-demo-peek {
+  position: absolute;
+  right: 30px;
+  bottom: 100%;
+  width: 132px;
+  height: 89px;
+  overflow: clip;
+}
+
+.onboarding-demo-peek img {
+  display: block;
+  width: 100%;
+  translate: 0 102%;
+  transition: translate 640ms cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+
+.at-peek .onboarding-demo-peek img {
+  translate: 0 0;
+}
+
 .onboarding-demo-page {
+  position: relative;
   padding: 28px;
   border: 1px solid hsl(var(--border) / 0.8);
   background: var(--app-reader-paper);
@@ -98,27 +182,62 @@
   margin: 0;
 }
 
-.onboarding-demo-page > p {
+.onboarding-demo-passage {
   font-family: var(--font-reader-serif);
   font-size: 17px;
   line-height: 1.85;
 }
 
-.onboarding-demo-page mark {
+.onboarding-demo-passage mark {
   background: transparent;
   color: inherit;
-  text-decoration: underline wavy var(--app-reader-accent-strong) 1.5px;
-  text-underline-offset: 5px;
+}
+
+/* One strip per rendered line of the highlighted sentence, widened in reading order by the show. */
+.onboarding-demo-underline i {
+  position: absolute;
+  height: 5px;
+  background: var(--app-reader-accent-strong);
+  -webkit-mask: var(--hand-underline-mask) 0 0 / 13px 5px repeat-x;
+  mask: var(--hand-underline-mask) 0 0 / 13px 5px repeat-x;
 }
 
 .onboarding-demo-thread {
   display: grid;
   gap: 14px;
   margin-top: 22px;
-  padding-left: 16px;
-  border-left: 2px solid var(--app-reader-accent-strong);
+  padding-left: 18px;
   font-size: 14px;
   line-height: 1.65;
+}
+
+/* The thread rule is drawn in two segments, so it grows with what has been written so far. */
+.onboarding-demo-thought,
+.onboarding-demo-reply {
+  position: relative;
+}
+
+.onboarding-demo-thought::before,
+.onboarding-demo-reply::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -18px;
+  width: 2px;
+  background: var(--app-reader-accent-strong);
+  transform-origin: 50% 0;
+  scale: 1 0;
+  transition: scale 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.onboarding-demo-thought::before {
+  bottom: -14px;
+}
+
+.at-thought .onboarding-demo-thought::before,
+.at-reply .onboarding-demo-reply::before {
+  scale: 1 1;
 }
 
 .onboarding-demo-reply {
@@ -132,14 +251,261 @@
   height: 30px;
   border-radius: 50%;
   object-fit: cover;
+  scale: 0.5;
+  transition: scale 460ms cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+
+.at-reply .onboarding-demo-reply img {
+  scale: 1;
 }
 
 .onboarding-demo-reply strong {
   font-weight: 500;
 }
 
+.onboarding-typed span {
+  opacity: 0;
+  transition: opacity 80ms linear;
+  transition-delay: calc(
+    var(--onboarding-type-delay, 0ms) + var(--onboarding-index) * var(--onboarding-type-step)
+  );
+}
+
+.onboarding-demo-reply .onboarding-typed {
+  --onboarding-type-delay: 300ms;
+}
+
+.at-thought .onboarding-demo-thought .onboarding-typed span,
+.at-reply .onboarding-demo-reply .onboarding-typed span {
+  opacity: 1;
+}
+
 .onboarding-demo figcaption {
   color: hsl(var(--muted-foreground));
   font-size: 13px;
   line-height: 1.6;
+}
+
+/* Reveals. Controls stay out of reach until shown, so nothing invisible can be clicked or focused. */
+.onboarding-brand,
+.onboarding-tools,
+.onboarding-start h1 span,
+.onboarding-start > p,
+.onboarding-start .library-empty-entry,
+.onboarding-skip,
+.onboarding-demo-page,
+.onboarding-demo-passage > *,
+.onboarding-demo-reply,
+.onboarding-demo figcaption {
+  opacity: 0;
+  transition:
+    opacity 480ms ease-out,
+    translate 560ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 150ms ease-out;
+}
+
+.onboarding-tools,
+.onboarding-start .library-empty-entry,
+.onboarding-skip {
+  visibility: hidden;
+}
+
+.onboarding-start h1 span,
+.onboarding-start > p,
+.onboarding-start .library-empty-entry {
+  translate: 0 10px;
+}
+
+.onboarding-demo-page {
+  translate: 0 26px;
+}
+
+.at-page .onboarding-brand,
+.at-page .onboarding-demo-page,
+.at-title-start .onboarding-title-start,
+.at-title-end .onboarding-title-end,
+.at-description .onboarding-start > p,
+.at-text-1 .onboarding-demo-passage > :nth-child(1),
+.at-text-2 .onboarding-demo-passage > :nth-child(2),
+.at-text-3 .onboarding-demo-passage > :nth-child(3),
+.at-reply .onboarding-demo-reply,
+.at-entry-1 .onboarding-start .library-empty-entry:nth-child(1),
+.at-entry-2 .onboarding-start .library-empty-entry:nth-child(2),
+.at-entry-3 .onboarding-start .library-empty-entry:nth-child(3),
+.at-rest .onboarding-tools,
+.at-rest .onboarding-skip,
+.at-rest .onboarding-demo figcaption {
+  visibility: visible;
+  opacity: 1;
+  translate: 0 0;
+}
+
+/* Opening: the app icon fills the window, then the book sweeps up and uncovers the page. */
+.onboarding-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  overflow: clip;
+  background: var(--onboarding-icon-red);
+  pointer-events: none;
+}
+
+.at-open .onboarding-intro {
+  background: transparent;
+}
+
+.onboarding-intro-wordmark {
+  position: absolute;
+  top: 15vh;
+  left: var(--onboarding-gutter);
+  display: flex;
+  margin: 0;
+  color: var(--onboarding-icon-cream);
+  font-family: 'Fraunces', var(--font-reader-serif);
+  font-size: calc(92 * var(--onboarding-unit));
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.onboarding-intro-wordmark span {
+  opacity: 0;
+  translate: 0 0.35em;
+  transition:
+    opacity 420ms ease-out,
+    translate 520ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: calc(var(--onboarding-index) * 45ms);
+}
+
+.at-wordmark .onboarding-intro-wordmark span {
+  opacity: 1;
+  translate: 0 0;
+}
+
+/* The rabbit and the book share one tilted frame, so the rabbit's flat bottom hides behind the book's edge. */
+.onboarding-intro-rabbit,
+.onboarding-intro-book {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: calc(140vw + 60vh);
+  margin-left: calc(-70vw - 30vh);
+  transform: translateY(var(--onboarding-book-y)) rotate(-11deg);
+  transform-origin: 50% 0;
+  transition: transform var(--onboarding-book-move);
+}
+
+.onboarding-intro-rabbit img {
+  position: absolute;
+  top: calc(-316 * var(--onboarding-unit));
+  left: calc(50% + 20 * var(--onboarding-unit));
+  width: calc(480 * var(--onboarding-unit));
+  max-width: none;
+  transform-origin: 50% 100%;
+  translate: 0 120%;
+  transition: translate 260ms cubic-bezier(0.55, 0, 0.9, 0.4);
+}
+
+.at-rabbit .onboarding-intro-rabbit img {
+  translate: 0 0;
+  transition: translate 620ms cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+
+.at-nod .onboarding-intro-rabbit img {
+  animation: onboarding-rabbit-nod 520ms cubic-bezier(0.3, 0, 0.3, 1);
+}
+
+.at-duck .onboarding-intro-rabbit img {
+  translate: 0 120%;
+  transition: translate 260ms cubic-bezier(0.55, 0, 0.9, 0.4);
+}
+
+@keyframes onboarding-rabbit-nod {
+  30% {
+    transform: translateY(calc(14 * var(--onboarding-unit))) rotate(-3deg);
+  }
+
+  65% {
+    transform: translateY(calc(-6 * var(--onboarding-unit))) rotate(2deg);
+  }
+}
+
+/* Taller than any window it covers, so sweeping its bottom edge up is what uncovers the page. */
+.onboarding-intro-book {
+  z-index: 1;
+  height: calc(100vh + 30vw);
+  background: var(--onboarding-icon-book);
+  clip-path: inset(0);
+  transition:
+    transform var(--onboarding-book-move),
+    clip-path 620ms cubic-bezier(0.3, 0, 0.2, 1);
+}
+
+.at-open .onboarding-intro-book {
+  clip-path: inset(0 0 100% 0);
+}
+
+.at-open .onboarding-intro-wordmark,
+.at-open .onboarding-intro-rabbit {
+  visibility: hidden;
+}
+
+.onboarding-intro-book i {
+  position: absolute;
+  left: calc(50% - 270 * var(--onboarding-unit));
+  height: calc(22 * var(--onboarding-unit));
+  border-radius: 999px;
+  background: var(--onboarding-icon-cream);
+  clip-path: inset(0 100% 0 0 round 999px);
+  transition: clip-path 420ms cubic-bezier(0.3, 0, 0.2, 1);
+}
+
+.onboarding-intro-book i:nth-child(1) {
+  top: calc(56 * var(--onboarding-unit));
+  width: calc(600 * var(--onboarding-unit));
+}
+
+.onboarding-intro-book i:nth-child(2) {
+  top: calc(108 * var(--onboarding-unit));
+  width: calc(500 * var(--onboarding-unit));
+}
+
+.onboarding-intro-book i:nth-child(3) {
+  top: calc(160 * var(--onboarding-unit));
+  width: calc(340 * var(--onboarding-unit));
+  background: var(--onboarding-icon-highlight);
+}
+
+.at-line-1 .onboarding-intro-book i:nth-child(1),
+.at-line-2 .onboarding-intro-book i:nth-child(2),
+.at-line-3 .onboarding-intro-book i:nth-child(3) {
+  clip-path: inset(0 0 0 0 round 999px);
+}
+
+/* Sits on both the red opening and the paper screen, so it carries its own scrim. */
+.onboarding-show-skip {
+  position: fixed;
+  right: 24px;
+  bottom: 22px;
+  z-index: 2;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(20 12 10 / 0.42);
+  color: #fff;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.at-rest .onboarding-show-skip {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-stage,
+  .onboarding-stage * {
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+    animation: none !important;
+  }
 }
