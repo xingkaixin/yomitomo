@@ -1,6 +1,7 @@
 .app-island-anchor {
   position: fixed;
-  top: 9px;
+  /* The panel's top edge sits at the 8px shell padding; leave the same 8px below it. */
+  top: 16px;
   right: 0;
   left: 0;
   z-index: var(--app-z-top-overlay);
@@ -8,6 +9,11 @@
   height: 0;
   justify-content: center;
   pointer-events: none;
+}
+
+/* The Windows caption strip pushes the panel's top edge down to 36px. */
+.app-shell.is-win32 .app-island-anchor {
+  top: 44px;
 }
 
 .app-island {
