@@ -15,6 +15,7 @@ import {
   Tick01Icon,
 } from '@hugeicons/core-free-icons';
 import React, { useMemo, useReducer, useRef } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import {
   type ResolvedAppSettings,
   type ArticleRecord,
@@ -258,6 +259,12 @@ export function LibraryHome({
       ? t(`library.total.${singleSelectedType}`, { count: activeItemsLength })
       : t('library.total.all', { count: activeItemsLength });
   const libraryHasItems = Object.values(catalog.itemCounts).some((count) => count > 0);
+  // The direction lives on the mounted panel, not the parent, so the old page does not restart
+  // its entrance while the next page loads.
+  const pagePanelRef = useStableCallback((node: HTMLDivElement) => {
+    const direction = libraryQuery.pageTransition;
+    if (direction !== 'none') node.dataset.pageEnter = direction;
+  });
   const emptyReason = libraryEmptyReason(
     activeCollection
       ? {
@@ -489,9 +496,12 @@ export function LibraryHome({
           id="library-source-panel-all"
           role="tabpanel"
           aria-label={t('library.groups.all')}
-          data-page-transition={libraryQuery.pageTransition}
         >
-          <div className="library-page-panel" key={`${selectedTypesKey}-${page}`}>
+          <div
+            className="library-page-panel"
+            key={`${selectedTypesKey}-${catalog.page}`}
+            ref={pagePanelRef}
+          >
             {catalogState.status === 'loading' && !remoteCatalog ? (
               <LibraryEmptyState
                 icon={<HugeiconsIcon icon={LibraryIcon} size={30} />}
