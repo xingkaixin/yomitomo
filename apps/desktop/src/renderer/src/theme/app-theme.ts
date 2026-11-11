@@ -702,6 +702,8 @@ export function themeToCssVariables(theme: AppTheme): CssVariableMap {
     '--app-interactive-success-bg': theme.interactive.successBackground,
     '--app-interactive-warning-fg': theme.interactive.warningForeground,
     ...alphaVariables('--app-ink', theme.action.primary.background, [4, 6, 8, 16]),
+    ...alphaVariables('--app-panel-top', theme.surface.panel.top, [68]),
+    ...alphaVariables('--app-panel-bottom', theme.surface.panel.bottom, [68]),
     ...alphaVariables('--app-shadow', theme.surface.shadowColor, [6, 12, 16, 24]),
     ...alphaVariables('--app-danger', theme.action.danger.background, [8, 12]),
     ...alphaVariables('--app-brand', theme.interactive.link, [8, 24]),
