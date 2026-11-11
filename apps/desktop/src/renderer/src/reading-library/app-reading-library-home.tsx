@@ -61,6 +61,10 @@ import { CollectionPickerDialog } from './app-reading-library-collection-picker'
 import { LibraryEntityGrid } from './app-reading-library-entity-grid';
 import { CollectionIcon } from './collection-icon';
 import {
+  closeCollectionWithTransition,
+  openCollectionWithTransition,
+} from './collection-list-transition';
+import {
   LibraryImportControls,
   useLibraryImportDialogs,
   type ArticleImportResult,
@@ -207,6 +211,7 @@ export function LibraryHome({
     ? collections.find((collection) => collection.id === pickerCollectionId) || null
     : null;
   const remoteCatalog = catalogState.result;
+  const catalogPending = catalogState.status === 'loading' && !remoteCatalog;
   const selectedTypesKey = useMemo(() => [...selectedTypes].toSorted().join(','), [selectedTypes]);
   const wereadAvailable = availableTypes.includes('weread');
   const activeCollectionMemberCount = activeCollection
@@ -342,7 +347,12 @@ export function LibraryHome({
               className="library-collection-inline-back"
               type="button"
               aria-label={t('library.collection.back')}
-              onClick={libraryQueryActions.closeCollection}
+              onClick={() =>
+                closeCollectionWithTransition(
+                  activeCollection.id,
+                  libraryQueryActions.closeCollection,
+                )
+              }
             >
               <HugeiconsIcon icon={ArrowLeft01Icon} size={16} />
               <span>{t('library.title')}</span>
@@ -500,19 +510,21 @@ export function LibraryHome({
           </div>
         </div>
       </header>
-      <div className="library-home-body" data-list-transition={libraryQuery.listTransition}>
+      <div className="library-home-body">
         <div
           className="library-source-panel"
           id="library-source-panel-all"
           role="tabpanel"
           aria-label={t('library.groups.all')}
+          aria-busy={catalogPending || undefined}
+          data-list-scope={activeCollectionId ?? 'library'}
         >
           <div
             className="library-page-panel"
             key={`${selectedTypesKey}-${catalog.page}`}
             ref={pagePanelRef}
           >
-            {catalogState.status === 'loading' && !remoteCatalog ? (
+            {catalogPending ? (
               <LibraryEmptyState
                 icon={<HugeiconsIcon icon={LibraryIcon} size={30} />}
                 title={t('library.catalog.loading')}
@@ -533,7 +545,10 @@ export function LibraryHome({
                   deleteArticle: (article) => onDeleteArticle(article.id),
                   deleteCollection: (collection) => void deleteCollection(collection.id),
                   openArticle: onOpenArticle,
-                  openCollection: (collection) => libraryQueryActions.openCollection(collection.id),
+                  openCollection: (collection) =>
+                    openCollectionWithTransition(collection.id, () =>
+                      libraryQueryActions.openCollection(collection.id),
+                    ),
                   openCollectionPicker: (collection) =>
                     dispatchOverlay({
                       type: 'collectionPickerOpened',
