@@ -29,7 +29,7 @@ earliest persisted retry time. Orphan cleanup and backfill scan whole tables, so
 startup, after a database restore, and on manual rebuild. Shutdown interrupts waits, joins in-flight
 database leases, and closes the queue. Persisted projection jobs, retry timestamps, and
 database-generation checks remain authoritative. Schedule tests use TestClock via
-the matching `@effect/vitest@4.1.1`; existing Promise-boundary tests retain their timer fixtures.
+the matching `@effect/vitest@4.1.3`; existing Promise-boundary tests retain their timer fixtures.
 
 Embedding requests use Deferred responses and Effect timeouts. A single exit finalizer recycles
 failed or interrupted workers and waits for the operating system's exit event before releasing
@@ -51,6 +51,14 @@ matching Node's previous zero-delay timer behavior.
 The inventory includes both root and subpath imports.
 
 ## Runtime semantics
+
+The `4.1.1` to `4.1.3` source comparison covers every production namespace above and the
+internal runtime implementations. The API inventory and signatures remain compatible. A race now
+interrupts its losers as soon as a winner settles, so the evidence projector's `Queue.take` can no
+longer dequeue a wakeup after losing `Effect.timeoutOption` and drop it. Sliding queues with a
+positive capacity behave as before. Schedule fixes touch `cron`, `fixed`, and `windowed`, not
+`Schedule.spaced`. Schema struct decoding requires an own property only for keys that exist on
+`Object.prototype`.
 
 The `4.1.0` to `4.1.1` source comparison covers every production namespace above and the
 internal runtime implementations. The API inventory and signatures remain compatible. A finished
