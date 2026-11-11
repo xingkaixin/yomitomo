@@ -16,7 +16,12 @@ import { MOONSHOTAI_CN_MODELS } from '@earendil-works/pi-ai/providers/moonshotai
 import { OPENAI_MODELS } from '@earendil-works/pi-ai/providers/openai.models';
 import { XIAOMI_MODELS } from '@earendil-works/pi-ai/providers/xiaomi.models';
 import { ZAI_MODELS } from '@earendil-works/pi-ai/providers/zai.models';
-import type { Agent, LlmProvider, ProviderPresetId } from '@yomitomo/shared';
+import {
+  providerPresets,
+  type Agent,
+  type LlmProvider,
+  type ProviderPresetId,
+} from '@yomitomo/shared';
 import { geminiBaseUrl, openAIBaseUrl } from './provider-urls';
 
 const CONTEXT_WINDOW = 128_000;
@@ -77,15 +82,29 @@ export function piThinkingLevel(provider: LlmProvider): ModelThinkingLevel | und
 }
 
 function piModel(provider: LlmProvider, providerId: string): Model<Api> {
-  const model = fallbackModel(provider, providerId);
-  if (provider.reasoningEffort === 'default') return { ...model, reasoning: false };
   const known = catalogModel(provider);
+  const model = modelWithCapabilities(fallbackModel(provider, providerId), provider, known);
+  const contextWindow = known?.contextWindow ?? CONTEXT_WINDOW;
+  const maxOutput = known?.maxTokens ?? presetMaxOutputTokens(provider) ?? MAX_OUTPUT_TOKENS;
+  // Some models report an output limit as large as their whole window; half of it stays for input.
+  return {
+    ...model,
+    contextWindow,
+    maxTokens: Math.min(maxOutput, Math.floor(contextWindow / 2)),
+  };
+}
+
+function modelWithCapabilities(
+  model: Model<Api>,
+  provider: LlmProvider,
+  known: Model<Api> | undefined,
+): Model<Api> {
+  if (provider.reasoningEffort === 'default') return { ...model, reasoning: false };
   if (!known) return model;
   return {
     ...model,
     reasoning: known.reasoning,
     thinkingLevelMap: known.thinkingLevelMap,
-    contextWindow: known.contextWindow,
     ...(known.api === model.api && { compat: { ...model.compat, ...known.compat } }),
   };
 }
@@ -100,6 +119,11 @@ function catalogModel(provider: LlmProvider): Model<Api> | undefined {
           ? OPENAI_MODELS
           : provider.presetId && PRESET_CATALOGS[provider.presetId];
   return catalog?.[provider.modelName];
+}
+
+function presetMaxOutputTokens(provider: LlmProvider) {
+  const preset = providerPresets.find((item) => item.id === provider.presetId);
+  return preset?.maxOutputTokens?.[provider.modelName];
 }
 
 function fallbackModel(provider: LlmProvider, providerId: string): Model<Api> {

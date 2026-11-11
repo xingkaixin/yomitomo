@@ -41,6 +41,16 @@ export const providerPresets: ProviderPreset[] = [
       'glm-5.3',
       'glm-5.2',
     ],
+    maxOutputTokens: {
+      'qwen3.7-plus': 64_000,
+      'qwen3.8-max': 131_072,
+      'qwen3.8-flash': 131_072,
+      'deepseek-v4.1-flash': 384_000,
+      'kimi-k3': 1_048_576,
+      'kimi-k2.6': 16_384,
+      'glm-5.3': 131_072,
+      'glm-5.2': 128_000,
+    },
   },
   {
     id: 'deepseek',
@@ -91,6 +101,10 @@ export const providerPresets: ProviderPreset[] = [
       'doubao-seed-2-0-mini-260428',
       'deepseek-v4-1-flash-260910',
     ],
+    maxOutputTokens: {
+      'doubao-seed-2-1-turbo-260628': 256_000,
+      'doubao-seed-2-0-mini-260428': 131_072,
+    },
   },
   {
     id: 'mimo',
