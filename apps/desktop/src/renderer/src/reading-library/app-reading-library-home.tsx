@@ -340,7 +340,7 @@ export function LibraryHome({
 
   return (
     <section className="library-home is-mixed" aria-label={t('library.title')}>
-      <header className="library-home-header">
+      <header className="library-home-header" ref={measureLibraryHeader}>
         <div className="library-home-header-main">
           {activeCollection ? (
             <button
@@ -606,79 +606,81 @@ export function LibraryHome({
           </div>
         </div>
       </div>
-      {catalogState.status === 'error' && remoteCatalog ? (
-        <p className="library-inline-error" role="status">
-          {t('library.catalog.loadFailedStale')}
-        </p>
-      ) : null}
-      {activeItemsLength > 0 ? (
-        <footer
-          className={pageCount > 1 ? 'library-home-footer' : 'library-home-footer is-compact'}
-        >
-          {activeCollection ? (
-            <span className="library-collection-footer-label">
-              <strong>{activeCollection.name}</strong>
-              <span className="library-count-stat">
-                <HugeiconsIcon icon={CollectionIcon} size={13} />
-                <span className="library-count-value">{activeCollectionMemberCount}</span>
-              </span>
-            </span>
-          ) : (
-            <span>{footerCountLabel}</span>
-          )}
-          {pageCount > 1 ? (
-            <div className="library-pagination" aria-label={t('library.pagination.label')}>
-              <button
-                type="button"
-                aria-label={t('library.pagination.previous')}
-                disabled={page === 1}
-                onClick={() => libraryQueryActions.changePage(Math.max(1, page - 1))}
-              >
-                <HugeiconsIcon icon={ArrowLeft01Icon} size={16} />
-              </button>
-              {pageNumbers.map((pageNumber) => (
-                <button
-                  className={pageNumber === page ? 'is-active' : undefined}
-                  type="button"
-                  aria-current={pageNumber === page ? 'page' : undefined}
-                  key={pageNumber}
-                  onClick={() => libraryQueryActions.changePage(pageNumber)}
-                >
-                  {pageNumber}
-                </button>
-              ))}
-              <button
-                type="button"
-                aria-label={t('library.pagination.next')}
-                disabled={page === pageCount}
-                onClick={() => libraryQueryActions.changePage(Math.min(pageCount, page + 1))}
-              >
-                <HugeiconsIcon icon={ArrowRight01Icon} size={16} />
-              </button>
-            </div>
-          ) : null}
-          <Select
-            value={String(pageSize)}
-            onValueChange={(value) => libraryQueryActions.changePageSize(Number(value))}
+      <div className="library-home-bottom" ref={measureLibraryBottom}>
+        {catalogState.status === 'error' && remoteCatalog ? (
+          <p className="library-inline-error" role="status">
+            {t('library.catalog.loadFailedStale')}
+          </p>
+        ) : null}
+        {activeItemsLength > 0 ? (
+          <footer
+            className={pageCount > 1 ? 'library-home-footer' : 'library-home-footer is-compact'}
           >
-            <SelectTrigger
-              className="library-page-size-trigger"
-              aria-label={t('library.pagination.pageSize')}
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="theme-select-content">
-              <SelectGroup>
-                {LIBRARY_PAGE_SIZE_OPTIONS.map((option) => (
-                  <SelectItem value={String(option)} key={option}>
-                    {t('library.pagination.pageSizeOption', { count: option })}
-                  </SelectItem>
+            {activeCollection ? (
+              <span className="library-collection-footer-label">
+                <strong>{activeCollection.name}</strong>
+                <span className="library-count-stat">
+                  <HugeiconsIcon icon={CollectionIcon} size={13} />
+                  <span className="library-count-value">{activeCollectionMemberCount}</span>
+                </span>
+              </span>
+            ) : (
+              <span>{footerCountLabel}</span>
+            )}
+            {pageCount > 1 ? (
+              <div className="library-pagination" aria-label={t('library.pagination.label')}>
+                <button
+                  type="button"
+                  aria-label={t('library.pagination.previous')}
+                  disabled={page === 1}
+                  onClick={() => libraryQueryActions.changePage(Math.max(1, page - 1))}
+                >
+                  <HugeiconsIcon icon={ArrowLeft01Icon} size={16} />
+                </button>
+                {pageNumbers.map((pageNumber) => (
+                  <button
+                    className={pageNumber === page ? 'is-active' : undefined}
+                    type="button"
+                    aria-current={pageNumber === page ? 'page' : undefined}
+                    key={pageNumber}
+                    onClick={() => libraryQueryActions.changePage(pageNumber)}
+                  >
+                    {pageNumber}
+                  </button>
                 ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </footer>
-      ) : null}
+                <button
+                  type="button"
+                  aria-label={t('library.pagination.next')}
+                  disabled={page === pageCount}
+                  onClick={() => libraryQueryActions.changePage(Math.min(pageCount, page + 1))}
+                >
+                  <HugeiconsIcon icon={ArrowRight01Icon} size={16} />
+                </button>
+              </div>
+            ) : null}
+            <Select
+              value={String(pageSize)}
+              onValueChange={(value) => libraryQueryActions.changePageSize(Number(value))}
+            >
+              <SelectTrigger
+                className="library-page-size-trigger"
+                aria-label={t('library.pagination.pageSize')}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="theme-select-content">
+                <SelectGroup>
+                  {LIBRARY_PAGE_SIZE_OPTIONS.map((option) => (
+                    <SelectItem value={String(option)} key={option}>
+                      {t('library.pagination.pageSizeOption', { count: option })}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </footer>
+        ) : null}
+      </div>
       {collectionNameDialog ? (
         <CollectionNameDialog
           dialog={collectionNameDialog}
@@ -700,6 +702,25 @@ export function LibraryHome({
     </section>
   );
 }
+
+// The shelf scrolls under the frosted header and bottom bar, so it needs their heights as insets.
+function measureLibraryInset(property: string) {
+  return (element: HTMLElement | null) => {
+    const host = element?.parentElement;
+    if (!element || !host) return;
+    const observer = new ResizeObserver(() =>
+      host.style.setProperty(property, `${element.offsetHeight}px`),
+    );
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+      host.style.removeProperty(property);
+    };
+  };
+}
+
+const measureLibraryHeader = measureLibraryInset('--library-header-height');
+const measureLibraryBottom = measureLibraryInset('--library-bottom-height');
 
 type CollectionNameDialogState = { type: 'create' } | { type: 'rename'; collection: Collection };
 
