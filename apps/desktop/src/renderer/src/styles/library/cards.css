@@ -200,7 +200,6 @@
   grid-template-columns: minmax(120px, 1fr) auto minmax(120px, 1fr);
   align-items: center;
   gap: 12px;
-  border-top: 1px solid var(--app-edge-soft);
   padding: 8px 26px;
 }
 

@@ -3,11 +3,52 @@
   min-height: 0;
   grid-template-rows: auto minmax(0, 1fr) auto;
   background: transparent;
+  timeline-scope: --library-scroll;
 }
 
+.library-home-header,
+.library-home-bottom {
+  position: relative;
+  z-index: 1;
+  backdrop-filter: blur(22px) saturate(170%);
+  animation-timeline: --library-scroll;
+  animation-fill-mode: both;
+  animation-timing-function: linear;
+}
+
+/* The hairline appears only while shelf content sits under the glass. */
 .library-home-header {
   gap: 0;
+  background: var(--app-panel-top-a68);
   padding: 20px 34px 12px;
+  animation-name: library-glass-top-edge;
+  animation-range: 0 12px;
+}
+
+.library-home-bottom {
+  background: var(--app-panel-bottom-a68);
+  animation-name: library-glass-bottom-edge;
+  animation-range: calc(100% - 12px) 100%;
+}
+
+@keyframes library-glass-top-edge {
+  from {
+    box-shadow: inset 0 -1px 0 transparent;
+  }
+
+  to {
+    box-shadow: inset 0 -1px 0 var(--app-edge-soft);
+  }
+}
+
+@keyframes library-glass-bottom-edge {
+  from {
+    box-shadow: inset 0 1px 0 var(--app-edge-soft);
+  }
+
+  to {
+    box-shadow: inset 0 1px 0 transparent;
+  }
 }
 
 .library-home-header-main {
@@ -98,22 +139,28 @@
 }
 
 .library-home-body {
+  position: relative;
+  z-index: 0;
   display: grid;
   min-height: 0;
   grid-template-rows: minmax(0, 1fr);
-  overflow: hidden;
+  overflow-x: clip;
   padding: 0 34px 24px;
 }
 
+/* Extends under the header and bottom bar so the shelf shows through the glass. */
 .library-entity-scroll {
   display: grid;
   align-content: start;
   gap: 20px;
   min-height: 0;
   overflow: auto;
-  /* Room for the card hover shadow, which overflow: auto would clip. */
-  margin: 0 -10px;
-  padding: 4px 10px 16px;
+  scroll-timeline: --library-scroll block;
+  /* Side margin leaves room for the card hover shadow, which overflow: auto would clip. */
+  margin: calc(-1 * var(--library-header-height, 0px)) -10px
+    calc(-24px - var(--library-bottom-height, 0px));
+  padding: calc(var(--library-header-height, 0px) + 4px) 10px
+    calc(var(--library-bottom-height, 0px) + 40px);
 }
 
 .library-source-panel {
