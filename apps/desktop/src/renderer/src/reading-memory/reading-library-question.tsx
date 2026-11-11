@@ -78,15 +78,15 @@ export function ReadingLibraryQuestion({
     !busy;
   const canRetryAnswer =
     ready?.remote === 'failed' || (judgment?.state === 'local' && judgment.reason === 'failed');
-  const canAnswer =
-    ready &&
-    result?.provider &&
-    evidence.length > 0 &&
-    !result.providerChanged &&
-    (canRetryAnswer || (ready.remote === 'idle' && !judgment));
   const recipient = result?.provider
     ? { provider: result.provider.name, model: result.provider.modelName }
     : undefined;
+  const canAnswer =
+    ready &&
+    recipient &&
+    evidence.length > 0 &&
+    !result?.providerChanged &&
+    (canRetryAnswer || (ready.remote === 'idle' && !judgment));
 
   const remote = ready?.remote;
   const motion =
@@ -251,7 +251,7 @@ export function ReadingLibraryQuestion({
               <ShimmeringText text={t('readingMemory.library.answering')} duration={1.6} />
             </p>
           ) : null}
-          {ready?.remote === 'privacy' ? (
+          {ready?.remote === 'privacy' && recipient ? (
             <section
               ref={privacyRef}
               tabIndex={-1}

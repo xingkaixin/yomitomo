@@ -179,7 +179,7 @@ export function ReadingRelationsPanel({
                 })}
               </div>
 
-              {ready?.remote === 'privacy' ? (
+              {ready?.remote === 'privacy' && recipient ? (
                 <section
                   ref={privacyRef}
                   tabIndex={-1}
@@ -239,7 +239,7 @@ export function ReadingRelationsPanel({
                     {t('common.cancel')}
                   </Button>
                 </div>
-              ) : provider && evidence.length > 0 && ready?.remote !== 'privacy' ? (
+              ) : recipient && evidence.length > 0 && ready?.remote !== 'privacy' ? (
                 <Button ref={judgeButtonRef} className="action-button" onClick={() => onJudge()}>
                   {t('readingMemory.relations.judgeWith', recipient)}
                 </Button>
