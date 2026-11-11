@@ -87,6 +87,33 @@ node apps/desktop/scripts/smoke-sparkle.mjs
 历史 `0.15.0 → 0.15.1` 样本的完整 ZIP 约 237 MB，旧 blockmap 估算需下载约 198 MB，
 官方 Sparkle 差分包为 47,930,334 字节（约 48 MB）。实际收益随 Electron、依赖和资源变更而变化。
 
+## 发布前检查（预置模型）
+
+预置供应商和模型列表在 `packages/shared/src/providers/providers.ts`，手工维护。发布前对照 models.dev：
+
+```bash
+pnpm providers:check
+```
+
+脚本只输出报告，不改文件。按供应商列出四类条目，逐条人工处理：
+
+| 条目 | 处理 |
+| --- | --- |
+| `deprecated` | 从 `modelNames` 移除；若是默认的 `modelName`，换成仍在售的模型 |
+| `not listed` | models.dev 未收录，不代表已下线。到供应商文档核实后再决定是否保留 |
+| `new` | 上一个 tag 之后发布的文本模型。是否加入预置、是否设为默认，由产品判断 |
+| `output limit` | `maxOutputTokens` 与 models.dev 不一致或缺失，核实后更新 |
+
+`modelsDevId` 是供应商在 models.dev 的 ID，脚本和花费估算共用。脚本报告找不到该 ID 时会以非零状态退出，
+需先修正映射。
+
+上下文窗口、思考能力和大部分模型的输出上限来自 `@earendil-works/pi-ai` 的内置目录，升级该依赖即更新。
+只有 pi-ai 没有目录的预置（当前为阿里云百炼和火山引擎）在 `maxOutputTokens` 里维护输出上限；
+加入新模型前确认当前 pi-ai 版本的目录已收录它（`dist/providers/data/<供应商>.json`）；未收录时先升级
+pi-ai，否则思考参数按通用规则发送，可能被供应商拒绝。
+两处都查不到的模型使用 128k 上下文和 4096 输出的保守默认值。实际请求的输出上限再取
+`min(模型输出上限, 上下文窗口 / 2)`。
+
 ## 发布前检查（Download Worker）
 
 Download Worker 是官网下载入口和自动更新 feed 的代理层，入口域名为

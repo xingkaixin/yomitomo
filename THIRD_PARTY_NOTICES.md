@@ -116,12 +116,12 @@ Bundled font notices are discovered from:
 | @dnd-kit/geometry | 0.5.3 | MIT | [link](https://github.com/clauderic/dnd-kit#readme) |
 | @dnd-kit/react | 0.5.3 | MIT | [link](https://github.com/clauderic/dnd-kit#readme) |
 | @dnd-kit/state | 0.5.3 | MIT | [link](https://github.com/clauderic/dnd-kit#readme) |
-| @earendil-works/chord | 1.5.0 | MIT | [link](https://github.com/earendil-works/pi#readme) |
-| @earendil-works/pi-ai | 1.5.0 | MIT | [link](https://github.com/earendil-works/pi#readme) |
-| @earendil-works/pi-codemode | 1.5.0 | MIT | [link](https://github.com/earendil-works/pi#readme) |
-| @earendil-works/pi-durable | 1.5.0 | MIT | [link](https://github.com/earendil-works/pi#readme) |
-| @earendil-works/pi-schema | 1.5.0 | MIT | [link](https://github.com/earendil-works/pi#readme) |
-| @earendil-works/pi-telemetry | 1.5.0 | MIT | [link](https://github.com/earendil-works/pi#readme) |
+| @earendil-works/chord | 1.5.2 | MIT | [link](https://github.com/earendil-works/pi#readme) |
+| @earendil-works/pi-ai | 1.5.2 | MIT | [link](https://github.com/earendil-works/pi#readme) |
+| @earendil-works/pi-codemode | 1.5.2 | MIT | [link](https://github.com/earendil-works/pi#readme) |
+| @earendil-works/pi-durable | 1.5.2 | MIT | [link](https://github.com/earendil-works/pi#readme) |
+| @earendil-works/pi-schema | 1.5.2 | MIT | [link](https://github.com/earendil-works/pi#readme) |
+| @earendil-works/pi-telemetry | 1.5.2 | MIT | [link](https://github.com/earendil-works/pi#readme) |
 | @embedpdf/core | 2.15.1 | MIT |  |
 | @embedpdf/engines | 2.15.1 | MIT | [link](https://www.embedpdf.com/docs/engines/introduction) |
 | @embedpdf/fonts-arabic | 1.0.0 | OFL-1.1 | [link](https://www.embedpdf.com/docs) |

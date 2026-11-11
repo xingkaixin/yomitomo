@@ -35,6 +35,9 @@ export type ProviderPreset = {
   logo: string;
   modelNames: string[];
   articleTextBudget: ArticleTextBudgetProfile;
+  modelsDevId: string;
+  // Only for presets whose models the pi-ai catalog does not cover.
+  maxOutputTokens?: Record<string, number>;
 };
 
 export type ProviderModel = {
