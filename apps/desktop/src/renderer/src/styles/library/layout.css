@@ -124,9 +124,18 @@
 }
 
 .library-page-panel {
+  --page-slide-distance: 48px;
+  --page-slide-dur: 280ms;
+  --page-leave-dur: 160ms;
+
   display: grid;
+  grid-area: 1 / 1;
   min-height: 0;
   grid-template-rows: minmax(0, 1fr);
+}
+
+.library-page-panel[data-page-leave] {
+  pointer-events: none;
 }
 
 .library-home-body[data-list-transition='forward'] .library-source-panel {
@@ -139,14 +148,36 @@
   will-change: opacity, transform;
 }
 
-.library-source-panel[data-page-transition='forward'] .library-page-panel {
-  animation: library-page-forward-enter var(--page-slide-dur) var(--page-slide-ease) both;
+.library-page-panel[data-page-enter='forward'] {
+  animation: library-page-forward-enter var(--page-slide-dur) var(--page-slide-ease) 70ms both;
   will-change: opacity, transform;
 }
 
-.library-source-panel[data-page-transition='backward'] .library-page-panel {
-  animation: library-page-backward-enter var(--page-slide-dur) var(--page-slide-ease) both;
+.library-page-panel[data-page-enter='backward'] {
+  animation: library-page-backward-enter var(--page-slide-dur) var(--page-slide-ease) 70ms both;
   will-change: opacity, transform;
+}
+
+.library-page-panel[data-page-leave='forward'] {
+  animation: library-page-forward-leave var(--page-leave-dur) ease-in both;
+}
+
+.library-page-panel[data-page-leave='backward'] {
+  animation: library-page-backward-leave var(--page-leave-dur) ease-in both;
+}
+
+@keyframes library-page-forward-leave {
+  to {
+    opacity: 0;
+    transform: translateX(calc(var(--page-slide-distance) * -1));
+  }
+}
+
+@keyframes library-page-backward-leave {
+  to {
+    opacity: 0;
+    transform: translateX(var(--page-slide-distance));
+  }
 }
 
 .article-book.is-web-cover {
@@ -217,7 +248,7 @@
 @media (prefers-reduced-motion: reduce) {
   .library-bookcase-screen[data-route-transition] .library-shelf-content,
   .library-home-body[data-list-transition] .library-source-panel,
-  .library-source-panel[data-page-transition] .library-page-panel {
+  .library-page-panel[data-page-enter] {
     animation: none !important;
     transform: none;
     will-change: auto;

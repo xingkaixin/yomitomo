@@ -15,6 +15,7 @@ import {
   Tick01Icon,
 } from '@hugeicons/core-free-icons';
 import React, { useMemo, useReducer, useRef } from 'react';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import {
   type ResolvedAppSettings,
   type ArticleRecord,
@@ -188,6 +189,7 @@ export function LibraryHome({
     initialLibraryHomeOverlays,
   );
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const leavingPagePanel = useRef<PagePanelSnapshot | null>(null);
   const {
     actions: libraryQueryActions,
     availableTypes,
@@ -258,6 +260,21 @@ export function LibraryHome({
       ? t(`library.total.${singleSelectedType}`, { count: activeItemsLength })
       : t('library.total.all', { count: activeItemsLength });
   const libraryHasItems = Object.values(catalog.itemCounts).some((count) => count > 0);
+  // The direction lives on the mounted panel, not the parent, so the old page does not restart
+  // its entrance while the next page loads. The old page is gone once React swaps the keyed
+  // panel, so its exit slides a detached copy.
+  const pagePanelRef = useStableCallback((node: HTMLDivElement) => {
+    const direction = libraryQuery.pageTransition;
+    const leaving = leavingPagePanel.current;
+    leavingPagePanel.current = null;
+    if (direction !== 'none') {
+      node.dataset.pageEnter = direction;
+      if (leaving && leaving.source !== node) showLeavingPagePanel(node, leaving, direction);
+    }
+    return () => {
+      leavingPagePanel.current = snapshotPagePanel(node);
+    };
+  });
   const emptyReason = libraryEmptyReason(
     activeCollection
       ? {
@@ -489,9 +506,12 @@ export function LibraryHome({
           id="library-source-panel-all"
           role="tabpanel"
           aria-label={t('library.groups.all')}
-          data-page-transition={libraryQuery.pageTransition}
         >
-          <div className="library-page-panel" key={`${selectedTypesKey}-${page}`}>
+          <div
+            className="library-page-panel"
+            key={`${selectedTypesKey}-${catalog.page}`}
+            ref={pagePanelRef}
+          >
             {catalogState.status === 'loading' && !remoteCatalog ? (
               <LibraryEmptyState
                 icon={<HugeiconsIcon icon={LibraryIcon} size={30} />}
@@ -887,4 +907,31 @@ function libraryEmptyMessage(
     icon: <HugeiconsIcon icon={Search01Icon} size={32} />,
     title: t('library.empty.noMatchTitle'),
   };
+}
+
+type PagePanelSnapshot = { source: HTMLElement; copy: HTMLElement; scrollTop: number };
+
+function snapshotPagePanel(node: HTMLElement): PagePanelSnapshot {
+  return {
+    source: node,
+    copy: node.cloneNode(true) as HTMLElement,
+    scrollTop: node.querySelector('.library-entity-scroll')?.scrollTop ?? 0,
+  };
+}
+
+function showLeavingPagePanel(
+  node: HTMLElement,
+  { copy, scrollTop }: PagePanelSnapshot,
+  direction: 'backward' | 'forward',
+) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  delete copy.dataset.pageEnter;
+  copy.dataset.pageLeave = direction;
+  copy.setAttribute('aria-hidden', 'true');
+  copy.inert = true;
+  node.before(copy);
+  const scroll = copy.querySelector('.library-entity-scroll');
+  if (scroll) scroll.scrollTop = scrollTop;
+  copy.addEventListener('animationend', () => copy.remove(), { once: true });
+  copy.addEventListener('animationcancel', () => copy.remove(), { once: true });
 }
