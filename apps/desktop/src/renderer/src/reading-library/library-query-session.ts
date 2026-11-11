@@ -16,7 +16,6 @@ export type LibraryQuerySessionState = {
   searchQuery: string;
   page: number;
   pageSize: LibraryPageSize;
-  listTransition: LibraryTransitionDirection;
   pageTransition: LibraryTransitionDirection;
 };
 
@@ -55,7 +54,6 @@ export function createLibraryQuerySessionState({
     searchQuery,
     page: normalizePage(page),
     pageSize: normalizeLibraryPageSize(pageSize),
-    listTransition: 'none',
     pageTransition: 'none',
   };
 }
@@ -80,7 +78,6 @@ export function libraryQuerySessionReducer(
         state.scope.kind === 'collection' &&
         state.scope.collectionId === event.collectionId &&
         state.page === 1 &&
-        state.listTransition === 'forward' &&
         state.pageTransition === 'none'
       ) {
         return state;
@@ -90,23 +87,16 @@ export function libraryQuerySessionReducer(
         scope: { kind: 'collection', collectionId: event.collectionId },
         selectedTypes: withoutCollectionType(state.selectedTypes),
         page: 1,
-        listTransition: 'forward',
         pageTransition: 'none',
       };
     case 'collection-closed':
-      if (
-        state.scope.kind === 'library' &&
-        state.page === 1 &&
-        state.listTransition === 'backward' &&
-        state.pageTransition === 'none'
-      ) {
+      if (state.scope.kind === 'library' && state.page === 1 && state.pageTransition === 'none') {
         return state;
       }
       return {
         ...state,
         scope: { kind: 'library' },
         page: 1,
-        listTransition: 'backward',
         pageTransition: 'none',
       };
     case 'collection-removed':
@@ -170,7 +160,6 @@ function resetList(
   const pageSize = values.pageSize ?? state.pageSize;
   if (
     state.page === 1 &&
-    state.listTransition === 'none' &&
     state.pageTransition === 'none' &&
     state.searchQuery === searchQuery &&
     state.pageSize === pageSize &&
@@ -184,7 +173,6 @@ function resetList(
     searchQuery,
     pageSize,
     page: 1,
-    listTransition: 'none',
     pageTransition: 'none',
   };
 }
@@ -224,7 +212,6 @@ function removeMissingCollection(
     ...state,
     scope: { kind: 'library' },
     page: 1,
-    listTransition: 'none',
     pageTransition: 'none',
   };
 }
