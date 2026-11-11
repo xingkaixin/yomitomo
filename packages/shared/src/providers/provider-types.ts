@@ -35,6 +35,7 @@ export type ProviderPreset = {
   logo: string;
   modelNames: string[];
   articleTextBudget: ArticleTextBudgetProfile;
+  modelsDevId: string;
 };
 
 export type ProviderModel = {

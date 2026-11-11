@@ -3,6 +3,7 @@ import type { LlmProvider } from '@yomitomo/shared';
 import {
   errorMessage,
   finiteNumberField,
+  providerPresets,
   trimmedStringField,
   uniqueTrimmedStrings,
 } from '@yomitomo/shared';
@@ -345,11 +346,7 @@ function calculateCostMicros(
 function providerPriceAliases(provider: LlmProvider) {
   return uniqueTrimmedStrings([
     providerIdFromBaseUrl(provider.baseUrl),
-    provider.presetId,
-    provider.presetId === 'mimo' ? 'xiaomi' : undefined,
-    provider.presetId === 'gemini' ? 'google' : undefined,
-    provider.presetId === 'doubao' ? 'volcengine' : undefined,
-    provider.presetId === 'dashscope' ? 'alibaba' : undefined,
+    providerPresets.find((preset) => preset.id === provider.presetId)?.modelsDevId,
     provider.name.toLowerCase().replace(/\s+/g, '-'),
   ]);
 }

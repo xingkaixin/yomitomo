@@ -23,6 +23,7 @@ const ANTHROPIC_ARTICLE_TEXT_BUDGET = {
 export const providerPresets: ProviderPreset[] = [
   {
     id: 'dashscope',
+    modelsDevId: 'alibaba-cn',
     name: '阿里云百炼',
     type: 'openai-chat',
     baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
@@ -40,6 +41,7 @@ export const providerPresets: ProviderPreset[] = [
   },
   {
     id: 'deepseek',
+    modelsDevId: 'deepseek',
     name: '深度求索',
     type: 'openai-chat',
     baseUrl: 'https://api.deepseek.com',
@@ -50,6 +52,7 @@ export const providerPresets: ProviderPreset[] = [
   },
   {
     id: 'moonshot',
+    modelsDevId: 'moonshotai-cn',
     name: '月之暗面',
     type: 'openai-chat',
     baseUrl: 'https://api.moonshot.cn',
@@ -60,6 +63,7 @@ export const providerPresets: ProviderPreset[] = [
   },
   {
     id: 'zhipu',
+    modelsDevId: 'zhipuai',
     name: '智谱开放平台',
     type: 'openai-chat',
     baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
@@ -70,6 +74,7 @@ export const providerPresets: ProviderPreset[] = [
   },
   {
     id: 'doubao',
+    modelsDevId: 'volcengine',
     name: '火山引擎',
     type: 'openai-chat',
     baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
@@ -86,6 +91,7 @@ export const providerPresets: ProviderPreset[] = [
   },
   {
     id: 'mimo',
+    modelsDevId: 'xiaomi',
     name: '小米 MiMo',
     type: 'openai-chat',
     baseUrl: 'https://api.xiaomimimo.com',
@@ -96,6 +102,7 @@ export const providerPresets: ProviderPreset[] = [
   },
   {
     id: 'openai',
+    modelsDevId: 'openai',
     name: 'OpenAI',
     type: 'openai-chat',
     baseUrl: 'https://api.openai.com',
@@ -106,6 +113,7 @@ export const providerPresets: ProviderPreset[] = [
   },
   {
     id: 'anthropic',
+    modelsDevId: 'anthropic',
     name: 'Anthropic',
     type: 'anthropic',
     baseUrl: 'https://api.anthropic.com',
@@ -116,6 +124,7 @@ export const providerPresets: ProviderPreset[] = [
   },
   {
     id: 'gemini',
+    modelsDevId: 'google',
     name: 'Gemini',
     type: 'gemini',
     baseUrl: 'https://generativelanguage.googleapis.com',
