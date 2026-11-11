@@ -373,6 +373,15 @@ function LibraryCollectionCard({
               {item.source === 'weread' ? <WeReadCover book={item.weread} variant="cover" /> : null}
             </div>
           ))}
+          {previewMembers.length === 0
+            ? [0, 1, 2].map((index) => (
+                <span
+                  className="library-collection-crate-ghost"
+                  key={index}
+                  style={{ '--crate-index': index } as React.CSSProperties}
+                />
+              ))
+            : null}
           <span className="library-collection-crate-front" />
         </div>
       }

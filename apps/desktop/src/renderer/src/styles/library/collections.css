@@ -36,6 +36,36 @@
     rotate(calc(var(--crate-rel) * 5deg));
 }
 
+/* 空合集没有成员可抬，hover 时升起三张虚线占位封面，落点与有成员时的扇形一致。 */
+.library-collection-crate-ghost {
+  --crate-rel: calc(var(--crate-index, 0) - 1);
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  z-index: calc(10 - var(--crate-index, 0));
+  width: 82px;
+  height: 100px;
+  box-sizing: border-box;
+  border: 1.5px dashed hsl(var(--muted-foreground) / 0.4);
+  border-radius: 3px;
+  background: hsl(var(--background) / 0.6);
+  opacity: 0;
+  transform-origin: 50% 100%;
+  transform: translateX(-50%) translateX(calc(var(--crate-rel) * 24px)) translateY(18px)
+    rotate(calc(var(--crate-rel) * 5deg));
+  transition:
+    transform 380ms var(--ease-out),
+    opacity 200ms ease-out;
+}
+
+.library-shelf-item:is(:hover, :has(:focus-visible)):not([data-leaving])
+  .library-collection-crate-ghost {
+  opacity: 1;
+  transform: translateX(-50%) translateX(calc(var(--crate-rel) * 24px)) translateY(-8px)
+    rotate(calc(var(--crate-rel) * 5deg));
+  transition-delay: calc(var(--crate-index, 0) * 40ms);
+}
+
 .library-collection-crate-front {
   position: absolute;
   right: 0;
@@ -120,6 +150,13 @@
 @media (prefers-reduced-motion: reduce) {
   .library-collection-crate-member {
     transition: none;
+  }
+
+  .library-collection-crate-ghost,
+  .library-shelf-item:is(:hover, :has(:focus-visible)):not([data-leaving])
+    .library-collection-crate-ghost {
+    transition: opacity 160ms ease-out;
+    transition-delay: 0s;
   }
 }
 
