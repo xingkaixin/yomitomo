@@ -59,12 +59,10 @@ Bundled font notices are discovered from:
 | BlueOak-1.0.0 | 2 |
 | BSD-2-Clause | 9 |
 | BSD-3-Clause | 18 |
-| CC0-1.0 | 1 |
 | ISC | 21 |
 | LGPL-3.0-or-later | 1 |
-| MIT | 225 |
+| MIT | 221 |
 | MIT AND ISC | 1 |
-| MIT-0 | 2 |
 | OFL-1.1 | 11 |
 | Python-2.0 | 1 |
 | Unlicense | 1 |
@@ -74,8 +72,6 @@ Bundled font notices are discovered from:
 | Package | Versions | License | Homepage |
 | --- | --- | --- | --- |
 | @anthropic-ai/sdk | 0.129.0 | MIT | [link](https://github.com/anthropics/anthropic-sdk-typescript#readme) |
-| @asamuzakjp/css-color | 7.1.4 | MIT | [link](https://github.com/asamuzaK/cssColor#readme) |
-| @asamuzakjp/dom-selector | 10.0.5 | MIT | [link](https://github.com/asamuzaK/domSelector#readme) |
 | @aws-sdk/client-bedrock-runtime | 3.1127.0 | Apache-2.0 | [link](https://github.com/aws/aws-sdk-js-v3/tree/main/clients/client-bedrock-runtime) |
 | @aws-sdk/core | 3.978.3 | Apache-2.0 | [link](https://github.com/aws/aws-sdk-js-v3/tree/main/packages-internal/core) |
 | @aws-sdk/credential-provider-env | 3.972.74 | Apache-2.0 | [link](https://github.com/aws/aws-sdk-js-v3/tree/main/packages-internal/credential-provider-env) |
@@ -102,13 +98,6 @@ Bundled font notices are discovered from:
 | @babel/types | 7.29.8 | MIT | [link](https://babel.dev/docs/en/next/babel-types) |
 | @base-ui/react | 1.9.0 | MIT | [link](https://base-ui.com) |
 | @base-ui/utils | 0.5.0 | MIT | [link](https://github.com/mui/base-ui#readme) |
-| @bramus/specificity | 2.4.2 | MIT | [link](https://github.com/bramus/specificity#readme) |
-| @csstools/color-helpers | 6.1.2 | MIT-0 | [link](https://github.com/csstools/postcss-plugins/tree/main/packages/color-helpers#readme) |
-| @csstools/css-calc | 3.4.3 | MIT | [link](https://github.com/csstools/postcss-plugins/tree/main/packages/css-calc#readme) |
-| @csstools/css-color-parser | 4.2.6 | MIT | [link](https://github.com/csstools/postcss-plugins/tree/main/packages/css-color-parser#readme) |
-| @csstools/css-parser-algorithms | 4.0.2 | MIT | [link](https://github.com/csstools/postcss-plugins/tree/main/packages/css-parser-algorithms#readme) |
-| @csstools/css-syntax-patches-for-csstree | 1.1.15 | MIT-0 | [link](https://github.com/csstools/postcss-plugins/tree/main/packages/css-syntax-patches-for-csstree#readme) |
-| @csstools/css-tokenizer | 4.0.2 | MIT | [link](https://github.com/csstools/postcss-plugins/tree/main/packages/css-tokenizer#readme) |
 | @date-fns/tz | 1.5.0 | MIT | [link](https://github.com/date-fns/date-fns#readme) |
 | @dnd-kit/abstract | 0.5.3 | MIT | [link](https://github.com/clauderic/dnd-kit#readme) |
 | @dnd-kit/collision | 0.5.3 | MIT | [link](https://github.com/clauderic/dnd-kit#readme) |
@@ -190,8 +179,8 @@ Bundled font notices are discovered from:
 | @standard-schema/spec | 1.1.0 | MIT | [link](https://standardschema.dev) |
 | @standard-schema/utils | 0.3.0 | MIT | [link](https://github.com/standard-schema/standard-schema#readme) |
 | @sveltejs/acorn-typescript | 1.0.10 | MIT | [link](https://github.com/sveltejs/acorn-typescript#readme) |
-| @tanstack/query-core | 5.105.1 | MIT | [link](https://tanstack.com/query) |
-| @tanstack/react-query | 5.105.1 | MIT | [link](https://tanstack.com/query) |
+| @tanstack/query-core | 5.107.1 | MIT | [link](https://tanstack.com/query) |
+| @tanstack/react-query | 5.107.1 | MIT | [link](https://tanstack.com/query) |
 | @vue/compiler-core | 3.5.34 | MIT | [link](https://github.com/vuejs/core/tree/main/packages/compiler-core#readme) |
 | @vue/compiler-dom | 3.5.34 | MIT | [link](https://github.com/vuejs/core/tree/main/packages/compiler-dom#readme) |
 | @vue/compiler-sfc | 3.5.34 | MIT | [link](https://github.com/vuejs/core/tree/main/packages/compiler-sfc#readme) |
@@ -209,9 +198,10 @@ Bundled font notices are discovered from:
 | aria-query | 5.3.1 | Apache-2.0 | [link](https://github.com/A11yance/aria-query#readme) |
 | axobject-query | 4.1.0 | Apache-2.0 | [link](https://github.com/A11yance/axobject-query#readme) |
 | base64-js | 1.5.1 | MIT | [link](https://github.com/beatgammit/base64-js) |
+| bcp-47 | 2.1.2 | MIT | [link](https://github.com/wooorm/bcp-47#readme) |
+| bcp-47-match | 2.0.3 | MIT | [link](https://github.com/wooorm/bcp-47-match#readme) |
 | better-sqlite3 | 13.0.3 | MIT | [link](http://github.com/WiseLibs/better-sqlite3) |
 | better-sqlite3 | 13.0.3 | MIT | [link](http://github.com/WiseLibs/better-sqlite3) |
-| bidi-js | 1.1.0 | MIT | [link](https://github.com/lojjic/bidi-js#readme) |
 | bignumber.js | 9.3.1 | MIT | [link](https://github.com/MikeMcl/bignumber.js#readme) |
 | bindings | 1.5.0 | MIT | [link](https://github.com/TooTallNate/node-bindings) |
 | boolbase | 2.0.0 | ISC | [link](https://github.com/fb55/boolbase) |
@@ -224,7 +214,6 @@ Bundled font notices are discovered from:
 | commander | 12.1.0 | MIT | [link](https://github.com/tj/commander.js#readme) |
 | core-util-is | 1.0.3 | MIT | [link](https://github.com/isaacs/core-util-is#readme) |
 | css-select | 7.0.0 | BSD-2-Clause | [link](https://github.com/fb55/css-select#readme) |
-| css-tree | 3.2.1 | MIT | [link](https://github.com/csstree/csstree#readme) |
 | css-what | 8.0.0 | BSD-2-Clause | [link](https://github.com/fb55/css-what#readme) |
 | cssom | 0.5.0 | MIT | [link](https://github.com/NV/CSSOM#readme) |
 | csstype | 3.2.3 | MIT | [link](https://github.com/frenic/csstype#readme) |
@@ -259,9 +248,9 @@ Bundled font notices are discovered from:
 | domutils | 3.2.2, 4.0.2 | BSD-2-Clause | [link](https://github.com/fb55/domutils#readme) |
 | drizzle-orm | 0.45.4 | Apache-2.0 | [link](https://orm.drizzle.team) |
 | ecdsa-sig-formatter | 1.0.11 | Apache-2.0 | [link](https://github.com/Brightspace/node-ecdsa-sig-formatter#readme) |
-| effect | 4.1.1 | MIT | [link](https://effect.website) |
+| effect | 4.1.3 | MIT | [link](https://effect.website) |
 | electron-updater | 6.8.11 | MIT | [link](https://github.com/electron-userland/electron-builder) |
-| entities | 4.5.0, 7.0.1, 8.0.0 | BSD-2-Clause | [link](https://github.com/fb55/entities#readme) |
+| entities | 4.5.0, 7.0.1, 8.0.0, 9.0.0 | BSD-2-Clause | [link](https://github.com/fb55/entities#readme) |
 | es-define-property | 1.0.1 | MIT | [link](https://github.com/ljharb/es-define-property#readme) |
 | es-errors | 1.3.0 | MIT | [link](https://github.com/ljharb/es-errors#readme) |
 | es-toolkit | 1.52.0 | MIT | [link](https://es-toolkit.dev) |
@@ -279,7 +268,7 @@ Bundled font notices are discovered from:
 | flatbuffers | 25.9.23 | Apache-2.0 | [link](https://google.github.io/flatbuffers/) |
 | foliate-js | vendored 78914ae | MIT | [link](https://github.com/johnfactotum/foliate-js) |
 | formdata-polyfill | 4.0.10 | MIT | [link](https://github.com/jimmywarting/FormData#readme) |
-| framer-motion | 14.9.0 | MIT |  |
+| framer-motion | 14.11.1 | MIT |  |
 | fs-extra | 10.1.0 | MIT | [link](https://github.com/jprichardson/node-fs-extra) |
 | gaxios | 7.3.1 | Apache-2.0 | [link](https://github.com/googleapis/google-cloud-node/tree/main/core/packages/gaxios) |
 | gcp-metadata | 8.1.2 | Apache-2.0 | [link](https://github.com/googleapis/google-cloud-node-core/tree/main/packages/gcp-metadata) |
@@ -297,18 +286,21 @@ Bundled font notices are discovered from:
 | htmlparser2 | 10.1.0 | MIT | [link](https://github.com/fb55/htmlparser2#readme) |
 | http-proxy-agent | 9.1.0 | MIT | [link](https://github.com/TooTallNate/proxy-agents#readme) |
 | https-proxy-agent | 7.0.6, 9.1.0 | MIT | [link](https://github.com/TooTallNate/proxy-agents#readme) |
-| i18next | 26.7.1 | MIT | [link](https://www.i18next.com) |
+| i18next | 27.1.0 | MIT | [link](https://www.i18next.com) |
 | immediate | 3.0.6 | MIT | [link](https://github.com/calvinmetcalf/immediate#readme) |
 | immer | 11.1.18 | MIT | [link](https://github.com/immerjs/immer#readme) |
 | inherits | 2.0.4 | ISC | [link](https://github.com/isaacs/inherits#readme) |
 | input-otp | 1.5.0 | MIT | [link](https://input-otp.rodz.dev/) |
 | internmap | 2.0.3 | ISC | [link](https://github.com/mbostock/internmap/) |
+| is-alphabetical | 2.0.1 | MIT | [link](https://github.com/wooorm/is-alphabetical#readme) |
+| is-alphanumerical | 2.0.1 | MIT | [link](https://github.com/wooorm/is-alphanumerical#readme) |
+| is-decimal | 2.0.1 | MIT | [link](https://github.com/wooorm/is-decimal#readme) |
 | is-potential-custom-element-name | 1.0.1 | MIT | [link](https://github.com/mathiasbynens/is-potential-custom-element-name) |
 | is-reference | 3.0.3 | MIT | [link](https://github.com/Rich-Harris/is-reference#readme) |
 | isarray | 1.0.0 | MIT | [link](https://github.com/juliangruber/isarray) |
 | JetBrains Mono | 2.304 | OFL-1.1 | [link](https://github.com/JetBrains/JetBrainsMono) |
 | js-yaml | 4.3.2 | MIT | [link](https://github.com/nodeca/js-yaml#readme) |
-| jsdom | 30.1.3 | MIT | [link](https://github.com/jsdom/jsdom#readme) |
+| jsdom | 31.0.0 | MIT | [link](https://github.com/jsdom/jsdom#readme) |
 | json-bigint | 1.0.0 | MIT | [link](https://github.com/sidorares/json-bigint#readme) |
 | json-schema-to-ts | 3.1.1 | MIT | [link](https://github.com/ThomasAribart/json-schema-to-ts#readme) |
 | json-stringify-safe | 5.0.1 | ISC | [link](https://github.com/isaacs/json-stringify-safe) |
@@ -327,11 +319,10 @@ Bundled font notices are discovered from:
 | magic-string | 0.30.21 | MIT | [link](https://github.com/Rich-Harris/magic-string#readme) |
 | matcher | 3.0.0 | MIT | [link](https://github.com/sindresorhus/matcher#readme) |
 | mathml-to-latex | 1.8.0 | MIT | [link](https://github.com/asnunes/mathml-to-latex#readme) |
-| mdn-data | 2.27.1 | CC0-1.0 | [link](https://developer.mozilla.org) |
-| motion-dom | 14.9.0 | MIT | [link](https://github.com/motiondivision/motion#readme) |
+| motion-dom | 14.11.1 | MIT | [link](https://github.com/motiondivision/motion#readme) |
 | motion-utils | 14.7.0 | MIT | [link](https://github.com/motiondivision/motion#readme) |
 | ms | 2.1.3 | MIT | [link](https://github.com/vercel/ms#readme) |
-| nanoid | 3.3.18 | MIT | [link](https://github.com/ai/nanoid#readme) |
+| nanoid | 3.3.20 | MIT | [link](https://github.com/ai/nanoid#readme) |
 | node-addon-api | 8.9.2 | MIT | [link](https://github.com/nodejs/node-addon-api) |
 | node-addon-api | 8.9.2 | MIT | [link](https://github.com/nodejs/node-addon-api) |
 | node-domexception | 1.0.0 | MIT | [link](https://github.com/jimmywarting/node-domexception#readme) |
@@ -346,7 +337,8 @@ Bundled font notices are discovered from:
 | openai | 7.19.0 | Apache-2.0 | [link](https://github.com/openai/openai-node#readme) |
 | p-retry | 4.6.2 | MIT | [link](https://github.com/sindresorhus/p-retry#readme) |
 | pako | 1.0.11 | (MIT AND Zlib) | [link](https://github.com/nodeca/pako) |
-| parse5 | 8.0.1 | MIT | [link](https://parse5.js.org) |
+| parse5 | 8.1.1 | MIT | [link](https://parse5.js.org) |
+| parse5-parser-stream | 8.1.1 | MIT | [link](https://parse5.js.org) |
 | partial-json | 0.1.7 | MIT | [link](https://promplate.dev/partial-json-parser) |
 | picocolors | 1.1.1 | ISC | [link](https://github.com/alexeyraspopov/picocolors#readme) |
 | platform | 1.3.6 | MIT | [link](https://github.com/bestiejs/platform.js#readme) |
@@ -360,14 +352,13 @@ Bundled font notices are discovered from:
 | react | 19.3.1 | MIT | [link](https://react.dev/) |
 | react-day-picker | 10.0.2 | MIT | [link](https://daypicker.dev) |
 | react-dom | 19.3.1 | MIT | [link](https://react.dev/) |
-| react-i18next | 17.1.11 | MIT | [link](https://github.com/i18next/react-i18next) |
+| react-i18next | 18.0.1 | MIT | [link](https://github.com/i18next/react-i18next) |
 | react-is | 17.0.2 | MIT | [link](https://reactjs.org/) |
 | react-redux | 9.3.0 | MIT | [link](https://github.com/reduxjs/react-redux) |
 | readable-stream | 2.3.8 | MIT | [link](https://github.com/nodejs/readable-stream#readme) |
 | recharts | 3.10.1 | MIT | [link](https://github.com/recharts/recharts) |
 | redux | 5.0.1 | MIT | [link](http://redux.js.org) |
 | redux-thunk | 3.1.0 | MIT | [link](https://github.com/reduxjs/redux-thunk) |
-| require-from-string | 2.0.2 | MIT | [link](https://github.com/floatdrop/require-from-string#readme) |
 | reselect | 5.2.0, 5.3.0 | MIT | [link](https://github.com/reduxjs/reselect#readme) |
 | retry | 0.13.1 | MIT | [link](https://github.com/tim-kos/node-retry) |
 | roarr | 2.15.4 | BSD-3-Clause | [link](https://github.com/gajus/roarr#readme) |
@@ -388,7 +379,7 @@ Bundled font notices are discovered from:
 | supports-color | 10.2.2 | MIT | [link](https://github.com/chalk/supports-color#readme) |
 | svelte | 5.55.9 | MIT | [link](https://svelte.dev) |
 | tailwind-merge | 3.7.0 | MIT | [link](https://github.com/dcastil/tailwind-merge) |
-| tailwindcss | 4.3.3 | MIT | [link](https://tailwindcss.com) |
+| tailwindcss | 4.3.5 | MIT | [link](https://tailwindcss.com) |
 | temml | 0.13.5 | MIT | [link](https://temml.org) |
 | tiny-invariant | 1.3.3 | MIT | [link](https://github.com/alexreardon/tiny-invariant#readme) |
 | tiny-typed-emitter | 2.1.0 | MIT | [link](https://github.com/binier/tiny-typed-emitter#readme) |
@@ -401,7 +392,7 @@ Bundled font notices are discovered from:
 | turndown | 7.2.4 | MIT | [link](https://github.com/mixmark-io/turndown#readme) |
 | type-fest | 0.13.1 | (MIT OR CC0-1.0) | [link](https://github.com/sindresorhus/type-fest#readme) |
 | uhyphen | 0.2.0 | ISC | [link](https://github.com/WebReflection/uhyphen#readme) |
-| undici | 8.12.3 | MIT | [link](https://undici.nodejs.org) |
+| undici | 8.12.3, 8.12.4 | MIT | [link](https://undici.nodejs.org) |
 | universalify | 2.0.1 | MIT | [link](https://github.com/RyanZim/universalify#readme) |
 | use-sync-external-store | 1.6.0, 1.7.0 | MIT | [link](https://github.com/react/react#readme) |
 | util-deprecate | 1.0.2 | MIT | [link](https://github.com/TooTallNate/util-deprecate) |
@@ -411,10 +402,10 @@ Bundled font notices are discovered from:
 | web-streams-polyfill | 3.3.3 | MIT | [link](https://github.com/MattiasBuelens/web-streams-polyfill#readme) |
 | webidl-conversions | 8.0.1 | BSD-2-Clause | [link](https://github.com/jsdom/webidl-conversions#readme) |
 | whatwg-mimetype | 5.0.0 | MIT | [link](https://github.com/jsdom/whatwg-mimetype#readme) |
-| whatwg-url | 17.2.0 | MIT | [link](https://github.com/jsdom/whatwg-url#readme) |
+| whatwg-url | 17.3.0 | MIT | [link](https://github.com/jsdom/whatwg-url#readme) |
 | ws | 8.21.0 | MIT | [link](https://github.com/websockets/ws) |
 | xml-name-validator | 5.0.0 | Apache-2.0 | [link](https://github.com/jsdom/xml-name-validator#readme) |
 | xmlchars | 2.2.0 | MIT | [link](https://github.com/lddubeau/xmlchars#readme) |
 | zimmerframe | 1.1.4 | MIT | [link](https://github.com/sveltejs/zimmerframe#readme) |
 | zod | 4.6.7 | MIT | [link](https://zod.dev) |
-| zustand | 5.0.16 | MIT | [link](https://github.com/pmndrs/zustand) |
+| zustand | 5.1.0 | MIT | [link](https://github.com/pmndrs/zustand) |
