@@ -1,6 +1,23 @@
-import type { MouseEvent } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import { parseAssistantReference } from '@yomitomo/shared';
 import { getOptionalDesktopApi } from './app-desktop-api';
+
+export function AssistantReferenceText({ text }: { text: string }) {
+  const parts: ReactNode[] = [];
+  let cursor = 0;
+  for (const match of text.matchAll(/\[([^\]\n]+)\]\((#[^)\s]+)\)/g)) {
+    if (!parseAssistantReference(match[2])) continue;
+    parts.push(text.slice(cursor, match.index));
+    parts.push(
+      <a href={match[2]} key={match.index}>
+        {match[1]}
+      </a>,
+    );
+    cursor = match.index + match[0].length;
+  }
+  parts.push(text.slice(cursor));
+  return <>{parts}</>;
+}
 
 export function openAssistantReference(articleId: string, href: string) {
   const reference = parseAssistantReference(href);

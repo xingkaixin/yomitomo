@@ -2,8 +2,10 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import {
   CloudUploadIcon,
   RotateLeft01Icon,
+  PencilEdit01Icon,
   SentIcon,
   SparklesIcon,
+  Tick01Icon,
 } from '@hugeicons/core-free-icons';
 import type { CSSProperties } from 'react';
 import type { Annotation, ArticleRecord, UserProfile } from '@yomitomo/shared';
@@ -18,9 +20,11 @@ import {
   SubmitShortcutTooltipContent,
 } from '@yomitomo/reader-ui/reader-component-primitives';
 import { useSourceAwareWindowTransition } from '../shell/app-window-transition';
+import { openAssistantReferenceFromClick } from '../shell/app-assistant-references';
 import {
   DraftAnchorHighlightLayer,
   DraftChangePreviewLayer,
+  DraftDocument,
 } from './app-annotation-sedimentation-draft-preview';
 import {
   OrganizeDiscussionCard,
@@ -113,6 +117,7 @@ function SedimentationShell({
       <main
         className={[sedimentationWindowClassName(), className].filter(Boolean).join(' ')}
         style={style}
+        onClick={(event) => openAssistantReferenceFromClick(event, article.id)}
       >
         <section className="annotation-sedimentation-quote" aria-label={t('sedimentation.quote')}>
           <span aria-hidden="true">“</span>
@@ -122,6 +127,7 @@ function SedimentationShell({
           <section
             className="annotation-sedimentation-document"
             aria-label={t('sedimentation.document')}
+            onKeyDown={draft.handlePublishKeyDown}
           >
             <header>
               <div className="annotation-sedimentation-document-title">
@@ -133,6 +139,25 @@ function SedimentationShell({
                 </span>
               </div>
               <div className="annotation-sedimentation-document-actions">
+                <ReaderTooltip
+                  content={
+                    draft.editing ? t('sedimentation.finishEditing') : t('sedimentation.editDraft')
+                  }
+                >
+                  <button
+                    className="is-secondary is-icon"
+                    type="button"
+                    disabled={Boolean(draft.preview) || !draft.value.trim()}
+                    onClick={draft.toggleEditing}
+                    aria-label={
+                      draft.editing
+                        ? t('sedimentation.finishEditing')
+                        : t('sedimentation.editDraft')
+                    }
+                  >
+                    <HugeiconsIcon icon={draft.editing ? Tick01Icon : PencilEdit01Icon} size={15} />
+                  </button>
+                </ReaderTooltip>
                 {publication.isPublished ? (
                   <ReaderTooltip
                     content={
@@ -192,44 +217,41 @@ function SedimentationShell({
               </div>
             </header>
             <div className="annotation-sedimentation-draft-workspace">
-              <div
-                className={[
-                  'annotation-sedimentation-draft-editor',
-                  draft.preview ? 'has-preview' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-              >
+              <div className="annotation-sedimentation-draft-editor">
                 {draft.preview ? (
                   <DraftChangePreviewLayer
                     changeSet={draft.preview.changeSet}
                     decisions={draft.preview.decisions}
-                    scrollLeft={draft.scroll.left}
-                    scrollTop={draft.scroll.top}
+                    previewRef={draft.previewRef}
+                    onNavigate={draft.navigatePreview}
                     onDecision={(proposalId, decision) =>
                       void draft.decidePreview(proposalId, decision)
                     }
                   />
-                ) : draft.hoveredAnchor ? (
-                  <DraftAnchorHighlightLayer
-                    anchor={draft.hoveredAnchor}
-                    draft={draft.value}
-                    scrollLeft={draft.scroll.left}
-                    scrollTop={draft.scroll.top}
-                  />
-                ) : null}
-                <textarea
-                  ref={draft.textareaRef}
-                  value={draft.value}
-                  readOnly={Boolean(draft.preview)}
-                  placeholder={draft.preview ? '' : t('sedimentation.draftPlaceholder')}
-                  onChange={(event) => draft.change(event.target.value)}
-                  onClick={draft.recordSelection}
-                  onKeyDown={draft.handlePublishKeyDown}
-                  onKeyUp={draft.recordSelection}
-                  onScroll={draft.syncScroll}
-                  onSelect={draft.recordSelection}
-                />
+                ) : !draft.editing && draft.value.trim() ? (
+                  <DraftDocument draft={draft.value} />
+                ) : (
+                  <>
+                    {draft.hoveredAnchor ? (
+                      <DraftAnchorHighlightLayer
+                        anchor={draft.hoveredAnchor}
+                        draft={draft.value}
+                        scrollLeft={draft.scroll.left}
+                        scrollTop={draft.scroll.top}
+                      />
+                    ) : null}
+                    <textarea
+                      ref={draft.textareaRef}
+                      value={draft.value}
+                      placeholder={t('sedimentation.draftPlaceholder')}
+                      onChange={(event) => draft.change(event.target.value)}
+                      onClick={draft.recordSelection}
+                      onKeyUp={draft.recordSelection}
+                      onScroll={draft.syncScroll}
+                      onSelect={draft.recordSelection}
+                    />
+                  </>
+                )}
               </div>
               {organize.state.type !== 'idle' ? (
                 <OrganizeDiscussionCard
@@ -267,8 +289,8 @@ function SedimentationShell({
               pendingProposalIds={review.pendingProposalIds}
               onProposalAnchorEnter={draft.enterProposalAnchor}
               onProposalAnchorLeave={draft.leaveProposalAnchor}
-              onProposalPreview={(messageId, proposals) => {
-                review.previewProposals(messageId, proposals);
+              onProposalPreview={(messageId, proposals, proposalId) => {
+                review.previewProposals(messageId, proposals, true, proposalId);
               }}
               onProposalIgnore={review.ignoreProposal}
               onProposalRestore={review.restoreProposal}

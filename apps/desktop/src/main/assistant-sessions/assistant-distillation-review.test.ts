@@ -9,7 +9,12 @@ import {
 } from '@earendil-works/pi-ai/providers/faux';
 import { createRegistry } from '@earendil-works/pi-durable';
 import { piModelRef } from '@yomitomo/ai';
-import type { Agent, AgentMessagePayload, LlmProvider } from '@yomitomo/shared';
+import type {
+  Agent,
+  AgentMessagePayload,
+  AnnotationDistillationReviewItem,
+  LlmProvider,
+} from '@yomitomo/shared';
 import { afterEach, expect, it, vi } from 'vitest';
 import { createDistillationReview } from './assistant-distillation-review';
 import { createAssistantSessionStore } from './assistant-session-store';
@@ -31,7 +36,9 @@ it('collects review items from tool calls and returns invalid items to the model
   });
   const review = createDistillationReview({
     store,
-    articleText: async () => undefined,
+    articleText: async () => ({ text: '第一段。\n\n第二段证据。', sections: [] }),
+    findDiscussion: (articleId, id) =>
+      id === 'comment_1' ? { annotationId: 'annotation_1', quote: '原文' } : undefined,
     articleMeta: () => ({ title: 'Article' }),
     registerProvider: async () => models.setProvider(faux.provider),
   });
@@ -46,7 +53,7 @@ it('collects review items from tool calls and returns invalid items to the model
         fauxToolCall('add_review_item', {
           type: 'overview',
           stance: 'mixed',
-          content: '证据不足。',
+          content: '证据见 b1-b2。',
         }),
         fauxToolCall('add_review_item', { type: 'proposal', kind: 'replace', title: '改写' }),
       ],
@@ -58,24 +65,49 @@ it('collects review items from tool calls and returns invalid items to the model
         for (const part of message.content) if (part.type === 'text') toolResults.push(part.text);
       }
       return fauxAssistantMessage(
-        fauxToolCall('add_review_item', {
-          type: 'proposal',
-          kind: 'insert',
-          title: '补证据',
-          content: '补一条证据。',
-        }),
+        [
+          fauxToolCall('add_review_item', {
+            type: 'proposal',
+            kind: 'insert',
+            title: '补证据',
+            content: '补一条证据，见 b2。',
+          }),
+          fauxToolCall('add_review_item', {
+            type: 'proposal',
+            kind: 'replace',
+            title: '修正判断',
+            targetText: '草稿 b2 中的判断。',
+            insertAfterText: '草稿 b1。',
+            replacementText: '参见[原文证据](#b2)和 comment_1。',
+            rationale: 'b2 需要核对。',
+          }),
+        ],
         { stopReason: 'toolUse' },
       );
     },
     fauxAssistantMessage('已提交'),
   ]);
-  const onItem = vi.fn();
+  const streamed: AnnotationDistillationReviewItem[] = [];
+  const onItem = (item: AnnotationDistillationReviewItem) => streamed.push(item);
 
   const result = await review.run({ articleId: 'article_1', resolved, payload, onItem });
 
-  expect(result.items.map((item) => item.type)).toEqual(['overview', 'proposal']);
-  expect(result.proposals).toEqual([expect.objectContaining({ kind: 'insert', title: '补证据' })]);
-  expect(onItem).toHaveBeenCalledTimes(2);
+  expect(result.items.map((item) => item.type)).toEqual(['overview', 'proposal', 'proposal']);
+  expect(result.items[0]).toMatchObject({ content: '证据见 [「第一段。」](#passage:0-12)。' });
+  expect(result.proposals).toEqual([
+    expect.objectContaining({
+      kind: 'insert',
+      content: '补一条证据，见 [「第二段证据。」](#passage:6-12)。',
+    }),
+    expect.objectContaining({
+      kind: 'replace',
+      targetText: '草稿 b2 中的判断。',
+      insertAfterText: '草稿 b1。',
+      replacementText: '参见[原文证据](#passage:6-12)和 [「原文」](#discussion:annotation_1)。',
+      rationale: '[「第二段证据。」](#passage:6-12) 需要核对。',
+    }),
+  ]);
+  expect(streamed).toEqual(result.items);
   expect(toolResults).toEqual(['已记录。', expect.stringContaining('proposal fields')]);
   await store.dispose();
 });

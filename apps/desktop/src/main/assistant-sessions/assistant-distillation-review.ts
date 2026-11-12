@@ -29,6 +29,7 @@ import {
   type ResolvedChannelAgent,
 } from './assistant-channel-runtime';
 import { RunContextDoc } from './assistant-reading-extension';
+import { resolveReplyLinks } from './assistant-reply-links';
 
 const context = BACKGROUND_CONTEXT;
 
@@ -45,7 +46,7 @@ type ItemListener = (value: unknown) => string | undefined;
 // Each review runs in a fork of the reviewer's own conversation in the article, so it shares what
 // the reviewer already discussed there; items arrive one tool call at a time.
 export function createDistillationReview(
-  ports: Pick<AssistantChannelPorts, 'store' | 'articleText' | 'articleMeta'> & {
+  ports: Pick<AssistantChannelPorts, 'store' | 'articleText' | 'articleMeta' | 'findDiscussion'> & {
     registerProvider: (resolved: ResolvedChannelAgent) => Promise<void>;
   },
 ) {
@@ -76,11 +77,14 @@ export function createDistillationReview(
     return ports.store.use(request.articleId, async (harness) => {
       const fork = await openReview(harness, request, text);
       const items: AnnotationDistillationReviewItem[] = [];
+      const resolveLinks = (content: string) =>
+        resolveReplyLinks(content, text, (id) => ports.findDiscussion(request.articleId, id));
       listeners.set(fork.id, (value) => {
         const parsed = parseDistillationReviewItem(value);
         if ('error' in parsed) return parsed.error;
-        items.push(parsed.item);
-        request.onItem(parsed.item);
+        const item = resolveReviewItemLinks(parsed.item, resolveLinks);
+        items.push(item);
+        request.onItem(item);
         return undefined;
       });
       const abort = () => void fork.abort(context);
@@ -158,4 +162,26 @@ export function createDistillationReview(
   }
 
   return { extension, run };
+}
+
+function resolveReviewItemLinks(
+  item: AnnotationDistillationReviewItem,
+  resolve: (text: string) => string,
+): AnnotationDistillationReviewItem {
+  if (item.type === 'overview') return { ...item, content: resolve(item.content) };
+  if (item.type === 'finding') {
+    return { ...item, title: resolve(item.title), content: resolve(item.content) };
+  }
+  // Anchor text must match the user's draft verbatim; resolve only generated prose.
+  const proposal = item.proposal;
+  return {
+    ...item,
+    proposal: {
+      ...proposal,
+      title: resolve(proposal.title),
+      rationale: proposal.rationale ? resolve(proposal.rationale) : undefined,
+      content: proposal.content ? resolve(proposal.content) : undefined,
+      replacementText: proposal.replacementText ? resolve(proposal.replacementText) : undefined,
+    },
+  };
 }
