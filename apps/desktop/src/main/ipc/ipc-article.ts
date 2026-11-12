@@ -6,7 +6,11 @@ import {
   createArticleTranslationRuntime,
   type ArticleTranslationRuntimeContext,
 } from '../articles/article-translation-runtime';
-import { removeArticleAssistantSession } from '../assistant-sessions/assistant-session-lifecycle';
+import {
+  assistantArticleTexts,
+  removeArticleAssistantSession,
+} from '../assistant-sessions/assistant-session-lifecycle';
+import { resolveArticleReplyLinks } from '../assistant-sessions/assistant-reply-links';
 import type { DesktopMainIpcContext } from './ipc';
 import { handleDesktopIpc } from './ipc';
 import { sendDesktopIpcRendererEvent } from './ipc-events';
@@ -56,7 +60,16 @@ export function registerArticleIpc(context: ArticleIpcContext) {
   const translationRuntime = createArticleTranslationRuntime(context);
   handleDesktopIpc('article:get', async (_event, id) => {
     const { storeArticles: articlePersistence } = await context.getPersistenceModules();
-    return articlePersistence.readArticle(id);
+    const article = await articlePersistence.readArticle(id);
+    if (
+      !article ||
+      !article.annotations.some((annotation) =>
+        annotation.comments.some((comment) => comment.author.kind === 'agent'),
+      )
+    )
+      return article;
+    const snapshot = await assistantArticleTexts.load(id).catch(() => undefined);
+    return snapshot ? resolveArticleReplyLinks(article, snapshot) : article;
   });
   handleDesktopIpc('article:get-cover', async (_event, id) => {
     const { storeArticles: articlePersistence } = await context.getPersistenceModules();

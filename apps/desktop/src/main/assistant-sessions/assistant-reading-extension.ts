@@ -216,7 +216,7 @@ export function createAssistantReadingExtension(ports: AssistantReadingPorts) {
           '读者的划线可能只是半句或几个词。回答前先用 read_article 的 aroundBlockId 读划线所在段落和前后文，不够再继续读或检索，不要让读者替你提供原文。',
           '工具只返回可读范围内的内容；不要猜测或透露范围之外的情节。',
           '引用原文时直接引用原句，不要编造原文。',
-          '要指向某段原文或某条讨论时，写成 Markdown 链接，地址是 # 加段落 id 或评论 id，例如 [新版序言](#b35)、[另一条讨论](#comment_xxx)，读者点开会跳过去；不要在正文里单独写 id。',
+          '要指向某段原文或某条讨论时，写成 Markdown 链接，地址是 # 加段落 id 或评论 id，例如 [新版序言](#b35)、[另一条讨论](#comment_xxx)，读者点开会跳过去。链接文字使用原文摘录、章节名或讨论描述；b35、comment_xxx 仅供工具定位，不要把编号或“第 b35 段”写进正文或链接文字。',
           `一次回复最多调用 ${MAX_TOOL_CALLS} 次工具，信息足够时就直接回答。`,
         ]
           .filter(Boolean)

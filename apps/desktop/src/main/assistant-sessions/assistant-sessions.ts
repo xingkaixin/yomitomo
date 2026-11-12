@@ -91,13 +91,14 @@ function createAssistantSessions(host: AssistantSessionHost) {
     onOpen: (articleId, harness) => runtime.resume(articleId, harness),
     logError,
   });
+  const channelSources = createAssistantChannelSources(host.publishArticlePatch);
   const runtime = createAssistantChannelRuntime({
     store,
     models,
     articleText: (articleId) => assistantArticleTexts.load(articleId),
     resolveAgent,
     resolveAgentIdentity,
-    ...createAssistantChannelSources(host.publishArticlePatch),
+    ...channelSources,
     articleMeta: runtimeArticleMeta,
     publishRun: host.publishRun,
     markPending: async (articleId, pending) => {
@@ -111,6 +112,7 @@ function createAssistantSessions(host: AssistantSessionHost) {
     articleText: (articleId) => assistantArticleTexts.load(articleId),
     articleMeta: runtimeArticleMeta,
     registerProvider: runtime.registerProvider,
+    findDiscussion: channelSources.findDiscussion,
   });
   registry.install(distillationReview.extension);
   return { models, registry, store, runtime, distillationReview };

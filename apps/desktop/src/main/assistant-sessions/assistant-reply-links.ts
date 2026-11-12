@@ -1,19 +1,22 @@
 import { createArticleTextIndex } from '@yomitomo/core';
 import {
   assistantReferenceHref,
+  parseAssistantReference,
+  type ArticleRecord,
   type ArticleTextSnapshot,
   type AssistantReference,
 } from '@yomitomo/shared';
 
 export type ReplyDiscussion = { annotationId: string; quote: string };
 
-const CITED_ID = String.raw`b\d+|(?:comment|annotation)_\w+`;
+const BLOCK_ID = String.raw`b\d+(?:\s*[-–—]\s*b?\d+)?`;
+const CITED_ID = String.raw`${BLOCK_ID}|(?:comment|annotation)_\w+`;
 // An agent link [label](#id), a bracketed id [b12], or a bare id such as b12 or comment_x.
 const CITATION = new RegExp(
-  String.raw`\[([^\]\n]+)\]\(#([\w-]+)\)|\[(${CITED_ID})\](?!\()|(?<![\w#:/.-])(${CITED_ID})(?!\w)`,
-  'g',
+  String.raw`\[([^\]\n]+)\]\(#([\w:–—-]+)\)|\[(${CITED_ID})\](?!\()|(?<![\w#:/.-])(${CITED_ID})(?!\w)`,
+  'gi',
 );
-const ONLY_CITED_ID = new RegExp(String.raw`^(?:${CITED_ID})$`);
+const ID_IN_LABEL = new RegExp(String.raw`(?<!\w)(?:${CITED_ID})(?!\w)`, 'i');
 const EXCERPT_LENGTH = 16;
 const graphemes = new Intl.Segmenter('zh', { granularity: 'grapheme' });
 
@@ -25,15 +28,51 @@ export function resolveReplyLinks(
   snapshot: ArticleTextSnapshot | undefined,
   findDiscussion: (id: string) => ReplyDiscussion | undefined,
 ) {
+  return replyLinkResolver(snapshot, findDiscussion)(text);
+}
+
+export function resolveArticleReplyLinks(article: ArticleRecord, snapshot: ArticleTextSnapshot) {
+  const resolveLinks = replyLinkResolver(snapshot, (id) => {
+    const annotation = article.annotations.find(
+      (item) => item.id === id || item.comments.some((comment) => comment.id === id),
+    );
+    return annotation && { annotationId: annotation.id, quote: annotation.anchor.exact };
+  });
+  return {
+    ...article,
+    annotations: article.annotations.map((annotation) => ({
+      ...annotation,
+      comments: annotation.comments.map((comment) =>
+        comment.author.kind === 'agent'
+          ? { ...comment, content: resolveLinks(comment.content) }
+          : comment,
+      ),
+    })),
+  };
+}
+
+function replyLinkResolver(
+  snapshot: ArticleTextSnapshot | undefined,
+  findDiscussion: (id: string) => ReplyDiscussion | undefined,
+) {
   let index: ReturnType<typeof createArticleTextIndex> | undefined;
   const resolve = (id: string): { reference: AssistantReference; label: string } | undefined => {
-    if (/^b\d+$/.test(id)) {
+    const reference = parseAssistantReference(`#${id}`);
+    if (reference?.kind === 'passage') {
+      return snapshot && reference.end <= snapshot.text.length
+        ? { reference, label: excerpt(snapshot.text.slice(reference.start, reference.end)) }
+        : undefined;
+    }
+    if (reference?.kind === 'discussion') id = reference.annotationId;
+    const range = id.match(/^b(\d+)(?:\s*[-–—]\s*b?(\d+))?$/i);
+    if (range) {
       index ??= snapshot ? createArticleTextIndex(snapshot) : undefined;
-      const block = index?.readBlocks(id, 1)?.blocks[0];
-      return block
+      const first = index?.readBlocks(`b${range[1]}`, 1)?.blocks[0];
+      const last = range[2] ? index?.readBlocks(`b${range[2]}`, 1)?.blocks[0] : first;
+      return first && last && first.start <= last.start
         ? {
-            reference: { kind: 'passage', start: block.start, end: block.end },
-            label: excerpt(block.text),
+            reference: { kind: 'passage', start: first.start, end: last.end },
+            label: excerpt(first.text),
           }
         : undefined;
     }
@@ -45,21 +84,25 @@ export function resolveReplyLinks(
         }
       : undefined;
   };
-  return text.replace(
-    CITATION,
-    (
-      match,
-      label: string | undefined,
-      linkId: string | undefined,
-      bracketId: string | undefined,
-      bareId: string | undefined,
-    ) => {
-      const resolved = resolve((linkId ?? bracketId ?? bareId)!);
-      if (!resolved) return label ?? match;
-      const shown = label && !ONLY_CITED_ID.test(label) ? label : resolved.label;
-      return `[${shown}](${assistantReferenceHref(resolved.reference)})`;
-    },
-  );
+  return (text: string) =>
+    text.replace(
+      CITATION,
+      (
+        match,
+        label: string | undefined,
+        linkId: string | undefined,
+        bracketId: string | undefined,
+        bareId: string | undefined,
+      ) => {
+        const id = (linkId ?? bracketId ?? bareId)!;
+        const savedReference = linkId ? parseAssistantReference(`#${linkId}`) : undefined;
+        if (savedReference && label && !ID_IN_LABEL.test(label)) return match;
+        const resolved = resolve(id);
+        if (!resolved) return savedReference ? match : (label ?? match);
+        const shown = label && !ID_IN_LABEL.test(label) ? label : resolved.label;
+        return `[${shown}](${assistantReferenceHref(resolved.reference)})`;
+      },
+    );
 }
 
 function excerpt(text: string) {
