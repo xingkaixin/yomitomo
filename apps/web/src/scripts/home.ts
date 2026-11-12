@@ -33,7 +33,6 @@ function setupFlow() {
       view.hidden = !pinnable.matches && i !== index;
       view.setAttribute('aria-hidden', String(i !== index));
     });
-    syncWire();
   };
 
   const scrollRange = () => pin.offsetHeight - sticky.offsetHeight;
@@ -154,48 +153,7 @@ function setupBento() {
   }
 }
 
-function syncWire() {
-  const read = document.querySelector<HTMLElement>('.win [data-view="read"]');
-  const wire = read?.querySelector<SVGSVGElement>('[data-wire]');
-  const line = read?.querySelector<HTMLElement>('[data-anchor-line]');
-  const note = read?.querySelector<HTMLElement>('.note.is-active');
-  if (!read || read.hidden || !wire || !line || !note) return;
-  const area = wire.parentElement;
-  if (!area || getComputedStyle(wire).display === 'none') return;
-  const box = area.getBoundingClientRect();
-  const from = [...line.getClientRects()].at(-1);
-  const to = note.getBoundingClientRect();
-  if (!from) return;
-  const x1 = from.right - box.left;
-  const y1 = from.bottom - box.top - 4;
-  const x2 = to.left - box.left - 6;
-  const y2 = to.top - box.top + 28;
-  const left = Math.min(x1, x2) - 8;
-  const top = Math.min(y1, y2) - 8;
-  const width = Math.max(x1, x2) - left + 8;
-  const height = Math.max(y1, y2) - top + 8;
-  const sx = x1 - left;
-  const sy = y1 - top;
-  const ex = x2 - left;
-  const ey = y2 - top;
-  const midX = (sx + ex) / 2;
-  wire.setAttribute('width', String(width));
-  wire.setAttribute('height', String(height));
-  wire.setAttribute('viewBox', `0 0 ${width} ${height}`);
-  wire.style.left = `${left}px`;
-  wire.style.top = `${top}px`;
-  wire
-    .querySelector('path')
-    ?.setAttribute(
-      'd',
-      `M${sx} ${sy} C ${midX} ${sy + 6}, ${midX} ${ey}, ${ex} ${ey} m-7 -5 l7 5 l-7 5`,
-    );
-}
-
 setupFlow();
 setupCompanions();
 setupFloatingNav();
 setupBento();
-syncWire();
-window.addEventListener('resize', syncWire);
-void document.fonts?.ready.then(syncWire);

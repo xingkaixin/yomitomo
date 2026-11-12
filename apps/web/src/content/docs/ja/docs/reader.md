@@ -7,15 +7,15 @@ description: ハイライト、思考メモ、ディスカッション、二言�
 
 <picture>
   <source
-    srcset="/assets/en-reader-640.webp 640w, /assets/en-reader-960.webp 960w, /assets/en-reader-1280.webp 1280w, /assets/en-reader-1600.webp 1600w, /assets/en-reader-2400.webp 2400w, /assets/en-reader.webp 3388w"
+    srcset="/assets/en-reader-640.webp 640w, /assets/en-reader-960.webp 960w, /assets/en-reader-1280.webp 1280w, /assets/en-reader-1600.webp 1600w, /assets/en-reader.webp 2360w"
     sizes="(max-width: 760px) calc(100vw - 32px), 640px"
   />
-  <img src="/assets/en-reader.webp" alt="Yomitomo リーダー画面" loading="eager" width="3388" height="2184" fetchpriority="high" decoding="async" />
+  <img src="/assets/en-reader.webp" alt="Yomitomo リーダー画面" loading="eager" width="2360" height="1508" fetchpriority="high" decoding="async" />
 </picture>
 
 ## リーダー画面と操作ツール
 
-リーダーは本文表示エリア、ハイライトアンカー、接続ライン、および右側のサイドバーで構成されています。上部のフローティングツールバーには頻出操作が集約されています。
+リーダーは紙面に本文を表示し、下線と余白のカードを脚注番号で対応させます。上部のフローティングツールバーから主な操作を行えます。
 
 - **目次ナビゲーション**：章構成ツリーを展開します。現在読んでいる位置が自動的に強調・スクロール表示され、前後の構成を把握しやすくなります。
 - **全文検索**：現在の資料内からキーワードを高速検索し、該当箇所へダイレクトにジャンプします。
@@ -27,7 +27,7 @@ description: ハイライト、思考メモ、ディスカッション、二言�
 
 - **Web 記事・電子書籍**：本文の**フォントサイズ**と**本文幅（行長）**を自由に調整できます。
 - **PDF 文書**：**PDF ズーム倍率**により最適な表示サイズへ微調整できます。
-- **テーマとリーダー用紙**：ライト、ダーク、ダスクインディゴなどのテーマや質感豊かな用紙カラーはホーム画面から切り替え可能です。用紙カラーは記事、電子書籍、PDF に適応されます。ダークテーマ時、PDF は図表の視認性を保つため元ページの背景色が保持されます。
+- **テーマと読書表示**：サイドバー下部でライト、ダーク、システムに合わせる表示を切り替えます。文字サイズと本文幅はリーダーのツールバーで調整でき、ダーク時もPDFの元の色を保ちます。
 
 ## ハイライトとメモの作成
 

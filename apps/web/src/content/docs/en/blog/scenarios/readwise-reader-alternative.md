@@ -26,7 +26,7 @@ Readwise features are described on the [official Reader page](https://readwise.i
 Import a document, select a passage and press the default `A` shortcut to create a highlight. Add your own note, then open its discussion and mention a reading assistant. The discussion stays attached to the source passage so you can return to the surrounding text.
 
 <figure>
-  <img src="/assets/en-reader-1280.webp" alt="Yomitomo reading view with highlighted web passages and annotation cards beside the source" width="1280" height="826" loading="lazy" decoding="async" />
+  <img src="/assets/en-reader-1280.webp" alt="Yomitomo reading view with highlighted web passages and annotation cards beside the source" width="1280" height="818" loading="lazy" decoding="async" />
   <figcaption>A web article with passage-linked annotations in Yomitomo.</figcaption>
 </figure>
 

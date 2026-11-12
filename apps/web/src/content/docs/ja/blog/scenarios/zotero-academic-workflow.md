@@ -30,7 +30,7 @@ Zotero側のPDFと注釈については[公式のPDFリーダーガイド](https
 読書ライブラリの「+」からPDF文書の追加を選びます。対象ファイルを選択し、開いた文書で文章を選択できることを確認します。スキャンPDFは別途OCRが必要です。
 
 <figure>
-  <img src="/assets/en-import-pdf-1280.webp" alt="YomitomoのPDF追加ダイアログ（英語UIの例）。文献管理ツールから用意したローカルPDFを選択する" width="1280" height="953" loading="lazy" decoding="async" />
+  <img src="/assets/en-import-pdf-1280.webp" alt="YomitomoのPDF追加ダイアログ（英語UIの例）。文献管理ツールから用意したローカルPDFを選択する" width="1280" height="851" loading="lazy" decoding="async" />
   <figcaption>PDF原本を手動で取り込みます。Zoteroとの自動同期画面ではありません。</figcaption>
 </figure>
 

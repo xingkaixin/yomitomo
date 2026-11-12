@@ -7,15 +7,15 @@ description: 掌握划线、想法、讨论、双语翻译与知识沉淀，构�
 
 <picture>
   <source
-    srcset="/assets/cn-reader-640.webp 640w, /assets/cn-reader-960.webp 960w, /assets/cn-reader-1280.webp 1280w, /assets/cn-reader-1600.webp 1600w, /assets/cn-reader-2400.webp 2400w, /assets/cn-reader.webp 3388w"
+    srcset="/assets/cn-reader-640.webp 640w, /assets/cn-reader-960.webp 960w, /assets/cn-reader-1280.webp 1280w, /assets/cn-reader-1600.webp 1600w, /assets/cn-reader.webp 2360w"
     sizes="(max-width: 760px) calc(100vw - 32px), 640px"
   />
-  <img src="/assets/cn-reader.webp" alt="Yomitomo 阅读界面" loading="eager" width="3388" height="2184" fetchpriority="high" decoding="async" />
+  <img src="/assets/cn-reader.webp" alt="Yomitomo 阅读界面" loading="eager" width="2360" height="1508" fetchpriority="high" decoding="async" />
 </picture>
 
 ## 阅读界面与工具
 
-阅读器由正文排版区、高亮锚点、连线指示以及右侧边栏组成。顶部悬浮工具栏集成了高频操作：
+阅读器以纸张显示正文，页边卡片通过脚注编号对应原文划线。顶部悬浮工具栏集成了高频操作：
 
 - **目录导航**：展开章节层级树，当前阅读位置会自动高亮并滚动居中，便于掌控全文结构。
 - **全文检索**：在当前阅读材料中快速检索关键词，点击即可跳转定位。
@@ -27,7 +27,7 @@ description: 掌握划线、想法、讨论、双语翻译与知识沉淀，构�
 
 - **网页文章与电子书**：可自由调整正文 **字号** 与 **阅读栏宽**。
 - **PDF 文档**：通过 **PDF 缩放比例** 精细适配最佳可视尺寸。
-- **纸张与主题**：亮色、暗色、黄昏靛蓝等主题以及多种质感阅读纸张可在首页统一切换。纸张颜色会自适应网页文章、电子书与 PDF；暗色主题下 PDF 默认保留原始页面底色，避免文档被反色破坏可读性。
+- **主题与阅读外观**：在侧栏底部切换亮色、暗色或跟随系统。字号和栏宽在阅读器工具栏中调整；暗色模式下 PDF 保留原始页面颜色。
 
 ## 创建划线与想法
 
@@ -36,11 +36,11 @@ description: 掌握划线、想法、讨论、双语翻译与知识沉淀，构�
 3. 按下默认快捷键 `A`，或点击浮动菜单中的操作按钮。
 4. 记录你的即时想法、疑问或关键见解。
 
-划线将以你的专属强调色高亮显示，并精确锚定在原文坐标上。划线与复制支持按键音效反馈（可在「设置 > 通用」中调节）。
+划线以你的专属强调色显示手绘下划线，并通过脚注编号对应页边卡片，精确锚定原文位置。划线与复制支持按键音效反馈（可在「设置 > 通用」中调节）。
 
 ## 划线独立讨论区
 
-每条划线都拥有独立的讨论线程。点击批注卡片即可进入讨论区：
+每条划线都拥有独立的讨论线程。点击批注卡片即可进入讨论区，左侧列出想法，右侧以气泡展示讨论：
 
 - 持续记录新的思考，或对已有想法进行补充与反驳。
 - 在输入框中通过 `@助手名称` 邀请指定 AI 助手加入对话。助手会结合上下文、选区段落及历史讨论生成针对性回复。

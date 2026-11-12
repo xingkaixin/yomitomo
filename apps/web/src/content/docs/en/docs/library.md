@@ -3,7 +3,7 @@ title: Library and Import
 description: Manage web articles, EPUB/AZW3/MOBI ebooks, PDFs, and Markdown notes, and understand how Yomitomo stores reading materials.
 ---
 
-The Library is the central hub for all your reading materials. Web articles, ebooks (EPUB/AZW3/MOBI), PDF documents, Markdown/text files, WeRead highlights, and collections are organized neatly so you can transition into the right reading experience with ease. You can customize which sources appear on the home view in Settings. Deleting items requires confirmation, and actions are accompanied by toast alerts and optional tactile sound effects.
+The Library is the central hub for all your reading materials. Web articles, ebooks (EPUB/AZW3/MOBI), PDF documents, Markdown/text files, WeRead highlights, and collections are organized neatly so you can transition into the right reading experience with ease. You can customize which sources appear on the home view in Settings. Deleting items requires confirmation, and actions are accompanied by top notifications and optional sound effects.
 
 ## Collections
 
@@ -28,7 +28,7 @@ To remove an item, open its card menu inside the collection and choose "Remove f
 
 ### Covers and Pinning
 
-A collection card displays an aesthetic cover stack compiled from up to 9 member covers, along with a badge showing the item count. Empty collections display a subtle placeholder cover. You can "Pin" frequently accessed collections or essential reading items so they always stay anchored at the top of your library.
+Reading items sit on shelves, with progress, titles, and annotation counts below their covers. Collections appear as open crates holding member covers and showing the item count. Empty collections show an empty crate. You can "Pin" frequently accessed collections or essential reading items so they always stay anchored at the top of your library.
 
 ### Delete a Collection
 
@@ -45,10 +45,10 @@ For dynamically rendered web pages, Yomitomo uses an internal headless engine to
 
 <picture>
   <source
-    srcset="/assets/en-import-web-640.webp 640w, /assets/en-import-web-960.webp 960w, /assets/en-import-web-1280.webp 1280w, /assets/en-import-web-1600.webp 1600w, /assets/en-import-web-2400.webp 2400w, /assets/en-import-web.webp 3388w"
+    srcset="/assets/en-import-web-640.webp 640w, /assets/en-import-web-960.webp 960w, /assets/en-import-web-1280.webp 1280w, /assets/en-import-web-1600.webp 1600w, /assets/en-import-web.webp 2360w"
     sizes="(max-width: 760px) calc(100vw - 32px), 640px"
   />
-  <img src="/assets/en-import-web.webp" alt="Yomitomo import a web article" loading="lazy" width="3388" height="2520" decoding="async" />
+  <img src="/assets/en-import-web.webp" alt="Yomitomo import a web article" loading="lazy" width="2360" height="1568" decoding="async" />
 </picture>
 
 ## Import Ebooks
@@ -61,10 +61,10 @@ Yomitomo parses covers, hierarchical tables of contents, chapters, and rich typo
 
 <picture>
   <source
-    srcset="/assets/en-import-ebook-640.webp 640w, /assets/en-import-ebook-960.webp 960w, /assets/en-import-ebook-1280.webp 1280w, /assets/en-import-ebook-1600.webp 1600w, /assets/en-import-ebook-2400.webp 2400w, /assets/en-import-ebook.webp 3388w"
+    srcset="/assets/en-import-ebook-640.webp 640w, /assets/en-import-ebook-960.webp 960w, /assets/en-import-ebook-1280.webp 1280w, /assets/en-import-ebook-1600.webp 1600w, /assets/en-import-ebook.webp 2360w"
     sizes="(max-width: 760px) calc(100vw - 32px), 640px"
   />
-  <img src="/assets/en-import-ebook.webp" alt="Yomitomo import an ebook" loading="lazy" width="3388" height="2520" decoding="async" />
+  <img src="/assets/en-import-ebook.webp" alt="Yomitomo import an ebook" loading="lazy" width="2360" height="1568" decoding="async" />
 </picture>
 
 ## Import PDFs
@@ -77,10 +77,10 @@ PDF import supports batches of up to 10 files at once, with a 120 MB limit per f
 
 <picture>
   <source
-    srcset="/assets/en-import-pdf-640.webp 640w, /assets/en-import-pdf-960.webp 960w, /assets/en-import-pdf-1280.webp 1280w, /assets/en-import-pdf-1600.webp 1600w, /assets/en-import-pdf-2400.webp 2400w, /assets/en-import-pdf.webp 3388w"
+    srcset="/assets/en-import-pdf-640.webp 640w, /assets/en-import-pdf-960.webp 960w, /assets/en-import-pdf-1280.webp 1280w, /assets/en-import-pdf-1600.webp 1600w, /assets/en-import-pdf.webp 2360w"
     sizes="(max-width: 760px) calc(100vw - 32px), 640px"
   />
-  <img src="/assets/en-import-pdf.webp" alt="Yomitomo import a PDF" loading="lazy" width="3388" height="2520" decoding="async" />
+  <img src="/assets/en-import-pdf.webp" alt="Yomitomo import a PDF" loading="lazy" width="2360" height="1568" decoding="async" />
 </picture>
 
 ## Import Text and Markdown
@@ -93,18 +93,11 @@ Text imports include an instant metadata review: Yomitomo detects character enco
 
 Markdown YAML Front Matter renders as a metadata banner at the top of the reader. Content is sanitized, and remote images are blocked from automatic background fetching. Text documents feature custom manuscript-themed covers and can be filtered or grouped into collections like any other item.
 
-## Filter, Search, and Sort
+## Filter and Search
 
-The Library lets you filter items by reading status:
+Use “All” on the left of the search field to select Collections, Web, Ebooks, PDFs, Text, or WeRead. Selected types appear as removable chips. Search matches titles, authors, sources, and collection names.
 
-- All
-- New
-- Reading
-- Finished
-
-You can also filter by multiple content types: Collections, Web, Ebooks, PDFs, Text, and WeRead. Selected filters appear as removable chips. Filter states, active search queries, and your current collection view persist across navigation so you never lose your place.
-
-Sort by **Recently Read**, **Recently Added**, **Annotation Count**, or **Discussion Count**, with real-time keyword search across titles and authors.
+Filters, search terms, and the current collection persist across navigation. Pin frequently used items or collections; other items follow their added date. Use the footer to change pages and the number of items per page.
 
 ## Local Storage and Offline Images
 

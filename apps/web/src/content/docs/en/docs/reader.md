@@ -7,15 +7,15 @@ The Reader seamlessly integrates full-text reading, precise text anchoring, disc
 
 <picture>
   <source
-    srcset="/assets/en-reader-640.webp 640w, /assets/en-reader-960.webp 960w, /assets/en-reader-1280.webp 1280w, /assets/en-reader-1600.webp 1600w, /assets/en-reader-2400.webp 2400w, /assets/en-reader.webp 3388w"
+    srcset="/assets/en-reader-640.webp 640w, /assets/en-reader-960.webp 960w, /assets/en-reader-1280.webp 1280w, /assets/en-reader-1600.webp 1600w, /assets/en-reader.webp 2360w"
     sizes="(max-width: 760px) calc(100vw - 32px), 640px"
   />
-  <img src="/assets/en-reader.webp" alt="Yomitomo reader" loading="eager" width="3388" height="2184" fetchpriority="high" decoding="async" />
+  <img src="/assets/en-reader.webp" alt="Yomitomo reader" loading="eager" width="2360" height="1508" fetchpriority="high" decoding="async" />
 </picture>
 
 ## Reading Workspace and Controls
 
-The Reader is composed of the main reading canvas, anchored highlight highlights, visual connection trails, and a dedicated sidebar. The floating toolbar provides instant access to essential tools:
+The Reader displays the source on a paper surface. Footnote numbers connect underlined passages to their margin cards. The floating toolbar provides access to essential tools:
 
 - **Table of Contents (TOC)**: Expand the chapter hierarchy. The active section is highlighted and centered automatically, making it easy to track your reading progress.
 - **Full-Text Search**: Search keywords across the current document and jump directly to matches.
@@ -27,7 +27,7 @@ The Reader is composed of the main reading canvas, anchored highlight highlights
 
 - **Web Articles and Ebooks**: Adjust **Font Size** and **Article Width** to match your reading preferences.
 - **PDFs**: Use **PDF Zoom** to achieve optimal readability.
-- **Themes and Reader Paper**: Switch themes (Light, Dark, Dusk Indigo) and paper textures from the main home page. Paper styles apply across articles, ebooks, and PDFs. In dark mode, PDFs preserve their original page colors to avoid inverted, unreadable diagrams.
+- **Theme and Reading Appearance**: Choose light, dark, or system appearance at the bottom of the sidebar. Adjust reading size and width in the reader toolbar. PDFs keep their original page colors in dark mode.
 
 ## Create Highlights and Thoughts
 
@@ -36,11 +36,11 @@ The Reader is composed of the main reading canvas, anchored highlight highlights
 3. Press the default shortcut `A` or click the annotation button on the floating menu.
 4. Record your immediate reaction, question, or analysis.
 
-Highlights appear in your personalized color and remain anchored to their exact source coordinates. Highlight creation and text copying can provide tactile audio feedback (configurable in Settings > General).
+Highlights use hand-drawn underlines in your chosen color. Footnote numbers match the margin cards, and each highlight remains anchored to its source. Highlight creation and text copying can provide tactile audio feedback (configurable in Settings > General).
 
 ## Highlight Discussion Threads
 
-Every highlight comes with its own focused discussion thread. Click any annotation card to enter the discussion view:
+Every highlight has its own discussion thread. Open an annotation card to see thoughts on the left and discussion bubbles on the right:
 
 - Add ongoing reflections or reply to earlier thoughts.
 - Type `@assistant_name` to bring specialized AI companions into the conversation. Responses are generated using document context, the highlighted snippet, and the full discussion thread.

@@ -106,6 +106,7 @@ export type HomeCopy = {
     reviewComposer: string;
     send: string;
     libraryNav: [string, string, string, string, string];
+    collection: { label: string; title: string; count: string };
     all: string;
     search: string;
     total: string;
@@ -199,8 +200,8 @@ const zh: HomeCopy = {
       desc: '时长、划线和想法按日累计，也能同步微信读书的阅读数据。',
     },
     theme: {
-      title: '主题与纸张',
-      desc: '纸白、米色纸、墨黑、黛蓝、蓝墨。网页、电子书和 PDF 用同一张纸。',
+      title: '阅读外观',
+      desc: '亮色、暗色，或跟随系统。阅读器中可调整字号和栏宽，暗色模式下 PDF 保留原始页面颜色。',
     },
     local: {
       title: '数据留在本机',
@@ -349,6 +350,7 @@ const zh: HomeCopy = {
     reviewComposer: '让已选审阅助手讨论这份沉淀…',
     send: '发送',
     libraryNav: ['阅读库', '阅读记忆', '助手', '统计', '设置'],
+    collection: { label: '合集', title: '慢读书单', count: '4 项内容' },
     all: '全部',
     search: '搜索文章与合集…',
     total: '共 64 项',
@@ -500,8 +502,8 @@ const en: HomeCopy = {
       desc: 'Time, lines and thoughts add up by day, and WeRead reading data can sync in too.',
     },
     theme: {
-      title: 'Themes and paper',
-      desc: 'Paper white, cream, ink black and two blues. Web articles, ebooks and PDFs share the same sheet.',
+      title: 'Reading appearance',
+      desc: 'Light, dark, or follow your system. Adjust reading size and width; PDFs keep their original page colors in dark mode.',
     },
     local: {
       title: 'Your data stays local',
@@ -661,6 +663,7 @@ const en: HomeCopy = {
     reviewComposer: 'Ask the selected reviewers about this distillation…',
     send: 'Send',
     libraryNav: ['Library', 'Reading Memory', 'Assistants', 'Stats', 'Settings'],
+    collection: { label: 'Collection', title: 'Slow reading', count: '4 items' },
     all: 'All',
     search: 'Search articles and collections…',
     total: '64 items',
@@ -818,8 +821,8 @@ const ja: HomeCopy = {
       desc: '時間、線、考えを日ごとに集計し、微信読書の読書データも同期できます。',
     },
     theme: {
-      title: 'テーマと紙',
-      desc: '紙白、クリーム、墨黒、二つの藍。Web記事、電子書籍、PDFで同じ紙を使えます。',
+      title: '読書表示',
+      desc: 'ライト、ダーク、またはシステムに合わせて切り替え。文字サイズと本文幅を調整でき、ダーク時もPDFの元の色を保ちます。',
     },
     local: {
       title: 'データは端末に残る',
@@ -975,6 +978,7 @@ const ja: HomeCopy = {
     reviewComposer: '選択したレビュー担当にこのまとめを議論してもらう…',
     send: '送信',
     libraryNav: ['ライブラリ', '読書メモリー', 'アシスタント', '統計', '設定'],
+    collection: { label: 'コレクション', title: 'ゆっくり読む本', count: '4件' },
     all: 'すべて',
     search: '記事とコレクションを検索…',
     total: '全 64 件',

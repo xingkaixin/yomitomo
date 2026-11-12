@@ -47,13 +47,13 @@ Choose one default model for reading comprehension, in-depth review, and bilingu
 ## Language and Visual Customization
 
 - **Language**: Toggle between Simplified Chinese, English, and Japanese in Settings > General. UI text and assistant personas adapt instantly.
-- **Themes and Paper**: The sidebar theme picker groups themes into light and dark categories, including ShadLingo variants and the hand-drawn Blue Ink light theme. Theme cards show library samples, while paper cards show reader samples with choices such as pure white and deep blue. Within a category, custom paper choices are kept and default paper follows the theme; switching categories restores the remembered theme and paper. PDFs retain their original page colors in dark mode.
+- **Theme and Reading Appearance**: The sidebar footer offers light, dark, and system appearance. Use the reader toolbar to adjust reading size and width. PDFs keep their original page colors in dark mode.
 - **Audio Feedback**: Adjust or mute tactile UI sound effects (e.g., successful imports, deletions, highlight creation, distillation publishing, unlock events, and typing effects).
 
 ## Security and Privacy Controls
 
 - **Model requests**: Remote AI features send the source text, annotations, and conversation needed for the task to your configured model endpoint. A model running on your computer performs inference locally.
-- **App Lock (PIN Code)**: When enabled, lock the app at any time with the lock button in the top bar or ⌘+L (Ctrl+L on Windows). Turn on **Lock on startup** to start locked after every launch or update restart. The app does not lock automatically when idle. Unlocking requires the PIN; passcode verification relies on native OS keystores.
+- **App Lock (PIN Code)**: When enabled, lock the app at any time with the lock button in the sidebar or ⌘+L (Ctrl+L on Windows). Turn on **Lock on startup** to start locked after every launch or update restart. The app does not lock automatically when idle. Unlocking requires the PIN; passcode verification relies on native OS keystores.
 - **Telemetry Controls**: On by default. Sends two kinds of data to `telemetry.yomitomo.app`: an anonymous heartbeat at most once per day (anonymous installation UUID, app version, OS platform and version, architecture, local date, and timezone), and Reading Memory counts for opens, completed queries, source jumps, review decisions, and fallbacks, without the installation UUID. **Neither transmits reading content, titles, highlights, local paths, or AI dialogues.** Can be disabled under **Settings > General > Privacy**; turning it off also clears unsent Reading Memory counts.
 - **Model Pricing Catalog**: About 5 seconds after launch and every 24 hours after that, if the local price cache is older than 24 hours, Yomitomo fetches the public model pricing catalog from `https://models.dev/api.json` to estimate assistant usage costs. This plain GET request carries no reading content, API keys, or installation UUID; like any network request, it lets models.dev see your IP address and request time. The telemetry setting does not control this request, and it runs even when no model provider is configured.
 
@@ -74,6 +74,6 @@ Reading Memory searches your saved highlights and thoughts, discussions you part
 
 ## Non-Intrusive Updates
 
-Yomitomo checks for updates in the background on startup and every 24 hours. A badge in the top bar lets you view release notes and start downloading. Once the download finishes, you can restart to install.
+Yomitomo checks for updates in the background on startup and every 24 hours. An update card in the sidebar lets you view release notes and start downloading. Once the download finishes, you can restart to install.
 
 Starting with 0.16.0, macOS uses Sparkle. The first upgrade from an older version still downloads a full ZIP. After installation and restart, subsequent releases can use delta updates, falling back to a full package when no suitable delta is available or delta verification fails. macOS packages continue to use Developer ID signing and notarization; Windows keeps its existing update mechanism.
