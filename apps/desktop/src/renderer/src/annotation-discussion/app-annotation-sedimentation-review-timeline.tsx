@@ -19,6 +19,7 @@ import { renderSafeMarkdown } from '@yomitomo/core/safe-markdown';
 import { formatAbsoluteTime, formatRelativeTime } from './app-annotation-discussion-utils';
 import { AvatarBadge, ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
 import { AssistantRuntimeProgressList } from '../shell/app-assistant-runtime-progress';
+import { AssistantReferenceText } from '../shell/app-assistant-references';
 import {
   pendingReviewProposals,
   reviewTimelineMessages,
@@ -42,6 +43,7 @@ export function SedimentationReviewTimeline({
   onProposalPreview: (
     messageId: string,
     proposals: AnnotationDistillationProposal[],
+    proposalId?: string,
   ) => void | Promise<void>;
   onProposalIgnore: (messageId: string, proposalId: string) => void | Promise<void>;
   onProposalRestore: (messageId: string, proposalId: string) => void | Promise<void>;
@@ -116,6 +118,7 @@ function ReviewTimelineMessage({
   onProposalPreview: (
     messageId: string,
     proposals: AnnotationDistillationProposal[],
+    proposalId?: string,
   ) => void | Promise<void>;
   onProposalIgnore: (messageId: string, proposalId: string) => void | Promise<void>;
   onProposalRestore: (messageId: string, proposalId: string) => void | Promise<void>;
@@ -223,7 +226,9 @@ export function StructuredReviewItems({ items }: { items: AnnotationDistillation
               key={item.id}
             >
               <span>{reviewStanceLabel(item.stance)}</span>
-              <p>{item.content}</p>
+              <p>
+                <AssistantReferenceText text={item.content} />
+              </p>
             </article>
           );
         }
@@ -237,9 +242,13 @@ export function StructuredReviewItems({ items }: { items: AnnotationDistillation
                 {reviewFindingCategoryLabel(item.category)} ·{' '}
                 {reviewFindingSeverityLabel(item.severity)}
               </span>
-              <strong>{item.title}</strong>
+              <strong>
+                <AssistantReferenceText text={item.title} />
+              </strong>
             </header>
-            <p>{item.content}</p>
+            <p>
+              <AssistantReferenceText text={item.content} />
+            </p>
             {item.draftTargetText ? <blockquote>{item.draftTargetText}</blockquote> : null}
           </article>
         );
@@ -264,6 +273,7 @@ function ReviewProposalList({
   onPreview: (
     messageId: string,
     proposals: AnnotationDistillationProposal[],
+    proposalId?: string,
   ) => void | Promise<void>;
   onIgnore: (messageId: string, proposalId: string) => void | Promise<void>;
   onRestore: (messageId: string, proposalId: string) => void | Promise<void>;
@@ -299,22 +309,35 @@ function ReviewProposalList({
             <div className="annotation-sedimentation-proposal-main">
               <header>
                 <span>{proposalKindLabel(proposal.kind)}</span>
-                <strong>{proposal.title}</strong>
+                <strong>
+                  <AssistantReferenceText text={proposal.title} />
+                </strong>
               </header>
-              {proposal.rationale ? <p>{proposal.rationale}</p> : null}
-              <ProposalDiffPreview proposal={proposal} />
+              {proposal.rationale ? (
+                <p>
+                  <AssistantReferenceText text={proposal.rationale} />
+                </p>
+              ) : null}
+              {!previewing && proposal.status === 'pending' ? (
+                <ProposalDiffPreview proposal={proposal} />
+              ) : null}
             </div>
             <div className="annotation-sedimentation-proposal-actions">
               {proposal.status === 'pending' ? (
                 previewing ? (
-                  <span className="annotation-sedimentation-proposal-state">
-                    {t('sedimentation.previewingProposal')}
-                  </span>
+                  <button
+                    className="is-secondary"
+                    type="button"
+                    onClick={() => void onPreview(messageId, pendingProposals, proposal.id)}
+                  >
+                    <HugeiconsIcon icon={ViewIcon} size={14} />
+                    <span>{t('sedimentation.locateChange')}</span>
+                  </button>
                 ) : (
                   <>
                     <button
                       type="button"
-                      onClick={() => void onPreview(messageId, pendingProposals)}
+                      onClick={() => void onPreview(messageId, pendingProposals, proposal.id)}
                     >
                       <HugeiconsIcon icon={ViewIcon} size={14} />
                       <span>{t('sedimentation.previewProposal')}</span>
@@ -396,21 +419,29 @@ export function ProposalDiffPreview({ proposal }: { proposal: AnnotationDistilla
   if (proposal.kind === 'insert') {
     return (
       <blockquote className="proposal-diff">
-        <ins className="proposal-diff-insert">{proposal.content || ''}</ins>
+        <ins className="proposal-diff-insert">
+          <AssistantReferenceText text={proposal.content || ''} />
+        </ins>
       </blockquote>
     );
   }
   if (proposal.kind === 'replace') {
     return (
       <blockquote className="proposal-diff">
-        <del className="proposal-diff-delete">{proposal.targetText || ''}</del>
-        <ins className="proposal-diff-insert">{proposal.replacementText || ''}</ins>
+        <del className="proposal-diff-delete">
+          <AssistantReferenceText text={proposal.targetText || ''} />
+        </del>
+        <ins className="proposal-diff-insert">
+          <AssistantReferenceText text={proposal.replacementText || ''} />
+        </ins>
       </blockquote>
     );
   }
   return (
     <blockquote className="proposal-diff">
-      <del className="proposal-diff-delete">{proposal.targetText || ''}</del>
+      <del className="proposal-diff-delete">
+        <AssistantReferenceText text={proposal.targetText || ''} />
+      </del>
     </blockquote>
   );
 }

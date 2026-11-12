@@ -1,6 +1,14 @@
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Cancel01Icon, Tick01Icon } from '@hugeicons/core-free-icons';
+import {
+  ArrowDown01Icon,
+  ArrowUp01Icon,
+  Cancel01Icon,
+  Tick01Icon,
+} from '@hugeicons/core-free-icons';
+import type { Ref } from 'react';
 import i18next from 'i18next';
+import { renderSafeMarkdown } from '@yomitomo/core/safe-markdown';
+import { AssistantReferenceText } from '../shell/app-assistant-references';
 import {
   normalizeDistillationProposalDraftChangeSetEntries,
   type DistillationProposalDraftAnchorResult,
@@ -15,40 +23,72 @@ import {
 
 export type HoveredDraftAnchor = Extract<DistillationProposalDraftAnchorResult, { ok: true }>;
 
+export function DraftDocument({ draft }: { draft: string }) {
+  return (
+    <div
+      className="annotation-sedimentation-draft-document annotation-discussion-markdown"
+      tabIndex={0}
+      dangerouslySetInnerHTML={{ __html: renderSafeMarkdown(draft) }}
+    />
+  );
+}
+
 export function DraftChangePreviewLayer({
   changeSet,
   decisions,
   onDecision,
-  scrollLeft,
-  scrollTop,
+  onNavigate,
+  previewRef,
 }: {
   changeSet: DistillationProposalDraftChangeSet;
   decisions: DraftPreviewDecisions;
   onDecision: (proposalId: string, decision: Exclude<DraftPreviewDecision, 'pending'>) => void;
-  scrollLeft: number;
-  scrollTop: number;
+  onNavigate: (direction: -1 | 1) => void;
+  previewRef: Ref<HTMLDivElement>;
 }) {
   let cursor = 0;
   const visibleChanges = normalizeDistillationProposalDraftChangeSetEntries(
     changeSet.baseDraft,
     changeSet.changes.filter((change) => decisions[change.proposalId] !== 'rejected'),
   );
+  const pendingCount = Object.values(decisions).filter((decision) => decision === 'pending').length;
   return (
     <div
       className="annotation-sedimentation-draft-preview-layer"
       aria-label={i18next.t('sedimentation.draftChangePreview')}
       role="region"
     >
-      <div
-        className="annotation-sedimentation-draft-preview-text"
-        style={{ transform: `translate(${-scrollLeft}px, ${-scrollTop}px)` }}
+      <nav
+        className="annotation-sedimentation-draft-preview-navigation"
+        aria-label={i18next.t('sedimentation.changeNavigation')}
       >
+        <span role="status">
+          {i18next.t('sedimentation.pendingChanges', { count: pendingCount })}
+        </span>
+        <div>
+          <button
+            type="button"
+            onClick={() => onNavigate(-1)}
+            aria-label={i18next.t('sedimentation.previousChange')}
+          >
+            <HugeiconsIcon icon={ArrowUp01Icon} size={15} />
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigate(1)}
+            aria-label={i18next.t('sedimentation.nextChange')}
+          >
+            <HugeiconsIcon icon={ArrowDown01Icon} size={15} />
+          </button>
+        </div>
+      </nav>
+      <div className="annotation-sedimentation-draft-preview-text" ref={previewRef}>
         {visibleChanges.map((change, index) => {
           const before = changeSet.baseDraft.slice(cursor, change.range.start);
           cursor = change.kind === 'insert' ? change.range.start : change.range.end;
           return (
             <span key={`${change.range.start}-${change.range.end}-${index}`}>
-              <span>{before}</span>
+              <AssistantReferenceText text={before} />
               <DraftChangePreviewChange
                 change={change}
                 decision={decisions[change.proposalId] || 'pending'}
@@ -57,7 +97,7 @@ export function DraftChangePreviewLayer({
             </span>
           );
         })}
-        <span>{changeSet.baseDraft.slice(cursor)}</span>
+        <AssistantReferenceText text={changeSet.baseDraft.slice(cursor)} />
       </div>
     </div>
   );
@@ -111,13 +151,14 @@ function DraftChangePreviewChange({
   onDecision: (proposalId: string, decision: Exclude<DraftPreviewDecision, 'pending'>) => void;
 }) {
   return (
-    <span className="annotation-sedimentation-draft-preview-change">
+    <span
+      className="annotation-sedimentation-draft-preview-change"
+      data-proposal-id={change.proposalId}
+      tabIndex={-1}
+    >
       <DraftChangePreviewMark change={change} />
       {decision === 'pending' ? (
-        <span
-          className="annotation-sedimentation-draft-preview-change-actions"
-          contentEditable={false}
-        >
+        <span className="annotation-sedimentation-draft-preview-change-actions">
           <button type="button" onClick={() => onDecision(change.proposalId, 'accepted')}>
             <HugeiconsIcon icon={Tick01Icon} size={13} />
             <span>{i18next.t('sedimentation.keepProposalChange')}</span>
@@ -132,10 +173,7 @@ function DraftChangePreviewChange({
           </button>
         </span>
       ) : (
-        <span
-          className="annotation-sedimentation-draft-preview-change-state"
-          contentEditable={false}
-        >
+        <span className="annotation-sedimentation-draft-preview-change-state">
           <HugeiconsIcon icon={Tick01Icon} size={12} />
           <span>{i18next.t('sedimentation.keptProposalChange')}</span>
         </span>
@@ -147,18 +185,26 @@ function DraftChangePreviewChange({
 function DraftChangePreviewMark({ change }: { change: DistillationProposalDraftChange }) {
   if (change.kind === 'insert') {
     return (
-      <ins className="annotation-sedimentation-draft-preview-insert">{change.insertedText}</ins>
+      <ins className="annotation-sedimentation-draft-preview-insert">
+        <AssistantReferenceText text={change.insertedText} />
+      </ins>
     );
   }
   if (change.kind === 'delete') {
     return (
-      <del className="annotation-sedimentation-draft-preview-delete">{change.deletedText}</del>
+      <del className="annotation-sedimentation-draft-preview-delete">
+        <AssistantReferenceText text={change.deletedText} />
+      </del>
     );
   }
   return (
     <>
-      <del className="annotation-sedimentation-draft-preview-delete">{change.deletedText}</del>
-      <ins className="annotation-sedimentation-draft-preview-insert">{change.insertedText}</ins>
+      <del className="annotation-sedimentation-draft-preview-delete">
+        <AssistantReferenceText text={change.deletedText} />
+      </del>
+      <ins className="annotation-sedimentation-draft-preview-insert">
+        <AssistantReferenceText text={change.insertedText} />
+      </ins>
     </>
   );
 }

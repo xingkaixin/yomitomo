@@ -129,6 +129,11 @@
   flex: 0 0 auto;
 }
 
+.annotation-sedimentation-document > header button.is-icon {
+  width: 32px;
+  padding: 0;
+}
+
 .annotation-sedimentation-document > header button.is-secondary {
   border-color: var(--app-edge);
   background: var(--app-raised);
@@ -318,12 +323,6 @@
   padding: 22px 26px 36px;
 }
 
-.annotation-sedimentation-draft-editor.has-preview textarea {
-  color: transparent;
-  caret-color: transparent;
-  padding-bottom: 92px;
-}
-
 .annotation-sedimentation-document textarea::placeholder {
   color: hsl(var(--muted-foreground));
   font-family: var(--font-ui, ui-sans-serif, system-ui, sans-serif);
@@ -332,11 +331,43 @@
 }
 
 .annotation-sedimentation-draft-preview-layer {
-  position: absolute;
-  z-index: 1;
-  inset: 0;
+  display: grid;
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
-  pointer-events: none;
+}
+
+.annotation-sedimentation-draft-preview-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--app-edge-soft);
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  padding: 8px 16px 8px 26px;
+}
+
+.annotation-sedimentation-draft-preview-navigation > div {
+  display: flex;
+  gap: 4px;
+}
+
+.annotation-sedimentation-draft-preview-navigation button {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid var(--app-edge);
+  border-radius: 6px;
+  background: var(--app-raised);
+  color: hsl(var(--foreground));
+}
+
+.annotation-sedimentation-draft-preview-navigation button:focus-visible {
+  outline: 2px solid var(--app-interactive-focus-ring);
+  outline-offset: 2px;
 }
 
 .annotation-sedimentation-draft-anchor-layer {
@@ -390,7 +421,9 @@
 }
 
 .annotation-sedimentation-draft-preview-text {
-  min-height: 100%;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-gutter: stable;
   color: hsl(var(--foreground));
   font: inherit;
   font-family: var(--font-reader-serif, Georgia, serif);
@@ -398,9 +431,25 @@
   font-weight: 400;
   line-height: 32px;
   overflow-wrap: break-word;
-  padding: 22px 26px 92px;
-  transform-origin: 0 0;
+  padding: 22px 26px 36px;
   white-space: pre-wrap;
+}
+
+.annotation-sedimentation-draft-document.annotation-discussion-markdown {
+  height: 100%;
+  overflow: auto;
+  scrollbar-gutter: stable;
+  color: hsl(var(--foreground));
+  font-family: var(--font-reader-serif, Georgia, serif);
+  font-size: 17px;
+  line-height: 32px;
+  padding: 22px 26px 36px;
+}
+
+.annotation-sedimentation-window a[href^='#'] {
+  color: var(--app-interactive-link);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .annotation-sedimentation-draft-preview-insert,
@@ -428,6 +477,16 @@
 
 .annotation-sedimentation-draft-preview-change {
   display: inline;
+  scroll-margin-block: 24px;
+}
+
+.annotation-sedimentation-draft-preview-change:focus {
+  outline: none;
+}
+
+.annotation-sedimentation-draft-preview-change:focus > ins,
+.annotation-sedimentation-draft-preview-change:focus > del {
+  box-shadow: 0 0 0 1px var(--app-interactive-selected-border);
 }
 
 .annotation-sedimentation-draft-preview-change-actions,

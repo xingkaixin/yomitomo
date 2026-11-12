@@ -34,7 +34,6 @@ import {
   planDistillationProposalDraftAnchor,
   planDistillationProposalChangeSet,
   proposalApplyFailureMessage,
-  type DistillationProposalDraftChange,
   type DraftSelectionSnapshot,
 } from './app-annotation-sedimentation-proposals';
 import {
@@ -87,6 +86,7 @@ export function useAnnotationSedimentationController({
     {
       activeOperation,
       draft,
+      draftEditing,
       draftPreviewScroll,
       hoveredDraftAnchor,
       organizeConfirmOpen,
@@ -117,6 +117,8 @@ export function useAnnotationSedimentationController({
   const draftKey = distillationDraftKey(article.id, annotation.id);
   const draftRef = useRef(draft);
   const draftTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const draftPreviewRef = useRef<HTMLDivElement | null>(null);
+  const focusedProposalIdRef = useRef<string | null>(null);
   const draftSelectionRef = useRef<DraftSelectionSnapshot | null>(null);
   const sessions = annotation.distillation?.reviewSessions || [];
   const busy = activeOperation !== null;
@@ -129,7 +131,7 @@ export function useAnnotationSedimentationController({
 
   async function publish() {
     const content = draft.trim();
-    if (!content || busy) return;
+    if (!content || busy || hasPendingDraftPreview) return;
     const transition = isPublished ? 'update' : 'publish';
     recordOperation(annotation.id, transition, 'started');
     dispatch({ type: 'operationStarted', operation: transition });
@@ -211,7 +213,7 @@ export function useAnnotationSedimentationController({
   }
 
   async function submitReview() {
-    if (!activeAgent || busy) return;
+    if (!activeAgent || busy || hasPendingDraftPreview) return;
     recordOperation(annotation.id, 'review', 'started');
     dispatch({ type: 'reviewSubmitted' });
     const effectiveReviewDraft = reviewDraft;
@@ -456,6 +458,11 @@ export function useAnnotationSedimentationController({
     recordDraftSelection();
   }
 
+  function toggleDraftEditing() {
+    dispatch({ type: 'draftEditingToggled' });
+    requestAnimationFrame(() => draftTextareaRef.current?.focus());
+  }
+
   function replaceDraft(value: string) {
     updateDraft(value);
     dispatch({ type: 'draftReplaced', draft: value });
@@ -488,7 +495,12 @@ export function useAnnotationSedimentationController({
     messageId: string,
     proposals: AnnotationDistillationProposal[],
     showFailure = true,
+    focusedProposalId?: string,
   ) {
+    if (pendingDraftPreview) {
+      if (focusedProposalId) focusPreviewProposal(focusedProposalId);
+      return false;
+    }
     const pendingProposals = pendingReviewProposals(proposals);
     if (pendingProposals.length === 0) return false;
     const selection = pendingProposals.length === 1 ? draftSelectionRef.current : null;
@@ -507,7 +519,7 @@ export function useAnnotationSedimentationController({
       decisions: draftPreviewDecisionsForProposals(pendingProposals),
     });
     dispatch({ type: 'reviewNoticeShown', notice: t('sedimentation.previewReady') });
-    focusDraftChange(result.changeSet.changes[0]);
+    focusPreviewProposal(focusedProposalId || result.changeSet.changes[0]?.proposalId);
     return true;
   }
 
@@ -533,7 +545,7 @@ export function useAnnotationSedimentationController({
       decisions: draftPreviewDecisionsForProposals(pendingProposals),
     });
     setOrganizeNotice(t('sedimentation.previewReady'));
-    focusDraftChange(result.changeSet.changes[0]);
+    focusPreviewProposal(result.changeSet.changes[0]?.proposalId);
     return true;
   }
 
@@ -546,6 +558,12 @@ export function useAnnotationSedimentationController({
     const nextDecisions = { ...preview.decisions, [proposalId]: decision };
     if (hasPendingDraftPreviewDecisions(nextDecisions)) {
       dispatchProposalWorkflow({ type: 'update-preview-decisions', decisions: nextDecisions });
+      const changes = preview.changeSet.changes;
+      const currentIndex = changes.findIndex((change) => change.proposalId === proposalId);
+      const remaining = [...changes.slice(currentIndex + 1), ...changes.slice(0, currentIndex)];
+      focusPreviewProposal(
+        remaining.find((change) => nextDecisions[change.proposalId] === 'pending')?.proposalId,
+      );
       return;
     }
     const acceptedChanges = acceptedDraftPreviewChanges(preview.changeSet, nextDecisions);
@@ -562,7 +580,6 @@ export function useAnnotationSedimentationController({
       dispatchProposalWorkflow({ type: 'apply-organize-decisions', decisions: nextDecisions });
       setOrganizeNotice(acceptedChanges.length > 0 ? t('sedimentation.organizeAddedToDraft') : '');
     }
-    focusDraftChange(acceptedChanges[0]);
   }
 
   async function ignoreProposal(messageId: string, proposalId: string) {
@@ -602,17 +619,32 @@ export function useAnnotationSedimentationController({
     );
   }
 
-  function focusDraftChange(change: DistillationProposalDraftChange | undefined) {
+  function focusPreviewProposal(proposalId: string | undefined) {
+    if (!proposalId) return;
+    focusedProposalIdRef.current = proposalId;
     requestAnimationFrame(() => {
-      const textarea = draftTextareaRef.current;
-      if (!textarea) return;
-      textarea.focus();
-      if (change) {
-        textarea.setSelectionRange(change.changeOffset, change.changeOffset + change.changeLength);
-        scrollTextareaToOffset(textarea, change.changeOffset);
-        syncDraftPreviewScroll();
-      }
+      const element = Array.from(
+        draftPreviewRef.current?.querySelectorAll<HTMLElement>('[data-proposal-id]') || [],
+      ).find((candidate) => candidate.dataset.proposalId === proposalId);
+      element?.focus({ preventScroll: true });
+      const actions = element?.querySelector(
+        '.annotation-sedimentation-draft-preview-change-actions',
+      );
+      (actions || element)?.scrollIntoView({ block: 'center' });
     });
+  }
+
+  function navigateDraftPreview(direction: -1 | 1) {
+    if (!pendingDraftPreview) return;
+    const changes = pendingDraftPreview.changeSet.changes.filter(
+      (change) => pendingDraftPreview.decisions[change.proposalId] === 'pending',
+    );
+    const currentIndex = changes.findIndex(
+      (change) => change.proposalId === focusedProposalIdRef.current,
+    );
+    const nextIndex =
+      currentIndex < 0 ? 0 : (currentIndex + direction + changes.length) % changes.length;
+    focusPreviewProposal(changes[nextIndex]?.proposalId);
   }
 
   function setOrganizeNotice(notice: string) {
@@ -625,9 +657,13 @@ export function useAnnotationSedimentationController({
   return {
     draft: {
       value: draft,
+      editing: draftEditing,
+      toggleEditing: toggleDraftEditing,
       change: changeDraft,
       textareaRef: draftTextareaRef,
       preview: pendingDraftPreview,
+      previewRef: draftPreviewRef,
+      navigatePreview: navigateDraftPreview,
       hoveredAnchor: hoveredDraftAnchor,
       scroll: draftPreviewScroll,
       recordSelection: recordDraftSelection,
@@ -685,6 +721,7 @@ export function useAnnotationSedimentationController({
 type SedimentationState = {
   activeOperation: DistillationOperation;
   draft: string;
+  draftEditing: boolean;
   draftPreviewScroll: { left: number; top: number };
   hoveredDraftAnchor: HoveredDraftAnchor | null;
   organizeConfirmOpen: boolean;
@@ -696,6 +733,7 @@ type SedimentationState = {
 
 type SedimentationEvent =
   | { type: 'draftEdited'; draft: string }
+  | { type: 'draftEditingToggled' }
   | { type: 'draftPreviewOpened' }
   | { type: 'draftReplaced'; draft: string }
   | { type: 'draftScrolled'; left: number; top: number }
@@ -721,9 +759,11 @@ function initialSedimentationState({
   annotation: Annotation;
   articleId: string;
 }): SedimentationState {
+  const draft = initialDistillationDraft(articleId, annotation);
   return {
     activeOperation: null,
-    draft: initialDistillationDraft(articleId, annotation),
+    draft,
+    draftEditing: !draft.trim(),
     draftPreviewScroll: { left: 0, top: 0 },
     hoveredDraftAnchor: null,
     organizeConfirmOpen: false,
@@ -740,11 +780,13 @@ function sedimentationReducer(
 ): SedimentationState {
   switch (event.type) {
     case 'draftEdited':
-      return { ...state, draft: event.draft, hoveredDraftAnchor: null };
+      return { ...state, draft: event.draft, draftEditing: true, hoveredDraftAnchor: null };
+    case 'draftEditingToggled':
+      return { ...state, draftEditing: !state.draftEditing, hoveredDraftAnchor: null };
     case 'draftPreviewOpened':
       return { ...state, hoveredDraftAnchor: null };
     case 'draftReplaced':
-      return { ...state, draft: event.draft };
+      return { ...state, draft: event.draft, draftEditing: !event.draft.trim() };
     case 'draftScrolled':
       return { ...state, draftPreviewScroll: { left: event.left, top: event.top } };
     case 'operationSettled':
@@ -874,12 +916,4 @@ function distillationSaveErrorMessage(error: unknown) {
   return isDistillationConflict(error)
     ? i18next.t('sedimentation.saveConflict')
     : i18next.t('common.saveFailed');
-}
-
-function scrollTextareaToOffset(textarea: HTMLTextAreaElement, offset: number) {
-  const text = textarea.value.slice(0, offset);
-  const linesBefore = text.split('\n').length - 1;
-  const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight) || 28;
-  const targetTop = linesBefore * lineHeight;
-  textarea.scrollTop = Math.max(0, targetTop - textarea.clientHeight / 3);
 }
