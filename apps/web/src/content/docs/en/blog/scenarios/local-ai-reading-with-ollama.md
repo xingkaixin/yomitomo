@@ -43,7 +43,7 @@ Fetch the model list or add the model manually, test the connection, then save. 
 5. Compare the reply with the source before saving your own note.
 
 <figure>
-  <img src="/assets/en-import-pdf-1280.webp" alt="Yomitomo Add PDF document dialog with a file selection and drop area" width="1280" height="953" loading="lazy" decoding="async" />
+  <img src="/assets/en-import-pdf-1280.webp" alt="Yomitomo Add PDF document dialog with a file selection and drop area" width="1280" height="851" loading="lazy" decoding="async" />
   <figcaption>Import a local PDF before testing passage-level AI discussion.</figcaption>
 </figure>
 

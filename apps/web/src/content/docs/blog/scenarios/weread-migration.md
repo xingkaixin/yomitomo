@@ -30,7 +30,7 @@ Yomitomo 可以通过微信读书官方 Skill API，把账号内可访问的书�
 4. 在已有划线的讨论区补充一条自己的笔记，确认可以在本地继续阅读和整理。
 
 <figure>
-  <img src="/assets/carousel/weread-list.webp" alt="Yomitomo 微信读书来源列表，显示已同步书籍和同步按钮" width="1600" height="1146" loading="lazy" decoding="async" />
+  <img src="/assets/carousel/weread-list.webp" alt="Yomitomo 微信读书书架，显示已同步书籍和内容类型筛选" width="1600" height="1064" loading="lazy" decoding="async" />
   <figcaption>微信读书来源列表示例；界面布局可能随版本调整。</figcaption>
 </figure>
 

@@ -42,6 +42,7 @@ export function buildLandingStructuredData({
   title,
   version,
 }: LandingStructuredDataOptions) {
+  const screenshotLocale = language === 'zh-CN' ? 'cn' : 'en';
   return {
     '@context': 'https://schema.org',
     '@graph': [
@@ -75,9 +76,9 @@ export function buildLandingStructuredData({
         url: siteUrl,
         image: { '@id': `${siteUrl}/#primaryimage` },
         screenshot: [
-          `${siteUrl}/assets/read.webp`,
-          `${siteUrl}/assets/epub.webp`,
-          `${siteUrl}/assets/webpage.webp`,
+          `${siteUrl}/assets/${screenshotLocale}-home.webp`,
+          `${siteUrl}/assets/${screenshotLocale}-reader.webp`,
+          `${siteUrl}/assets/${screenshotLocale}-assistant.webp`,
         ],
         description,
         publisher: { '@id': organizationId },

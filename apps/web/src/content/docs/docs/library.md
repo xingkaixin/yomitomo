@@ -3,7 +3,7 @@ title: 阅读库与导入
 description: 管理网页文章、EPUB/AZW3/MOBI 电子书、PDF 与文本文档，了解 Yomitomo 的本地存储机制。
 ---
 
-阅读库是管理所有阅读材料的核心入口。网页文章、电子书（EPUB/AZW3/MOBI）、PDF 文档、Markdown/文本、微信读书笔记和阅读合集会分类归集，方便按材料类型开启对应的阅读流。你可以在设置中自定义首页展示的内容来源；删除材料有二次确认保护，导入或删除成功时会有 Toast 与可选的按键音效反馈。
+阅读库是管理所有阅读材料的核心入口。网页文章、电子书（EPUB/AZW3/MOBI）、PDF 文档、Markdown/文本、微信读书笔记和阅读合集会分类归集，方便按材料类型开启对应的阅读流。你可以在设置中自定义首页展示的内容来源；删除材料有二次确认保护，导入或删除成功时会有 顶部通知与可选的音效反馈。
 
 ## 阅读合集
 
@@ -22,13 +22,13 @@ description: 管理网页文章、EPUB/AZW3/MOBI 电子书、PDF 与文本文档
 合集支持收录网页文章、电子书、PDF、纯文本和微信读书书籍。提供两种添加方式：
 
 - **合集内挑选**：在合集页面点击「添加到此合集」，从弹窗中勾选库内已有材料。支持按类型筛选和关键词搜索，可逐个点击「+」添加，或直接拖拽至右侧「待加入」列表。
-- **拖拽归档**：在阅读库网格视图中，直接将材料卡片拖拽到目标合集卡片上即可快速归入。
+- **拖拽归档**：在书架上，将材料封面拖到目标合集木箱即可归入。
 
 在合集内打开某篇材料的卡片菜单，选择「从合集中移除」即可移出。这仅解除归属关系，不会删除阅读库内的原始材料。
 
 ### 合集封面与置顶
 
-合集卡片会自动将前 9 本材料的封面合成为叠放画卷，并标注收录数量；空合集则显示占位质感封面。你可以将常用的合集或重要材料「置顶」，它们会固定在阅读库最前端。
+阅读库以书架展示材料，封面下方显示阅读进度、标题和批注数量。合集以木箱展示成员封面并标注收录数量；空合集显示空木箱。你可以将常用的合集或重要材料「置顶」，它们会固定在阅读库最前端。
 
 ### 删除合集
 
@@ -37,7 +37,7 @@ description: 管理网页文章、EPUB/AZW3/MOBI 电子书、PDF 与文本文档
 ## 导入网页文章
 
 1. 在阅读库点击右上角「+」。
-2. 选择「添加网页」。
+2. 选择「添加网页文章」。
 3. 粘贴以 `http://` 或 `https://` 开头的文章链接。
 4. 等待 Yomitomo 智能提取标题、作者、正文及插图。
 
@@ -45,10 +45,10 @@ description: 管理网页文章、EPUB/AZW3/MOBI 电子书、PDF 与文本文档
 
 <picture>
   <source
-    srcset="/assets/cn-import-web-640.webp 640w, /assets/cn-import-web-960.webp 960w, /assets/cn-import-web-1280.webp 1280w, /assets/cn-import-web-1600.webp 1600w, /assets/cn-import-web-2400.webp 2400w, /assets/cn-import-web.webp 3388w"
+    srcset="/assets/cn-import-web-640.webp 640w, /assets/cn-import-web-960.webp 960w, /assets/cn-import-web-1280.webp 1280w, /assets/cn-import-web-1600.webp 1600w, /assets/cn-import-web.webp 2360w"
     sizes="(max-width: 760px) calc(100vw - 32px), 640px"
   />
-  <img src="/assets/cn-import-web.webp" alt="Yomitomo 导入网页文章" loading="lazy" width="3388" height="2520" decoding="async" />
+  <img src="/assets/cn-import-web.webp" alt="Yomitomo 导入网页文章" loading="lazy" width="2360" height="1568" decoding="async" />
 </picture>
 
 ## 导入电子书
@@ -61,10 +61,10 @@ Yomitomo 会完整解析书籍封面、多级目录、章节层级与样式结�
 
 <picture>
   <source
-    srcset="/assets/cn-import-ebook-640.webp 640w, /assets/cn-import-ebook-960.webp 960w, /assets/cn-import-ebook-1280.webp 1280w, /assets/cn-import-ebook-1600.webp 1600w, /assets/cn-import-ebook-2400.webp 2400w, /assets/cn-import-ebook.webp 3388w"
+    srcset="/assets/cn-import-ebook-640.webp 640w, /assets/cn-import-ebook-960.webp 960w, /assets/cn-import-ebook-1280.webp 1280w, /assets/cn-import-ebook-1600.webp 1600w, /assets/cn-import-ebook.webp 2360w"
     sizes="(max-width: 760px) calc(100vw - 32px), 640px"
   />
-  <img src="/assets/cn-import-ebook.webp" alt="Yomitomo 导入电子书" loading="lazy" width="3388" height="2520" decoding="async" />
+  <img src="/assets/cn-import-ebook.webp" alt="Yomitomo 导入电子书" loading="lazy" width="2360" height="1568" decoding="async" />
 </picture>
 
 ## 导入 PDF
@@ -77,10 +77,10 @@ PDF 支持批量导入（单次最多 10 份，单份上限 120MB）。导入完
 
 <picture>
   <source
-    srcset="/assets/cn-import-pdf-640.webp 640w, /assets/cn-import-pdf-960.webp 960w, /assets/cn-import-pdf-1280.webp 1280w, /assets/cn-import-pdf-1600.webp 1600w, /assets/cn-import-pdf-2400.webp 2400w, /assets/cn-import-pdf.webp 3388w"
+    srcset="/assets/cn-import-pdf-640.webp 640w, /assets/cn-import-pdf-960.webp 960w, /assets/cn-import-pdf-1280.webp 1280w, /assets/cn-import-pdf-1600.webp 1600w, /assets/cn-import-pdf.webp 2360w"
     sizes="(max-width: 760px) calc(100vw - 32px), 640px"
   />
-  <img src="/assets/cn-import-pdf.webp" alt="Yomitomo 导入 PDF" loading="lazy" width="3388" height="2520" decoding="async" />
+  <img src="/assets/cn-import-pdf.webp" alt="Yomitomo 导入 PDF" loading="lazy" width="2360" height="1568" decoding="async" />
 </picture>
 
 ## 导入纯文本与 Markdown
@@ -93,18 +93,11 @@ PDF 支持批量导入（单次最多 10 份，单份上限 120MB）。导入完
 
 Markdown 的 YAML Front Matter 会格式化为文首元数据栏；文本内容经过安全净化处理，远程图片默认不主动请求。文本材料拥有专属稿纸质感封面，与其他材料一样支持分类筛选与合集归档。
 
-## 筛选、搜索与排序
+## 筛选与搜索
 
-阅读库支持按阅读进度多维筛选：
+点击搜索框左侧的「全部」可多选合集、网页、电子书、PDF、文本或微信读书。已选类型显示为可移除标签。搜索支持标题、作者、来源和合集名称。
 
-- 全部
-- 新添加
-- 阅读中
-- 已读完
-
-同时支持多选内容类型：合集、网页、电子书、PDF、文本、微信读书。已勾选的类型会以标签展示，支持单独移除。当前筛选条件、搜索关键词与打开的合集状态在切换页面后均会自动保留，返回时无缝衔接。
-
-支持按「最近阅读」、「最近添加」、「批注数量」和「讨论数量」排序，并可通过标题或作者关键词进行实时检索。
+当前筛选条件、搜索词与打开的合集会在切换页面后保留。常用材料和合集可以置顶，其余内容按加入时间排列；底部可翻页并调整每页数量。
 
 ## 本地存储与离线图片
 

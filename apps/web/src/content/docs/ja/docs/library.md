@@ -3,7 +3,7 @@ title: ライブラリとインポート
 description: Web 記事、電子書籍（EPUB/AZW3/MOBI）、PDF、Markdown ノートを整理し、Yomitomo のローカル保存構造を理解します。
 ---
 
-ライブラリは、すべての読書資料を一元管理するメイン画面です。Web 記事、電子書籍（EPUB/AZW3/MOBI）、PDF 文書、テキスト/Markdown、WeRead ノート、そして読書コレクションを整理し、それぞれの形式に最適な読書体験へスムーズに入ることができます。設定から初期表示するソースをカスタマイズでき、資料の削除時には確認ダイアログが表示され、操作完了時にはトースト通知と心地よい効果音で通知されます。
+ライブラリは、すべての読書資料を一元管理するメイン画面です。Web 記事、電子書籍（EPUB/AZW3/MOBI）、PDF 文書、テキスト/Markdown、WeRead ノート、そして読書コレクションを整理し、それぞれの形式に最適な読書体験へスムーズに入ることができます。設定から初期表示するソースをカスタマイズでき、資料の削除時には確認ダイアログが表示され、操作完了時には画面上部の通知と任意の効果音で通知されます。
 
 ## コレクション機能
 
@@ -28,7 +28,7 @@ Web 記事、電子書籍、PDF、テキスト、WeRead 書籍など、あらゆ
 
 ### 表紙スタックとピン留め
 
-コレクションカードには、最大 9 冊分の表紙が美しく重なり合ったスタック画像と収録数が表示されます。よく使うコレクションや重要な資料は「ピン留め」することで、ライブラリの最上部に固定表示できます。
+資料は本棚に並び、表紙の下に読書進捗、タイトル、注釈数を表示します。コレクションは表紙を収めた木箱で、収録数も表示します。空のコレクションは空の木箱になります。よく使うコレクションや重要な資料は「ピン留め」することで、ライブラリの最上部に固定表示できます。
 
 ### コレクションの削除
 
@@ -45,10 +45,10 @@ Web 記事、電子書籍、PDF、テキスト、WeRead 書籍など、あらゆ
 
 <picture>
   <source
-    srcset="/assets/en-import-web-640.webp 640w, /assets/en-import-web-960.webp 960w, /assets/en-import-web-1280.webp 1280w, /assets/en-import-web-1600.webp 1600w, /assets/en-import-web-2400.webp 2400w, /assets/en-import-web.webp 3388w"
+    srcset="/assets/en-import-web-640.webp 640w, /assets/en-import-web-960.webp 960w, /assets/en-import-web-1280.webp 1280w, /assets/en-import-web-1600.webp 1600w, /assets/en-import-web.webp 2360w"
     sizes="(max-width: 760px) calc(100vw - 32px), 640px"
   />
-  <img src="/assets/en-import-web.webp" alt="Yomitomo Web 記事のインポート" loading="lazy" width="3388" height="2520" decoding="async" />
+  <img src="/assets/en-import-web.webp" alt="Yomitomo Web 記事のインポート" loading="lazy" width="2360" height="1568" decoding="async" />
 </picture>
 
 ## 電子書籍のインポート
@@ -61,10 +61,10 @@ Yomitomo は表紙、多階層の目次、章構造、本文レイアウトを�
 
 <picture>
   <source
-    srcset="/assets/en-import-ebook-640.webp 640w, /assets/en-import-ebook-960.webp 960w, /assets/en-import-ebook-1280.webp 1280w, /assets/en-import-ebook-1600.webp 1600w, /assets/en-import-ebook-2400.webp 2400w, /assets/en-import-ebook.webp 3388w"
+    srcset="/assets/en-import-ebook-640.webp 640w, /assets/en-import-ebook-960.webp 960w, /assets/en-import-ebook-1280.webp 1280w, /assets/en-import-ebook-1600.webp 1600w, /assets/en-import-ebook.webp 2360w"
     sizes="(max-width: 760px) calc(100vw - 32px), 640px"
   />
-  <img src="/assets/en-import-ebook.webp" alt="Yomitomo 電子書籍のインポート" loading="lazy" width="3388" height="2520" decoding="async" />
+  <img src="/assets/en-import-ebook.webp" alt="Yomitomo 電子書籍のインポート" loading="lazy" width="2360" height="1568" decoding="async" />
 </picture>
 
 ## PDF 文書のインポート
@@ -77,10 +77,10 @@ PDF は最大 10 ファイルまでの一括インポートに対応（1 ファ�
 
 <picture>
   <source
-    srcset="/assets/en-import-pdf-640.webp 640w, /assets/en-import-pdf-960.webp 960w, /assets/en-import-pdf-1280.webp 1280w, /assets/en-import-pdf-1600.webp 1600w, /assets/en-import-pdf-2400.webp 2400w, /assets/en-import-pdf.webp 3388w"
+    srcset="/assets/en-import-pdf-640.webp 640w, /assets/en-import-pdf-960.webp 960w, /assets/en-import-pdf-1280.webp 1280w, /assets/en-import-pdf-1600.webp 1600w, /assets/en-import-pdf.webp 2360w"
     sizes="(max-width: 760px) calc(100vw - 32px), 640px"
   />
-  <img src="/assets/en-import-pdf.webp" alt="Yomitomo PDF ドキュメントのインポート" loading="lazy" width="3388" height="2520" decoding="async" />
+  <img src="/assets/en-import-pdf.webp" alt="Yomitomo PDF ドキュメントのインポート" loading="lazy" width="2360" height="1568" decoding="async" />
 </picture>
 
 ## テキストと Markdown のインポート
@@ -93,18 +93,11 @@ PDF は最大 10 ファイルまでの一括インポートに対応（1 ファ�
 
 Markdown の Front Matter は本文上部のメタデータブロックとして美しく表示されます。リモート画像の自動取得は行われません。テキスト専用の原稿用紙風カバーが適用され、他の資料と同様にコレクション追加やフィルタリングが可能です。
 
-## フィルター、検索、並べ替え
+## フィルターと検索
 
-読書の進捗状況に応じた絞り込みが可能です：
+検索欄の左側にある「すべて」から、コレクション、Web、電子書籍、PDF、テキスト、WeReadを複数選択できます。選択した種類は削除可能なタグで表示されます。タイトル、著者、出典、コレクション名で検索できます。
 
-- すべて
-- 新規追加
-- 読書中
-- 読了
-
-また、コレクション、Web、電子書籍、PDF、テキスト、WeRead などのコンテンツ種別を複数選択してフィルタリングできます。アクティブなフィルター、検索キーワード、開いていたコレクションは画面を移動しても保持されます。
-
-「最近読んだ順」「追加日順」「注釈数順」「ディスカッション数順」での並べ替えや、タイトル・著者名によるリアルタイム全文検索に対応しています。
+フィルター、検索語、開いているコレクションは画面を移動しても保持されます。よく使う資料やコレクションはピン留めでき、そのほかは追加日時順に並びます。下部でページと表示件数を切り替えられます。
 
 ## ローカル保存とオフライン画像
 

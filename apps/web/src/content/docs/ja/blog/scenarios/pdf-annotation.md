@@ -13,7 +13,7 @@ Yomitomoプロジェクトがv0.16.2の機能と設定に基づいてまとめ�
 読書ライブラリの「+」からPDF文書の追加を選び、ファイルを選択するか追加画面にドラッグします。1回に最大10ファイル、1ファイル120MBまで取り込めます。
 
 <figure>
-  <img src="/assets/en-import-pdf-1280.webp" alt="PDFファイルの選択とドロップ領域があるYomitomoの追加画面（英語UIの例）" width="1280" height="953" loading="lazy" decoding="async" />
+  <img src="/assets/en-import-pdf-1280.webp" alt="PDFファイルの選択とドロップ領域があるYomitomoの追加画面（英語UIの例）" width="1280" height="851" loading="lazy" decoding="async" />
   <figcaption>英語UIでのPDF追加画面。表示言語は設定で変更できます。</figcaption>
 </figure>
 
