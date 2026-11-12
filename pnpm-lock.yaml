@@ -241,7 +241,7 @@ catalogs:
       version: 4.159.0
 
 overrides:
-  '@electron/get>undici': 7.30.1
+  '@electron/get>undici': 7.30.2
   '@babel/core@<=7.29.0': 7.29.7
   '@xmldom/xmldom@>=0.7.0 <0.8.15': 0.8.15
   adm-zip@<0.6.1: 0.6.1
@@ -252,13 +252,14 @@ overrides:
   esbuild@<=0.28.1: 0.28.2
   fast-uri@>=3.0.0 <3.1.8: 3.1.8
   js-yaml@>=4.0.0 <5.0.0: 4.3.2
-  jsdom>undici: 8.12.3
-  miniflare>undici: 7.30.1
+  jsdom>undici: 8.12.4
+  miniflare>undici: 7.30.2
   node-gyp>undici: 6.29.1
   postcss@>=8.5.0 <8.5.18: 8.5.28
   sharp@>=0.34.0 <0.35.0: 0.35.5
   svgo@>=4.0.0 <4.1.0: 4.1.0
   tar@>=7.0.0 <7.5.22: 7.5.22
+  unifont>undici: 8.12.4
 
 importers:
 
@@ -5729,13 +5730,9 @@ packages:
     resolution: {integrity: sha512-EvRlUt/QqAEvXdQeRMYUfwOQsfzpDztykrG2owGEE/rBOBoYv9uF39ZzsNDh4lTFHhTr2XOZjKkYgueD12ZmGA==}
     engines: {node: '>=18.17'}
 
-  undici@7.30.1:
-    resolution: {integrity: sha512-03KrMbjIFDWQR5RNPrSw3bd1r12JpyFQl9/yxjUbJtqkjmllqC5lFjZh6ujeuJCKr8EOQvRW872Oy/az+nLYxg==}
+  undici@7.30.2:
+    resolution: {integrity: sha512-mLyPQnHwUxaM/rideoK/+KL8DaAJLRl4aBCfmX444aCSLnIaomqPLtNRe2jdCYcsk5wZzXrDIQC8ZeYNRAYyIA==}
     engines: {node: '>=20.18.1'}
-
-  undici@8.12.3:
-    resolution: {integrity: sha512-+fdndUTwBP86cVjihTp21hZHo7d6oj1c/47XPA3lL8mM0XHs+C4EkcjmgRsFnFk2f/UONGDy9ItBItmXsLOQHw==}
-    engines: {node: '>=22.19.0'}
 
   undici@8.12.4:
     resolution: {integrity: sha512-8Mx+uNKKER2bA4AdtedkqRbwUCIJFr2nJckXRe5yrDqzePqwLP7VNcctN8/XdmDSbF7mS+jJKIszlL+vbam1VA==}
@@ -7060,7 +7057,7 @@ snapshots:
       semver: 7.8.5
       sumchecker: 3.0.1(supports-color@10.2.2)
     optionalDependencies:
-      undici: 7.30.1
+      undici: 7.30.2
     transitivePeerDependencies:
       - supports-color
 
@@ -10024,7 +10021,7 @@ snapshots:
       parse5-parser-stream: 8.1.1
       saxes: 6.0.0
       tough-cookie: 6.0.2
-      undici: 8.12.3
+      undici: 8.12.4
       w3c-xmlserializer: 6.0.0
       webidl-conversions: 8.0.1
       whatwg-mimetype: 5.0.0
@@ -10437,7 +10434,7 @@ snapshots:
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
       sharp: 0.35.5(@types/node@26.6.6)
-      undici: 7.30.1
+      undici: 7.30.2
       workerd: 1.20261109.1
       ws: 8.21.0
       youch: 4.1.0-beta.10
@@ -11442,9 +11439,7 @@ snapshots:
 
   undici@6.29.1: {}
 
-  undici@7.30.1: {}
-
-  undici@8.12.3: {}
+  undici@7.30.2: {}
 
   undici@8.12.4: {}
 
@@ -11467,7 +11462,7 @@ snapshots:
       css-tree: 3.2.1
       fnv1a-64: 0.1.2
       std-env: 4.3.0
-      undici: 8.12.3
+      undici: 8.12.4
 
   unist-util-find-after@5.0.0:
     dependencies:
