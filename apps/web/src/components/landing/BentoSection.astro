@@ -25,11 +25,13 @@ const avatar = (id: CompanionId) => `/assets/landing-avatars/${lang}/${id}-96.we
         <span class="lbl k-left d4" style="left: 0; top: 107px; width: 74px"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.1"><path d="M2.5 2h7M2.5 4.5h7M2.5 7h5M2.5 9.5h3"></path></svg>TXT</span>
         <span class="lbl k-left d5" style="left: 0; top: 142px; width: 74px"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.1"><path d="M1.5 2.5 6 4l4.5-1.5v7L6 11 1.5 9.5zM6 4v7"></path></svg>WEREAD</span>
         <svg class="line k-draw d6" width="60" height="168" viewBox="0 0 60 168" style="left: 74px; top: 0"><path pathLength="1" d="M2 15 C 30 15, 26 84, 56 84"></path><path pathLength="1" d="M2 50 C 30 50, 26 84, 56 84"></path><path pathLength="1" d="M2 85 H 56"></path><path pathLength="1" d="M2 120 C 30 120, 26 84, 56 84"></path><path pathLength="1" d="M2 155 C 30 155, 26 84, 56 84"></path></svg>
-        <div class="c k-pop d7" style="left: 132px; top: 22px; width: 124px; height: 124px">
-          <span class="a b h" style="left: 12px; top: 13px; width: 46px"></span>
-          <div class="a k-rise d9" style="left: 12px; top: 30px; right: 12px; display: flex; gap: 8px"><span style="width: 13px; height: 18px; border-radius: 2px; background: var(--tint)"></span><div class="stack" style="flex: 1; gap: 5px; padding-top: 2px"><span class="b" style="width: 100%"></span><span class="b" style="width: 60%"></span></div></div>
-          <div class="a k-rise d10" style="left: 12px; top: 58px; right: 12px; display: flex; gap: 8px"><span style="width: 13px; height: 18px; border-radius: 2px; background: #4b7fb5"></span><div class="stack" style="flex: 1; gap: 5px; padding-top: 2px"><span class="b" style="width: 86%"></span><span class="b" style="width: 48%"></span></div></div>
-          <div class="a k-rise d11" style="left: 12px; top: 86px; right: 12px; display: flex; gap: 8px"><span style="width: 13px; height: 18px; border-radius: 2px; background: var(--hl-deep)"></span><div class="stack" style="flex: 1; gap: 5px; padding-top: 2px"><span class="b" style="width: 94%"></span><span class="b" style="width: 40%"></span></div></div>
+        <div class="c k-pop d7" style="left: 132px; top: 22px; width: 124px; height: 124px; background: var(--r-panel)">
+          <span class="a" style="left: 0; top: 0; bottom: 0; width: 24px; border-radius: 9px 0 0 9px; background: var(--r-shell)"></span>
+          <div class="a stack" style="left: 5px; top: 15px; width: 14px; gap: 8px"><span class="b h"></span><span class="b"></span><span class="b"></span></div>
+          <div class="a k-rise d9" style="left: 38px; top: 15px; display: flex; align-items: end; gap: 10px"><span style="width: 22px; height: 37px; border-radius: 2px; background: var(--tint); box-shadow: inset 3px 0 0 rgba(0,0,0,.12)"></span><span style="width: 23px; height: 42px; border-radius: 2px; background: #4b7fb5; box-shadow: inset 3px 0 0 rgba(0,0,0,.12)"></span></div>
+          <span class="a k-wipe d10" style="left: 29px; right: 5px; top: 57px; height: 4px; background: linear-gradient(#ebe4d6, #d8cdb9)"></span>
+          <div class="a k-rise d11" style="left: 38px; top: 77px; display: flex; align-items: end; gap: 10px"><span style="width: 22px; height: 25px; border-radius: 2px; background: var(--hl-deep)"></span><span style="width: 23px; height: 30px; border-radius: 2px; background: #5e8c6a; box-shadow: inset 3px 0 0 rgba(0,0,0,.12)"></span></div>
+          <span class="a k-wipe d12" style="left: 29px; right: 5px; top: 107px; height: 4px; background: linear-gradient(#ebe4d6, #d8cdb9)"></span>
         </div>
       </div>
     </div>
@@ -49,9 +51,9 @@ const avatar = (id: CompanionId) => `/assets/landing-avatars/${lang}/${id}-96.we
           </div>
           <svg class="line y k-draw d2" width="112" height="8" viewBox="0 0 112 8" style="left: 14px; top: 76px"><path pathLength="1" d="M0 4 q 3.5 -5 7 0 t 7 0 t 7 0 t 7 0 t 7 0 t 7 0 t 7 0 t 7 0 t 7 0 t 7 0 t 7 0 t 7 0 t 7 0 t 7 0 t 7 0 t 7 0"></path></svg>
         </div>
-        <svg class="line y k-draw d6" width="44" height="30" viewBox="0 0 44 30" style="left: 126px; top: 52px"><path pathLength="1" d="M2 26 C 16 26, 22 8, 40 6 m-5 -4 l5 4 l-5 4"></path></svg>
+        <span class="a k-fade d6" style="left: 122px; top: 67px; color: var(--r-highlight); font: 600 10px/1 var(--sans)">2</span>
         <div class="c k-pop d8" style="left: 168px; top: 34px; width: 88px; height: 92px; background: var(--r-mat)">
-          <span class="ctab t k-fade d9"></span>
+          <span class="ctab t k-fade d9" style="width: 22px; color: var(--r-highlight); font: 600 9px/12px var(--sans); text-align: center">2</span>
           <div class="a stack k-rise d9" style="left: 8px; right: 8px; top: 8px; bottom: 8px; padding: 10px 9px; border-radius: 5px; background: var(--card); gap: 7px"><span class="b h" style="width: 100%"></span><span class="b" style="width: 72%"></span><span class="b" style="width: 42%; margin-top: 8px"></span></div>
         </div>
       </div>
@@ -192,10 +194,11 @@ const avatar = (id: CompanionId) => `/assets/landing-avatars/${lang}/${id}-96.we
     <div class="art" aria-hidden="true">
       <span class="chipi"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle pathLength="1" cx="9" cy="9" r="6.5"></circle><path pathLength="1" d="M9 2.5a6.5 6.5 0 0 1 0 13"></path></svg></span>
       <div class="sc">
-        <div class="a" style="left: 24px; top: 8px; width: 208px; height: 152px; overflow: hidden; border-radius: 10px; box-shadow: 0 0 0 1px rgba(47, 39, 32, 0.08), 0 10px 22px -12px rgba(47, 39, 32, 0.3); background: #fffdf8">
-          <div class="a stack" style="left: 12px; top: 20px; width: 46px; gap: 8px"><span class="b h" style="width: 80%"></span><span class="b" style="width: 100%"></span><span class="b" style="width: 72%"></span><span class="b" style="width: 90%"></span></div>
-          <div class="a k-wipe d3" style="left: 69px; top: 0; bottom: 0; width: 70px; background: #1c1a18"><div class="a stack" style="left: 12px; top: 20px; width: 46px; gap: 8px"><span class="b" style="width: 80%; background: #5a544d"></span><span class="b" style="width: 100%; background: #3a3631"></span><span class="b" style="width: 72%; background: #3a3631"></span><span class="b" style="width: 90%; background: #3a3631"></span></div></div>
-          <div class="a k-wipe d7" style="left: 139px; top: 0; bottom: 0; width: 69px; background: #eef2f8"><svg class="a" width="50" height="112" viewBox="0 0 50 112" fill="none" style="left: 10px; top: 20px"><path d="M1 3c15-2 32 1 47-1 1 34-1 71 1 106-16 2-32-1-47 1-2-35 1-71-1-106Z" stroke="#2f4a7c" stroke-width="1.3"></path><path d="M8 18c10-1 22 1 33-1M8 34c8-1 26 1 33 0M8 50c10 0 16-1 24 0" stroke="#2f4a7c" stroke-width="1.3" stroke-linecap="round"></path></svg></div>
+        <div class="a" style="left: 24px; top: 8px; width: 208px; height: 152px; overflow: hidden; border-radius: 10px; box-shadow: 0 0 0 1px var(--r-edge), 0 10px 22px -12px rgba(28, 26, 23, 0.3); background: var(--r-shell)">
+          <div class="a stack" style="left: 10px; top: 22px; width: 28px; gap: 10px"><span class="b h" style="width: 80%"></span><span class="b"></span><span class="b" style="width: 72%"></span></div>
+          <div class="a" style="left: 48px; top: 6px; bottom: 6px; width: 58px; border: 1px solid var(--r-edge); border-radius: 7px; background: var(--r-panel)"><div class="a stack" style="inset: 18px 8px; gap: 9px"><span class="b h"></span><span class="b"></span><span class="b" style="width: 72%"></span></div></div>
+          <div class="a k-wipe d3" style="left: 106px; top: 0; bottom: 0; width: 102px; background: #1c1a17"><div class="a" style="inset: 6px 6px 6px 0; border: 1px solid rgba(224,217,204,.12); border-radius: 7px; background: linear-gradient(#302c26, #28241f)"><div class="a stack" style="inset: 18px 12px; gap: 9px"><span class="b h" style="background: #898176"></span><span class="b" style="background: #5a544d"></span><span class="b" style="width: 72%; background: #5a544d"></span></div></div></div>
+          <span class="a k-pop d7" style="left: 83px; bottom: 18px; display: grid; place-items: center; width: 40px; height: 28px; border: 1px solid var(--r-edge); border-radius: 999px; background: var(--r-raised); box-shadow: var(--r-raised-shadow); color: var(--r-primary); font-size: 20px">◐</span>
         </div>
       </div>
     </div>
