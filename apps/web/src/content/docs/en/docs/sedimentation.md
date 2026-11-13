@@ -7,7 +7,7 @@ Distillation transforms scattered thoughts accumulated around a highlight into a
 
 ## Open the Distillation Window
 
-From any annotation card, enter the discussion thread and click the **Distill** button. The distillation window opens with your working draft on the left and the review companion panel on the right.
+From any annotation card, enter the discussion thread and click the **Distill** button. The window shows your draft on the left and the review companion panel on the right. Choose **Edit Draft** to edit the text; in reading mode, citation links return to the source.
 
 You can craft the draft manually or invite review assistants to synthesize discussions and propose specific enhancements. Drafts support two lifecycle states:
 
@@ -39,6 +39,8 @@ Each proposal either applies cleanly or provides explicit guidance for manual in
 Before accepting any suggestion, click **Preview Change** to view an inline diff within your draft: additions appear in green highlights, removals are struck through in red, and the editor enters a temporary read-only state.
 
 You can accept or reject changes **item by item**. If proposals in a batch conflict or overlap, Yomitomo flags them for manual resolution.
+
+The preview shows the pending count. Use the previous/next controls or a location link in the discussion to find a suggestion. The preview scrolls independently; accepting or rejecting moves to the next item, and resolving all items returns to the draft. Review citations show readable excerpts and link back to their sources.
 
 ## Synthesize Discussion
 

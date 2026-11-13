@@ -16,11 +16,11 @@ You can currently download macOS Apple Silicon and Windows x64 installers from [
 - Desktop reader: outline, font size, content width, highlights, full-text search, reader Q&A, floating toolbar, dual note sidebars, selection shortcuts, arrow-key paging, and annotation navigation; bilingual translation for web articles and chapter-level bilingual reading for ebooks.
 - Text annotations: highlights, annotation types, thought threads, discussion comments, distillation publishing, and `@assistant` triggers; discussion and distillation flows include motion and optional sound feedback (toggle in Settings).
 - Reading assistants: mention `@assistant` in a discussion, ask an assistant to add a thought under a highlight, or ask about the article in reader Q&A. Assistants read the surrounding text on demand, and their replies link to the passages they cite.
-- WeRead sync: sync book notes, thoughts, and reading statistics after configuring an API key.
+- WeRead sync: sync book notes, thoughts, and reading statistics after configuring an API key; optionally open the WeRead web reader inside Yomitomo to revisit highlighted passages.
 - Reading library: manage web articles, ebooks, annotations, comments, and original-source links in one place.
 - Distillation library: gather every published distillation into one searchable, read-only list with source context and a jump back to the original annotation.
 - Reading memory: a local multilingual embedding model indexes highlights, thoughts, discussions, and published distillations for related reading, questions across the library, and revisiting past judgments. Every AI claim cites a saved record and jumps back to the source text.
-- UI and themes: Chinese, English, and Japanese interfaces, and multiple themes including dusk indigo and hand-drawn ink paper.
+- UI and themes: Chinese, English, and Japanese interfaces, a bookshelf library with collection crates, and light, dark, or system appearance.
 - App updates and data management: check for updates, view release notes, open the data directory, view logs, and back up or restore the database together with original ebooks, PDFs, and PDF thumbnails; API keys are excluded from complete backups. macOS installers are signed and notarized.
 - Reading statistics: generate local reading trends by article, annotation, and discussion.
 - Local-first reading privacy: reading content, book titles, annotations, file paths, AI conversations, and provider API keys stay local; anonymous app, version, and system metrics are sent at most once per day by default and can be disabled in Settings.
@@ -29,7 +29,7 @@ You can currently download macOS Apple Silicon and Windows x64 installers from [
 
 ### Electron desktop app
 
-![Yomitomo Electron desktop app](apps/web/public/assets/read.webp)
+![Yomitomo Electron desktop app](apps/web/public/assets/en-reader.webp)
 
 ## Project structure
 

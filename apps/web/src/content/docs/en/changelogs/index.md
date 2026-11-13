@@ -5,6 +5,17 @@ sidebar:
   hidden: true
 ---
 
+## 0.18.0
+
+Released: 2026-11-13
+
+- Rebuilt the library as a bookshelf with collection crates and unified light, dark, and system appearance.
+- Added an embedded WeRead reader and refreshed onboarding, file import, motion, and sounds.
+- Fixed distillation review navigation, readable citations, EPUB shortcuts, and chapter memory cleanup.
+- Updated preset models and output limits, including Gemini 4 Hydrogen and Carbon.
+
+[View 0.18.0 release notes](/en/changelogs/v0-18-0/)
+
 ## 0.17.0
 
 Released: 2026-11-03

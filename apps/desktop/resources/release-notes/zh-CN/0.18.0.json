@@ -1,0 +1,41 @@
+{
+  "version": "0.18.0",
+  "highlights": [
+    {
+      "type": "changed",
+      "title": "在书架上整理阅读材料",
+      "description": "书籍以封面展示，合集变成木箱。拖动封面即可归档，空合集提供添加引导，翻页与开合都有动作反馈。",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "统一亮暗界面",
+      "description": "亮色、暗色和跟随系统可在侧栏底部直接切换。阅读器工具栏调整字号和栏宽，讨论以气泡展示，批注与正文通过脚注编号对应。",
+      "audience": "settings"
+    },
+    {
+      "type": "new",
+      "title": "在应用内回看微信读书划线",
+      "description": "设置中可选择内嵌网页版，小窗定位划线不改变账号的阅读进度，也可展开继续阅读。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "逐条处理沉淀审阅建议",
+      "description": "变更预览可独立滚动，上一处、下一处和讨论定位带你找到待处理建议；引用显示可读摘录并能跳回原文。",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "新模型与更完整的回答",
+      "description": "加入 Gemini 4 Hydrogen、Carbon 等预置模型，按型号分配输出额度，减少思考模型在给出回答前耗尽额度的问题。",
+      "audience": "settings"
+    },
+    {
+      "type": "fixed",
+      "title": "EPUB 阅读与快捷键更稳定",
+      "description": "切换章节后释放旧章节内存，减少多图书籍的加载开销；在正文中使用划线和提问快捷键能正常响应。",
+      "audience": "reader"
+    }
+  ]
+}
