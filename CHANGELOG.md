@@ -2,7 +2,7 @@
 
 ## 0.18.0 - 2026-11-13
 
-## Features
+### Features
 
 - Rebuilt the library as a bookshelf with book covers and collection crates. Drag books into a crate, pick items inside a collection, and browse pages with sliding transitions; empty collections explain how to add your first items. (#1054–#1061, #1074, #1075, #1077)
 - Replaced the previous themes with light, dark, and system appearance. Existing choices retain their light or dark tone; settings and the theme switch now sit in the sidebar footer, while font size and reading width live in the reader toolbar. (#1032, #1045, #1053)
@@ -12,11 +12,11 @@
 - Updated preset models and sized context and output limits per model, preventing thinking models from exhausting the old 4,096-token output cap before answering. Fixed cost estimates for Moonshot, Zhipu, and mainland DashScope. (#1072)
 - Added Gemini 4 Hydrogen and Carbon presets with supported thinking levels and a 65,536-token output limit. The default Gemini model remains unchanged; Hydrogen's xhigh setting currently uses high while pi-ai adds transport support.
 
-## Performance
+### Performance
 
 - Released EPUB chapter documents after navigation and read compressed entries in larger chunks, reducing retained chapter memory and loading work for image-heavy books. (#1029)
 
-## Fixes
+### Fixes
 
 - Restored navigation through distillation review suggestions, independently scrollable change previews, and links back to the source. Assistant citations show readable excerpts instead of internal paragraph IDs, including older replies; user-written text is preserved. (#1080)
 - Forwarded keyboard shortcuts from EPUB body content to the reader, and restored window dragging from the gap above the content panel. (#1069, #1070, #1071)
@@ -25,7 +25,7 @@
 - Correctly ended failed assistant runs, tightened new-thought and organize-discussion retries, and indexed evidence added during the final background indexing pass. (#1023, #1025, #1026)
 - Isolated keychain entries for isolated data directories so test or alternate profiles do not reuse the main profile's credentials. (#1051)
 
-## Engineering
+### Engineering
 
 - Upgraded Electron to 45.2.3, Node.js to 24.22.3, pnpm to 12.18.0, Effect to 4.1.3, and pi to 1.5.2; updated dependencies, third-party notices, and undici security patches. (#1072, #1073, #1078)
 - Kept tests focused on product and data guarantees, documented product boundaries, removed unused WeRead statistics fields, and added a preset-model release check. (#1020, #1030, #1049, #1072)
