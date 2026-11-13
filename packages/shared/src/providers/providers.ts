@@ -154,6 +154,12 @@ export const providerPresets: ProviderPreset[] = [
     modelName: 'gemini-3.8-flash',
     logo: 'google.png',
     articleTextBudget: DEFAULT_ARTICLE_TEXT_BUDGET,
-    modelNames: ['gemini-3.8-flash', 'gemini-4-argon', 'gemini-3.5-flash-lite'],
+    modelNames: [
+      'gemini-3.8-flash',
+      'gemini-4-hydrogen',
+      'gemini-4-carbon',
+      'gemini-4-argon',
+      'gemini-3.5-flash-lite',
+    ],
   },
 ];

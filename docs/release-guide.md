@@ -110,7 +110,14 @@ pnpm providers:check
 上下文窗口、思考能力和大部分模型的输出上限来自 `@earendil-works/pi-ai` 的内置目录，升级该依赖即更新。
 只有 pi-ai 没有目录的预置（当前为阿里云百炼和火山引擎）在 `maxOutputTokens` 里维护输出上限；
 加入新模型前确认当前 pi-ai 版本的目录已收录它（`dist/providers/data/<供应商>.json`）；未收录时先升级
-pi-ai，否则思考参数按通用规则发送，可能被供应商拒绝。
+pi-ai，否则思考参数按通用规则发送，可能被供应商拒绝。若最新版仍未收录，按供应商官方文档
+在 `packages/ai/src/provider/pi-provider.ts` 补充仅限该型号的能力，并验证实际请求参数；目录命中时
+优先使用上游数据。当前 pi-ai 1.5.2 未收录 Gemini 4 Hydrogen / Carbon，应用补充其 1,048,576
+上下文窗口、65,536 单次输出上限和 low / medium / high 思考级别。Hydrogen 的 xhigh 暂按 high
+发送，因为当前 pi-ai 的 Google transport 不支持 XHIGH。依据：
+[Hydrogen](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/4-hydrogen)、
+[Carbon](https://aistudio.google.com/docs/models/gemini-4-carbon)、
+[思考级别](https://aistudio.google.com/docs/thinking)。
 两处都查不到的模型使用 128k 上下文和 4096 输出的保守默认值。实际请求的输出上限再取
 `min(模型输出上限, 上下文窗口 / 2)`。
 
@@ -144,7 +151,7 @@ pnpm deploy:download
 | 文件 | 用途 |
 | --- | --- |
 | `updater-cover-lighter.webp` | 亮色 / 浅色主题下「发现新版本」「更新说明」弹窗头图 |
-| `updater-cover-darker.webp` | 暗色 / 黄昏靛蓝等深色主题下的同一弹窗头图 |
+| `updater-cover-darker.webp` | 暗色主题下的同一弹窗头图 |
 
 引用位置：`apps/desktop/src/renderer/src/shell/app-update-dialog.tsx`（随主题切换 lighter / darker）。替换后本地打开更新弹窗或跑相关测试（如 `app-update-dialog.test.tsx`）确认比例与裁切正常。
 

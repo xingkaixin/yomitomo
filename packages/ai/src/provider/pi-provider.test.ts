@@ -51,6 +51,26 @@ function compatible(
 
 describe('piProviderFor', () => {
   it.each([
+    ['gemini-4-hydrogen', 'none', 'LOW'],
+    ['gemini-4-hydrogen', 'xhigh', 'HIGH'],
+    ['gemini-4-carbon', 'none', 'LOW'],
+    ['gemini-4-carbon', 'xhigh', 'HIGH'],
+  ] as const)('sends supported %s thinking %s', async (modelName, effort, thinkingLevel) => {
+    const provider = compatible('gemini', modelName, effort, 'gemini');
+    const payload = await requestPayload(provider);
+    expect(payload).toMatchObject({
+      model: modelName,
+      config: { maxOutputTokens: 65_536, thinkingConfig: { thinkingLevel } },
+    });
+    expect(payload).not.toHaveProperty('config.thinkingConfig.thinkingBudget');
+    expect(payload).not.toHaveProperty('config.temperature');
+    const models = createModels();
+    models.setProvider(piProviderFor(provider, agent));
+    const ref = piModelRef(provider, agent);
+    expect(models.getModel(ref.provider, ref.modelId)?.contextWindow).toBe(1_048_576);
+  });
+
+  it.each([
     ['dashscope', 'qwen3.5-plus', 'none', { enable_thinking: false, temperature: 0.3 }],
     ['dashscope', 'qwen3.5-plus', 'high', { enable_thinking: true }],
     ['zhipu', 'glm-5', 'none', { thinking: { type: 'disabled' }, temperature: 0.3 }],
