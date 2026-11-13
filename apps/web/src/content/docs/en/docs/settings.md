@@ -34,6 +34,12 @@ Once configured, choose your synchronization strategy:
 - **Manual Sync**: Triggers updates only when you click "Sync WeRead" in the Library.
 - **Automatic Sync**: Syncs once on application launch, then silently every 30 minutes in the background. Ongoing sync processes will not collide or duplicate.
 
+### Open WeRead inside Yomitomo
+
+In **Settings > WeRead**, choose **Open the web reader in Yomitomo** as the default opening method. Open a book or highlight to locate passages, turn pages, or jump between chapters in a compact view, or expand it to read. Compact navigation does not update your account's reading position; expanded reading lets WeRead record the current position and reading time.
+
+The web sign-in stays in a separate local session and is excluded from complete backups. Clear it from WeRead settings when needed. Locking the app closes the embedded reader.
+
 ## Intelligent Task Routing
 
 Choose one default model for reading comprehension, in-depth review, and bilingual translation. Expand per-task settings when you need different models. Tasks without their own model show "Inherit default model" and follow the default when it changes.

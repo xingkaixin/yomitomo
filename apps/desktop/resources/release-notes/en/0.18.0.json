@@ -1,0 +1,41 @@
+{
+  "version": "0.18.0",
+  "highlights": [
+    {
+      "type": "changed",
+      "title": "Organize your reading on a bookshelf",
+      "description": "Books show their covers and collections become crates. Drag covers to organize them, follow the empty-collection guide, and see feedback when turning pages or opening collections.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "One light and dark interface",
+      "description": "Switch light, dark, or system appearance from the sidebar footer. Adjust font size and width in the reader toolbar; discussions use bubbles and numbered footnotes connect notes to the text.",
+      "audience": "settings"
+    },
+    {
+      "type": "new",
+      "title": "Revisit WeRead highlights inside the app",
+      "description": "Choose the embedded web reader in Settings. Locate highlights in a compact view without changing your account’s reading position, or expand it to keep reading.",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "Work through review suggestions",
+      "description": "Scroll change previews independently and use previous, next, or discussion links to find pending suggestions. Citations show readable excerpts and return to the source.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "New models and room to answer",
+      "description": "Added presets including Gemini 4 Hydrogen and Carbon, with output limits sized per model so reasoning is less likely to consume the whole allowance before an answer.",
+      "audience": "settings"
+    },
+    {
+      "type": "fixed",
+      "title": "More reliable EPUB reading and shortcuts",
+      "description": "Old chapter documents are released after navigation, reducing loading work for image-heavy books. Highlight and question shortcuts now respond from the book body.",
+      "audience": "reader"
+    }
+  ]
+}
