@@ -25,13 +25,13 @@ Assistant responses remain strictly grounded in the document context, your notes
 
 ## Context Awareness and Memory
 
-Each assistant keeps its own conversation memory for a document, so earlier thoughts, discussions, and Q&A carry over into later replies. When generating thoughts, replies, or reviews, assistants look up what they need:
+Each assistant keeps its own conversation memory for a document, so earlier thoughts, discussions, and Q&A carry over into later replies. When generating thoughts, replies, or reviews, assistants look up what they need within the readable range:
 
 - The document's outline and source paragraphs, including full-text search
 - Your historical annotations, questions, and discussion records
 - Reading memory built across previous reading sessions
 
-For EPUB ebooks, a request started from a highlight lets the assistant read earlier chapters and the whole chapter containing the highlight. Questions without a selection stop at your reading progress. Later chapters are not available to assistants.
+For EPUB ebooks, a request started from a highlight lets the assistant read earlier chapters and the whole chapter containing the highlight. Questions without a selection stop at your reading progress. Source text lookup, reading memory search, and thread reading all share this same readable boundary, so passages, annotations, and discussions in later chapters are not available to assistants.
 
 Passages and discussions cited in replies appear as links: a passage link moves the reader to the source text (for PDFs, to its page), and a discussion link opens that discussion. Discussions and Reader Q&A show steps such as reading the source text. Closing a window does not stop a reply in progress.
 
