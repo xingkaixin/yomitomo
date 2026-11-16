@@ -144,6 +144,7 @@ export function searchReadingMemoryEntries(options: SearchReadingMemoryEntriesOp
     requireAgentId: options.requireAgentId,
     visibility: options.visibility,
     nearTextRange: options.nearTextRange,
+    visibleRanges: options.visibleRanges,
   });
   const rows = executor
     .prepare(
@@ -191,6 +192,7 @@ LIMIT ?
     requireAgentId: options.requireAgentId,
     visibility: options.visibility,
     nearTextRange: options.nearTextRange,
+    visibleRanges: options.visibleRanges,
     executor,
   });
   const byId = new Map(entries.map((entry) => [entry.id, entry]));
@@ -222,6 +224,7 @@ function searchReadingMemoryEntriesBySubstring(
     requireAgentId: options.requireAgentId,
     visibility: options.visibility,
     nearTextRange: options.nearTextRange,
+    visibleRanges: options.visibleRanges,
   });
   const rows = executor
     .prepare(
@@ -250,6 +253,7 @@ LIMIT ?
     requireAgentId: options.requireAgentId,
     visibility: options.visibility,
     nearTextRange: options.nearTextRange,
+    visibleRanges: options.visibleRanges,
     executor,
   });
   logReadingMemoryTiming(options.performanceLogger, 'substring_fallback', startedAt, {
@@ -271,6 +275,7 @@ function readReadingMemoryEntriesByIds(
     | 'requireAgentId'
     | 'visibility'
     | 'nearTextRange'
+    | 'visibleRanges'
     | 'executor'
   > & { ids: string[] },
 ) {
@@ -284,6 +289,7 @@ function readReadingMemoryEntriesByIds(
     requireAgentId: options.requireAgentId,
     visibility: options.visibility,
     nearTextRange: options.nearTextRange,
+    visibleRanges: options.visibleRanges,
   });
   const placeholders = questionMarks(ids.length);
   const rows = executor

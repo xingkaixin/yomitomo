@@ -91,6 +91,11 @@ export type { ReadingActivityDay, ReadingStats, ReadingStatsPeriod } from './rea
 
 export { epubReadableTextRanges, selectionThreadSpoilerPolicy } from './reader/reading-context';
 export type { ReadingContextTextRange } from './reader/reading-context';
+export {
+  anchorTextRange,
+  isTextRangeWithinVisibleRanges,
+  mergeReadingContextTextRanges,
+} from './reader/reading-context-ranges';
 
 export {
   annotationHasPublishedDistillation,

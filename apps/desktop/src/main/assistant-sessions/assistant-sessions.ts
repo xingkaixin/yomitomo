@@ -64,6 +64,7 @@ function createAssistantSessions(host: AssistantSessionHost) {
     searchMemory: (input) =>
       searchReadingMemoryEntries({
         ...input,
+        visibleRanges: input.visibleRanges,
         visibility: ['default'],
         fallbackToSubstring: true,
       }),

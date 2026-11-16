@@ -1,3 +1,5 @@
+import type { TextAnchor } from '@yomitomo/shared';
+
 export type ReadingContextTextRange = {
   textStart: number;
   textEnd: number;
@@ -6,6 +8,34 @@ export type ReadingContextTextRange = {
 export type ReadingContextRangeLookup = {
   intersections(target: ReadingContextTextRange): ReadingContextTextRange[];
 };
+
+export function anchorTextRange(anchor: TextAnchor): ReadingContextTextRange | undefined {
+  const textStart = anchor.textStartInBook ?? anchor.start;
+  const textEnd = anchor.textEndInBook ?? anchor.end;
+  if (!Number.isInteger(textStart) || !Number.isInteger(textEnd)) return undefined;
+  if (textEnd <= textStart) return undefined;
+  return { textStart, textEnd };
+}
+
+export function isTextRangeWithinVisibleRanges(
+  target: ReadingContextTextRange | null | undefined,
+  visibleRanges: ReadingContextTextRange[] | null | undefined,
+): boolean {
+  if (visibleRanges == null) return true;
+  if (
+    !target ||
+    !Number.isInteger(target.textStart) ||
+    !Number.isInteger(target.textEnd) ||
+    target.textEnd <= target.textStart
+  ) {
+    return false;
+  }
+  const merged = mergeReadingContextTextRanges(visibleRanges);
+  if (merged.length === 0) return false;
+  return merged.some(
+    (range) => target.textStart >= range.textStart && target.textEnd <= range.textEnd,
+  );
+}
 
 export function mergeReadingContextTextRanges(
   ranges: ReadingContextTextRange[],
@@ -16,6 +46,7 @@ export function mergeReadingContextTextRanges(
   const merged: ReadingContextTextRange[] = [];
 
   for (const range of ordered) {
+    if (!Number.isFinite(range.textStart) || !Number.isFinite(range.textEnd)) continue;
     if (range.textEnd <= range.textStart) continue;
     const previous = merged[merged.length - 1];
     if (!previous || range.textStart > previous.textEnd) {
@@ -39,6 +70,7 @@ export function createMergedReadingContextRangeLookup(
 function rangesAreMonotonic(ranges: ReadingContextTextRange[]) {
   let previousStart = Number.NEGATIVE_INFINITY;
   for (const range of ranges) {
+    if (!Number.isFinite(range.textStart) || !Number.isFinite(range.textEnd)) continue;
     if (range.textEnd <= range.textStart) continue;
     if (range.textStart < previousStart) return false;
     previousStart = range.textStart;

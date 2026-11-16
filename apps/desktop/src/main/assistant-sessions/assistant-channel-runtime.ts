@@ -16,13 +16,7 @@ import {
   piThinkingLevel,
   type PiModelRef,
 } from '@yomitomo/ai';
-import {
-  annotationAgentAuthorRef,
-  createArticleTextIndex,
-  epubReadableTextRanges,
-  prepareEpubBookIndex,
-  selectionThreadSpoilerPolicy,
-} from '@yomitomo/core';
+import { annotationAgentAuthorRef, createArticleTextIndex } from '@yomitomo/core';
 import type {
   Agent,
   ArticleReadingProgress,
@@ -32,7 +26,6 @@ import type {
   AssistantRunEvent,
   EpubBookIndex,
   LlmProvider,
-  ReaderProgress,
   TextAnchor,
   UiLanguage,
 } from '@yomitomo/shared';
@@ -47,6 +40,7 @@ import {
 } from './assistant-channel-docs';
 import { formatDelivery, formatRetraction } from './assistant-channel-delivery';
 import type { ChannelReply, ChannelSnapshot } from './assistant-channel-sources';
+import { visibleRanges } from './assistant-readable-ranges';
 import { RunContextDoc } from './assistant-reading-extension';
 import { resolveReplyLinks, type ReplyDiscussion } from './assistant-reply-links';
 import { joinRunText, messageText, readRunTranscript } from './assistant-run-transcript';
@@ -296,8 +290,12 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
       return;
     }
 
-    const content = resolveReplyLinks(text, await ports.articleText(articleId), (id) =>
-      ports.findDiscussion(articleId, id),
+    const runContext = await harness.snapshot(RunContextDoc, forkId as ConversationId, context);
+    const content = resolveReplyLinks(
+      text,
+      await ports.articleText(articleId),
+      (id) => ports.findDiscussion(articleId, id),
+      runContext?.visibleRanges,
     );
     const identity = await ports.resolveAgentIdentity(first.agentId).catch(() => undefined);
     const hash = createHash('sha256').update(`${articleId}:${forkId}:${answerId}`).digest('hex');
@@ -568,56 +566,6 @@ function anchorOffset(text: string, anchor: TextAnchor) {
 export function anchorBlockId(snapshot: ArticleTextSnapshot, anchor: TextAnchor) {
   const offset = anchorOffset(snapshot.text, anchor);
   return offset === undefined ? undefined : createArticleTextIndex(snapshot).blockAt(offset)?.id;
-}
-
-export function visibleRanges(
-  text: ArticleTextSnapshot | undefined,
-  anchor: TextAnchor | undefined,
-  meta: ArticleMeta | undefined,
-) {
-  if (!meta?.ebookIndex || !text) return null;
-  const prepared = prepareEpubBookIndex(meta.ebookIndex);
-  return epubReadableTextRanges(prepared, {
-    articleText: text.text,
-    targetAnchor: anchor,
-    readerProgress: anchor
-      ? highlightChapterProgress(prepared, text.text, anchor)
-      : readerProgress(prepared, meta.readingProgress),
-    spoilerPolicy: selectionThreadSpoilerPolicy,
-  });
-}
-
-// A highlight opens its whole chapter, so agents can read past a cut sentence or a heading.
-function highlightChapterProgress(
-  prepared: ReturnType<typeof prepareEpubBookIndex>,
-  articleText: string,
-  anchor: TextAnchor,
-): ReaderProgress | undefined {
-  const position = prepared.locateAnchor(articleText, anchor);
-  const chapter = position ? prepared.locateOffset(position.textStart)?.chapter : undefined;
-  if (!chapter) return undefined;
-  return {
-    currentChapterId: chapter.id,
-    readChapterIds: prepared.chaptersBefore(chapter),
-    readUntilTextOffset: chapter.textEnd,
-  };
-}
-
-// A question without a selection is scoped by how far the reader has read the book.
-function readerProgress(
-  prepared: ReturnType<typeof prepareEpubBookIndex>,
-  progress: ArticleReadingProgress | undefined,
-): ReaderProgress | undefined {
-  if (progress?.kind !== 'chapter') return undefined;
-  const chapter = prepared.chapters().find((item) => item.indexInBook === progress.chapterIndex);
-  if (!chapter) return undefined;
-  const readUntil = chapter.textStart + Math.round(progress.chapterProgress * chapter.textLength);
-  return {
-    currentChapterId: chapter.id,
-    currentSegmentId: prepared.locateOffset(readUntil)?.segment.id,
-    readChapterIds: prepared.chaptersBefore(chapter),
-    readUntilTextOffset: readUntil,
-  };
 }
 
 async function e2eFakeProvider(resolved: ResolvedChannelAgent) {

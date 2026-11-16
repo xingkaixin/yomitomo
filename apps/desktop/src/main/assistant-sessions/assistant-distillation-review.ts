@@ -24,10 +24,10 @@ import { AgentConversationsDoc } from './assistant-channel-docs';
 import {
   agentChange,
   anchorBlockId,
-  visibleRanges,
   type AssistantChannelPorts,
   type ResolvedChannelAgent,
 } from './assistant-channel-runtime';
+import { visibleRanges } from './assistant-readable-ranges';
 import { RunContextDoc } from './assistant-reading-extension';
 import { resolveReplyLinks } from './assistant-reply-links';
 

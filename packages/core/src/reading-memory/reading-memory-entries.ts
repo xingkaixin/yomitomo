@@ -6,10 +6,10 @@ import type {
   ReadingMemoryScope,
   ReadingMemorySourceType,
   ReadingMemoryVisibility,
-  TextAnchor,
   TextRange,
 } from '@yomitomo/shared';
 import { uniqueTrimmedStrings } from '@yomitomo/shared';
+import { anchorTextRange } from '../reader/reading-context-ranges';
 
 const ENTRY_KINDS = new Set<ReadingMemoryEntryKind>([
   'summary',
@@ -215,14 +215,6 @@ function collectSearchTextParts(value: unknown): string[] {
 
 function compactSearchText(text: string) {
   return text.replace(/\s+/g, ' ').trim();
-}
-
-function anchorTextRange(anchor: TextAnchor): TextRange | undefined {
-  const textStart = anchor.textStartInBook ?? anchor.start;
-  const textEnd = anchor.textEndInBook ?? anchor.end;
-  if (!Number.isInteger(textStart) || !Number.isInteger(textEnd)) return undefined;
-  if (textEnd <= textStart) return undefined;
-  return { textStart, textEnd };
 }
 
 function annotationMemoryEntryId(annotationId: string) {
