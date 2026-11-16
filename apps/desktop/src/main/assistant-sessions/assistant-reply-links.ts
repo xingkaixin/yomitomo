@@ -12,6 +12,7 @@ import {
   type AssistantReference,
   type TextAnchor,
 } from '@yomitomo/shared';
+import { visibleRanges as assistantVisibleRanges } from './assistant-readable-ranges';
 
 export type ReplyDiscussion = { annotationId: string; quote: string; anchor?: TextAnchor };
 
@@ -39,7 +40,7 @@ export function resolveReplyLinks(
 }
 
 export function resolveArticleReplyLinks(article: ArticleRecord, snapshot: ArticleTextSnapshot) {
-  const resolveLinks = replyLinkResolver(snapshot, (id) => {
+  const findDiscussion = (id: string) => {
     const annotation = article.annotations.find(
       (item) => item.id === id || item.comments.some((comment) => comment.id === id),
     );
@@ -50,17 +51,27 @@ export function resolveArticleReplyLinks(article: ArticleRecord, snapshot: Artic
         anchor: annotation.anchor,
       }
     );
-  });
+  };
   return {
     ...article,
-    annotations: article.annotations.map((annotation) => ({
-      ...annotation,
-      comments: annotation.comments.map((comment) =>
-        comment.author.kind === 'agent'
-          ? { ...comment, content: resolveLinks(comment.content) }
-          : comment,
-      ),
-    })),
+    annotations: article.annotations.map((annotation) => {
+      const resolveLinks = replyLinkResolver(
+        snapshot,
+        findDiscussion,
+        assistantVisibleRanges(snapshot, annotation.anchor, {
+          ebookIndex: article.ebook?.index,
+          readingProgress: article.readingProgress,
+        }),
+      );
+      return {
+        ...annotation,
+        comments: annotation.comments.map((comment) =>
+          comment.author.kind === 'agent'
+            ? { ...comment, content: resolveLinks(comment.content) }
+            : comment,
+        ),
+      };
+    }),
   };
 }
 

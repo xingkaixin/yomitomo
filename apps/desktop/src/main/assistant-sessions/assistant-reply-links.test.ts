@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { resolveReplyLinks, type ReplyDiscussion } from './assistant-reply-links';
+import { buildEpubBookIndex } from '@yomitomo/core';
+import type { Annotation, ArticleRecord } from '@yomitomo/shared';
+import {
+  resolveArticleReplyLinks,
+  resolveReplyLinks,
+  type ReplyDiscussion,
+} from './assistant-reply-links';
 
 const snapshot = { text: '第一段。\n\n游戏#1：搞笑版', sections: [] };
 const findDiscussion = (id: string): ReplyDiscussion | undefined => {
@@ -83,5 +89,60 @@ describe('resolveReplyLinks', () => {
     expect(text).not.toContain('后章秘密剧透');
     expect(text).not.toContain('#passage:6-14');
     expect(text).not.toContain('#discussion:annotation_future');
+  });
+
+  it('keeps future references restricted when reopening an EPUB annotation', () => {
+    const timestamp = '2026-08-01T00:00:00.000Z';
+    const annotation: Annotation = {
+      id: 'annotation_1',
+      anchor: findDiscussion('annotation_1')!.anchor!,
+      author: { kind: 'user', username: 'reader' },
+      color: '#888888',
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      comments: [
+        {
+          id: 'comment_agent',
+          author: { kind: 'agent', agentId: 'agent_1', username: 'assistant' },
+          content: resolveReplyLinks('见 b1、b2 和 comment_future', snapshot, findDiscussion, [
+            { textStart: 0, textEnd: 4 },
+          ]),
+          createdAt: timestamp,
+        },
+      ],
+    };
+    const article: ArticleRecord = {
+      id: 'book',
+      url: 'local://book',
+      canonicalUrl: 'local://book',
+      title: 'Book',
+      sourceType: 'ebook',
+      contentHash: 'book',
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      ebook: {
+        metadata: { format: 'epub', fileName: 'book.epub', fileSize: 1 },
+        chapters: [],
+        index: buildEpubBookIndex({
+          articleId: 'book',
+          chapters: [
+            { id: 'c1', title: 'First', paragraphs: ['第一段。'] },
+            { id: 'c2', title: 'Future', paragraphs: ['游戏#1：搞笑版'] },
+          ],
+        }),
+      },
+      annotations: [
+        annotation,
+        {
+          ...annotation,
+          id: 'annotation_future',
+          anchor: findDiscussion('annotation_future')!.anchor!,
+          comments: [{ ...annotation.comments[0], id: 'comment_future', content: '后章讨论' }],
+        },
+      ],
+    };
+
+    const reopened = resolveArticleReplyLinks(article, snapshot);
+    expect(reopened.annotations[0].comments[0].content).toBe(annotation.comments[0].content);
   });
 });
