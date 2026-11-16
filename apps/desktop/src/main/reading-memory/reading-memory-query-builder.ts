@@ -1,3 +1,4 @@
+import { mergeReadingContextTextRanges } from '@yomitomo/core';
 import type { TextRange } from '@yomitomo/shared';
 import type { ReadReadingMemoryEntriesOptions } from './reading-memory-store-types';
 import type { SqliteValue } from './reading-memory-row-mapper';
@@ -37,6 +38,7 @@ export function readingMemoryWhereClause(options: ReadReadingMemoryEntriesOption
     values.push(options.segmentId);
   }
   addNearTextRangeClause(clauses, values, options.nearTextRange, 2400);
+  addVisibleRangesClause(clauses, values, options.visibleRanges);
   if (!options.includeDeleted) clauses.push('deleted_at IS NULL');
   return { where: `WHERE ${clauses.join('\n  AND ')}`, values };
 }
@@ -62,4 +64,23 @@ function addNearTextRangeClause(
   if (!textRange) return;
   clauses.push('(text_start IS NULL OR text_end IS NULL OR (text_end >= ? AND text_start <= ?))');
   values.push(textRange.textStart - distance, textRange.textEnd + distance);
+}
+
+function addVisibleRangesClause(
+  clauses: string[],
+  values: SqliteValue[],
+  visibleRanges: TextRange[] | null | undefined,
+) {
+  if (visibleRanges == null) return;
+  const merged = mergeReadingContextTextRanges(visibleRanges);
+  if (merged.length === 0) {
+    clauses.push('1 = 0');
+    return;
+  }
+  clauses.push(
+    `text_start IS NOT NULL AND text_end IS NOT NULL AND (${merged
+      .map(() => '(text_start >= ? AND text_end <= ?)')
+      .join(' OR ')})`,
+  );
+  for (const range of merged) values.push(range.textStart, range.textEnd);
 }

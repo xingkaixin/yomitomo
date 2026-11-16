@@ -168,6 +168,117 @@ describe('reading memory store', () => {
       }),
     ).toEqual([]);
   });
+
+  it('filters visibleRanges before SQL LIMIT in FTS and substring fallback', () => {
+    const database = memoryDatabase();
+    appendReadingMemoryEntries(
+      [
+        entry({
+          id: 'future_high_score',
+          textRange: { textStart: 200, textEnd: 260 },
+          payload: {
+            summary: 'compass compass compass 后章秘密线索',
+            keyTerms: ['compass'],
+          },
+        }),
+        entry({
+          id: 'visible_low_score',
+          textRange: { textStart: 10, textEnd: 40 },
+          payload: { summary: 'compass 前章秘密线索', keyTerms: [] },
+        }),
+        entry({
+          id: 'spanning_merged',
+          textRange: { textStart: 40, textEnd: 60 },
+          payload: { summary: 'bridge note', keyTerms: [] },
+        }),
+        entry({
+          id: 'unlocated_entry',
+          textRange: undefined,
+          payload: {
+            summary: 'compass 秘密线索 无定位',
+            keyTerms: ['compass'],
+          },
+        }),
+      ],
+      database,
+    );
+
+    expect(
+      searchReadingMemoryEntries({
+        articleId: 'article_1',
+        query: 'compass',
+        limit: 1,
+        executor: database,
+      }).map((item) => item.id),
+    ).toEqual(['future_high_score']);
+
+    expect(
+      searchReadingMemoryEntries({
+        articleId: 'article_1',
+        query: 'compass',
+        limit: 1,
+        visibleRanges: [{ textStart: 0, textEnd: 100 }],
+        executor: database,
+      }).map((item) => item.id),
+    ).toEqual(['visible_low_score']);
+
+    expect(
+      searchReadingMemoryEntries({
+        articleId: 'article_1',
+        query: '秘密',
+        fallbackToSubstring: true,
+        limit: 1,
+        visibleRanges: [{ textStart: 0, textEnd: 100 }],
+        executor: database,
+      }).map((item) => item.id),
+    ).toEqual(['visible_low_score']);
+
+    expect(
+      readReadingMemoryEntries({
+        articleId: 'article_1',
+        visibleRanges: [
+          { textStart: 0, textEnd: 50 },
+          { textStart: 50, textEnd: 100 },
+        ],
+        executor: database,
+      }).map((item) => item.id),
+    ).toEqual(['spanning_merged', 'visible_low_score']);
+
+    expect(
+      readReadingMemoryEntries({
+        articleId: 'article_1',
+        visibleRanges: [],
+        executor: database,
+      }),
+    ).toEqual([]);
+    expect(
+      searchReadingMemoryEntries({
+        articleId: 'article_1',
+        query: '秘密',
+        fallbackToSubstring: true,
+        visibleRanges: [],
+        executor: database,
+      }),
+    ).toEqual([]);
+
+    expect(
+      readReadingMemoryEntries({
+        articleId: 'article_1',
+        visibleRanges: null,
+        executor: database,
+      }).map((item) => item.id),
+    ).toEqual(['future_high_score', 'spanning_merged', 'unlocated_entry', 'visible_low_score']);
+    expect(
+      searchReadingMemoryEntries({
+        articleId: 'article_1',
+        query: 'compass',
+        visibleRanges: null,
+        executor: database,
+      }).map((item) => item.id),
+    ).toEqual(
+      expect.arrayContaining(['future_high_score', 'unlocated_entry', 'visible_low_score']),
+    );
+  });
 });
 
 function memoryDatabase(): ReadingMemorySqliteExecutor {

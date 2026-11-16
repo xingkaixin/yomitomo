@@ -32,6 +32,7 @@ export type ReadReadingMemoryEntriesOptions = {
   chapterId?: string;
   segmentId?: string;
   nearTextRange?: TextRange;
+  visibleRanges?: TextRange[] | null;
   includeDeleted?: boolean;
   applySupersedes?: boolean;
   performanceLogger?: ReadingMemoryPerformanceLogger;
@@ -46,6 +47,7 @@ export type SearchReadingMemoryEntriesOptions = {
   requireAgentId?: boolean;
   visibility?: ReadingMemoryEntry['visibility'][];
   nearTextRange?: TextRange;
+  visibleRanges?: TextRange[] | null;
   fallbackToSubstring?: boolean;
   limit?: number;
   performanceLogger?: ReadingMemoryPerformanceLogger;
