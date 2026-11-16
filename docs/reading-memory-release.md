@@ -119,7 +119,8 @@ node apps/desktop/scripts/export-reading-memory-human-review-template.mjs \
 ```
 
 - 参数说明：`--queries` 为 JSON 数组（或 `{ "queries": [...] }`），每条含 `id`、`kind`（`relate` / `ask`）、
-  `queryLanguage`、`evidenceLanguage`（`zh` / `en` / `ja`）、`query` 及可选 `articleId`、`selectionSourceType`；
+  `queryLanguage`、`evidenceLanguage`（`zh` / `en` / `ja`）、`query` 及可选 `articleId`、`selectionSourceType`、
+  `selectionAnchor`；从已有划线回放 `relate` 时传入所属 `articleId` 和原始 `selectionAnchor`，沿用生产逻辑排除当前选区；
   `--system-revision` 可选，默认读取当前 `git rev-parse HEAD`。
 - 检索模式：传入 `--model-cache` 时需先完成桌面端构建以提供 `dist/main/reading-memory-embedding-worker.js`，
   导出器校验模型后在临时副本上建向量并执行 `hybrid` 检索；未传 `--model-cache` 时必须显式加
@@ -129,11 +130,11 @@ node apps/desktop/scripts/export-reading-memory-human-review-template.mjs \
     生产选择器与输入打包后的 `displayedIds` 和有序子集 `sentIds`；`helpfulIds` / `necessaryIds` 与
     `provenance.sourceStatement` / `provenance.reviewerId` 留空待人工填写。
   - `quality-review-template.json`：对齐 `ReadingMemoryHumanReviewRecord` 骨架；若库中可复审判断资产
-    满 5 条，则预填 `time` 队列 Top5 候选并保持 `reviewable: null`，否则保留 `null` 占位字段。
+    满 5 条且真实 Top5 的判断文本不重复，则预填 `time` 队列 Top5 候选并保持 `reviewable: null`，否则保留占位字段。
   - `replay-snapshot.json`：记录 `dbSha256`、`systemRevision`、`retrievalMode`、投影覆盖度、每条查询的
     候选/展示/发送 ID 与 `inputBytes` / `inputTruncated`，以及去重后的 `evidenceById` 文本摘要。
 - 隐私与安全边界：导出器自动拒绝仓库根目录内的 `--output-dir` 与覆盖输入文件的路径，仅将 `--db` 拷贝至
-  `mkdtemp` 临时目录后操作副本，不改动原库也不读取本机桌面端用户数据目录；`replay-snapshot.json` 不写入
+  `mkdtemp` 临时目录，在副本上清除并重建派生投影和向量，避免沿用去敏前的索引；不改动原库也不读取本机桌面端用户数据目录；`replay-snapshot.json` 不写入
   本地路径或凭据。导出的模板与快照必须保存在仓库外，严禁提交到仓库；在独立复核人逐项填写人工结论前，
   `evaluate-reading-memory-human-review.js` 必定返回失败。
 

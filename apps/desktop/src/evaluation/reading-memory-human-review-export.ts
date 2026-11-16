@@ -21,11 +21,13 @@ import {
   type ReadingEvidenceProjectionStatus,
   type ReadingEvidenceScope,
   type ReadingMemorySemanticStatus,
+  type ReaderQuestionContext,
 } from '@yomitomo/shared';
 import SQLiteDatabase from 'better-sqlite3';
 import type { ReadingMemoryHumanRetrievalRecord } from '../../../../packages/ai/src/evaluation/reading-memory-human-retrieval-evaluation';
 import type { ReadingMemoryHumanReviewRecord } from '../../../../packages/ai/src/evaluation/reading-memory-human-review-evaluation';
 import { prepareReadingJudgmentInput } from '../../../../packages/ai/src/reading-memory/reading-judgment-input';
+import { readingMemoryIpcInvokeSchemas } from '../ipc/reading-memory-schemas';
 import { createReadingMemoryEmbeddingService } from '../main/reading-memory/reading-memory-embedding-service';
 import { runReadingMemoryEvidenceProjectionBatch } from '../main/reading-memory/reading-memory-evidence-projection-batch';
 import {
@@ -33,6 +35,7 @@ import {
   readKeywordReadingEvidenceCandidates,
   readReadingEvidenceProjectionStatus,
 } from '../main/reading-memory/reading-memory-evidence-search';
+import { resetReadingEvidenceProjection } from '../main/reading-memory/reading-memory-evidence-store';
 import { createReadingMemoryModelLifecycle } from '../main/reading-memory/reading-memory-model-lifecycle';
 import { createReadingMemorySemanticIndex } from '../main/reading-memory/reading-memory-semantic-index';
 import { installReadingMemoryQualityModel } from '../main/reading-memory/reading-memory-semantic-quality-fixture';
@@ -52,6 +55,7 @@ export type ReadingMemoryHumanReviewQueryInput = {
   query: string;
   articleId?: string;
   selectionSourceType?: ArticleSourceType;
+  selectionAnchor?: ReaderQuestionContext['anchor'];
 };
 
 export type ExportReadingMemoryHumanReviewTemplatesOptions = {
@@ -148,6 +152,7 @@ type ValidatedQuery = {
   query: string;
   articleId?: string;
   selectionSourceType?: ArticleSourceType;
+  selectionAnchor?: ReaderQuestionContext['anchor'];
 };
 
 const repositoryRoot = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
@@ -190,6 +195,7 @@ export async function exportReadingMemoryHumanReviewTemplates(
     await copyFile(paths.dbPath, temporaryDbPath);
     database = new SQLiteDatabase(temporaryDbPath);
     database.pragma('foreign_keys = ON');
+    resetReadingEvidenceProjection(database);
     runProjectionBatchToCompletion(database);
 
     const projection = readReadingEvidenceProjectionStatus({
@@ -385,6 +391,20 @@ function validateQueries(queries: readonly ReadingMemoryHumanReviewQueryInput[])
     ) {
       throw new Error(`${label}.selectionSourceType must be one of: web, ebook, pdf, text`);
     }
+    const selectionAnchor =
+      entry.selectionAnchor === undefined
+        ? undefined
+        : readingMemoryIpcInvokeSchemas['reading-memory:relations:search'].parse([
+            {
+              requestId: id,
+              articleId: articleId ?? 'offline-review-selection',
+              context: {
+                sourceType: entry.selectionSourceType ?? 'web',
+                quote: query,
+                anchor: entry.selectionAnchor,
+              },
+            },
+          ])[0].context.anchor;
     return {
       id,
       kind: entry.kind,
@@ -393,6 +413,7 @@ function validateQueries(queries: readonly ReadingMemoryHumanReviewQueryInput[])
       query,
       ...(articleId ? { articleId } : {}),
       ...(entry.selectionSourceType ? { selectionSourceType: entry.selectionSourceType } : {}),
+      ...(selectionAnchor ? { selectionAnchor } : {}),
     };
   });
 }
@@ -594,6 +615,7 @@ function selectDisplayedEvidence(query: ValidatedQuery, candidates: readonly Rea
       context: {
         sourceType: query.selectionSourceType ?? 'web',
         quote: query.query,
+        anchor: query.selectionAnchor,
       },
     });
   }
@@ -631,16 +653,9 @@ function selectTopTimeReviewAssets(database: SQLiteDatabase.Database): ReadingRe
     .slice(0, readingReviewSignalLimits.candidateCount);
   const ranked = rankReadingReviewCandidates(earliestCandidates, new Map());
 
-  const selected: ReadingReviewAsset[] = [];
-  const seenJudgments = new Set<string>();
-  for (const candidate of ranked) {
-    const judgment = candidate.asset.current.content.trim();
-    if (!judgment || seenJudgments.has(judgment)) continue;
-    seenJudgments.add(judgment);
-    selected.push(candidate.asset);
-    if (selected.length === 5) return selected;
-  }
-  return [];
+  const selected = ranked.slice(0, 5).map((candidate) => candidate.asset);
+  const judgments = selected.map((asset) => asset.current.content.trim());
+  return judgments.every(Boolean) && new Set(judgments).size === 5 ? selected : [];
 }
 
 function buildQualityReviewTemplate(

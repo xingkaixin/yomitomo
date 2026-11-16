@@ -7,6 +7,7 @@ import SQLiteDatabase from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 import { evaluateReadingMemoryHumanReview } from '../../../../packages/ai/src/evaluation/reading-memory-human-review-evaluation';
 import { migrations } from '../main/db/migrations';
+import { runReadingMemoryEvidenceProjectionBatch } from '../main/reading-memory/reading-memory-evidence-projection-batch';
 import {
   exportReadingMemoryHumanReviewTemplates,
   type ReadingMemoryHumanReviewLanguage,
@@ -26,6 +27,126 @@ afterEach(async () => {
 });
 
 describe('offline reading memory human review template export', () => {
+  it('excludes the selected highlight from related evidence', async () => {
+    const workDir = await createTempDir('yomitomo-review-export-selection-');
+    const dbPath = join(workDir, 'reading.sqlite');
+    const outputDir = join(workDir, 'exported');
+    createFixtureDatabase(dbPath, { reviewAssetCount: 0, includeLongSharedBlock: false });
+    const database = new SQLiteDatabase(dbPath);
+    database.prepare("DELETE FROM annotations WHERE id <> 'annotation-00'").run();
+    const row = database
+      .prepare("SELECT anchor FROM annotations WHERE id = 'annotation-00'")
+      .get() as { anchor: string };
+    database.close();
+
+    await exportReadingMemoryHumanReviewTemplates({
+      dbPath,
+      queries: [
+        {
+          id: 'selected-highlight',
+          kind: 'relate',
+          queryLanguage: 'en',
+          evidenceLanguage: 'en',
+          query: 'topic-0',
+          articleId: 'article-00',
+          selectionAnchor: JSON.parse(row.anchor),
+        },
+      ],
+      outputDir,
+      evaluationId: 'offline-selection-test',
+      systemRevision,
+      allowKeywordFallback: true,
+    });
+
+    const snapshot = JSON.parse(
+      await readFile(join(outputDir, 'replay-snapshot.json'), 'utf8'),
+    ) as ReadingMemoryHumanReviewReplaySnapshot;
+    const selectedId = 'reading_evidence_annotation:annotation-00';
+    expect(snapshot.queries[0].candidateIds).toContain(selectedId);
+    expect(snapshot.queries[0].displayedIds).not.toContain(selectedId);
+    expect(snapshot.queries[0].sentIds).not.toContain(selectedId);
+  });
+
+  it('rebuilds stale derived evidence after deidentifying an indexed database', async () => {
+    const workDir = await createTempDir('yomitomo-review-export-rebuild-');
+    const dbPath = join(workDir, 'reading.sqlite');
+    const outputDir = join(workDir, 'exported');
+    createFixtureDatabase(dbPath, { reviewAssetCount: 0, includeLongSharedBlock: false });
+    const database = new SQLiteDatabase(dbPath);
+    while (runReadingMemoryEvidenceProjectionBatch(database).hasImmediateWork) {}
+    database.prepare("UPDATE annotations SET user_username = 'deidentified-reader'").run();
+    database.close();
+    const before = await readFile(dbPath);
+
+    await exportReadingMemoryHumanReviewTemplates({
+      dbPath,
+      queries: [
+        {
+          id: 'rebuild',
+          kind: 'ask',
+          queryLanguage: 'en',
+          evidenceLanguage: 'en',
+          query: 'topic-0',
+        },
+      ],
+      outputDir,
+      evaluationId: 'offline-rebuild-test',
+      systemRevision,
+      allowKeywordFallback: true,
+    });
+
+    const snapshot = JSON.parse(
+      await readFile(join(outputDir, 'replay-snapshot.json'), 'utf8'),
+    ) as ReadingMemoryHumanReviewReplaySnapshot;
+    expect(snapshot.queries[0].displayedIds).toHaveLength(12);
+    expect(snapshot.queries[0].sentIds).toHaveLength(12);
+    expect(await readFile(dbPath)).toEqual(before);
+  });
+
+  it('leaves the time queue blank when its actual top five repeat a judgment', async () => {
+    const workDir = await createTempDir('yomitomo-review-export-duplicate-');
+    const dbPath = join(workDir, 'reading.sqlite');
+    const outputDir = join(workDir, 'exported');
+    createFixtureDatabase(dbPath, { reviewAssetCount: 7, includeLongSharedBlock: false });
+    const database = new SQLiteDatabase(dbPath);
+    database
+      .prepare("UPDATE comments SET content = 'User judgment 00' WHERE id = 'comment-01'")
+      .run();
+    database.close();
+
+    const result = await exportReadingMemoryHumanReviewTemplates({
+      dbPath,
+      queries: [
+        {
+          id: 'duplicates',
+          kind: 'ask',
+          queryLanguage: 'en',
+          evidenceLanguage: 'en',
+          query: 'topic-0',
+        },
+      ],
+      outputDir,
+      evaluationId: 'offline-duplicate-test',
+      systemRevision,
+      allowKeywordFallback: true,
+    });
+
+    const qualityTemplate = JSON.parse(
+      await readFile(join(outputDir, 'quality-review-template.json'), 'utf8'),
+    );
+    const timeQueue = qualityTemplate.reviewQueues.find(
+      (queue: { mode: string }) => queue.mode === 'time',
+    );
+    expect(result.prefilledTimeReviewQueue).toBe(false);
+    expect(timeQueue.items.map((item: { judgment: string }) => item.judgment)).toEqual([
+      '',
+      '',
+      '',
+      '',
+      '',
+    ]);
+  });
+
   it('preserves input SQLite SHA-256, validates outputDir boundaries, and exports validatable templates', async () => {
     const workDir = await createTempDir('yomitomo-review-export-test-');
     const dbPath = join(workDir, 'reading.sqlite');
