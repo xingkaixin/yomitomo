@@ -10,7 +10,9 @@ import {
 } from '@earendil-works/pi-durable';
 import { int, obj, opt, str, type Static } from '@earendil-works/pi-schema';
 import {
+  anchorTextRange,
   createArticleTextIndex,
+  isTextRangeWithinVisibleRanges,
   readingMemoryEntrySearchText,
   type ArticleTextBlock,
   type ArticleTextIndex,
@@ -55,6 +57,7 @@ export type AssistantReadingPorts = {
     articleId: string;
     query: string;
     limit: number;
+    visibleRanges?: Array<{ textStart: number; textEnd: number }> | null;
     agentId?: string;
     excludeAgentId?: string;
     requireAgentId?: boolean;
@@ -158,7 +161,7 @@ export function createAssistantReadingExtension(ports: AssistantReadingPorts) {
   const searchMemory = readingTool({
     name: 'search_reading_memory',
     description:
-      '检索当前文章里已有的批注、想法和讨论（包括其他讨论串）。author 可选 self（只看你自己的）、others（其他助手）或 all（默认，含读者）。结果带批注 id 和评论 id，可用 read_thread 读取完整讨论串。',
+      '检索当前文章可读范围内已有的批注、想法和讨论（包括其他讨论串）。author 可选 self（只看你自己的）、others（其他助手）或 all（默认，含读者）。结果带批注 id 和评论 id，可用 read_thread 读取完整讨论串。',
     parameters: obj(
       {
         query: str({ minLength: 1 }),
@@ -168,13 +171,23 @@ export function createAssistantReadingExtension(ports: AssistantReadingPorts) {
       { open: true },
     ),
     run: async (args, run) => {
-      const entries = ports.searchMemory({
-        articleId: run.articleId,
-        query: args.query,
-        limit: args.limit ?? DEFAULT_LIMIT,
-        ...(args.author === 'self' ? { agentId: run.agentId } : {}),
-        ...(args.author === 'others' ? { excludeAgentId: run.agentId, requireAgentId: true } : {}),
-      });
+      const entries = ports
+        .searchMemory({
+          articleId: run.articleId,
+          query: args.query,
+          limit: args.limit ?? DEFAULT_LIMIT,
+          visibleRanges: run.visibleRanges,
+          ...(args.author === 'self' ? { agentId: run.agentId } : {}),
+          ...(args.author === 'others'
+            ? { excludeAgentId: run.agentId, requireAgentId: true }
+            : {}),
+        })
+        .filter((entry) =>
+          isTextRangeWithinVisibleRanges(
+            entry.textRange ?? (entry.anchor ? anchorTextRange(entry.anchor) : undefined),
+            run.visibleRanges,
+          ),
+        );
       if (entries.length === 0) return `没有找到与「${args.query}」相关的阅读记忆。`;
       return entries.map((entry) => formatMemoryEntry(entry, run, ports)).join('\n');
     },
@@ -183,7 +196,7 @@ export function createAssistantReadingExtension(ports: AssistantReadingPorts) {
   const readThread = readingTool({
     name: 'read_thread',
     description:
-      '读取一条批注的原文和讨论串全文。threadId 是讨论串根评论 id；省略时读取该批注下的全部讨论串。',
+      '读取当前文章可读范围内一条批注的原文和讨论串全文。threadId 是讨论串根评论 id；省略时读取该批注下的全部讨论串。',
     parameters: obj(
       {
         annotationId: str({ minLength: 1 }),
@@ -195,7 +208,12 @@ export function createAssistantReadingExtension(ports: AssistantReadingPorts) {
       const annotation = ports
         .annotations(run.articleId)
         .find((item) => item.id === args.annotationId);
-      if (!annotation) throw new Error(`没有找到批注 ${args.annotationId}。`);
+      if (
+        !annotation ||
+        !isTextRangeWithinVisibleRanges(anchorTextRange(annotation.anchor), run.visibleRanges)
+      ) {
+        throw new Error(`批注 ${args.annotationId} 不存在或不在可读范围内。`);
+      }
       return formatThread(annotation, args.threadId, run.agentId);
     },
   });

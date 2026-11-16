@@ -296,8 +296,12 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
       return;
     }
 
-    const content = resolveReplyLinks(text, await ports.articleText(articleId), (id) =>
-      ports.findDiscussion(articleId, id),
+    const runContext = await harness.snapshot(RunContextDoc, forkId as ConversationId, context);
+    const content = resolveReplyLinks(
+      text,
+      await ports.articleText(articleId),
+      (id) => ports.findDiscussion(articleId, id),
+      runContext?.visibleRanges,
     );
     const identity = await ports.resolveAgentIdentity(first.agentId).catch(() => undefined);
     const hash = createHash('sha256').update(`${articleId}:${forkId}:${answerId}`).digest('hex');

@@ -110,7 +110,13 @@ function findDiscussion(articleId: string, id: string): ReplyDiscussion | undefi
   const annotation = readArticleAnnotations(getDatabase(), articleId).find(
     (item) => item.id === id || item.comments.some((comment) => comment.id === id),
   );
-  return annotation && { annotationId: annotation.id, quote: annotation.anchor.exact };
+  return (
+    annotation && {
+      annotationId: annotation.id,
+      quote: annotation.anchor.exact,
+      anchor: annotation.anchor,
+    }
+  );
 }
 
 function existingMessageIds(articleId: string, ids: string[]) {
