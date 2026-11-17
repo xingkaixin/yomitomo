@@ -59,7 +59,7 @@ Electron headers 编译。`rebuild:native` 为当前架构准备开发产物，e
 
 ### macOS Sparkle 更新
 
-macOS 使用官方 Sparkle 2.10.0，Windows 继续使用 NSIS 和 electron-updater。
+macOS 使用官方 Sparkle 2.10.1，Windows 继续使用 NSIS 和 electron-updater。
 v0.16.0 是首个 Sparkle 版本。更早的客户端仍通过旧更新器下载完整 ZIP，安装并重启后才开始使用 Sparkle。
 继续发布 `latest-mac.yml`、ZIP 和 blockmap，不能因为新客户端改用 Sparkle 就移除这些产物。
 这样较早版本的用户仍能直接升级到最新版本，无须先安装指定的中间版本。

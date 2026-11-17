@@ -162,11 +162,11 @@ async function installDocumentProbe(page: Page) {
 async function goToSection(page: Page, index: number, anchor = 0) {
   await page.evaluate(
     async (target) => {
-      const view = document.querySelector('.ebook-foliate-frame .ebook-foliate-view') as
-        | (Element & {
-            renderer?: { goTo(target: { index: number; anchor: number }): Promise<void> };
-          })
-        | null;
+      const view = document.querySelector<
+        Element & {
+          renderer?: { goTo(target: { index: number; anchor: number }): Promise<void> };
+        }
+      >('.ebook-foliate-frame .ebook-foliate-view');
       if (!view?.renderer) throw new Error('Ebook renderer is missing');
       await view.renderer.goTo(target);
       await new Promise<void>((resolve) =>

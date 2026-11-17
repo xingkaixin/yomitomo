@@ -4,6 +4,7 @@ import { defineConfig } from 'astro/config';
 export default defineConfig({
   site: 'https://yomitomo.app',
   output: 'static',
+  scopedStyleStrategy: 'where',
   integrations: [
     starlight({
       title: {

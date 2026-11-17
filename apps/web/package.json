@@ -17,17 +17,17 @@
     "deploy:cf": "pnpm build && cf-wrangler build && cf deploy --prebuilt"
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.42.10",
-    "astro": "^7.4.8"
+    "@astrojs/starlight": "^0.43.1",
+    "astro": "^7.4.12"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
     "@tailwindcss/postcss": "catalog:",
     "@types/jsdom": "catalog:",
-    "fontverter": "2.0.0",
+    "fontverter": "2.1.0",
     "harfbuzzjs": "1.6.4",
     "jsdom": "catalog:",
-    "playwright-core": "^1.65.0",
+    "playwright-core": "^1.65.1",
     "subset-font": "2.9.0",
     "tailwindcss": "catalog:",
     "typescript": "^6.0.3",
