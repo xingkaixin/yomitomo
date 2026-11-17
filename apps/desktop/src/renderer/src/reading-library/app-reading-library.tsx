@@ -1,9 +1,6 @@
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowDown01Icon, BubbleChatIcon } from '@hugeicons/core-free-icons';
 import React, { useCallback, useMemo, useReducer, useRef } from 'react';
 import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
-import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
 import type {
   Agent,
@@ -14,16 +11,14 @@ import type {
   ResolvedAppSettings,
   Collection,
   CollectionMember,
-  Comment,
   ContentRef,
   MessageSendShortcut,
-  PublicAgent,
   SelectionActionShortcuts,
   UserProfile,
   WeReadBook,
 } from '@yomitomo/shared';
 import { errorMessageOrFallback, normalizeUiLanguage } from '@yomitomo/shared';
-import { annotationAuthorName, sortAnnotations } from '@yomitomo/core';
+import { sortAnnotations } from '@yomitomo/core';
 import type { ReaderTheme } from '@yomitomo/reader-ui/reader-theme';
 import { SourceBookcase } from '../source/bookcase/app-source-bookcase';
 import { publicPersonaAgents } from '../source/bookcase/source-public-agents';
@@ -34,12 +29,7 @@ import { weReadReaderState } from '../shell/app-weread-reader-pane';
 import { appToast } from '../shell/app-toast';
 import { groupLibraryArticles, type LibrarySort } from './app-reading-library-utils';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
-import type {
-  AnnotationDiscussionWindowState,
-  SetLibraryPinInput,
-  WeReadState,
-  WindowAnimationSourceRect,
-} from '../../../ipc-contract';
+import type { SetLibraryPinInput, WeReadState } from '../../../ipc-contract';
 import type { ArticleStore } from '../shell/app-article-store';
 import type { ArticleActions } from '../shell/app-article-store-actions';
 import { useReadingLibraryDistillationSync } from './use-reading-library-distillation-sync';
@@ -63,6 +53,9 @@ import {
   startReaderCloseTransition,
   startReaderOpenTransition,
 } from './reader-open-transition';
+
+import { AnnotationDiscussionCapsules } from './app-annotation-discussion-capsules';
+import type { DiscussionDockCorner } from './discussion-capsule-dock';
 
 export { groupLibraryArticles };
 export type { LibrarySort };
@@ -163,6 +156,11 @@ export function ReadingLibrary({
     selectedAnnotationId,
     wereadBook: selectedWeReadBook,
   } = navigation.model;
+  const [discussionCorner, dockDiscussion] = useReducer(
+    (_corner: DiscussionDockCorner, event: { type: 'docked'; corner: DiscussionDockCorner }) =>
+      event.corner,
+    'bottom-left',
+  );
   const readingModeOpen = isReadingModeOpen(navigation.model);
   const selectedArticleId = selectedArticle?.id || null;
   const sourceJump = sourceJumpRef.current;
@@ -475,6 +473,16 @@ export function ReadingLibrary({
               />
             ) : selectedArticle ? (
               <SourceBookcase
+                viewportOverlay={
+                  <AnnotationDiscussionCapsules
+                    agents={publicPersonaAgents(agents, normalizeUiLanguage(settings?.uiLanguage))}
+                    article={selectedArticle}
+                    windows={currentMinimizedDiscussionWindows}
+                    corner={discussionCorner}
+                    onDock={(position) => dockDiscussion({ type: 'docked', corner: position })}
+                    onOpen={openArticleDiscussion}
+                  />
+                }
                 annotationActions={{
                   onArticleChange: (article) =>
                     navigation.actions.updateArticle(article.id, () => article),
@@ -507,204 +515,8 @@ export function ReadingLibrary({
           </div>
         </div>
       )}
-      {selectedArticle && activeShelf === 'source' ? (
-        <AnnotationDiscussionCapsules
-          agents={publicPersonaAgents(agents, normalizeUiLanguage(settings?.uiLanguage))}
-          article={selectedArticle}
-          windows={currentMinimizedDiscussionWindows}
-          onOpen={openArticleDiscussion}
-        />
-      ) : null}
     </div>
   );
-}
-
-type AnnotationDiscussionCapsuleAssistant = {
-  key: string;
-  name: string;
-  avatar?: string;
-};
-
-export type AnnotationDiscussionCapsuleItem = {
-  articleId: string;
-  annotationId: string;
-  quote: string;
-  ideaCount: number;
-  replyCount: number;
-  assistants: AnnotationDiscussionCapsuleAssistant[];
-  pending: boolean;
-};
-
-export function annotationDiscussionCapsuleItems(
-  article: ArticleRecord,
-  windows: AnnotationDiscussionWindowState[],
-  agents: PublicAgent[] = [],
-): AnnotationDiscussionCapsuleItem[] {
-  return windows.map((windowState) => {
-    const annotation = article.annotations.find((item) => item.id === windowState.annotationId);
-    const comments = annotation?.comments || [];
-    const ideaCount = comments.filter((comment) => !comment.replyTo).length;
-    const replyCount = comments.length - ideaCount;
-    return {
-      articleId: windowState.articleId,
-      annotationId: windowState.annotationId,
-      quote: annotation?.anchor.exact.trim() || i18next.t('discussion.fallbackQuote'),
-      ideaCount,
-      replyCount,
-      assistants: assistantParticipants(comments, agents),
-      pending: comments.some((comment) => comment.pending),
-    };
-  });
-}
-
-function assistantParticipants(
-  comments: Comment[],
-  agents: PublicAgent[],
-): AnnotationDiscussionCapsuleAssistant[] {
-  const assistants = new Map<string, AnnotationDiscussionCapsuleAssistant>();
-  for (const comment of comments) {
-    const author = comment.author;
-    if (author.kind !== 'agent') continue;
-    const key = author.agentId;
-    if (assistants.has(key)) continue;
-    const agent = agents.find((item) => item.id === author.agentId);
-    const name =
-      agent?.nickname || annotationAuthorName(author).trim() || i18next.t('common.assistant');
-    const avatar = agent?.avatar || author.avatar?.trim() || undefined;
-    assistants.set(key, {
-      key,
-      name,
-      avatar,
-    });
-  }
-  return [...assistants.values()];
-}
-
-export function AnnotationDiscussionCapsules({
-  agents,
-  article,
-  windows,
-  onOpen,
-}: {
-  agents?: PublicAgent[];
-  article: ArticleRecord;
-  windows: AnnotationDiscussionWindowState[];
-  onOpen?: (
-    articleId: string,
-    annotationId: string,
-    sourceRect?: WindowAnimationSourceRect,
-  ) => Promise<void> | void;
-}) {
-  const { t } = useTranslation();
-  const [expandedByUser, dispatchExpanded] = useReducer(capsulesExpandedReducer, false);
-  const items = useMemo(
-    () => annotationDiscussionCapsuleItems(article, windows, agents),
-    [agents, article, windows],
-  );
-
-  if (windows.length === 0) return null;
-
-  const isMany = items.length >= 5;
-  const expanded = !isMany || expandedByUser;
-
-  if (!expanded) {
-    return (
-      <div
-        className="annotation-discussion-capsules is-collapsed"
-        aria-label={t('discussion.capsules.minimized')}
-      >
-        <button
-          className="annotation-discussion-capsules-toggle"
-          type="button"
-          aria-expanded="false"
-          onClick={() => dispatchExpanded({ type: 'expanded' })}
-        >
-          <HugeiconsIcon icon={BubbleChatIcon} aria-hidden="true" size={16} strokeWidth={1.8} />
-          <span>{t('discussion.capsules.collapsed')}</span>
-          <strong>{items.length}</strong>
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <section
-      className="annotation-discussion-capsules is-expanded"
-      aria-label={t('discussion.capsules.minimized')}
-    >
-      <div className="annotation-discussion-capsules-header">
-        <span>{t('discussion.capsules.collapsed')}</span>
-        <strong>{items.length}</strong>
-        {isMany ? (
-          <button
-            className="annotation-discussion-capsules-collapse"
-            type="button"
-            aria-label={t('discussion.capsules.collapse')}
-            aria-expanded="true"
-            onClick={() => dispatchExpanded({ type: 'collapsed' })}
-          >
-            <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden="true" size={16} strokeWidth={1.8} />
-          </button>
-        ) : null}
-      </div>
-      <div className="annotation-discussion-capsule-list">
-        {items.map((item) => (
-          <button
-            key={`${item.articleId}:${item.annotationId}`}
-            className={['annotation-discussion-capsule', item.pending ? 'is-replying' : '']
-              .filter(Boolean)
-              .join(' ')}
-            type="button"
-            title={t('discussion.capsules.open', { quote: item.quote })}
-            onClick={() => void onOpen?.(item.articleId, item.annotationId)}
-          >
-            <span className="annotation-discussion-capsule-title">{item.quote}</span>
-            <span className="annotation-discussion-capsule-summary">
-              <span className="annotation-discussion-capsule-meta">
-                {t('discussion.capsules.summary', {
-                  ideas: item.ideaCount,
-                  replies: item.replyCount,
-                })}
-              </span>
-              {item.assistants.length ? (
-                <span
-                  className="annotation-discussion-capsule-assistants"
-                  aria-label={t('discussion.capsules.assistants')}
-                >
-                  {item.assistants.slice(0, 4).map((assistant) =>
-                    assistant.avatar ? (
-                      <img
-                        key={assistant.key}
-                        src={assistant.avatar}
-                        alt={assistant.name}
-                        title={assistant.name}
-                      />
-                    ) : (
-                      <span key={assistant.key} title={assistant.name}>
-                        {assistant.name.slice(0, 1)}
-                      </span>
-                    ),
-                  )}
-                </span>
-              ) : null}
-              {item.pending ? (
-                <span className="annotation-discussion-capsule-replying">
-                  {t('discussion.replying')}
-                </span>
-              ) : null}
-            </span>
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function capsulesExpandedReducer(
-  _expanded: boolean,
-  event: { type: 'expanded' } | { type: 'collapsed' },
-) {
-  return event.type === 'expanded';
 }
 
 function isReadingModeOpen(model: ReadingLibraryNavigationModel) {
