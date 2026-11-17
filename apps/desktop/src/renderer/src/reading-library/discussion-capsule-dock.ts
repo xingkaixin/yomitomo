@@ -5,6 +5,7 @@ type Piece = Point & { element: HTMLElement; offset: number; vx: number; vy: num
 type Gesture = {
   pointerId: number;
   piece: Piece;
+  captureElement: HTMLElement;
   start: Point;
   origin: Point;
   dragging: boolean;
@@ -127,8 +128,8 @@ export function bindDiscussionCapsuleDock(
     gesture = null;
     viewport.classList.remove('is-dragging');
     current.piece.element.classList.remove('is-grabbed');
-    if (current.piece.element.hasPointerCapture(current.pointerId)) {
-      current.piece.element.releasePointerCapture(current.pointerId);
+    if (current.captureElement.hasPointerCapture(current.pointerId)) {
+      current.captureElement.releasePointerCapture(current.pointerId);
     }
     if (current.dragging && !cancelled) {
       corner = candidate;
@@ -185,6 +186,8 @@ export function bindDiscussionCapsuleDock(
     const piece = pieces.find((item) => item.element.contains(target));
     if (!piece) return;
     if (event.pointerType === 'touch' && piece.element.classList.contains('is-scrollable')) return;
+    const captureElement =
+      target.closest<HTMLElement>('.annotation-discussion-capsule') ?? piece.element;
     suppressClick = false;
     for (const item of pieces) {
       item.vx = 0;
@@ -193,12 +196,13 @@ export function bindDiscussionCapsuleDock(
     gesture = {
       pointerId: event.pointerId,
       piece,
+      captureElement,
       start: { x: event.clientX, y: event.clientY },
       origin: { x: piece.x, y: piece.y },
       dragging: false,
     };
-    // Capture before the pointer reaches an EPUB iframe, which would stop outer pointer events.
-    piece.element.setPointerCapture(event.pointerId);
+    // Keep clicks on the capsule while capturing before the pointer reaches an EPUB iframe.
+    captureElement.setPointerCapture(event.pointerId);
   }
 
   function pointerMove(event: PointerEvent) {
