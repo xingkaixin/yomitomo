@@ -2,7 +2,7 @@
   "name": "yomitomo",
   "private": true,
   "license": "MIT",
-  "packageManager": "pnpm@12.18.0",
+  "packageManager": "pnpm@12.21.0",
   "scripts": {
     "dev": "turbo dev",
     "dev:app": "pnpm --filter @yomitomo/desktop dev",
@@ -38,8 +38,8 @@
     "jsdom": "catalog:",
     "oxfmt": "^0.78.0",
     "oxlint": "^1.93.0",
-    "oxlint-tsgolint": "^7.0.2006",
-    "turbo": "^2.11.10",
+    "oxlint-tsgolint": "^7.0.2007",
+    "turbo": "^2.11.11",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

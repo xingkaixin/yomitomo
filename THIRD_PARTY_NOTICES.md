@@ -200,8 +200,8 @@ Bundled font notices are discovered from:
 | base64-js | 1.5.1 | MIT | [link](https://github.com/beatgammit/base64-js) |
 | bcp-47 | 2.1.2 | MIT | [link](https://github.com/wooorm/bcp-47#readme) |
 | bcp-47-match | 2.0.3 | MIT | [link](https://github.com/wooorm/bcp-47-match#readme) |
-| better-sqlite3 | 13.0.3 | MIT | [link](http://github.com/WiseLibs/better-sqlite3) |
-| better-sqlite3 | 13.0.3 | MIT | [link](http://github.com/WiseLibs/better-sqlite3) |
+| better-sqlite3 | 13.2.0 | MIT | [link](http://github.com/WiseLibs/better-sqlite3) |
+| better-sqlite3 | 13.2.0 | MIT | [link](http://github.com/WiseLibs/better-sqlite3) |
 | bignumber.js | 9.3.1 | MIT | [link](https://github.com/MikeMcl/bignumber.js#readme) |
 | bindings | 1.5.0 | MIT | [link](https://github.com/TooTallNate/node-bindings) |
 | boolbase | 2.0.0 | ISC | [link](https://github.com/fb55/boolbase) |
@@ -244,11 +244,11 @@ Bundled font notices are discovered from:
 | dom-serializer | 2.0.0, 3.1.1 | MIT | [link](https://github.com/cheeriojs/dom-serializer#readme) |
 | domelementtype | 2.3.0, 3.0.0 | BSD-2-Clause | [link](https://github.com/fb55/domelementtype#readme) |
 | domhandler | 5.0.3, 6.0.1 | BSD-2-Clause | [link](https://github.com/fb55/domhandler#readme) |
-| dompurify | 3.4.17 | (MPL-2.0 OR Apache-2.0) | [link](https://github.com/cure53/DOMPurify) |
+| dompurify | 3.4.18 | (MPL-2.0 OR Apache-2.0) | [link](https://github.com/cure53/DOMPurify) |
 | domutils | 3.2.2, 4.0.2 | BSD-2-Clause | [link](https://github.com/fb55/domutils#readme) |
 | drizzle-orm | 0.45.4 | Apache-2.0 | [link](https://orm.drizzle.team) |
 | ecdsa-sig-formatter | 1.0.11 | Apache-2.0 | [link](https://github.com/Brightspace/node-ecdsa-sig-formatter#readme) |
-| effect | 4.1.3 | MIT | [link](https://effect.website) |
+| effect | 4.1.4 | MIT | [link](https://effect.website) |
 | electron-updater | 6.8.11 | MIT | [link](https://github.com/electron-userland/electron-builder) |
 | entities | 4.5.0, 7.0.1, 8.0.0, 9.0.0 | BSD-2-Clause | [link](https://github.com/fb55/entities#readme) |
 | es-define-property | 1.0.1 | MIT | [link](https://github.com/ljharb/es-define-property#readme) |
@@ -268,7 +268,7 @@ Bundled font notices are discovered from:
 | flatbuffers | 25.9.23 | Apache-2.0 | [link](https://google.github.io/flatbuffers/) |
 | foliate-js | vendored 78914ae | MIT | [link](https://github.com/johnfactotum/foliate-js) |
 | formdata-polyfill | 4.0.10 | MIT | [link](https://github.com/jimmywarting/FormData#readme) |
-| framer-motion | 14.11.1 | MIT |  |
+| framer-motion | 14.14.0 | MIT |  |
 | fs-extra | 10.1.0 | MIT | [link](https://github.com/jprichardson/node-fs-extra) |
 | gaxios | 7.3.1 | Apache-2.0 | [link](https://github.com/googleapis/google-cloud-node/tree/main/core/packages/gaxios) |
 | gcp-metadata | 8.1.2 | Apache-2.0 | [link](https://github.com/googleapis/google-cloud-node-core/tree/main/packages/gcp-metadata) |
@@ -286,7 +286,7 @@ Bundled font notices are discovered from:
 | htmlparser2 | 10.1.0 | MIT | [link](https://github.com/fb55/htmlparser2#readme) |
 | http-proxy-agent | 9.1.0 | MIT | [link](https://github.com/TooTallNate/proxy-agents#readme) |
 | https-proxy-agent | 7.0.6, 9.1.0 | MIT | [link](https://github.com/TooTallNate/proxy-agents#readme) |
-| i18next | 27.1.0 | MIT | [link](https://www.i18next.com) |
+| i18next | 27.1.3 | MIT | [link](https://www.i18next.com) |
 | immediate | 3.0.6 | MIT | [link](https://github.com/calvinmetcalf/immediate#readme) |
 | immer | 11.1.18 | MIT | [link](https://github.com/immerjs/immer#readme) |
 | inherits | 2.0.4 | ISC | [link](https://github.com/isaacs/inherits#readme) |
@@ -300,7 +300,7 @@ Bundled font notices are discovered from:
 | isarray | 1.0.0 | MIT | [link](https://github.com/juliangruber/isarray) |
 | JetBrains Mono | 2.304 | OFL-1.1 | [link](https://github.com/JetBrains/JetBrainsMono) |
 | js-yaml | 4.3.2 | MIT | [link](https://github.com/nodeca/js-yaml#readme) |
-| jsdom | 31.0.0 | MIT | [link](https://github.com/jsdom/jsdom#readme) |
+| jsdom | 31.0.1 | MIT | [link](https://github.com/jsdom/jsdom#readme) |
 | json-bigint | 1.0.0 | MIT | [link](https://github.com/sidorares/json-bigint#readme) |
 | json-schema-to-ts | 3.1.1 | MIT | [link](https://github.com/ThomasAribart/json-schema-to-ts#readme) |
 | json-stringify-safe | 5.0.1 | ISC | [link](https://github.com/isaacs/json-stringify-safe) |
@@ -319,7 +319,7 @@ Bundled font notices are discovered from:
 | magic-string | 0.30.21 | MIT | [link](https://github.com/Rich-Harris/magic-string#readme) |
 | matcher | 3.0.0 | MIT | [link](https://github.com/sindresorhus/matcher#readme) |
 | mathml-to-latex | 1.8.0 | MIT | [link](https://github.com/asnunes/mathml-to-latex#readme) |
-| motion-dom | 14.11.1 | MIT | [link](https://github.com/motiondivision/motion#readme) |
+| motion-dom | 14.14.0 | MIT | [link](https://github.com/motiondivision/motion#readme) |
 | motion-utils | 14.7.0 | MIT | [link](https://github.com/motiondivision/motion#readme) |
 | ms | 2.1.3 | MIT | [link](https://github.com/vercel/ms#readme) |
 | nanoid | 3.3.20 | MIT | [link](https://github.com/ai/nanoid#readme) |
@@ -352,7 +352,7 @@ Bundled font notices are discovered from:
 | react | 19.3.1 | MIT | [link](https://react.dev/) |
 | react-day-picker | 10.0.2 | MIT | [link](https://daypicker.dev) |
 | react-dom | 19.3.1 | MIT | [link](https://react.dev/) |
-| react-i18next | 18.0.1 | MIT | [link](https://github.com/i18next/react-i18next) |
+| react-i18next | 18.0.2 | MIT | [link](https://github.com/i18next/react-i18next) |
 | react-is | 17.0.2 | MIT | [link](https://reactjs.org/) |
 | react-redux | 9.3.0 | MIT | [link](https://github.com/reduxjs/react-redux) |
 | readable-stream | 2.3.8 | MIT | [link](https://github.com/nodejs/readable-stream#readme) |

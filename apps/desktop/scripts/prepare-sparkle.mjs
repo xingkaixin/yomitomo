@@ -5,7 +5,7 @@ import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
 
-export const sparkleVersion = '2.10.0';
+export const sparkleVersion = '2.10.1';
 export const sparkleRoot = join(dirname(import.meta.dirname), '.cache', 'sparkle');
 
 export function prepareSparkle() {
@@ -28,7 +28,7 @@ export function prepareSparkle() {
     );
   }
   const digest = createHash('sha256').update(readFileSync(archive)).digest('hex');
-  if (digest !== 'c2bf58aa8387266ac179357b1415d6f2635f044da8be41042af32425dae6da0c') {
+  if (digest !== '1a856d2a9edb8e628de88121d7be04cf0e2167f8641650b78fca00b14244cf27') {
     throw new Error('Sparkle distribution checksum mismatch');
   }
   execFileSync('tar', ['-xJf', archive, '-C', sparkleRoot]);

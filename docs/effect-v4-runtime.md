@@ -28,8 +28,8 @@ writers that queue projection jobs request a run, and between runs the worker sl
 earliest persisted retry time. Orphan cleanup and backfill scan whole tables, so they run only at
 startup, after a database restore, and on manual rebuild. Shutdown interrupts waits, joins in-flight
 database leases, and closes the queue. Persisted projection jobs, retry timestamps, and
-database-generation checks remain authoritative. Schedule tests use TestClock via
-the matching `@effect/vitest@4.1.3`; existing Promise-boundary tests retain their timer fixtures.
+database-generation checks remain authoritative. Timing and Promise-boundary tests retain their
+Vitest timer fixtures; `@effect/vitest@4.1.4` is pinned alongside the runtime.
 
 Embedding requests use Deferred responses and Effect timeouts. A single exit finalizer recycles
 failed or interrupted workers and waits for the operating system's exit event before releasing
@@ -51,6 +51,13 @@ matching Node's previous zero-delay timer behavior.
 The inventory includes both root and subpath imports.
 
 ## Runtime semantics
+
+The `4.1.3` to `4.1.4` source comparison covers every production namespace above and the
+internal runtime implementations. The production API sources and concurrency runtime are unchanged.
+Upstream TestClock now preserves the caller's interruption mask while scheduling its warning fiber.
+This keeps uninterruptible finalizers running through every sleep and cleanup step.
+The `@effect/vitest` source is unchanged. JSON Schema import and code-generation changes and
+the generated OpenRouter schema changes affect APIs outside the production inventory.
 
 The `4.1.1` to `4.1.3` source comparison covers every production namespace above and the
 internal runtime implementations. The API inventory and signatures remain compatible. A race now
@@ -107,7 +114,7 @@ The renamed Schema filters and changed `Effect.partition` result order are not u
 | `Effect.fn` | Named operations add stable stack and trace boundaries. | Public and non-trivial AI workflows use domain-first operation names without introducing service layers. | AI runtime tests execute the named operations through their Effect-native exports. |
 | `Effect.promise` | Rejection remains a defect rather than a typed failure. | It is limited to promises whose implementations absorb rejection; other Promise boundaries use `tryPromise`. | Article response cancellation absorbs errors. |
 | `Schema.decodeUnknownEffect` | Decoding reports `SchemaError` through the typed error channel. | HTTP JSON remains `unknown` until endpoint schemas validate consumed fields; schema failures map to domain response errors before business mapping or writes. | Provider model and models.dev tests cover malformed valid JSON and distinguish failures from defects. |
-| `Scope.close`, `Effect.forkIn`, `Schedule.spaced` | Closing a scope interrupts and joins its children; spaced repetition waits after completion. | Recurring tasks never overlap themselves, and shutdown waits for opaque operations to release database leases. | TestClock and main-process disposal tests cover timing and joining. |
+| `Scope.close`, `Effect.forkIn`, `Schedule.spaced` | Closing a scope interrupts and joins its children; spaced repetition waits after completion. | Recurring tasks never overlap themselves, and shutdown waits for opaque operations to release database leases. | Main-process disposal and semantic-index tests cover timing and joining with Vitest timer fixtures. |
 | `Queue.make`, `Queue.take`, `Effect.timeoutOption` | A sliding capacity-one queue retains the latest pending request; timeout interrupts the waiting take. | Projection requests wake idle work and coalesce during a batch without replacing persisted job state. | Projection worker tests cover preemption, coalescing, database replacement, and disposal. |
 | `Deferred.makeUnsafe`, `Deferred.doneUnsafe`, `Effect.timeoutOrElse`, `Effect.onExit`, `Fiber.await` | Callback boundaries can complete a Deferred directly; exit finalizers finish before a fiber's Exit is observable. | Embedding errors and cancellation recycle the child process exactly once; busy requests stay rejected until OS exit, and disposal joins pending cleanup. | Embedding service tests cover native exit, timeout, malformed IPC, graceful disposal, and disposal during cancellation. |
 | `Effect.all`, `Effect.gen`, `Effect.try`, `Effect.catch`, `Effect.fail`, `Effect.succeed`, `Effect.sync`, `Effect.map`, `Effect.flatMap`, `Effect.mapError` | `Effect.catch` replaces `Effect.catchAll`; the remaining primitives have no repository-relevant v4 semantic change. | Keep explicit concurrency, composition, and typed error mapping at the call site. | Existing domain tests cover their behavior. |
