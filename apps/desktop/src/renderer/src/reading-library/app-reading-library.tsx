@@ -477,6 +477,7 @@ export function ReadingLibrary({
                   <AnnotationDiscussionCapsules
                     agents={publicPersonaAgents(agents, normalizeUiLanguage(settings?.uiLanguage))}
                     article={selectedArticle}
+                    userProfile={userProfile}
                     windows={currentMinimizedDiscussionWindows}
                     corner={discussionCorner}
                     onDock={(position) => dockDiscussion({ type: 'docked', corner: position })}
