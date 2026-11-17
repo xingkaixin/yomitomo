@@ -1,5 +1,6 @@
 import { Menu, type MenuItemConstructorOptions } from 'electron';
 import type { AppMenuCommand } from '../../app-menu-types';
+import { minimizeWindowFromMenu } from '../windows/native-window-minimize';
 
 export type AppMenuOptions = {
   appName: string;
@@ -142,7 +143,13 @@ function buildWindowMenu(labels: AppMenuLabels): MenuItemConstructorOptions {
   return {
     label: labels.window,
     submenu: [
-      { role: 'minimize' },
+      {
+        label: labels.windowMinimize,
+        accelerator: 'Command+M',
+        click: (_item, window) => {
+          if (window) minimizeWindowFromMenu(window);
+        },
+      },
       { role: 'zoom', label: labels.windowZoom },
       { type: 'separator' },
       { role: 'front' },
@@ -203,6 +210,7 @@ function appMenuLabels(locale: string) {
       toggleFullscreen: '进入/退出全屏',
       view: '显示',
       window: '窗口',
+      windowMinimize: '最小化',
       windowZoom: '缩放',
       zoom: '缩放',
       zoomIn: '放大',
@@ -235,6 +243,7 @@ function appMenuLabels(locale: string) {
       toggleFullscreen: 'フルスクリーンを切り替える',
       view: '表示',
       window: 'ウィンドウ',
+      windowMinimize: 'しまう',
       windowZoom: '拡大／縮小',
       zoom: '拡大／縮小',
       zoomIn: '拡大',
@@ -266,6 +275,7 @@ function appMenuLabels(locale: string) {
     toggleFullscreen: 'Enter / Exit Full Screen',
     view: 'View',
     window: 'Window',
+    windowMinimize: 'Minimize',
     windowZoom: 'Zoom',
     zoom: 'Zoom',
     zoomIn: 'Zoom In',

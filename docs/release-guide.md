@@ -51,6 +51,12 @@ app.asar 只包含 `dist/main`、`dist/preload`、`dist/renderer`、`resources` 
 `mac.files`、`win.files` 会替换顶层 `files`，必须先展开共享列表再追加平台排除项，
 否则 electron-builder 会回退到 `**/*` 打包整个项目目录；`native:verify` 会检查这一点。
 
+macOS / Windows 的讨论窗口原生按钮适配位于 `native/window-controls`，使用现有 node-gyp 与
+Electron headers 编译。`rebuild:native` 为当前架构准备开发产物，electron-builder 的 `beforePack`
+为目标架构重新编译并复制 `window_controls.node` 到 Resources。原生按钮的接管、移除与窗口销毁由
+`scripts/smoke-window-controls.mjs` 验证，CI 在 macOS 和 Windows 上运行；无需新增 npm 依赖。
+安装包必须在目标操作系统上构建，不能从 Mac 交叉打包 Windows。
+
 ### macOS Sparkle 更新
 
 macOS 使用官方 Sparkle 2.10.0，Windows 继续使用 NSIS 和 electron-updater。

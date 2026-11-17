@@ -16,6 +16,7 @@ import { desktopIpcErrorFromSerialized, type DesktopIpcInvokeEnvelope } from '..
 import {
   desktopIpcInvokeRoutes,
   type AnnotationDiscussionWindowStateEvent,
+  type AnnotationDiscussionWindowTransition,
   type AnnotationDistillationCommittedEvent,
   type DesktopIpcInvokeApi,
   type DesktopIpcInvokeChannel,
@@ -70,6 +71,8 @@ export function createYomitomoDesktopApi(input: DesktopPreloadApiInput) {
       ...invokeApi.annotations,
       discussion: {
         ...invokeApi.annotations.discussion,
+        onTransition: (callback: (event: AnnotationDiscussionWindowTransition) => void) =>
+          onDesktopIpcRendererEvent('annotation-discussion:transition', callback),
         onThoughtDraftAvailable: (callback: () => void) =>
           onDesktopIpcRendererEvent('annotation-discussion:thought-draft-available', callback),
       },

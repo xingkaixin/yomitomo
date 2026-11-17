@@ -1,9 +1,9 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowDown01Icon, BubbleChatIcon, DragDropVerticalIcon } from '@hugeicons/core-free-icons';
-import { useCallback, useMemo, useReducer } from 'react';
+import { useCallback, useMemo, useReducer, type CSSProperties } from 'react';
 import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
-import type { ArticleRecord, Comment, PublicAgent } from '@yomitomo/shared';
-import { annotationAuthorName } from '@yomitomo/core';
+import type { ArticleRecord, Comment, PublicAgent, UserProfile } from '@yomitomo/shared';
+import { annotationAuthorName, annotationColor } from '@yomitomo/core';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -11,6 +11,7 @@ import type {
   WindowAnimationSourceRect,
 } from '../../../ipc-contract';
 import { bindDiscussionCapsuleDock, type DiscussionDockCorner } from './discussion-capsule-dock';
+import { elementWindowSourceRect } from '../shell/app-window-transition';
 
 type AnnotationDiscussionCapsuleAssistant = {
   key: string;
@@ -21,6 +22,8 @@ type AnnotationDiscussionCapsuleAssistant = {
 type AnnotationDiscussionCapsuleItem = {
   articleId: string;
   annotationId: string;
+  windowId: number;
+  color?: string;
   quote: string;
   ideaCount: number;
   replyCount: number;
@@ -31,6 +34,7 @@ type AnnotationDiscussionCapsuleItem = {
 function annotationDiscussionCapsuleItems(
   article: ArticleRecord,
   windows: AnnotationDiscussionWindowState[],
+  userProfile: UserProfile,
   agents: PublicAgent[] = [],
 ): AnnotationDiscussionCapsuleItem[] {
   return windows.map((windowState) => {
@@ -41,6 +45,8 @@ function annotationDiscussionCapsuleItems(
     return {
       articleId: windowState.articleId,
       annotationId: windowState.annotationId,
+      windowId: windowState.windowId,
+      color: annotation ? annotationColor(annotation, userProfile, agents) : undefined,
       quote: annotation?.anchor.exact.trim() || i18next.t('discussion.fallbackQuote'),
       ideaCount,
       replyCount,
@@ -76,6 +82,7 @@ function assistantParticipants(
 export function AnnotationDiscussionCapsules({
   agents,
   article,
+  userProfile,
   windows,
   onOpen,
   corner,
@@ -85,6 +92,7 @@ export function AnnotationDiscussionCapsules({
   corner: DiscussionDockCorner;
   onDock: (corner: DiscussionDockCorner) => void;
   article: ArticleRecord;
+  userProfile: UserProfile;
   windows: AnnotationDiscussionWindowState[];
   onOpen?: (
     articleId: string,
@@ -95,8 +103,8 @@ export function AnnotationDiscussionCapsules({
   const { t } = useTranslation();
   const [expandedByUser, dispatchExpanded] = useReducer(capsulesExpandedReducer, false);
   const items = useMemo(
-    () => annotationDiscussionCapsuleItems(article, windows, agents),
-    [agents, article, windows],
+    () => annotationDiscussionCapsuleItems(article, windows, userProfile, agents),
+    [agents, article, windows, userProfile],
   );
 
   const isMany = items.length >= 5;
@@ -178,17 +186,31 @@ export function AnnotationDiscussionCapsules({
         ) : null}
       </div>
       <div className="annotation-discussion-capsule-list">
-        {items.map((item) => (
+        {items.map((item, index) => (
           <button
             key={`${item.articleId}:${item.annotationId}`}
             className={['annotation-discussion-capsule', item.pending ? 'is-replying' : '']
               .filter(Boolean)
               .join(' ')}
             type="button"
+            data-window-id={item.windowId}
+            style={
+              {
+                '--capsule-accent': item.color || 'var(--app-interactive-link)',
+                '--capsule-indent': `${Math.min(index, 2) * 9}px`,
+                '--capsule-order': items.length - index,
+              } as CSSProperties
+            }
             title={t('discussion.capsules.open', { quote: item.quote })}
-            onClick={() => void onOpen?.(item.articleId, item.annotationId)}
+            onClick={(event) =>
+              void onOpen?.(
+                item.articleId,
+                item.annotationId,
+                elementWindowSourceRect(event.currentTarget),
+              )
+            }
           >
-            <span className="annotation-discussion-capsule-title">{item.quote}</span>
+            <CapsuleQuote key={item.quote} quote={item.quote} />
             <span className="annotation-discussion-capsule-summary">
               <span className="annotation-discussion-capsule-meta">
                 {t('discussion.capsules.summary', {
@@ -230,7 +252,11 @@ export function AnnotationDiscussionCapsules({
   );
 
   return (
-    <div className="annotation-discussion-capsules-viewport" ref={bindDock}>
+    <div
+      className="annotation-discussion-capsules-viewport"
+      data-window-ids={items.map((item) => item.windowId).join(' ')}
+      ref={bindDock}
+    >
       {(['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const).map((position) => (
         <div
           key={position}
@@ -247,6 +273,40 @@ export function AnnotationDiscussionCapsules({
       <span className="sr-only" role="status" />
     </div>
   );
+}
+
+function CapsuleQuote({ quote }: { quote: string }) {
+  return (
+    <span className="annotation-discussion-capsule-title" ref={bindQuoteScroll}>
+      <span className="annotation-discussion-capsule-quote-track">
+        <span>{quote}</span>
+        <span aria-hidden="true">{quote}</span>
+      </span>
+    </span>
+  );
+}
+
+function bindQuoteScroll(element: HTMLSpanElement | null) {
+  if (!element) return;
+  const text = element.querySelector('.annotation-discussion-capsule-quote-track > span');
+  if (!text) return;
+  const measure = () => {
+    const width = text.getBoundingClientRect().width;
+    element.classList.toggle('is-overflowing', width > element.clientWidth + 1);
+    element.style.setProperty('--quote-scroll-distance', `${-(width + 32)}px`);
+    element.style.setProperty('--quote-scroll-duration', `${Math.max(8, (width + 32) / 24)}s`);
+  };
+  const visibilityChanged = () => element.classList.toggle('is-hidden', document.hidden);
+  const observer = new ResizeObserver(measure);
+  observer.observe(element);
+  observer.observe(text);
+  document.addEventListener('visibilitychange', visibilityChanged);
+  measure();
+  visibilityChanged();
+  return () => {
+    observer.disconnect();
+    document.removeEventListener('visibilitychange', visibilityChanged);
+  };
 }
 
 function capsulesExpandedReducer(

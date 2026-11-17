@@ -436,7 +436,43 @@ export const assistantDomainIpcInvokeSchemas = {
   ]),
 };
 
+const transitionRectSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  width: z.number().nonnegative(),
+  height: z.number().nonnegative(),
+});
+const transitionQuoteSchema = z.object({
+  text: boundedStringSchema,
+  bounds: transitionRectSchema,
+  fontFamily: z.string().max(2000),
+  fontSize: z.number().positive(),
+  fontWeight: z.string().max(100),
+  lineHeight: z.number().positive(),
+  letterSpacing: z.string().max(100),
+  color: z.string().max(200),
+});
+const transitionResponseIdentity = {
+  windowId: z.number().int().positive(),
+  transitionId: z.number().int().positive(),
+};
+
 export const annotationWindowDomainIpcInvokeSchemas = {
+  'annotation-discussion:transition-response': z.tuple([
+    z.discriminatedUnion('type', [
+      z.object({
+        ...transitionResponseIdentity,
+        type: z.literal('measured'),
+        view: z.object({
+          width: z.number().positive(),
+          background: z.string().max(200),
+          quote: transitionQuoteSchema.nullable(),
+        }),
+      }),
+      z.object({ ...transitionResponseIdentity, type: z.literal('ready'), prepared: z.boolean() }),
+      z.object({ ...transitionResponseIdentity, type: z.literal('finished') }),
+    ]),
+  ]),
   'annotation-discussion:open': z.tuple([
     annotationWindowOpenSchema.extend({
       thoughtDraft: z.string().max(8_192).trim().min(1).optional(),

@@ -132,14 +132,14 @@ afterEach(() => {
 });
 
 describe('annotation window lifecycle', () => {
-  it('retains a new draft until its own discussion window consumes it, not until ready-to-show', () => {
+  it('retains a new draft until its own discussion window consumes it, not until ready-to-show', async () => {
     const { context } = createContext();
     const input = {
       articleId: 'article-1',
       annotationId: 'annotation-1',
       thoughtDraft: 'A draft from the reading library',
     };
-    openAnnotationWindow(context, { sender: {} } as IpcMainInvokeEvent, input, configuration);
+    await openAnnotationWindow(context, { sender: {} } as IpcMainInvokeEvent, input, configuration);
     const window = electronMocks.instances[0];
     const sender = window.webContents as unknown as IpcMainInvokeEvent['sender'];
     const unrelated = {} as IpcMainInvokeEvent['sender'];
@@ -158,12 +158,12 @@ describe('annotation window lifecycle', () => {
     expect(window.webContents.send).not.toHaveBeenCalled();
   });
 
-  it('loads the configured route and guards external navigation', () => {
+  it('loads the configured route and guards external navigation', async () => {
     const { context, openExternalUrl } = createContext();
     const event = { sender: {} } as IpcMainInvokeEvent;
     const input = { articleId: 'article-2', annotationId: 'annotation-2' };
 
-    openAnnotationWindow(context, event, input, configuration);
+    await openAnnotationWindow(context, event, input, configuration);
     const window = electronMocks.instances[0];
 
     expect(window.loadFile).toHaveBeenCalledWith(

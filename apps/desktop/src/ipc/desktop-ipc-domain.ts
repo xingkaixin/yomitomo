@@ -259,6 +259,34 @@ export type AnnotationDiscussionWindowState = {
   minimized: boolean;
 };
 
+export type AnnotationDiscussionTransitionResponse =
+  DesktopIpcSchemaArgs<'annotation-discussion:transition-response'>[0];
+
+export type AnnotationDiscussionTransitionView = Extract<
+  AnnotationDiscussionTransitionResponse,
+  { type: 'measured' }
+>['view'];
+
+type DiscussionTransitionIdentity = {
+  windowId: number;
+  transitionId: number;
+};
+
+export type AnnotationDiscussionWindowTransition = DiscussionTransitionIdentity &
+  (
+    | { type: 'measure' }
+    | { type: 'cancel' }
+    | { type: 'animate'; direction: 'minimize' | 'restore' }
+    | {
+        type: 'prepare';
+        direction: 'minimize' | 'restore';
+        expanded: boolean;
+        image: string;
+        bounds: WindowAnimationSourceRect;
+        view: AnnotationDiscussionTransitionView;
+      }
+  );
+
 export type AnnotationDiscussionWindowStateEvent =
   | { type: 'upsert'; window: AnnotationDiscussionWindowState }
   | { type: 'remove'; articleId: string; annotationId: string; windowId: number };

@@ -50,8 +50,8 @@ function completeAnnotationSedimentation(
 ) {
   const closedDiscussion = closeAnnotationWindow(annotationWindowRoutes.discussion, input);
   const minimized =
-    minimizeOtherAnnotationWindows(annotationWindowRoutes.discussion, input) +
-    minimizeOtherAnnotationWindows(annotationWindowRoutes.sedimentation, input);
+    minimizeOtherAnnotationWindows(context, annotationWindowRoutes.discussion, input) +
+    minimizeOtherAnnotationWindows(context, annotationWindowRoutes.sedimentation, input);
   const closedSedimentation = scheduleCloseAnnotationWindow(
     annotationWindowRoutes.sedimentation,
     input,
