@@ -248,7 +248,7 @@ Bundled font notices are discovered from:
 | domutils | 3.2.2, 4.0.2 | BSD-2-Clause | [link](https://github.com/fb55/domutils#readme) |
 | drizzle-orm | 0.45.4 | Apache-2.0 | [link](https://orm.drizzle.team) |
 | ecdsa-sig-formatter | 1.0.11 | Apache-2.0 | [link](https://github.com/Brightspace/node-ecdsa-sig-formatter#readme) |
-| effect | 4.1.3 | MIT | [link](https://effect.website) |
+| effect | 4.1.4 | MIT | [link](https://effect.website) |
 | electron-updater | 6.8.11 | MIT | [link](https://github.com/electron-userland/electron-builder) |
 | entities | 4.5.0, 7.0.1, 8.0.0, 9.0.0 | BSD-2-Clause | [link](https://github.com/fb55/entities#readme) |
 | es-define-property | 1.0.1 | MIT | [link](https://github.com/ljharb/es-define-property#readme) |
