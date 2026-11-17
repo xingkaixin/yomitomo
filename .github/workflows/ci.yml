@@ -26,6 +26,7 @@ jobs:
     outputs:
       code: ${{ steps.changes.outputs.code }}
       sparkle: ${{ steps.changes.outputs.sparkle }}
+      window-controls: ${{ steps.changes.outputs.window-controls }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -38,18 +39,22 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           DOCUMENTATION_PATHS: '^(docs/|(README|README_zh|CHANGELOG|CHANGELOG_zh|CONTEXT|AGENTS|CLAUDE)\.md$|\.github/pull_request_template\.md$|apps/desktop/AGENTS\.md$)'
-          SPARKLE_PATHS: '^(apps/desktop/native/|apps/desktop/scripts/(prepare|smoke)-sparkle\.mjs$|apps/desktop/package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|\.github/workflows/ci\.yml$)'
+          SPARKLE_PATHS: '^(apps/desktop/native/sparkle\.mm$|apps/desktop/scripts/(prepare|smoke)-sparkle\.mjs$|apps/desktop/package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|\.github/workflows/ci\.yml$)'
+          WINDOW_CONTROLS_PATHS: '^(apps/desktop/native/window-controls/|apps/desktop/scripts/(prepare|smoke)-window-controls\.mjs$|apps/desktop/src/main/windows/native-window-minimize\.ts$|apps/desktop/package\.json$|pnpm-lock\.yaml$|\.github/workflows/ci\.yml$)'
         run: |
           code=true
           sparkle=true
+          window_controls=true
           if [ -n "$PR_NUMBER" ]; then
             files=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files" \
               --jq '.[] | .filename, .previous_filename // empty')
             grep -qvE "$DOCUMENTATION_PATHS" <<<"$files" || code=false
             grep -qE "$SPARKLE_PATHS" <<<"$files" || sparkle=false
+            grep -qE "$WINDOW_CONTROLS_PATHS" <<<"$files" || window_controls=false
           fi
           echo "code=$code" >>"$GITHUB_OUTPUT"
           echo "sparkle=$sparkle" >>"$GITHUB_OUTPUT"
+          echo "window-controls=$window_controls" >>"$GITHUB_OUTPUT"
 
   static:
     name: Lint, format and typecheck
@@ -189,9 +194,36 @@ jobs:
       - name: Verify signed delta updates and full fallback
         run: node apps/desktop/scripts/smoke-sparkle.mjs
 
+  window-controls:
+    name: Native minimize (${{ matrix.os }})
+    needs: preflight
+    if: needs.preflight.outputs.window-controls == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-26, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup workspace
+        uses: ./.github/actions/setup-workspace
+        with:
+          install-args: --ignore-scripts
+
+      - name: Install Electron
+        run: node apps/desktop/node_modules/electron/install.js
+
+      - name: Build native window controls
+        run: node apps/desktop/scripts/prepare-window-controls.mjs
+
+      - name: Verify native minimize interception
+        run: node apps/desktop/scripts/smoke-window-controls.mjs
+
   ci-ok:
     name: CI OK
-    needs: [preflight, static, test, build, sparkle]
+    needs: [preflight, static, test, build, sparkle, window-controls]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:

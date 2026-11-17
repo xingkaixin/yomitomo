@@ -321,6 +321,69 @@
   box-shadow: var(--app-float-shadow);
 }
 
+.annotation-discussion-window-preview {
+  position: fixed;
+  z-index: var(--app-z-top-overlay);
+  overflow: hidden;
+  box-shadow: var(--app-float-shadow);
+  pointer-events: none;
+  transform-origin: top left;
+}
+
+.annotation-discussion-window-preview-paper,
+.annotation-discussion-window-preview-body {
+  position: absolute;
+  inset: 0;
+}
+
+.annotation-discussion-window-preview * {
+  pointer-events: none;
+}
+
+.annotation-discussion-window-preview .annotation-discussion-capsule::after {
+  display: none;
+}
+
+.annotation-discussion-window-preview-fold {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  border-width: 0 0 11px 11px;
+  border-style: solid;
+  border-color: transparent;
+  border-radius: 0 0 4px 0;
+  transform-origin: bottom right;
+}
+
+.annotation-discussion-window-preview-body > img {
+  width: 100%;
+  height: 100%;
+}
+
+.annotation-discussion-window-preview-quote-cover,
+.annotation-discussion-window-preview-quote {
+  position: absolute;
+}
+
+.annotation-discussion-window-preview-quote {
+  top: 0;
+  left: 0;
+  transform-origin: top left;
+}
+
+.annotation-discussion-window-preview-quote > p {
+  margin: 0;
+  transform-origin: top left;
+}
+
+[data-window-transition-target='moving'] {
+  opacity: 0;
+}
+
+[data-window-transition-target] .annotation-discussion-capsule-quote-track {
+  animation-play-state: paused;
+}
+
 .annotation-discussion-capsules-corner {
   position: absolute;
   width: 28px;

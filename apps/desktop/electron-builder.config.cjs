@@ -18,6 +18,18 @@ function prepareMacUpdater(context) {
   );
 }
 
+function prepareNativeBridges(context) {
+  if (context.electronPlatformName !== process.platform) {
+    throw new Error('Native window controls must be packaged on the target operating system');
+  }
+  execFileSync(
+    process.execPath,
+    [join(__dirname, 'scripts/prepare-window-controls.mjs'), `--arch=${Arch[context.arch]}`],
+    { stdio: 'inherit' },
+  );
+  prepareMacUpdater(context);
+}
+
 async function pruneElectronFrameworkLocales(context) {
   if (context.electronPlatformName !== 'darwin') return;
   const appName = `${context.packager.appInfo.productFilename}.app`;
@@ -84,6 +96,7 @@ module.exports = {
   npmRebuild: false,
   files: appFiles,
   extraResources: [
+    { from: '.cache/window-controls/${arch}/window_controls.node', to: 'window_controls.node' },
     {
       from: 'node_modules/@embedpdf/pdfium/dist/pdfium.wasm',
       to: 'pdfium/pdfium.wasm',
@@ -109,7 +122,7 @@ module.exports = {
       ],
     },
   ],
-  beforePack: prepareMacUpdater,
+  beforePack: prepareNativeBridges,
   afterPack: pruneElectronFrameworkLocales,
   asar: {
     smartUnpack: false,

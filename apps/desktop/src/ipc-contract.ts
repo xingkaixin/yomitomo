@@ -16,6 +16,7 @@ import type { AppUpdateState } from './app-update-types';
 import type { SerializedDesktopIpcError } from './ipc-errors';
 import type {
   AnnotationDiscussionWindowStateEvent,
+  AnnotationDiscussionWindowTransition,
   AnnotationDistillationCommittedEvent,
   WeReadState,
 } from './ipc/desktop-ipc-domain';
@@ -97,6 +98,7 @@ export type DesktopIpcToRendererEventMap = {
   'app-menu:command': AppMenuCommand;
   'store:updated': DesktopStore;
   'annotation-discussion:window-state': AnnotationDiscussionWindowStateEvent;
+  'annotation-discussion:transition': AnnotationDiscussionWindowTransition;
   'annotation-discussion:thought-draft-available': undefined;
   'annotation-distillation:committed': AnnotationDistillationCommittedEvent;
   'annotation-window:closing': undefined;

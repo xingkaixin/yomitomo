@@ -1,4 +1,4 @@
-import type { BrowserWindow, IpcMainInvokeEvent } from 'electron';
+import { BrowserWindow, type IpcMainInvokeEvent } from 'electron';
 import type {
   AnnotationDiscussionWindowOpenInput,
   AnnotationDiscussionWindowStateEvent,
@@ -14,6 +14,11 @@ import {
   type AnnotationWindowConfiguration,
   type AnnotationWindowIpcContext,
 } from './annotation-window-lifecycle';
+import {
+  respondToDiscussionWindowTransition,
+  transitionDiscussionWindow,
+} from './discussion-window-transition';
+import { installNativeWindowMinimize } from './native-window-minimize';
 
 const discussionWindowConfiguration = {
   route: annotationWindowRoutes.discussion,
@@ -25,8 +30,14 @@ const discussionWindowConfiguration = {
   },
   initialTitle: ({ annotationId }) => `Annotation discussion - ${annotationId.slice(0, 8)}`,
   installDomainEvents: (context, input, window) => {
+    installNativeWindowMinimize(window, () => {
+      void transitionDiscussionWindow(context.getMainWindow(), window, 'minimize', input);
+    });
     window.once('ready-to-show', () => sendWindowState(context, input, window, false));
-    window.on('minimize', () => sendWindowState(context, input, window, true));
+    window.on('minimize', () => {
+      void transitionDiscussionWindow(context.getMainWindow(), window, 'minimize', input);
+    });
+    window.on('hide', () => sendWindowState(context, input, window, true));
     window.on('restore', () => sendWindowState(context, input, window, false));
     window.on('show', () => sendWindowState(context, input, window, false));
     window.on('focus', () => sendWindowState(context, input, window, false));
@@ -37,6 +48,9 @@ const discussionWindowConfiguration = {
 export function registerAnnotationDiscussionWindowIpc(
   context: AnnotationWindowIpcContext & Pick<DesktopMainIpcContext, 'getPersistenceModules'>,
 ) {
+  handleDesktopIpc('annotation-discussion:transition-response', (event, response) =>
+    respondToDiscussionWindowTransition(BrowserWindow.fromWebContents(event.sender), response),
+  );
   handleDesktopIpc('annotation-discussion:open', async (event, input) => {
     if (input.thoughtDraft !== undefined) {
       const { storeArticles } = await context.getPersistenceModules();

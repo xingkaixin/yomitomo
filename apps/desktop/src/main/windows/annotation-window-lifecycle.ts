@@ -10,6 +10,7 @@ import type { DesktopMainIpcContext } from '../ipc/ipc';
 import { sendDesktopIpcRendererEvent } from '../ipc/ipc-events';
 import { secureRendererWebPreferences } from './renderer-window-security';
 import { installRendererNavigationGuard } from './renderer-navigation';
+import { transitionDiscussionWindow } from './discussion-window-transition';
 import {
   appendWindowAnimationSourceSearchParams,
   installWindowCloseAnimation,
@@ -66,7 +67,7 @@ type AnnotationWindowEntry = AnnotationWindowIdentity & {
 
 const annotationWindows = new Map<string, AnnotationWindowEntry>();
 
-export function openAnnotationWindow<Input extends AnnotationWindowOpenInput>(
+export async function openAnnotationWindow<Input extends AnnotationWindowOpenInput>(
   context: AnnotationWindowIpcContext,
   event: IpcMainInvokeEvent,
   input: Input,
@@ -85,7 +86,11 @@ export function openAnnotationWindow<Input extends AnnotationWindowOpenInput>(
         'annotation-discussion:thought-draft-available',
       );
     }
-    restoreAndFocus(existing.window);
+    if (existing.route === annotationWindowRoutes.discussion) {
+      await transitionDiscussionWindow(context.getMainWindow(), existing.window, 'restore', input);
+    } else {
+      restoreAndFocus(existing.window);
+    }
     return { reused: true, windowId: existing.window.id };
   }
   if (existing) removeDestroyedWindow(key, existing);
@@ -199,6 +204,7 @@ export function scheduleCloseAnnotationWindow(
 }
 
 export function minimizeOtherAnnotationWindows(
+  context: AnnotationWindowIpcContext,
   route: AnnotationWindowRoute,
   input: AnnotationWindowIdentity,
 ) {
@@ -216,9 +222,13 @@ export function minimizeOtherAnnotationWindows(
       entry.finalize();
       continue;
     }
-    if (entry.window.isMinimized()) continue;
+    if (entry.window.isMinimized() || !entry.window.isVisible()) continue;
     minimized += 1;
-    entry.window.minimize();
+    if (route === annotationWindowRoutes.discussion) {
+      void transitionDiscussionWindow(context.getMainWindow(), entry.window, 'minimize', entry);
+    } else {
+      entry.window.minimize();
+    }
   }
   return minimized;
 }

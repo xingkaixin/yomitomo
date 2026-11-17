@@ -38,6 +38,9 @@ telemetry → shared
 - 窗口分三类：主窗口；批注窗口（讨论与沉淀两个路由，按文章和批注复用，见
   `apps/desktop/src/main/windows/annotation-window-lifecycle.ts`）；使用独立 session 的隐藏网页导入窗口，
   拒绝页面的权限请求和新窗口（`apps/desktop/src/main/articles/article-import.ts`）。
+- 讨论窗口的原生最小化由 `native/window-controls` 的 N-API 适配转入应用内收起：macOS 接管
+  原生按钮动作，Windows 接管窗口最小化命令。适配只调用 main 回调，不访问 renderer 或数据；
+  由已有 Electron / node-gyp 工具链编译，开发构建放入 `.cache`，打包复制到 Resources 并签名。
 - 微信读书网页版不开新窗口，而是挂在主窗口上的一个 `WebContentsView`，全局只有一个
   （`apps/desktop/src/main/windows/weread-reader-view.ts`）。它不在 renderer 的 DOM 里：renderer 留一个占位区域，
   把位置和是否为小窗通过 `weread:set-reader-bounds` 同步给 main，占位区域卸载时隐藏。离开书架只隐藏不关闭，

@@ -112,6 +112,14 @@ export const agentIpcInvokeDescriptors = {
 } as const;
 
 export const annotationWindowIpcInvokeDescriptors = {
+  'annotation-discussion:transition-response': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'annotation-discussion:transition-response'>,
+    void
+  >()({
+    route: ['annotations', 'discussion', 'transitionResponse'],
+    roles: annotationAndMain,
+    validation: 'schema',
+  }),
   'annotation-discussion:open': desktopIpcInvoke<
     DesktopIpcSchemaArgs<'annotation-discussion:open'>,
     AnnotationDiscussionWindowOpenResult

@@ -65,6 +65,8 @@ import { annotationWindowActions } from './app-annotation-window-actions';
 import { getDesktopApi } from '../shell/app-desktop-api';
 import { AppIsland } from '../shell/app-island';
 import { appToast } from '../shell/app-toast';
+import { useDesktopEvent } from '../shell/use-desktop-event';
+import { measureDiscussionWindowTransition } from '../reading-library/discussion-window-transition';
 
 export { insertMentionAtSelection } from './app-annotation-discussion-utils';
 
@@ -92,6 +94,9 @@ function AnnotationDiscussionWindowApp({ route }: { route: AnnotationWindowRoute
   const status = useDiscussionWindow((state) => state.status);
   const className = annotationDiscussionWindowClassName();
   const windowTransition = useSourceAwareWindowTransition(route.params);
+  useDesktopEvent(getDesktopApi()?.annotations?.discussion?.onTransition, (event) => {
+    void measureDiscussionWindowTransition(event)?.catch(() => undefined);
+  });
   const windowClassName = [className, windowTransition.className].filter(Boolean).join(' ');
 
   if (status.type === 'ready') {
