@@ -1178,6 +1178,14 @@ export const enResources = {
       close: 'Close',
       fallbackQuote: 'Annotation discussion',
       capsules: {
+        move: 'Drag the group or use arrow keys to dock in a corner; Escape cancels dragging',
+        releaseToDock: 'Release to dock',
+        position: {
+          'top-left': 'Dock at the top left',
+          'top-right': 'Dock at the top right',
+          'bottom-left': 'Dock at the bottom left',
+          'bottom-right': 'Dock at the bottom right',
+        },
         minimized: 'Minimized annotation discussions',
         collapsed: 'Collapsed discussions',
         collapse: 'Collapse discussions',

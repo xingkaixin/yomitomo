@@ -1123,6 +1123,14 @@ export const zhCNResources = {
       close: '关闭',
       fallbackQuote: '批注讨论',
       capsules: {
+        move: '拖动整组，或用方向键移到四角；Esc 取消拖动',
+        releaseToDock: '松手停靠',
+        position: {
+          'top-left': '停靠在左上角',
+          'top-right': '停靠在右上角',
+          'bottom-left': '停靠在左下角',
+          'bottom-right': '停靠在右下角',
+        },
         minimized: '已最小化的批注讨论',
         collapsed: '收起的讨论',
         collapse: '折叠收起的讨论',

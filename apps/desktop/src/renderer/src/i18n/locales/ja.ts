@@ -1192,6 +1192,14 @@ export const jaResources = {
       close: '閉じる',
       fallbackQuote: '注釈のディスカッション',
       capsules: {
+        move: 'グループをドラッグするか、矢印キーで四隅に移動します。Esc でドラッグをキャンセル',
+        releaseToDock: '離して配置',
+        position: {
+          'top-left': '左上に配置',
+          'top-right': '右上に配置',
+          'bottom-left': '左下に配置',
+          'bottom-right': '右下に配置',
+        },
         minimized: '注釈のディスカッションを最小限に抑えました',
         collapsed: '折りたたまれたディスカッション',
         collapse: 'ディスカッションを折りたたむ',

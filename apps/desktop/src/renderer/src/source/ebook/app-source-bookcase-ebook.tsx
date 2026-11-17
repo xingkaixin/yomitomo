@@ -68,6 +68,7 @@ function EbookReader({
     uiLanguage,
   },
   readerControl: { focusAnnotationId, onClose, onOpenEvidenceSource, selectedAnnotationId },
+  viewportOverlay,
 }: EbookBookcaseProps) {
   const annotationLine = useReaderAnnotationLine(userProfile);
   const { saveArticleReadingProgress } = articleActions;
@@ -639,7 +640,7 @@ function EbookReader({
       <EbookReaderShell
         isSpread={spreadLayout.columns === 2}
         measureHostRef={measureHostRef}
-        readerApp={readerAppViewProps}
+        readerApp={{ ...readerAppViewProps, viewportOverlay }}
         readerSurfaceRef={readerSurfaceRef}
         readerState={readerState}
         viewHostRef={viewHostRef}

@@ -108,6 +108,25 @@ preload 实现在 `apps/desktop/src/preload/desktop-api-fragments.ts`，main han
 SQLite schema 位于 `apps/desktop/src/main/db/schema.ts`；`articles`、`annotations`、`comments`
 分表存储。批注写入还会通过 `apps/desktop/src/main/articles/article-annotation-memory.ts` 同步阅读记忆。
 
+## 最小化讨论的位置
+
+最小化讨论的胶囊由 desktop renderer 的
+`reading-library/app-annotation-discussion-capsules.tsx` 展示，通过共享阅读器
+`viewportOverlay` 插槽放入正文视口。Web、EPUB 和 PDF 共用同一组交互，正文滚动不移动胶囊。
+停靠范围从阅读器 header 下方的 body 顶部开始，不额外为悬浮工具栏留出顶边距；
+胶囊浮层高于批注和沉淀卡片，重叠时仍可见、可操作。
+
+拖动标题栏或任意胶囊会移动整组，顺序保持不变；被抓住的项目跟手，其余项目短暂延迟跟随。
+拖动时四角显示落点，当前目标角显示整组占位。按整组中心所在区域选择目标，跨越中线的缓冲区后才切换，
+松手吸附到预览的角，不保留正文中部的任意坐标。Esc、取消拖动或窗口失焦时回原角；
+标题栏聚焦后可用方向键选角。减少动态效果时取消尾随。
+
+5 个及以上仍默认折叠；展开后的长列表保留滚动，列表视口作为一个整体跟随。
+停靠角由 `ReadingLibrary` 在当前阅读器会话内保存，切文章沿用，重启后回左下。
+增减胶囊或调整窗口尺寸时重新按该角定位，不写入批注、设置或数据库。
+
+拖动与停靠只改变界面位置。单击仍通过原有讨论恢复入口打开对应原生窗口，拖动结束不触发单击。
+
 ## AI 回复与新想法
 
 讨论串回复、追加想法和问一问都投递到助手会话的频道，入口是 `assistant:deliver`

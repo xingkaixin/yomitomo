@@ -19,6 +19,7 @@
 - `shell.css` 及 `styles/shell/*`：应用外壳、侧栏、导航、profile 入口、平台 titlebar、锁屏状态、主题开关与灵动岛通知。
 - `settings.css` 及 `styles/settings/*`：设置页 panel、provider、agent、表单、统计、日志等设置域样式。
 - `library.css` 及 `styles/library/*`：资料库首页、搜索过滤、卡片、书架、封面、空状态和 notebook 相关样式；`reader-transition.css` 是书架与阅读器之间开合过渡层的样式，过渡的时间线在 `reading-library/reader-open-transition.ts`。
+- `styles/library/discussion-capsules.css`：阅读器中最小化讨论的胶囊、拖动落点和四角停靠提示。浮层挂在共享阅读器的正文视口插槽内，以 header 下方的完整 body 为边界，使用 panel 层级盖住批注和沉淀卡片。
 - `annotation-discussion.css` 及其 partial：批注讨论窗口和 composer。
 - `distillation-library.css`：沉淀库列表与来源上下文，以及阅读记忆各视图共用的阅读证据卡片外观。
 - `source-reader-shared.css`、`source-reader.css`、`source-ebook.css`、`source-pdf.css`：source reader 容器、EPUB/PDF 阅读器桥接与阅读状态。

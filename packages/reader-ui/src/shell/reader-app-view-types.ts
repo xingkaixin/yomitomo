@@ -424,6 +424,7 @@ export type ReaderAppViewProps = {
   labels?: ReaderUiLabels;
   options?: ReaderShellOptions;
   overlays?: React.ReactNode;
+  viewportOverlay?: React.ReactNode;
   selection: ReaderSelectionModel;
   settings: ReaderSettingsModel;
   toc: ReaderTocModel;
