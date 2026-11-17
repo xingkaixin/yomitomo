@@ -124,6 +124,7 @@ function PdfiumArticleReader({
     uiLanguage,
   },
   readerControl: { focusAnnotationId, onClose, onOpenEvidenceSource, selectedAnnotationId },
+  viewportOverlay,
   engineSource,
 }: PdfiumBookcaseProps & { engineSource: PdfiumEngineSource }) {
   const { t } = useTranslation();
@@ -160,6 +161,7 @@ function PdfiumArticleReader({
                   {({ isLoaded, isError, documentState }) =>
                     isLoaded ? (
                       <PdfiumDocument
+                        viewportOverlay={viewportOverlay}
                         actions={{
                           article: articleActions,
                           onClose,
@@ -225,6 +227,7 @@ function PdfiumArticleReader({
 }
 
 type PdfiumDocumentProps = {
+  viewportOverlay?: PdfiumBookcaseProps['viewportOverlay'];
   actions: {
     article: PdfiumBookcaseProps['articleActions'];
     onClose: PdfiumBookcaseProps['readerControl']['onClose'];
@@ -262,7 +265,7 @@ type PdfiumDocumentProps = {
   };
 };
 
-function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps) {
+function PdfiumDocument({ actions, document, source, toc, viewportOverlay }: PdfiumDocumentProps) {
   const {
     agents,
     annotations: articleAnnotations,
@@ -922,7 +925,11 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
           <span>{statusMessage}</span>
         </div>
       ) : null}
-      <ReaderAppView {...visibleReaderAppViewProps} ref={readerSurfaceRef} />
+      <ReaderAppView
+        {...visibleReaderAppViewProps}
+        ref={readerSurfaceRef}
+        viewportOverlay={viewportOverlay}
+      />
       {readingProgress.markers}
       {documentText.prefetchMarker}
       {pageMetricsSource.marker}

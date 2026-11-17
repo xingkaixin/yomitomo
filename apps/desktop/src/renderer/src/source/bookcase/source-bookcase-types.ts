@@ -9,6 +9,7 @@ import type {
   UserProfile,
 } from '@yomitomo/shared';
 import type { ReaderTheme } from '@yomitomo/reader-ui/reader-theme';
+import type { ReactNode } from 'react';
 import type { ReaderArticleActions } from '../../shell/app-article-store-actions';
 import type { ReadingEvidenceSourceTarget } from '../../shell/app-reading-types';
 
@@ -57,6 +58,7 @@ export type SourceBookcaseProps<TArticle extends ArticleRecord | null = ArticleR
   content: SourceBookcaseContent<TArticle>;
   presentation: SourcePresentation;
   readerControl: SourceReaderControl;
+  viewportOverlay?: ReactNode;
 };
 
 export type WebSourceBookcaseProps = SourceBookcaseProps<ArticleRecord>;

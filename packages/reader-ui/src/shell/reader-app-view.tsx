@@ -63,6 +63,7 @@ function ReaderAppViewComponent(
     toc,
     toolbar,
     userProfile,
+    viewportOverlay,
   }: ReaderAppViewProps,
   surfaceHandleRef: React.ForwardedRef<ReaderSurfaceHandle>,
 ) {
@@ -298,6 +299,8 @@ function ReaderAppViewComponent(
             userProfile={userProfile}
           />
         </main>
+
+        {viewportOverlay}
 
         {chat && chatActions ? (
           <ReaderChatPanel

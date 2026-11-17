@@ -65,6 +65,7 @@ function WebSourceReader({
     uiLanguage,
   },
   readerControl: { focusAnnotationId, onClose, onOpenEvidenceSource, selectedAnnotationId },
+  viewportOverlay,
 }: WebSourceBookcaseProps) {
   const annotationLine = useReaderAnnotationLine(userProfile);
   const { saveArticleReadingProgress } = articleActions;
@@ -525,7 +526,11 @@ function WebSourceReader({
   return (
     <section className="source-bookcase source-reader-shell">
       <style>{`${readerDesktopEmbeddedBundleStyles}\n${sourceReaderTocStyles}`}</style>
-      <ReaderAppView {...readerAppViewProps} ref={readerSurfaceRef} />
+      <ReaderAppView
+        {...readerAppViewProps}
+        ref={readerSurfaceRef}
+        viewportOverlay={viewportOverlay}
+      />
       {bilingualTranslation.dialog}
       {readingProgress.marker}
       {bilingualTranslation.renderedMarker}
