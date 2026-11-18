@@ -11,6 +11,7 @@ type Run = {
   event: Prepared;
   direction: 'minimize' | 'restore';
   frame: HTMLDivElement;
+  overlay?: Window;
   target: HTMLElement;
   animations: Animation[];
   generation: number;
@@ -61,6 +62,7 @@ export async function animateDiscussionWindow(event: AnnotationDiscussionWindowT
     const run = runs.get(event.windowId);
     if (run?.event.transitionId !== event.transitionId) return;
     run.direction = event.direction;
+    if (!run.reduced) run.target.dataset.windowTransitionTarget = 'moving';
     if (run.frame.isConnected) await animateRun(run);
     return;
   }
@@ -86,7 +88,7 @@ export async function animateDiscussionWindow(event: AnnotationDiscussionWindowT
     paint: () => [],
   };
   runs.set(event.windowId, run);
-  target.dataset.windowTransitionTarget = 'preparing';
+  target.dataset.windowTransitionTarget = event.expanded && !run.reduced ? 'moving' : 'preparing';
   try {
     const image = new Image();
     image.alt = '';
@@ -98,10 +100,23 @@ export async function animateDiscussionWindow(event: AnnotationDiscussionWindowT
       Object.assign(element.style, style);
     }
     if (run.reduced) frame.style.opacity = String(run.start);
-    else target.dataset.windowTransitionTarget = 'moving';
-    document.body.append(frame);
-    // An occluded Electron renderer does not run animation frames until the native window hides.
-    if (!document.hidden) await new Promise(requestAnimationFrame);
+    const overlay = event.overlayName && window.open('about:blank', event.overlayName);
+    if (overlay) {
+      run.overlay = overlay;
+      await styleTransitionOverlay(overlay.document);
+      if (runs.get(event.windowId) !== run) return;
+      // The overlay begins at the leftmost and topmost edges of the two content rectangles.
+      frame.style.left = `${Math.max(0, event.bounds.x)}px`;
+      frame.style.top = `${Math.max(0, event.bounds.y)}px`;
+      overlay.document.body.append(frame);
+      await new Promise<void>((resolve) =>
+        overlay.requestAnimationFrame(() => overlay.requestAnimationFrame(() => resolve())),
+      );
+    } else {
+      document.body.append(frame);
+      // An occluded Electron renderer does not run animation frames until the native window hides.
+      if (!document.hidden) await new Promise(requestAnimationFrame);
+    }
     if (runs.get(event.windowId) !== run) return;
     await respondReady(event, true);
   } catch (error) {
@@ -109,6 +124,34 @@ export async function animateDiscussionWindow(event: AnnotationDiscussionWindowT
     await respondReady(event, false);
     throw error;
   }
+}
+
+async function styleTransitionOverlay(doc: Document) {
+  for (const attribute of document.documentElement.attributes)
+    doc.documentElement.setAttribute(attribute.name, attribute.value);
+  doc.documentElement.style.background = 'transparent';
+  doc.body.style.background = 'transparent';
+  const styles = document.head.querySelectorAll<HTMLLinkElement | HTMLStyleElement>(
+    'link[rel="stylesheet"], style',
+  );
+  const loads: Promise<void>[] = [];
+  for (const style of styles) {
+    const copy = style.cloneNode(true);
+    if (copy instanceof HTMLLinkElement) {
+      loads.push(
+        new Promise<void>((resolve, reject) => {
+          copy.addEventListener('load', () => resolve(), { once: true });
+          copy.addEventListener(
+            'error',
+            () => reject(new Error('Could not load discussion transition styles')),
+            { once: true },
+          );
+        }),
+      );
+    }
+    doc.head.append(copy);
+  }
+  await Promise.all(loads);
 }
 
 async function animateRun(run: Run) {
@@ -159,6 +202,8 @@ async function animateRun(run: Run) {
   }
   if (generation !== run.generation || runs.get(run.event.windowId) !== run) return;
   try {
+    if (run.overlay && run.direction === 'minimize')
+      run.target.dataset.windowTransitionTarget = 'preparing';
     await getDesktopApi().annotations.discussion.transitionResponse({
       type: 'finished',
       windowId: run.event.windowId,
@@ -396,6 +441,7 @@ function removeRun(run: Run) {
   run.generation++;
   for (const animation of run.animations) animation.cancel();
   run.frame.remove();
+  run.overlay?.close();
   delete run.target.dataset.windowTransitionTarget;
   if (runs.get(run.event.windowId) === run) runs.delete(run.event.windowId);
 }

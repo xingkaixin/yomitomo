@@ -8,7 +8,7 @@ import {
   openLibraryHome,
 } from '../helpers/library';
 
-it('restores an in-app minimized discussion with its unsent reply in the same window', async () => {
+it('restores a minimized discussion beyond the reader edge with its unsent reply', async () => {
   await withDesktopE2eApp('discussion-minimize', async ({ app, fixtureDir, page }) => {
     page.setDefaultTimeout(8000);
     const title = 'Discussion minimize regression';
@@ -94,6 +94,23 @@ it('restores an in-app minimized discussion with its unsent reply in the same wi
         ) as { requestMinimize: (handle: Buffer) => void };
         native.requestMinimize(window.getNativeWindowHandle());
       }, result.windowId);
+    const readerWindow = await app.browserWindow(page);
+    const windowIds = {
+      readerId: await readerWindow.evaluate((window) => window.id),
+      discussionId: result.windowId,
+    };
+    const outside = await app.evaluate(({ BrowserWindow, screen }, { readerId, discussionId }) => {
+      const reader = BrowserWindow.fromId(readerId)!;
+      const floatingWindow = BrowserWindow.fromId(discussionId)!;
+      const work = screen.getDisplayMatching(reader.getBounds()).workArea;
+      reader.setBounds({ x: work.x, y: work.y, width: 980, height: 700 });
+      const bounds = reader.getContentBounds();
+      reader.webContents.setZoomFactor(1.25);
+      const right = bounds.x + bounds.width;
+      floatingWindow.setPosition(right - floatingWindow.getBounds().width + 120, bounds.y + 20);
+      const content = floatingWindow.getContentBounds();
+      return { x: right + 16, y: content.y + content.height / 2, content };
+    }, windowIds);
     await minimize();
     await expect
       .poll(() =>
@@ -104,11 +121,43 @@ it('restores an in-app minimized discussion with its unsent reply in the same wi
       )
       .toEqual({ visible: false, minimized: false });
 
-    await page.getByTitle(`Open annotation discussion: ${quote}`, { exact: true }).click();
+    await page.waitForFunction(() => !document.querySelector('[data-window-transition-target]'));
+    const paintsOutsideReader = () =>
+      app.evaluate(
+        async ({ BrowserWindow }, { readerId, discussionId, x, y }) => {
+          const floatingWindow = BrowserWindow.fromId(discussionId)!;
+          if (floatingWindow.isVisible()) return false;
+          const layer = BrowserWindow.fromId(readerId)
+            ?.getChildWindows()
+            .find((window) => window.isVisible());
+          if (!layer) return false;
+          const bounds = layer.getContentBounds();
+          const sample = await layer.webContents.capturePage({
+            x: Math.round(x - bounds.x),
+            y: Math.round(y - bounds.y),
+            width: 1,
+            height: 1,
+          });
+          return !floatingWindow.isVisible() && !sample.isEmpty() && sample.toBitmap()[3] === 255;
+        },
+        { ...windowIds, ...outside },
+      );
+    await Promise.all([
+      expect.poll(paintsOutsideReader, { interval: 16, timeout: 2200 }).toBe(true),
+      page.getByTitle(`Open annotation discussion: ${quote}`, { exact: true }).click(),
+    ]);
     await expect.poll(() => browserWindow.evaluate((window) => window.isVisible())).toBe(true);
     expect(await browserWindow.evaluate((window) => window.id)).toBe(result.windowId);
     expect(await discussion.getByRole('textbox').inputValue()).toBe(draft);
 
+    expect(await browserWindow.evaluate((window) => window.getContentBounds())).toEqual(
+      outside.content,
+    );
+    const inside = await readerWindow.evaluate((window) => window.getContentBounds());
+    await browserWindow.evaluate(
+      (window, bounds) => window.setPosition(bounds.x + 8, bounds.y + 8),
+      inside,
+    );
     const minimizing = minimize();
     await page.waitForFunction(() =>
       Boolean(

@@ -71,6 +71,7 @@ import {
 import { createReadingReviewQueue } from './reading-memory/reading-review-queue';
 import { getSqliteExecutor, readDatabaseLifecycle, withDatabaseLease } from './store/store-db';
 import { secureRendererWebPreferences } from './windows/renderer-window-security';
+import { openDiscussionTransitionOverlay } from './windows/discussion-window-transition';
 import { installRendererNavigationGuard } from './windows/renderer-navigation';
 import { windowChromeOptions } from './windows/window-chrome';
 import { mainPath } from './app/main-paths';
@@ -278,7 +279,9 @@ async function createWindow() {
   }
   recordStartupTiming('renderer.load_complete');
 
-  installRendererNavigationGuard(browserWindow.webContents, openExternalUrl);
+  installRendererNavigationGuard(browserWindow.webContents, openExternalUrl, (details) =>
+    openDiscussionTransitionOverlay(browserWindow, details),
+  );
 }
 
 void app.whenReady().then(async () => {
