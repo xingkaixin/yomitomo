@@ -18,7 +18,7 @@ type Transition = {
   operation: Promise<void>;
   reply?: (response: AnnotationDiscussionTransitionResponse | null) => void;
   mainWindow: BrowserWindow;
-  animating?: boolean;
+  phase: 'preparing' | 'animating' | 'showing';
   overlay?: { name: string; bounds: Rectangle; window?: BrowserWindow };
 };
 type TransitionMessage = AnnotationDiscussionWindowTransition extends infer Message
@@ -27,6 +27,7 @@ type TransitionMessage = AnnotationDiscussionWindowTransition extends infer Mess
     : never
   : never;
 
+const TRANSITION_TIMEOUT_MS = 1000;
 const transitions = new Map<number, Transition>();
 let nextTransitionId = 0;
 
@@ -94,8 +95,13 @@ export function transitionDiscussionWindow(
   if (window.isDestroyed()) return Promise.resolve();
   const current = transitions.get(window.id);
   if (current) {
+    if (current.phase === 'showing') {
+      return current.operation.then(() =>
+        transitionDiscussionWindow(mainWindow, window, direction, identity),
+      );
+    }
     current.direction = direction;
-    if (current.animating)
+    if (current.phase === 'animating')
       send(current.mainWindow, window.id, current, { type: 'animate', direction });
     return current.operation;
   }
@@ -118,6 +124,7 @@ export function transitionDiscussionWindow(
     direction,
     operation: Promise.resolve(),
     mainWindow: host,
+    phase: 'preparing',
   };
   transitions.set(window.id, transition);
   const closed = () => transition.reply?.(null);
@@ -188,14 +195,35 @@ export function transitionDiscussionWindow(
     if (ready?.prepared) {
       const overlay = transition.overlay?.window;
       if (overlay && !overlay.isDestroyed()) overlay.showInactive();
-      transition.animating = true;
+      transition.phase = 'animating';
       if (transition.direction === 'minimize') settleWindow(window, 'minimize');
       await exchange(transition, 'finished', () =>
         send(host, window.id, transition, { type: 'animate', direction: transition.direction }),
       );
+      if (transition.direction === 'restore' && !window.isDestroyed() && !window.isVisible()) {
+        transition.phase = 'showing';
+        await restoreWindowAndWaitForShow(window);
+        return;
+      }
     }
     settleWindow(window, transition.direction);
   }
+}
+
+function restoreWindowAndWaitForShow(window: BrowserWindow): Promise<void> {
+  return new Promise((resolve) => {
+    const finish = () => {
+      clearTimeout(timeout);
+      window.removeListener('show', finish);
+      window.removeListener('closed', finish);
+      resolve();
+    };
+    // show() can return before the window manager presents the restored window.
+    const timeout = setTimeout(finish, TRANSITION_TIMEOUT_MS);
+    window.once('show', finish);
+    window.once('closed', finish);
+    settleWindow(window, 'restore');
+  });
 }
 
 function exchange<Type extends AnnotationDiscussionTransitionResponse['type']>(
@@ -211,7 +239,7 @@ function exchange<Type extends AnnotationDiscussionTransitionResponse['type']>(
       resolve(response as Extract<AnnotationDiscussionTransitionResponse, { type: Type }> | null);
     };
     // Reloading either renderer must not leave the discussion waiting for an acknowledgement.
-    const timeout = setTimeout(() => finish(null), 1000);
+    const timeout = setTimeout(() => finish(null), TRANSITION_TIMEOUT_MS);
     transition.reply = finish;
     deliver();
   });

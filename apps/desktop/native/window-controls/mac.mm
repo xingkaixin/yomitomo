@@ -5,6 +5,7 @@
 @property(nonatomic, weak) NSButton *button;
 @property(nonatomic, weak) id originalTarget;
 @property(nonatomic) SEL originalAction;
+@property(nonatomic) NSWindowAnimationBehavior originalAnimationBehavior;
 @property(nonatomic) napi_threadsafe_function callback;
 - (void)minimize:(id)sender;
 @end
@@ -24,6 +25,7 @@ static void Remove(NSValue *key) {
         bridge.button.target = bridge.originalTarget;
         bridge.button.action = bridge.originalAction;
     }
+    bridge.button.window.animationBehavior = bridge.originalAnimationBehavior;
     napi_release_threadsafe_function(bridge.callback, napi_tsfn_abort);
     bridge.callback = nullptr;
     [bridges removeObjectForKey:key];
@@ -50,6 +52,9 @@ static napi_value Install(napi_env env, napi_callback_info info) {
     bridge.button = button;
     bridge.originalTarget = button.target;
     bridge.originalAction = button.action;
+    bridge.originalAnimationBehavior = view.window.animationBehavior;
+    // The reader already animates the discussion to its final size before AppKit orders it in.
+    view.window.animationBehavior = NSWindowAnimationBehaviorNone;
     bridge.callback = callback;
     bridges[key] = bridge;
     button.target = bridge;
