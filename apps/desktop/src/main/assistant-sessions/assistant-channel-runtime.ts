@@ -479,6 +479,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
       removedByAgent.set(agentId, [...(removedByAgent.get(agentId) ?? []), ...removed]);
     }
     if (removedByAgent.size === 0) return;
+    const removedIds = new Set([...removedByAgent.values()].flat());
     const conversations =
       (await harness.snapshot(AgentConversationsDoc, context))?.conversations ?? {};
     for (const [agentId, removed] of removedByAgent) {
@@ -502,7 +503,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     await harness.commit(async (tx) => {
       const doc = await tx.doc(ChannelCursorsDoc);
       for (const [key, ids] of Object.entries(doc.delivered)) {
-        doc.delivered[key] = ids.filter((id) => existing.has(id));
+        doc.delivered[key] = ids.filter((id) => !removedIds.has(id));
       }
     }, context);
   }
