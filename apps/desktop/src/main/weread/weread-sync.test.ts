@@ -1,7 +1,7 @@
 import { Effect } from 'effect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WeReadBook, WeReadBookDetail } from '@yomitomo/shared';
-import { syncWeReadLibrary } from './weread-sync';
+import { syncWeReadBook, syncWeReadLibrary } from './weread-sync';
 import {
   fetchWeReadBookDetail,
   fetchWeReadNotebooks,
@@ -65,6 +65,46 @@ describe('syncWeReadLibrary', () => {
 
     expect(apiKeyReadsBeforeCompletion).toBe(1);
     expect(snapshots).toEqual([['book_old'], ['book_old', 'book_new']]);
+  });
+
+  it('keeps a new note when a single-book refresh overlaps an older full sync', async () => {
+    const bookId = 'book_1';
+    const older = bookDetailFixture(bookId);
+    const newer = bookDetailFixture(bookId, { thoughtCount: 2 });
+    vi.mocked(fetchWeReadNotebooks).mockResolvedValueOnce([older.book]);
+    vi.mocked(fetchWeReadBookDetail).mockResolvedValueOnce(older).mockResolvedValueOnce(newer);
+
+    let markSnapshotReady!: () => void;
+    const snapshotReady = new Promise<void>((resolve) => {
+      markSnapshotReady = resolve;
+    });
+    let finishSnapshot!: () => void;
+    const release = new Promise<void>((resolve) => {
+      finishSnapshot = resolve;
+    });
+    let saved = older;
+    const persistence = {
+      readWeReadApiKeyRef: () => 'ref',
+      readStoredWeReadApiKey: async () => 'key',
+      saveWeReadLibrarySnapshot: async ({ details }: { details: WeReadBookDetail[] }) => {
+        markSnapshotReady();
+        await release;
+        saved = details[0];
+        return syncResult();
+      },
+      saveWeReadBookDetail: async (detail: WeReadBookDetail) => {
+        saved = detail;
+        return detail;
+      },
+    };
+    const logger = testLogger();
+    const library = syncWeReadLibrary({ persistence, reason: 'automatic', ...logger });
+    await snapshotReady;
+    const refresh = syncWeReadBook(bookId, persistence, logger.logInfo);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    finishSnapshot();
+    await Promise.all([library, refresh]);
+    expect(saved.thoughts).toEqual(newer.thoughts);
   });
 
   it('fetches book details, merges notebook metadata, and skips empty details', async () => {

@@ -1,7 +1,7 @@
 import type { DesktopMainIpcContext } from './ipc';
 import { handleDesktopIpc } from './ipc';
 import { buildWeReadOpenUrl, getWeReadStatsPeriodStart } from '../weread/weread-protocol';
-import { syncWeReadLibrary } from '../weread/weread-sync';
+import { syncWeReadBook, syncWeReadLibrary } from '../weread/weread-sync';
 import {
   clearWeReadWebLogin,
   closeWeReadReader,
@@ -84,12 +84,7 @@ export function registerWeReadIpc(context: WeReadIpcContext) {
   });
   handleDesktopIpc('weread:sync-book', async (_event, bookId) => {
     const { weReadRepository: weReadPersistence } = await context.getPersistenceModules();
-    const apiKeyRef = weReadPersistence.readWeReadApiKeyRef();
-    const apiKey = await weReadPersistence.readStoredWeReadApiKey();
-    if (!apiKey) throw new Error('WEREAD_API_KEY_REQUIRED');
-    const { fetchWeReadBookDetail } = await import('../weread/weread-client');
-    const detail = await fetchWeReadBookDetail(apiKey, bookId);
-    return weReadPersistence.saveWeReadBookDetail(detail, apiKeyRef, context.logInfo);
+    return syncWeReadBook(bookId, weReadPersistence, context.logInfo);
   });
   handleDesktopIpc('weread:get-book', async (_event, bookId) => {
     const { weReadRepository: weReadPersistence } = await context.getPersistenceModules();
