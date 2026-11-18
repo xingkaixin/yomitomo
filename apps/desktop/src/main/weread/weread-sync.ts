@@ -28,15 +28,37 @@ type WeReadSyncInput = {
   reason: string;
 } & WeReadSyncLogger;
 
-let librarySyncQueue: Promise<void> = Promise.resolve();
+let syncQueue: Promise<void> = Promise.resolve();
 
-export function syncWeReadLibrary(input: WeReadSyncInput) {
-  const result = librarySyncQueue.then(() => Effect.runPromise(runWeReadLibrarySyncEffect(input)));
-  librarySyncQueue = result.then(
+function enqueueWeReadSync<T>(sync: () => Promise<T>) {
+  const result = syncQueue.then(sync);
+  syncQueue = result.then(
     () => undefined,
     () => undefined,
   );
   return result;
+}
+
+export function syncWeReadLibrary(input: WeReadSyncInput) {
+  return enqueueWeReadSync(() => Effect.runPromise(runWeReadLibrarySyncEffect(input)));
+}
+
+export async function syncWeReadBook(
+  bookId: string,
+  persistence: Pick<
+    typeof import('./weread-repository'),
+    'readWeReadApiKeyRef' | 'readStoredWeReadApiKey' | 'saveWeReadBookDetail'
+  >,
+  logInfo: WeReadSyncLogger['logInfo'],
+) {
+  const apiKeyRef = persistence.readWeReadApiKeyRef();
+  const apiKey = await persistence.readStoredWeReadApiKey();
+  if (!apiKey) throw new Error('WEREAD_API_KEY_REQUIRED');
+  return enqueueWeReadSync(async () => {
+    const { fetchWeReadBookDetail } = await import('./weread-client');
+    const detail = await fetchWeReadBookDetail(apiKey, bookId);
+    return persistence.saveWeReadBookDetail(detail, apiKeyRef, logInfo);
+  });
 }
 
 const runWeReadLibrarySyncEffect = Effect.fn('WeRead.syncLibrary')(function* (

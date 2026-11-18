@@ -90,6 +90,7 @@ telemetry → shared
   事务外执行，失败只记录警告，不回滚文章（`apps/desktop/src/main/articles/article-row-writes.ts`）；
   删除路径在同一事务内完成（`apps/desktop/src/main/articles/article-repository-lifecycle.ts`）。
   改成原子写入需要单独讨论失败语义。
+- 微信读书的自动同步、手动全库同步和单书刷新共用主进程队列，从拉取笔记到提交本地快照依次完成。全库同步内部仍可并发读取多本书。
 - **微信读书 skill 版本在运行时跟随服务端。** 网关请求带 `skill_version`，代码里的基线是
   `apps/desktop/src/main/weread/weread-protocol.ts` 的 `WEREAD_SKILL_VERSION`。回包带
   `upgrade_info.latest_version` 时，客户端改用该版本重试一次，并在进程内沿用。自动升版本会让
