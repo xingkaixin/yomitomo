@@ -71,6 +71,16 @@ export function upsertCommentRows(
   const queuedAt = new Date().toISOString();
 
   database.transaction((tx) => {
+    if (input.comment.replyTo) {
+      const parent = tx
+        .select({ annotationId: schema.comments.annotationId })
+        .from(schema.comments)
+        .where(eq(schema.comments.id, input.comment.replyTo))
+        .get();
+      if (parent?.annotationId !== input.annotationId) {
+        throw new DesktopIpcError(desktopIpcErrorCodes.commentParentNotFound);
+      }
+    }
     const previous = tx
       .select()
       .from(schema.comments)

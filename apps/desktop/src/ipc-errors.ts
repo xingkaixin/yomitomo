@@ -11,6 +11,7 @@ export const desktopIpcErrorCodes = {
   appLockDisabled: 'APP_LOCK_DISABLED',
   appLockLockedStateRestricted: 'APP_LOCK_LOCKED_STATE_RESTRICTED',
   appLockUnlockRequired: 'APP_LOCK_UNLOCK_REQUIRED',
+  commentParentNotFound: 'COMMENT_PARENT_NOT_FOUND',
   handlerFailed: 'IPC_HANDLER_FAILED',
   invalidArgs: 'IPC_INVALID_ARGS',
   providerRouteRequired: 'PROVIDER_ROUTE_REQUIRED',

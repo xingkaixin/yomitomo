@@ -623,7 +623,7 @@ function AnnotationDiscussionShell({
     const selectedRoot = selectedThread?.root;
     const draft = replyDraft;
     const trimmed = draft.trim();
-    if (!selectedRoot || !trimmed || sendingReply) return;
+    if (!selectedRoot || !trimmed || sendingReply || deletingCommentId === selectedRoot.id) return;
     dispatch({ type: 'replySubmitted' });
     let userCommentSaved = false;
     try {
