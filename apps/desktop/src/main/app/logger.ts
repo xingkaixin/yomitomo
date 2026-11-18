@@ -11,7 +11,6 @@ const MAX_LOG_ITEMS = 100;
 const MAX_LOG_STRING_LENGTH = 10_000;
 
 let preparedLogPath: string | undefined;
-// Appends run one at a time so lines keep their order and each costs a single file operation.
 let logWriteTail = Promise.resolve();
 
 export function logInfo(event: string, data?: Record<string, unknown>) {
@@ -31,24 +30,35 @@ export async function readLogFile() {
   return readFile(getLogPath(), 'utf8');
 }
 
-export async function clearLogFile() {
-  await ensureLogFile();
-  await writeFile(getLogPath(), '', 'utf8');
+export function clearLogFile() {
+  return enqueueLogWrite(async () => {
+    await ensureLogFile();
+    await writeFile(getLogPath(), '', 'utf8');
+  });
 }
 
-export async function pruneLogFile(retentionDays?: number) {
-  if (!retentionDays) return;
+export function pruneLogFile(retentionDays?: number) {
+  if (!retentionDays) return Promise.resolve();
+  return enqueueLogWrite(async () => {
+    await ensureLogFile();
+    const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
+    const lines = (await readFile(getLogPath(), 'utf8')).split('\n');
+    const retained = lines.filter((line) => {
+      if (!line.trim()) return false;
 
-  await ensureLogFile();
-  const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
-  const lines = (await readFile(getLogPath(), 'utf8')).split('\n');
-  const retained = lines.filter((line) => {
-    if (!line.trim()) return false;
-
-    const time = logLineTime(line);
-    return time === null || time >= cutoff;
+      const time = logLineTime(line);
+      return time === null || time >= cutoff;
+    });
+    await writeFile(getLogPath(), retained.length > 0 ? `${retained.join('\n')}\n` : '', 'utf8');
   });
-  await writeFile(getLogPath(), retained.length > 0 ? `${retained.join('\n')}\n` : '', 'utf8');
+}
+
+function enqueueLogWrite(operation: () => Promise<void>) {
+  const write = logWriteTail.then(operation);
+  logWriteTail = write.catch(() => {
+    preparedLogPath = undefined;
+  });
+  return write;
 }
 
 function legacyLogPath() {
@@ -81,7 +91,7 @@ async function writeLog(
   });
 
   console[level === 'error' ? 'error' : 'log']('[Yomitomo]', event, serializedData || '');
-  const write = logWriteTail.then(async () => {
+  return enqueueLogWrite(async () => {
     const logPath = getLogPath();
     if (preparedLogPath !== logPath) {
       await ensureLogFile();
@@ -89,10 +99,6 @@ async function writeLog(
     }
     await appendFile(logPath, `${line}\n`, 'utf8');
   });
-  logWriteTail = write.catch(() => {
-    preparedLogPath = undefined;
-  });
-  await write;
 }
 
 function serializeLogData(data?: Record<string, unknown>, error?: unknown) {
