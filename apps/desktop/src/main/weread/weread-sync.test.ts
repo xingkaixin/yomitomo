@@ -72,7 +72,8 @@ describe('syncWeReadLibrary', () => {
     const older = bookDetailFixture(bookId);
     const newer = bookDetailFixture(bookId, { thoughtCount: 2 });
     vi.mocked(fetchWeReadNotebooks).mockResolvedValueOnce([older.book]);
-    vi.mocked(fetchWeReadBookDetail).mockResolvedValueOnce(older).mockResolvedValueOnce(newer);
+    let remoteDetail = older;
+    vi.mocked(fetchWeReadBookDetail).mockImplementation(async () => remoteDetail);
 
     let markSnapshotReady!: () => void;
     const snapshotReady = new Promise<void>((resolve) => {
@@ -102,6 +103,7 @@ describe('syncWeReadLibrary', () => {
     await snapshotReady;
     const refresh = syncWeReadBook(bookId, persistence, logger.logInfo);
     await new Promise<void>((resolve) => setImmediate(resolve));
+    remoteDetail = newer;
     finishSnapshot();
     await Promise.all([library, refresh]);
     expect(saved.thoughts).toEqual(newer.thoughts);
