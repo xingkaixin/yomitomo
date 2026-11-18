@@ -1,0 +1,9 @@
+{
+  "scope": "record-format-and-quality-scores-only",
+  "provenanceVerified": false,
+  "notice": "Source provenance and independent human review are self-reported. This report validates record format and scores only; it does not verify human authorship or authorize a release.",
+  "passed": false,
+  "failures": [
+    "--input is required; no review records are generated automatically"
+  ]
+}

@@ -1,0 +1,9 @@
+
+ RUN  v5.1.0 /Users/Kevin/Developer/yomitomo/packages/ai
+
+
+ Test Files  4 passed (4)
+      Tests  29 passed (29)
+   Start at  17:40:21
+   Duration  1.07s (transform 39%, tests 37%, import 24%, worker 1%)
+

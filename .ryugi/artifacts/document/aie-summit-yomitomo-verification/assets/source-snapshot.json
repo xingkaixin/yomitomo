@@ -1,0 +1,47 @@
+{
+  "head": "95bc0e5680ee07541e78d2d5be6f51ece8d3279f",
+  "trackedDiff": "",
+  "stagedDiff": "",
+  "files": [
+    {
+      "path": ".oxlintrc.json",
+      "sha256": "2d89ce01ecea90447fb55ec3ed45579cd69e69b7c977d940a91cd2be058df2bf"
+    },
+    {
+      "path": "docs/product.md",
+      "sha256": "d849dff4a95ed9787f86141976a7be469a18bf551a58207181733dbe25228880"
+    },
+    {
+      "path": "docs/reading-memory-release.md",
+      "sha256": "b5398f13301ff64d483341b506f88930c5ce1de95d93d8a4c8eceeb84cbc4c3a"
+    },
+    {
+      "path": "apps/desktop/src/main/assistant-sessions/assistant-reading-extension.ts",
+      "sha256": "fef13dcc3b00315cb2dc66987c678d27c171c73117636266d3c8ccb6eef93eec"
+    },
+    {
+      "path": "apps/desktop/src/main/assistant-sessions/assistant-sessions.ts",
+      "sha256": "a849658791167081bdb7cc319e37a8289c1c7082b22ba1ccdbf5cd832db8cc10"
+    },
+    {
+      "path": "apps/desktop/src/main/assistant-sessions/assistant-channel-runtime.ts",
+      "sha256": "f5ef10345abb40f5a06210c7a9e798e2df50619431f12a92bbadf1143db69480"
+    },
+    {
+      "path": "apps/desktop/src/main/assistant-sessions/assistant-channel-sources.ts",
+      "sha256": "9ce79890b0ded5cdc3888516d64f07c2157887782d13fd20c9f8c12d79cd3fb8"
+    },
+    {
+      "path": "apps/desktop/src/main/assistant-sessions/assistant-run-transcript.ts",
+      "sha256": "2e33592026339b016a5b5b118aa6ae221e9441fc22876b3b2d522337a64376c8"
+    },
+    {
+      "path": "packages/ai/src/reading-memory/reading-judgment.ts",
+      "sha256": "28c3a4c4a09247c9b962a81f606249e2c21ef1fe4544efc474018f988dd13c75"
+    },
+    {
+      "path": "packages/ai/src/reading-memory/reading-judgment-input.ts",
+      "sha256": "2a20c5827db3ffc0e27f88c416ddb2033ecf58e4e15e8ca6091a54d10c210077"
+    }
+  ]
+}

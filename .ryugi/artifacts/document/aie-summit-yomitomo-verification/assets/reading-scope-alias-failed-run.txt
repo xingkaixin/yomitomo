@@ -1,0 +1,29 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (.ryugi/artifacts/document/aie-summit-yomitomo-verification/assets/scope.vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.1.0 /Users/Kevin/Developer/yomitomo
+
+ ❯ .ryugi/artifacts/document/aie-summit-yomitomo-verification/assets/reading-scope.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  .ryugi/artifacts/document/aie-summit-yomitomo-verification/assets/reading-scope.test.ts [ .ryugi/artifacts/document/aie-summit-yomitomo-verification/assets/reading-scope.test.ts ]
+Error: Cannot find package '@earendil-works/pi-durable/storage/sqlite/node' imported from /Users/Kevin/Developer/yomitomo/apps/desktop/src/main/assistant-sessions/assistant-session-store.ts
+ ❯ apps/desktop/src/main/assistant-sessions/assistant-session-store.ts:4:1
+      2| import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
+      3| import { Harness, type HarnessOptions } from '@earendil-works/pi-durab…
+      4| import { openNodeSqliteStorage } from '@earendil-works/pi-durable/stor…
+       | ^
+      5| import {
+      6|   removeArticleFiles,
+ ❯ .ryugi/artifacts/document/aie-summit-yomitomo-verification/assets/reading-scope.test.ts:11:1
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  17:43:41
+   Duration  359ms (worker 97%, environment 3%)
+

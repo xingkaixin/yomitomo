@@ -1,0 +1,125 @@
+{
+  "createdAt": "2026-11-16T09:40:24.076327+00:00",
+  "head": "95bc0e5680ee07541e78d2d5be6f51ece8d3279f",
+  "sourcePath": "/Users/Kevin/Dropbox/OBSIDIAN/XingKaiXin/00_Inbox/2026/2026-11/aie_code_summit_2026_video_summaries.md",
+  "sourceSha256": "cc8a872e47648a65e06c1de44cb37969b0620731df4a805ba12fcb00fd9298da",
+  "scope": "Targeted engineering verification; no human semantic quality or performance claim",
+  "results": [
+    {
+      "id": "lint-invalid-import",
+      "args": [
+        "pnpm",
+        "exec",
+        "oxlint",
+        "--no-ignore",
+        "-c",
+        ".oxlintrc.json",
+        "/Users/Kevin/Developer/yomitomo/.ryugi/artifacts/document/aie-summit-yomitomo-verification/assets/lint-probes/invalid-hook.tsx"
+      ],
+      "cwd": "/Users/Kevin/Developer/yomitomo",
+      "startedAt": "2026-11-16T09:40:20.920954+00:00",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "matchedExpectation": true,
+      "output": "lint-invalid-import.txt"
+    },
+    {
+      "id": "lint-invalid-property",
+      "args": [
+        "pnpm",
+        "exec",
+        "oxlint",
+        "--no-ignore",
+        "-c",
+        ".oxlintrc.json",
+        "/Users/Kevin/Developer/yomitomo/.ryugi/artifacts/document/aie-summit-yomitomo-verification/assets/lint-probes/invalid-property.tsx"
+      ],
+      "cwd": "/Users/Kevin/Developer/yomitomo",
+      "startedAt": "2026-11-16T09:40:20.923823+00:00",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "matchedExpectation": true,
+      "output": "lint-invalid-property.txt"
+    },
+    {
+      "id": "lint-valid-control",
+      "args": [
+        "pnpm",
+        "exec",
+        "oxlint",
+        "--no-ignore",
+        "-c",
+        ".oxlintrc.json",
+        "/Users/Kevin/Developer/yomitomo/.ryugi/artifacts/document/aie-summit-yomitomo-verification/assets/lint-probes/valid-reducer.tsx"
+      ],
+      "cwd": "/Users/Kevin/Developer/yomitomo",
+      "startedAt": "2026-11-16T09:40:20.926049+00:00",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "matchedExpectation": true,
+      "output": "lint-valid-control.txt"
+    },
+    {
+      "id": "core-contracts",
+      "args": [
+        "pnpm",
+        "--filter",
+        "@yomitomo/core",
+        "exec",
+        "vitest",
+        "run",
+        "src/articles/article-text-index.test.ts",
+        "src/reading-memory/reading-judgment-validation.test.ts"
+      ],
+      "cwd": "/Users/Kevin/Developer/yomitomo",
+      "startedAt": "2026-11-16T09:40:21.139342+00:00",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "matchedExpectation": true,
+      "output": "core-contracts.txt"
+    },
+    {
+      "id": "ai-contracts",
+      "args": [
+        "pnpm",
+        "--filter",
+        "@yomitomo/ai",
+        "exec",
+        "vitest",
+        "run",
+        "src/reading-memory/reading-judgment.test.ts",
+        "src/reading-memory/reading-judgment-input.test.ts",
+        "src/evaluation/reading-memory-human-review-evaluation.test.js",
+        "src/evaluation/reading-memory-human-retrieval-evaluation.test.js"
+      ],
+      "cwd": "/Users/Kevin/Developer/yomitomo",
+      "startedAt": "2026-11-16T09:40:21.139421+00:00",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "matchedExpectation": true,
+      "output": "ai-contracts.txt"
+    },
+    {
+      "id": "desktop-results",
+      "args": [
+        "pnpm",
+        "--filter",
+        "@yomitomo/desktop",
+        "exec",
+        "vitest",
+        "run",
+        "src/main/assistant-sessions/assistant-run-transcript.test.ts",
+        "src/main/assistant-sessions/assistant-session-store.test.ts",
+        "src/main/assistant-sessions/assistant-distillation-review.test.ts",
+        "src/main/reading-memory/reading-library-runtime.test.ts",
+        "src/main/reading-memory/reading-relations-runtime.test.ts"
+      ],
+      "cwd": "/Users/Kevin/Developer/yomitomo",
+      "startedAt": "2026-11-16T09:40:21.142483+00:00",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "matchedExpectation": true,
+      "output": "desktop-results.txt"
+    }
+  ]
+}

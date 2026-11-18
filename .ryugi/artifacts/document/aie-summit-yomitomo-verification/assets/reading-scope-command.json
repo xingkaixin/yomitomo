@@ -1,0 +1,12 @@
+{
+  "args": [
+    "pnpm",
+    "exec",
+    "vitest",
+    "run",
+    "--config",
+    "/Users/Kevin/Developer/yomitomo/.ryugi/artifacts/document/aie-summit-yomitomo-verification/assets/scope.vitest.config.mts"
+  ],
+  "cwd": "/Users/Kevin/Developer/yomitomo",
+  "exitCode": 0
+}

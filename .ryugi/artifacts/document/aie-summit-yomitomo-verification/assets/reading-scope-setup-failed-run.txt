@@ -1,0 +1,19 @@
+failed to load config from /Users/Kevin/Developer/yomitomo/.ryugi/artifacts/document/aie-summit-yomitomo-verification/assets/scope.vitest.config.ts
+
+⎯⎯⎯⎯⎯⎯⎯ Startup Error ⎯⎯⎯⎯⎯⎯⎯⎯
+Error [ERR_PACKAGE_PATH_NOT_EXPORTED]: Package subpath './context' is not defined by "exports" in /Users/Kevin/Developer/yomitomo/apps/desktop/node_modules/@earendil-works/chord/package.json
+    at exportsNotFound (node:internal/modules/esm/resolve:315:10)
+    at packageExportsResolve (node:internal/modules/esm/resolve:606:13)
+    at resolveExports (node:internal/modules/cjs/loader:754:36)
+    at Module._findPath (node:internal/modules/cjs/loader:821:31)
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1557:27)
+    at wrapResolveFilename (node:internal/modules/cjs/loader:1118:27)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1169:12)
+    at require.resolve (node:internal/modules/helpers:175:31)
+    at /Users/Kevin/Developer/yomitomo/.ryugi/artifacts/document/aie-summit-yomitomo-verification/assets/scope.vitest.config.ts:14:31
+    at Array.map (<anonymous>) {
+  code: 'ERR_PACKAGE_PATH_NOT_EXPORTED'
+}
+
+
+

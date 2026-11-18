@@ -1,0 +1,82 @@
+{
+  "mode": "Synthetic tool execution through the real pi-durable harness; fixed faux responses, no remote model",
+  "interpretation": "Current-behavior investigation, not a production regression specification",
+  "observations": [
+    {
+      "tool": "read_article",
+      "args": {
+        "sectionId": "c2"
+      },
+      "visibleRanges": [
+        {
+          "textStart": 0,
+          "textEnd": 14
+        }
+      ],
+      "futureAnchor": {
+        "start": 16,
+        "end": 46
+      },
+      "isError": false,
+      "output": "这里没有可读内容（可能超出可读范围）。",
+      "exposesFuture": false
+    },
+    {
+      "tool": "search_article",
+      "args": {
+        "query": "后文章节"
+      },
+      "visibleRanges": [
+        {
+          "textStart": 0,
+          "textEnd": 14
+        }
+      ],
+      "futureAnchor": {
+        "start": 16,
+        "end": 46
+      },
+      "isError": false,
+      "output": "没有找到与「后文章节」相关的段落。",
+      "exposesFuture": false
+    },
+    {
+      "tool": "search_reading_memory",
+      "args": {
+        "query": "后文章节"
+      },
+      "visibleRanges": [
+        {
+          "textStart": 0,
+          "textEnd": 14
+        }
+      ],
+      "futureAnchor": {
+        "start": 16,
+        "end": 46
+      },
+      "isError": false,
+      "output": "- 读者（批注 annotation_future）：annotation user 后文章节唯一标记：FUTURE_PLOT_SENTINEL。 synthetic-reader 2026-11-16T00:00:00.000Z 2026-11-16T00:00:00.000Z 后文章节唯一标记：FUTURE_PLOT_SENTINEL。",
+      "exposesFuture": true
+    },
+    {
+      "tool": "read_thread",
+      "args": {
+        "annotationId": "annotation_future"
+      },
+      "visibleRanges": [
+        {
+          "textStart": 0,
+          "textEnd": 14
+        }
+      ],
+      "futureAnchor": {
+        "start": 16,
+        "end": 46
+      },
+      "isError": false,
+      "output": "批注 annotation_future 的原文：「后文章节唯一标记：FUTURE_PLOT_SENTINEL。」\n\n讨论串 comment_future：\n[comment_future] synthetic-reader（读者）：这是后文章节的既有讨论：FUTURE_DISCUSSION_SENTINEL。",
+      "exposesFuture": true
+    }
+  ]
+}

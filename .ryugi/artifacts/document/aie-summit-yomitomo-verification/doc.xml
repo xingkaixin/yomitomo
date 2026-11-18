@@ -1,0 +1,413 @@
+<doc>
+  <h1 id="ptC_HJ9K">AIE Code Summit 对 Yomitomo 的意义：假设与验证记录</h1>
+  <p id="OoOEtZHg">核查日期：2026-11-16。代码基线：<code>95bc0e5680ee07541e78d2d5be6f51ece8d3279f</code>，分支 <code>main</code>。本轮只做核查和记录，不修改产品代码。</p>
+  <p id="oacm78sc">来源：本地《AI Engineer Code Summit 2026 视频总结》。本文验证其中工程思路与 Yomitomo 的关系，不把演讲中的厂商数据、模型性能或成功故事作为本项目的测量结果。</p>
+  <h2 id="tOdBZjdA">结论摘要</h2>
+  <p id="O_zCa8_C"><b>优先明确阅读范围在不同工具间的规则，再补真实阅读效果证据。</b>当前有理由继续使用受限阅读工具和确定性检查；本轮没有得到新增分类模型、扩建 Agent 编排或重写技术栈的依据。</p>
+  <p id="8YFclq3P">实际运行了 11 个现有测试文件的 51 项测试，全部通过；两个违规 Hook 样例按预期被 Lint 拦截，合法对照通过。另用真实 pi-durable harness 执行了四次合成阅读工具调用，发现正文工具与批注／讨论工具的范围约束不同。</p>
+  <table id="29OzB3OD">
+    <tr>
+      <th>
+        <p>假设</p>
+      </th>
+      <th>
+        <p>核查结论</p>
+      </th>
+      <th>
+        <p>证据边界</p>
+      </th>
+    </tr>
+    <tr>
+      <td>
+        <p>H1 确定性约束</p>
+      </td>
+      <td>
+        <p>已验证两种 Hook 违规写法会被当前 Lint 拦截。</p>
+      </td>
+      <td>
+        <p>不能据此证明所有架构和产品红线均受自动化保护。</p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <p>H2 受限阅读工具</p>
+      </td>
+      <td>
+        <p>保留工具有理由，但先前对范围保护的概括需要收窄：批注记忆和讨论没有应用正文的 visibleRanges。</p>
+      </td>
+      <td>
+        <p>已执行工具层合成探针，并核对生产端口；尚未做 GUI 复现或统计用户实际遭遇频率。</p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <p>H3 工程验证与语义质量</p>
+      </td>
+      <td>
+        <p>已有契约测试和记录评分工具可运行；缺少可随本次核查审阅的真实人工验收材料。</p>
+      </td>
+      <td>
+        <p>未核查仓库之外的私人样本，不能推断这些材料在其他位置不存在。</p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <p>H4 完成与恢复</p>
+      </td>
+      <td>
+        <p>代码以实际发布结果决定完成状态；已有轨迹和失败降级测试通过。</p>
+      </td>
+      <td>
+        <p>没有对写库后崩溃等窗口做故障注入，不能宣称完整恢复保证已经验证。</p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <p>H5 有限上下文</p>
+      </td>
+      <td>
+        <p>阅读记忆判断的字段白名单、字节与证据数量预算有可执行证据。</p>
+      </td>
+      <td>
+        <p>不证明整个持久化会话的长期上下文最优，也不证明这些预算的真实质量足够。</p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <p>H6 新模型与大规模编排</p>
+      </td>
+      <td>
+        <p>暂不启动，属于证据不足时的工程取舍。</p>
+      </td>
+      <td>
+        <p>本轮未做模型对比、成本实验、产品延迟测量或开发吞吐测量。</p>
+      </td>
+    </tr>
+  </table>
+  <h2 id="NCgYY3gu">初始判断与验证方法</h2>
+  <table id="bzhX63VK">
+    <tr>
+      <th>
+        <p>编号</p>
+      </th>
+      <th>
+        <p>假设</p>
+      </th>
+      <th>
+        <p>验证方法</p>
+      </th>
+    </tr>
+    <tr>
+      <td>
+        <p>H1</p>
+      </td>
+      <td>
+        <p>关键工程约束应由代码和工具执行，不能只依靠指令。</p>
+      </td>
+      <td>
+        <p>用违规 Hook 样例和合法对照实际运行现有 Oxlint。</p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <p>H2</p>
+      </td>
+      <td>
+        <p>现有受限阅读工具有保留理由，其读取范围应与产品承诺一致。</p>
+      </td>
+      <td>
+        <p>核对工具注册和范围计算，用合成正文、批注与讨论执行工具，观察范围外内容是否返回。</p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <p>H3</p>
+      </td>
+      <td>
+        <p>结构、引用和输入预算可以自动验证；语义支持程度仍需真实样本与独立复核。</p>
+      </td>
+      <td>
+        <p>运行现有引用、输入打包和评测记录测试；核对真实阅读验收记录的可获得性。</p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <p>H4</p>
+      </td>
+      <td>
+        <p>模型说完成不等于写入完成；恢复与重试要检查实际副作用。</p>
+      </td>
+      <td>
+        <p>追踪生成、发布和完成状态的代码，运行已有会话、轨迹和失败降级测试，注明未覆盖的崩溃窗口。</p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <p>H5</p>
+      </td>
+      <td>
+        <p>上下文应按需读取、限制发送量，不能以更多上下文替代质量验证。</p>
+      </td>
+      <td>
+        <p>核对正文工具上限，运行生产输入打包路径的白名单和预算测试。</p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <p>H6</p>
+      </td>
+      <td>
+        <p>现阶段没有证据支持为降本新增分类模型，或为规模建设更大的 Agent 工厂。</p>
+      </td>
+      <td>
+        <p>检查已有本地计算与远程判断分工，列出选型、性能和规模判断所缺的测量。</p>
+      </td>
+    </tr>
+  </table>
+  <h2 id="CvafgK3F">验证边界</h2>
+  <p id="FdphiP-9">使用现有自动化测试和一次性合成探针。原始输出和复现入口保存在本 artifact 的 assets 中，不加入常规产品测试。不调用远程模型，不读取正式用户数据库、keyring 或密钥，不上传用户阅读内容。</p>
+  <p id="QMB1YL_g">静态代码核对、可执行探针、已有测试、人工质量记录分别记载。自动化通过不替代 GUI、正式包、真实模型、人工语义质量或完整崩溃恢复的证明。</p>
+  <h2 id="8ul4-Lxt">验证过程</h2>
+  <ol id="8t0-L-hH">
+    <li>读取会议总结，提取六项与 Yomitomo 有直接关系的判断，记录代码基线、原文摘要和验证边界。</li>
+    <li>核对 Lint、产品约束、助手工具、回复发布和阅读记忆评测入口；为每项判断区分代码事实与尚待测量的建议。</li>
+    <li>运行六组独立命令：两个 Lint 坏例、一个合法对照，以及 core、AI、desktop 三组定向测试。预期退出码和完整输出一起保存。</li>
+    <li>执行缺少人工记录的真实评分命令，确认返回失败，不自动生成记录或给出通过结论。</li>
+    <li>构造仅第一章可读的两章样本，在真实 pi-durable harness 中调用正文读取、正文检索、批注记忆检索和讨论读取，直接检查工具结果。</li>
+    <li>根据实际结果修正 H2，记录恢复和语义质量仍未证明的部分，形成后续工作优先级。</li>
+  </ol>
+  <details id="-FL_ROGT" summary="探针运行中的两次配置失败" open="false">
+    <p>范围探针首次未能加载配置：使用 CommonJS 的 require.resolve 解析了仅提供 import 条件的包子路径。第二次运行发现字符串别名会匹配 pi-durable 的 storage/sqlite/node 子路径。改成经 package exports 核对的 ESM 路径、精确匹配别名，并使用 .mts 配置后，探针实际执行成功。两次失败都发生在测试收集前，不是产品测试失败，不计入业务结果。</p>
+    <p>保留了 <code>reading-scope-setup-failed-run.txt</code> 和 <code>reading-scope-alias-failed-run.txt</code>，没有用最终成功日志覆盖这两次失败记录。</p>
+  </details>
+  <h2 id="IGbqzD2a">H1：把重复犯错变成确定性约束</h2>
+  <p id="DsJfl-Qu">当前 <a href="https://github.com/xingkaixin/yomitomo/blob/95bc0e5680ee07541e78d2d5be6f51ece8d3279f/.oxlintrc.json#L19">Oxlint 配置</a>限制直接导入 useEffect 等 Hook，也限制 React.useEffect 属性访问。探针使用同一根配置和显式文件路径，不依赖 Agent 自己遵守自然语言。</p>
+  <table id="LESg1cf6">
+    <tr>
+      <th>
+        <p>样例</p>
+      </th>
+      <th>
+        <p>实际退出码</p>
+      </th>
+      <th>
+        <p>观察结果</p>
+      </th>
+    </tr>
+    <tr>
+      <td>
+        <p>直接导入 useEffect</p>
+      </td>
+      <td>
+        <p>1，预期失败</p>
+      </td>
+      <td>
+        <p>no-restricted-imports 报错。</p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <p>React.useEffect</p>
+      </td>
+      <td>
+        <p>1，预期失败</p>
+      </td>
+      <td>
+        <p>no-restricted-properties 报错。</p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <p>useReducer 对照</p>
+      </td>
+      <td>
+        <p>0</p>
+      </td>
+      <td>
+        <p>无诊断。</p>
+      </td>
+    </tr>
+  </table>
+  <p id="mVn3aYr_"><b>取舍：</b>这证明现有约束确实执行，不证明“限制越多越好”。后续只将反复发生、能说明用户损失的错误固化为检查；不因会议提及 anti-slop 就批量增加风格规则。API 限制仍需服务于状态归属和数据一致性。</p>
+  <h2 id="2maLqZOh">H2：受限工具值得保留，但范围保护并不一致</h2>
+  <p id="uL0v8otd">正文通过 ArticleTextIndex 应用 visibleRanges。<a href="https://github.com/xingkaixin/yomitomo/blob/95bc0e5680ee07541e78d2d5be6f51ece8d3279f/apps/desktop/src/main/assistant-sessions/assistant-reading-extension.ts#L158">批注记忆和讨论读取</a>目前只传文章、作者和条目条件，没有使用这个范围；<a href="https://github.com/xingkaixin/yomitomo/blob/95bc0e5680ee07541e78d2d5be6f51ece8d3279f/apps/desktop/src/main/assistant-sessions/assistant-sessions.ts#L62">生产端口</a>也读取当前文章的批注和记忆，不额外套用阅读进度。</p>
+  <p id="oRZtKVbC">合成样本的可读范围是 <code>[0, 14)</code>，后文批注锚点位于 <code>[16, 46)</code>。使用 faux provider 固定请求真实工具，由真实 harness 执行并读取持久化 entries 中的 toolResult。没有调用远程模型。正文、批注与记忆来源通过合成端口提供，因此这不是生产数据库或 GUI 的端到端回放。</p>
+  <table id="bHTBUr5v">
+    <tr>
+      <th>
+        <p>真实工具调用</p>
+      </th>
+      <th>
+        <p>是否返回后文标记</p>
+      </th>
+      <th>
+        <p>实际结果</p>
+      </th>
+    </tr>
+    <tr>
+      <td>
+        <p>read_article，sectionId=c2</p>
+      </td>
+      <td>
+        <p>否</p>
+      </td>
+      <td>
+        <p>这里没有可读内容（可能超出可读范围）。</p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <p>search_article，query=后文章节</p>
+      </td>
+      <td>
+        <p>否</p>
+      </td>
+      <td>
+        <p>没有找到相关段落。</p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <p>search_reading_memory，query=后文章节</p>
+      </td>
+      <td>
+        <p>是</p>
+      </td>
+      <td>
+        <p>返回 FUTURE_PLOT_SENTINEL 及批注 ID。</p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <p>read_thread，annotation_future</p>
+      </td>
+      <td>
+        <p>是</p>
+      </td>
+      <td>
+        <p>返回 FUTURE_PLOT_SENTINEL 和 FUTURE_DISCUSSION_SENTINEL。</p>
+      </td>
+    </tr>
+  </table>
+  <p id="O796Miek"><b>修正初始判断：</b>“有范围控制”只能确认到正文工具，不能概括为全部阅读工具。当前系统提示写着“工具只返回可读范围内的内容”，这比实际实现保证得更强。</p>
+  <p id="sfwuIYjo">具体触发条件是同一篇文章已有当前位置之后的批注或讨论，例如重新阅读时保留了后文笔记。若产品要求既有笔记也遵守防剧透范围，这构成需要修复的缺口；若笔记有意独立可读，应把规则写清，并收窄系统提示的承诺。实际发生率尚未测量，本轮不擅自改变产品规则。</p>
+  <p id="kqfeo9tj"><b>最小后续工作：</b>先确认正文与既有笔记的范围关系，再在负责读取的现有入口落实；不引入通用权限平台。工具是否保留应由这些真实职责决定，不能把 Coding Agent 的 Bash-only 经验直接套到伴读助手。</p>
+  <details id="q1oFQ8VR" summary="范围探针的结果口径" open="false">
+    <p>探针只有一项测试，内部执行四次工具调用；不是四项常规产品测试。它断言正文读取和检索不返回后文标记，同时如实记录记忆与讨论返回了什么。探针通过只表示调查成功执行，不表示四个工具全部满足范围保证。源文件和逐项输出保存在 <code>assets/reading-scope.test.ts</code> 与 <code>assets/reading-scope-observations.json</code>。</p>
+  </details>
+  <h2 id="2RkQjZZg">H3：合法引用不等于有依据的回答</h2>
+  <p id="7dk_xV4n">core 的两份现有测试共 5 项通过；AI 的四份现有测试共 29 项通过。它们验证范围过滤、引用绑定、输入预算、提供商适配、远程失败与评测记录格式等工程规则。它们使用固定输入和合成输出，不能证明真实模型的主张受到原文支持。</p>
+  <p id="3J6E2cXB"><a href="https://github.com/xingkaixin/yomitomo/blob/95bc0e5680ee07541e78d2d5be6f51ece8d3279f/docs/reading-memory-release.md#L18">发布门禁</a>已经明确：真实阅读样本和独立人工复核记录未随仓库提供。此次 Git 跟踪文件核查找到的是评分代码及测试，没有据此得到可审阅的真实人工验收记录；没有扫描仓库外的私人材料。</p>
+  <p id="cC78VuDN">真实评分命令在不提供输入时返回退出码 1，报告 <code>passed: false</code>、<code>provenanceVerified: false</code>，原因为 <code>--input is required; no review records are generated automatically</code>。这是工具拒绝缺失材料的证据，不是产品质量未达标的测量。</p>
+  <p id="_MGFmA1D"><b>最小后续工作：</b>沿用现有记录格式，保留真实问题、候选与实际发送的证据、最终回答和系统版本；由独立人工判断引用是否直接支持主张。先积累失败、无关、反对证据和多份证据共同回答的案例，再按现有发布门槛补齐验收。不能把同一模型的自评填成独立人工记录。</p>
+  <h2 id="XWhGUxaW">H4：以实际发布结果确认完成</h2>
+  <p id="Rkoks2bV"><a href="https://github.com/xingkaixin/yomitomo/blob/95bc0e5680ee07541e78d2d5be6f51ece8d3279f/apps/desktop/src/main/assistant-sessions/assistant-channel-runtime.ts#L299">回复发布代码</a>先解析引用，以 articleId、forkId、answerId 推导稳定回复 ID，再调用 publishReply。之后依据 saved 决定 done 或 failed；频道数据入口检查目标是否存在，聊天消息按回复 ID 避免重复追加。已存在 pending 标记和启动时恢复入口。</p>
+  <p id="kL7dmxgR">desktop 的五份现有测试共 17 项通过，覆盖本轮回复轨迹、不串入上轮回答、不可读会话文件处理、会话文件删除、审阅条目解析，以及阅读记忆的授权、证据变化和失败降级等行为。</p>
+  <p id="05p0SQcW"><b>尚未证明：</b>“主库写入成功，随后进程在清理会话状态前退出”的完整恢复；中断点回放后的最终主库结果；正式包与多窗口的交付结果。当前测试通过不能提升为全链路 exactly-once 保证，也没有证据表明当前存在重复写入故障。</p>
+  <p id="3t2nnXxM"><b>最小后续工作：</b>下次修改恢复链路时，只针对具体中断点做一次故障注入，直接比较持久化回复数量、用户原文和最终完成状态。没有复现必要性之前，不增加 fencing token、分布式账本或多轮裁判。</p>
+  <h2 id="0pDka6MQ">H5：有限上下文是已有能力，收益仍需测量</h2>
+  <p id="cqxAOW-I">正文工具已经按章节、段落和关键词读取，而非把全文放进 system prompt。静态代码上，一次回复最多调用 20 次工具，单次正文读取参数上限为 12,000 字符。这些上限本轮没有逐一做边界值探针。</p>
+  <p id="SYusHPZT"><a href="https://github.com/xingkaixin/yomitomo/blob/95bc0e5680ee07541e78d2d5be6f51ece8d3279f/packages/ai/src/reading-memory/reading-judgment-input.ts#L4">阅读记忆判断打包</a>分别限制关联、问书库、证据比较的证据数量和输入字节数，并只发送选定字段。现有测试通过真实提供商适配路径核对五种协议的请求形状，网络返回使用测试替身。</p>
+  <p id="DqUbYt3-"><a href="https://github.com/xingkaixin/yomitomo/blob/95bc0e5680ee07541e78d2d5be6f51ece8d3279f/packages/ai/src/reading-memory/reading-judgment.ts#L48">运行时</a>在模型调用前后重新核对证据，校验最终输出引用是否属于实际发送集合及当前有效证据。这个分工支持文档所说的确定性事实由代码负责。</p>
+  <p id="qs4XUd6K"><b>取舍：</b>保留按需读取和发送记录；若要调整预算，比较相同真实任务的证据覆盖、回答质量、调用轮次与成本。本轮没有依据宣称现有预算最优，或压缩上下文已经带来某个倍数的收益。</p>
+  <h2 id="QuxsEICx">H6：哪些建议暂不转成开发任务</h2>
+  <ul id="lcBPuKTv">
+    <li><b>不直接增加快分类模型。</b>先找出实际高频、昂贵且可稳定判定的步骤。引用存在性可由代码检查，引用是否支持结论仍是语义难题；输出选项有限不代表判断简单。新增外部模型还需要符合现有 provider 和隐私边界。</li>
+    <li><b>不建设大规模软件工厂。</b>没有测得本项目的合并队列、审阅吞吐或长程 Agent 调度已经成为瓶颈。保留现有快速检查、完整门禁和用户决定合并的流程。</li>
+    <li><b>不因案例重写 Electron 或迁移 Rust。</b>没有本项目对应的性能测量和迁移收益证据；现有真实模型、数据库与阅读器测试资产也有成本。</li>
+    <li><b>不把后台“记忆整理”用于改写原始资产。</b>用户想法和划线原样保存是明确产品承诺。派生索引的实验应继续与原始数据分离。</li>
+  </ul>
+  <h2 id="JuTUYvh-">建议顺序与完成条件</h2>
+  <table id="Wrb5d1Sc">
+    <tr>
+      <th>
+        <p>顺序</p>
+      </th>
+      <th>
+        <p>下一步</p>
+      </th>
+      <th>
+        <p>完成条件</p>
+      </th>
+    </tr>
+    <tr>
+      <td>
+        <p>1</p>
+      </td>
+      <td>
+        <p>明确后文既有批注和讨论是否遵守阅读进度。</p>
+      </td>
+      <td>
+        <p>产品规则、工具输出和系统提示一致；用本轮两章样本验证所选行为。</p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <p>2</p>
+      </td>
+      <td>
+        <p>用已有格式补真实阅读回放与独立人工复核。</p>
+      </td>
+      <td>
+        <p>每个结论可回到实际证据和输出，保留版本、负例和失败案例；正式发布仍满足现有全部门槛。</p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <p>3</p>
+      </td>
+      <td>
+        <p>在下次涉及恢复链路的改动中验证具体崩溃窗口。</p>
+      </td>
+      <td>
+        <p>故障注入后，直接核对主库回复没有重复、用户内容不丢失、状态与事实一致。</p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <p>4</p>
+      </td>
+      <td>
+        <p>有成本或延迟瓶颈后，再评估模型分工和上下文预算。</p>
+      </td>
+      <td>
+        <p>相同真实任务的可重复对照，同时报告质量、轮次、成本和产品延迟。</p>
+      </td>
+    </tr>
+  </table>
+  <p id="0k2H73SY">本轮交付完成的是六项判断的核查记录与证据，不是上述后续开发，也不是阅读记忆发布验收。未执行全仓门禁、GUI 验收、真实模型调用、性能 benchmark、独立第二审查或生产部署。</p>
+  <h2 id="OV3T-ja2">复现与原始证据</h2>
+  <p id="mH-247f3">在此代码基线及已安装依赖环境下，下面前两个入口可重跑自动化证据。第二个入口会使用独立临时会话目录，执行完成后清理临时数据库。最后一条单独验证缺少人工输入时的失败结果。一次性探针保存在 Ryugi artifact 中，不纳入常规产品测试。</p>
+  <codeblock id="J-VC_qsE" lang="bash">python3 .ryugi/artifacts/document/aie-summit-yomitomo-verification/assets/run-verification.py
+pnpm exec vitest run --config .ryugi/artifacts/document/aie-summit-yomitomo-verification/assets/scope.vitest.config.mts
+node packages/ai/scripts/evaluate-reading-memory-human-review.js
+# 最后一条不提供输入，预期退出码为 1；用于确认缺少人工记录时不会误报通过。</codeblock>
+  <p id="JbfISHMI">代码基线没有 tracked 或 staged 改动；新增内容均在 <code>.ryugi/</code>。<code>verification-manifest.json</code>记录实际参数、工作目录、开始时间、退出码和原文 SHA-256；<code>source-snapshot.json</code>保存十份相关源码／文档摘要。</p>
+  <ul id="30EYa_A2">
+    <li><a href="assets/verification-manifest.json">批量命令与退出码</a>；<a href="assets/source-snapshot.json">源码摘要与 Git 状态</a>。</li>
+    <li><a href="assets/reading-scope-observations.json">四次工具调用的完整输出</a>；<a href="assets/reading-scope-command.json">范围探针命令</a>。</li>
+    <li><a href="assets/core-contracts.txt">Core 测试输出</a>；<a href="assets/ai-contracts.txt">AI 测试输出</a>；<a href="assets/desktop-results.txt">Desktop 测试输出</a>。</li>
+    <li><a href="assets/lint-invalid-import.txt">导入违规诊断</a>；<a href="assets/lint-invalid-property.txt">属性违规诊断</a>；<a href="assets/lint-valid-control.txt">合法对照输出</a>。</li>
+    <li><a href="assets/human-review-without-input.txt">人工评测缺少输入时的完整输出</a>。</li>
+  </ul>
+  <details id="Uq1_1ve6" summary="测试结果原文摘要" open="false">
+    <codeblock lang="text">Core:    Test Files 2 passed (2), Tests 5 passed (5), exit 0
+AI:      Test Files 4 passed (4), Tests 29 passed (29), exit 0
+Desktop: Test Files 5 passed (5), Tests 17 passed (17), exit 0
+Scope:   Test Files 1 passed (1), Tests 1 passed (1), exit 0
+
+Scope observations:
+read_article          exposesFuture: false
+search_article        exposesFuture: false
+search_reading_memory exposesFuture: true
+read_thread           exposesFuture: true
+
+Lint invalid import:   exit 1, no-restricted-imports
+Lint invalid property: exit 1, no-restricted-properties
+Lint valid reducer:    exit 0
+Human review without input: exit 1, passed false, provenanceVerified false</codeblock>
+  </details>
+  <h2 id="jABD2fIp">文档保存状态</h2>
+  <p id="Gzy06Kjt">本文与原始证据已保存到本机 Ryugi，文档结构检查通过。尝试创建仅本人可读的云端副本时，CLI 返回 <code>E_LOGIN_REQUIRED</code>；当前未登录 Ryugi Cloud，因此没有完成云端发布。本机文档可直接阅读，产品代码未修改。</p>
+</doc>
+

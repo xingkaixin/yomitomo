@@ -1,0 +1,8 @@
+{
+  "args": [
+    "node",
+    "packages/ai/scripts/evaluate-reading-memory-human-review.js"
+  ],
+  "exitCode": 1,
+  "expectedExitCode": 1
+}

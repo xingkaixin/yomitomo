@@ -1,0 +1,9 @@
+
+ RUN  v5.1.0 /Users/Kevin/Developer/yomitomo
+
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  17:44:05
+   Duration  506ms (transform 49%, import 30%, tests 19%, worker 1%)
+

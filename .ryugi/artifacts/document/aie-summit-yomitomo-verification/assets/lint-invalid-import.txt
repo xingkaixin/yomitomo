@@ -1,0 +1,1 @@
+.ryugi/artifacts/document/aie-summit-yomitomo-verification/assets/lint-probes/invalid-hook.tsx:1:10: error eslint(no-restricted-imports): 'useEffect' import from 'react' is restricted. help: Use useReducer for local state, zustand or TanStack Query for shared state, and the hooks listed in docs/renderer-state.md for effects.

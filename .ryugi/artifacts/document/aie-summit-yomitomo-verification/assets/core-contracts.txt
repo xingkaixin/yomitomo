@@ -1,0 +1,9 @@
+
+ RUN  v5.1.0 /Users/Kevin/Developer/yomitomo/packages/core
+
+
+ Test Files  2 passed (2)
+      Tests  5 passed (5)
+   Start at  17:40:21
+   Duration  289ms (transform 80%, import 15%, tests 3%, worker 2%)
+
