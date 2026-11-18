@@ -8,6 +8,7 @@ import {
   type ConversationId,
   type EntryId,
   type Harness,
+  type Tx,
 } from '@earendil-works/pi-durable';
 import {
   buildChannelAgentInstructions,
@@ -148,7 +149,6 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
       const cursors = await tx.doc(ChannelCursorsDoc);
       const delivered = new Set(cursors.delivered[cursor] ?? []);
       const fresh = messages.filter((message) => !delivered.has(message.id));
-      cursors.delivered[cursor] = [...delivered, ...fresh.map((message) => message.id)];
       const runs = await tx.doc(ChannelRunsDoc);
       const existing = runs.runs[requestId];
       const live = Object.values(runs.runs).find(
@@ -174,19 +174,25 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
       instruction: request.instruction,
       reviewTargetCommentId: request.reviewTargetCommentId,
     });
-    const record: AssistantRunRecord = {
-      agentId: request.agentId,
-      channel: request.channel,
-      forkId: state.liveForkId ?? -1,
-      delivery,
-      deliveredIds: state.fresh.map((message) => message.id),
-    };
+    const deliveredIds = state.fresh.map((message) => message.id);
+    async function recordDelivery(tx: Tx, forkId: number) {
+      const cursors = await tx.doc(ChannelCursorsDoc);
+      cursors.delivered[cursor] = [
+        ...new Set([...(cursors.delivered[cursor] ?? []), ...deliveredIds]),
+      ];
+      (await tx.doc(ChannelRunsDoc)).runs[requestId] = {
+        agentId: request.agentId,
+        channel: request.channel,
+        forkId,
+        delivery,
+        deliveredIds,
+      };
+    }
 
-    if (state.liveForkId !== undefined) {
-      await harness.commit(async (tx) => {
-        (await tx.doc(ChannelRunsDoc)).runs[requestId] = record;
-      }, context);
-      return runKeyFor(request.articleId, state.liveForkId);
+    const { liveForkId } = state;
+    if (liveForkId !== undefined) {
+      await harness.commit((tx) => recordDelivery(tx, liveForkId), context);
+      return runKeyFor(request.articleId, liveForkId);
     }
 
     const main = await harness.conversation(state.mainId as ConversationId, context);
@@ -196,10 +202,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     const options = {
       ownership: { kind: 'ownerless' as const },
       agent: agentChange(resolved),
-      init: async (
-        tx: Parameters<NonNullable<Parameters<Harness['createConversation']>[0]['init']>>[0],
-        id: ConversationId,
-      ) => {
+      init: async (tx: Tx, id: ConversationId) => {
         Object.assign(await tx.doc(RunContextDoc, id), {
           articleId: request.articleId,
           articleTitle: meta?.title ?? '',
@@ -208,7 +211,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
           visibleRanges: visibleRanges(text, anchor, meta),
           toolCalls: 0,
         });
-        (await tx.doc(ChannelRunsDoc)).runs[requestId] = { ...record, forkId: id };
+        await recordDelivery(tx, id);
       },
     };
     const fork = latest
@@ -476,6 +479,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
       removedByAgent.set(agentId, [...(removedByAgent.get(agentId) ?? []), ...removed]);
     }
     if (removedByAgent.size === 0) return;
+    const removedIds = new Set([...removedByAgent.values()].flat());
     const conversations =
       (await harness.snapshot(AgentConversationsDoc, context))?.conversations ?? {};
     for (const [agentId, removed] of removedByAgent) {
@@ -499,7 +503,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     await harness.commit(async (tx) => {
       const doc = await tx.doc(ChannelCursorsDoc);
       for (const [key, ids] of Object.entries(doc.delivered)) {
-        doc.delivered[key] = ids.filter((id) => existing.has(id));
+        doc.delivered[key] = ids.filter((id) => !removedIds.has(id));
       }
     }, context);
   }
