@@ -64,6 +64,7 @@ import { readAnnotationWindowRoute, type AnnotationWindowRoute } from './annotat
 import { annotationWindowActions } from './app-annotation-window-actions';
 import { getDesktopApi } from '../shell/app-desktop-api';
 import { AppIsland } from '../shell/app-island';
+import { Textarea } from '../components/ui/textarea';
 import { appToast } from '../shell/app-toast';
 import { useDesktopEvent } from '../shell/use-desktop-event';
 import { measureDiscussionWindowTransition } from '../reading-library/discussion-window-transition';
@@ -953,6 +954,11 @@ function AnnotationDiscussionShell({
               sendingReply={sendingReply}
               sendError={sendError}
             />
+          ) : replyDraft ? (
+            <label className="annotation-discussion-thread-placeholder px-4">
+              <strong>{t('discussion.unsentReply')}</strong>
+              <Textarea className="max-w-md" readOnly value={replyDraft} />
+            </label>
           ) : (
             <div className="annotation-discussion-thread-placeholder">
               <HugeiconsIcon icon={BubbleChatIcon} size={22} />

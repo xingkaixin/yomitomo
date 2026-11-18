@@ -1093,6 +1093,7 @@ export const zhCNResources = {
       createDistillation: '把这些想法沉淀下来',
       thread: '讨论区',
       selectThoughtTitle: '选择想法查看讨论',
+      unsentReply: '未发送的回复',
       selectThoughtDescription: '这条批注的讨论会在这里展开。',
       replyFailed: '回复发送失败',
       deleteFailed: '删除失败，请稍后重试',

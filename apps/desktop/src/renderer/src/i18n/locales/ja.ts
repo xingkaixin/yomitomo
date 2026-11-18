@@ -1158,6 +1158,7 @@ export const jaResources = {
       createDistillation: 'これらの考えを蒸留してください',
       thread: 'ディスカッション',
       selectThoughtTitle: 'ディスカッションを表示するには考えを選択してください',
+      unsentReply: '未送信の返信',
       selectThoughtDescription: 'この注釈に関するディスカッションはここに表示されます。',
       replyFailed: '返信を送信できませんでした',
       deleteFailed: '削除できませんでした。もう一度お試しください。',
