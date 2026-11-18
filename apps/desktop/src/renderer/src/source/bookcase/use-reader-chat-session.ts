@@ -8,6 +8,8 @@ import type {
   ReaderQuestionContext,
 } from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
+import { createReaderChatState } from '../../../../reader-chat-state';
+import type { ArticleReaderChatStateSaveInput } from '../../../../ipc-contract';
 import i18next from 'i18next';
 import { assistantRuntimeErrorMessage } from '../../shell/app-assistant-runtime-progress';
 import {
@@ -20,10 +22,7 @@ import {
 type UseReaderChatSessionInput = {
   agents: PublicAgent[];
   article: ArticleRecord;
-  onSaveArticleReaderChatState?: (
-    articleId: string,
-    readerChatState?: ReaderChatState,
-  ) => Promise<unknown>;
+  onSaveArticleReaderChatState?: (input: ArticleReaderChatStateSaveInput) => Promise<unknown>;
 };
 
 type ArticleChatState = {
@@ -176,14 +175,14 @@ export function useReaderChatSession({
   );
 
   async function persistState(
-    scope: ArticleChatScope,
+    scope: ArticleChatScope & ArticleChatState,
     nextState: ReaderChatState,
-    previousState: ReaderChatState | undefined,
+    input: ArticleReaderChatStateSaveInput,
   ) {
     dispatch({ type: 'saveStarted', scope, value: nextState });
     if (!onSaveArticleReaderChatState) return true;
     try {
-      await onSaveArticleReaderChatState(scope.articleId, nextState);
+      await onSaveArticleReaderChatState(input);
       return true;
     } catch (persistError) {
       console.warn('[reader-chat] state persistence failed', {
@@ -194,7 +193,7 @@ export function useReaderChatSession({
         type: 'saveFailed',
         attempted: nextState,
         message: i18next.t('common.saveFailed'),
-        previous: previousState,
+        previous: scope.state,
         scope,
       });
       return false;
@@ -209,7 +208,11 @@ export function useReaderChatSession({
     const chat = readChat();
     const nextState = { ...ensureState(chat, assistantId), selectedAssistantId: assistantId };
     dispatch({ type: 'errorCleared' });
-    await persistState(chat, nextState, chat.state);
+    await persistState(chat, nextState, {
+      articleId: chat.articleId,
+      initialSessionId: nextState.activeSessionId,
+      selectedAssistantId: assistantId,
+    });
   }
 
   async function submit(content: string) {
@@ -235,7 +238,13 @@ export function useReaderChatSession({
     const showError = (message: string) =>
       dispatch({ type: 'failed', articleId: chat.articleId, message });
     try {
-      if (!(await persistState(chat, nextState, chat.state))) return;
+      if (
+        !(await persistState(chat, nextState, {
+          articleId: chat.articleId,
+          readerChatState: nextState,
+        }))
+      )
+        return;
       const delivery = await deliverAssistantMessage({
         articleId: chat.articleId,
         channel: { kind: 'chat', sessionId: nextState.activeSessionId },
@@ -309,25 +318,7 @@ function stateWithAssistantRuns(
 }
 
 function ensureState(chat: ArticleChatState, assistantId: string) {
-  const current = chat.state;
-  if (current) return current;
-
-  const now = new Date().toISOString();
-  const sessionId = makeId('reader_chat_session');
-  return {
-    articleId: chat.articleId,
-    activeSessionId: sessionId,
-    selectedAssistantId: assistantId,
-    sessions: [
-      {
-        id: sessionId,
-        articleId: chat.articleId,
-        createdAt: now,
-        updatedAt: now,
-        messages: [],
-      },
-    ],
-    createdAt: now,
-    updatedAt: now,
-  };
+  return (
+    chat.state ?? createReaderChatState(chat.articleId, makeId('reader_chat_session'), assistantId)
+  );
 }

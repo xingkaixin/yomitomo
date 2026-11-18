@@ -74,7 +74,8 @@ import { writeArticleRows } from '../articles/article-row-writes';
 import { readArticleRows } from '../articles/article-row-queries';
 import { getDatabase } from './store-db';
 import { closeDatabase } from './store-lifecycle';
-import { readArticle } from './store-articles';
+import { readArticle, saveArticleReaderChatState } from './store-articles';
+import { createAssistantChannelSources } from '../assistant-sessions/assistant-channel-sources';
 import { readStore } from './store-snapshot';
 import * as schema from '../db/schema';
 
@@ -102,6 +103,34 @@ afterEach(async () => {
 });
 
 describe('desktop store articles', () => {
+  it('preserves a reply published before a pending assistant selection is saved', async () => {
+    const article = articleRecord({ id: 'chat_article' });
+    writeArticleRows(getDatabase(), article);
+    const selection = {
+      articleId: article.id,
+      initialSessionId: 'session',
+      selectedAssistantId: 'a',
+    };
+    await saveArticleReaderChatState(selection);
+    const sources = createAssistantChannelSources(() => {});
+    const channel = { kind: 'chat' as const, sessionId: 'session' };
+    expect(
+      sources.publishReply(article.id, channel, {
+        id: 'reply',
+        author: { kind: 'agent', agentId: 'a', username: 'a' },
+        content: 'Saved answer',
+        createdAt: article.updatedAt,
+      }),
+    ).toBe(true);
+    const patch = await saveArticleReaderChatState({ ...selection, selectedAssistantId: 'b' });
+    const saved = (await readArticle(article.id))?.readerChatState;
+    expect(saved).toMatchObject({
+      selectedAssistantId: 'b',
+      sessions: [{ messages: [{ id: 'reply', content: 'Saved answer' }] }],
+    });
+    expect(patch.readerChatState).toEqual(saved);
+  });
+
   it('preserves corrupt source summaries and reports full content as unavailable', async () => {
     const database = getDatabase();
     const base = articleRecord({ id: 'corrupt_ebook' });

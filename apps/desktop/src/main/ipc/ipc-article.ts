@@ -145,7 +145,7 @@ export function registerArticleIpc(context: ArticleIpcContext) {
   });
   handleDesktopIpc('article:reader-chat-state', async (_event, input) => {
     const { storeArticles: articlePersistence } = await context.getPersistenceModules();
-    return articlePersistence.saveArticleReaderChatState(input.articleId, input.readerChatState);
+    return articlePersistence.saveArticleReaderChatState(input);
   });
   handleDesktopIpc('article:import-url', (event, input) =>
     withSourceImportIpcErrors(async () => {

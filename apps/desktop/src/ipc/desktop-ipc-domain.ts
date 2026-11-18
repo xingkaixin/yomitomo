@@ -15,7 +15,6 @@ import type {
   Comment,
   ContentRef,
   DesktopStore,
-  ReaderChatState,
   TextSourceFormat,
   WeReadBook,
   WeReadSettings,
@@ -95,10 +94,7 @@ export type ArticleCommentUpsertInput = {
   updatedAt?: string;
 };
 
-export type ArticleReaderChatStateSaveInput = {
-  articleId: string;
-  readerChatState?: ReaderChatState;
-};
+export type ArticleReaderChatStateSaveInput = DesktopIpcSchemaArgs<'article:reader-chat-state'>[0];
 
 export type ArticleLibrarySource = ArticleSourceType;
 

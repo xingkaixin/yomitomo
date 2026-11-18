@@ -202,8 +202,7 @@ AI 想法（`replyTo` 为空），划线仍归属用户。
 
 `apps/desktop/src/renderer/src/source/bookcase/use-reader-chat-session.ts` 先把用户消息写入文章的
 reader chat state，再投递到 `{ kind: 'chat', sessionId }` 频道。main 把回答追加到同一 state，
-并广播 `article-reader-chat-state` patch。两边都整列写 reader chat state，所以回答生成期间
-renderer 不发送新问题，避免覆盖 main 刚写入的回答。
+并广播 `article-reader-chat-state` patch。回答生成期间 renderer 等待回答落库后再发送新问题。切换助手只提交助手 ID 和首次创建会话所需的 ID；main 在事务内更新当前会话的选择并返回最新消息。
 
 ## 接入或排查清单
 

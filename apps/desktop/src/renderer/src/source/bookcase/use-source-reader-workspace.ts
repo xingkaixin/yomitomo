@@ -4,9 +4,9 @@ import type {
   ArticleRecord,
   MessageSendShortcut,
   PublicAgent,
-  ReaderChatState,
   SelectionActionShortcuts,
 } from '@yomitomo/shared';
+import type { ArticleReaderChatStateSaveInput } from '../../../../ipc-contract';
 import { normalizeMessageSendShortcut, normalizeSelectionActionShortcuts } from '@yomitomo/shared';
 import { articlePublishedDistillationCount } from '@yomitomo/core';
 import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
@@ -28,10 +28,7 @@ type UseSourceReaderWorkspaceInput = {
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
   session: SourceReaderWorkspaceSession;
   onRequestSelectionCopy: () => void;
-  onSaveArticleReaderChatState?: (
-    articleId: string,
-    readerChatState?: ReaderChatState,
-  ) => Promise<unknown>;
+  onSaveArticleReaderChatState?: (input: ArticleReaderChatStateSaveInput) => Promise<unknown>;
 };
 
 export function useSourceReaderWorkspace({
