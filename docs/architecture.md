@@ -41,6 +41,7 @@ telemetry → shared
 - 讨论窗口的原生最小化由 `native/window-controls` 的 N-API 适配转入应用内收起：macOS 接管
   原生按钮动作，Windows 接管窗口最小化命令。适配只调用 main 回调，不访问 renderer 或数据；
   由已有 Electron / node-gyp 工具链编译，开发构建放入 `.cache`，打包复制到 Resources 并签名。
+  讨论内容越过主窗口边缘时，阅读器 renderer 将动画画在临时透明子窗口内，main 在交接完成后销毁子窗口。
 - 微信读书网页版不开新窗口，而是挂在主窗口上的一个 `WebContentsView`，全局只有一个
   （`apps/desktop/src/main/windows/weread-reader-view.ts`）。它不在 renderer 的 DOM 里：renderer 留一个占位区域，
   把位置和是否为小窗通过 `weread:set-reader-bounds` 同步给 main，占位区域卸载时隐藏。离开书架只隐藏不关闭，

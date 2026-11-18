@@ -1,4 +1,9 @@
-import { BrowserWindow } from 'electron';
+import {
+  BrowserWindow,
+  type HandlerDetails,
+  type Rectangle,
+  type WindowOpenHandlerResponse,
+} from 'electron';
 import type {
   AnnotationDiscussionTransitionResponse,
   AnnotationDiscussionWindowState,
@@ -13,6 +18,8 @@ type Transition = {
   operation: Promise<void>;
   reply?: (response: AnnotationDiscussionTransitionResponse | null) => void;
   mainWindow: BrowserWindow;
+  animating?: boolean;
+  overlay?: { name: string; bounds: Rectangle; window?: BrowserWindow };
 };
 type TransitionMessage = AnnotationDiscussionWindowTransition extends infer Message
   ? Message extends AnnotationDiscussionWindowTransition
@@ -22,6 +29,49 @@ type TransitionMessage = AnnotationDiscussionWindowTransition extends infer Mess
 
 const transitions = new Map<number, Transition>();
 let nextTransitionId = 0;
+
+export function openDiscussionTransitionOverlay(
+  host: BrowserWindow,
+  { url, frameName }: HandlerDetails,
+): WindowOpenHandlerResponse | undefined {
+  if (url !== 'about:blank') return;
+  for (const transition of transitions.values()) {
+    const overlay = transition.overlay;
+    if (transition.mainWindow !== host || !overlay || overlay.name !== frameName || overlay.window)
+      continue;
+    return {
+      action: 'allow',
+      overrideBrowserWindowOptions: {
+        ...overlay.bounds,
+        parent: host,
+        show: false,
+        frame: false,
+        transparent: true,
+        backgroundColor: '#00000000',
+        hasShadow: false,
+        resizable: false,
+        focusable: false,
+        skipTaskbar: true,
+        enableLargerThanScreen: true,
+        webPreferences: {
+          sandbox: true,
+          contextIsolation: true,
+          nodeIntegration: false,
+          zoomFactor: host.webContents.getZoomFactor(),
+          backgroundThrottling: false,
+        },
+      },
+      createWindow(options) {
+        const window = new BrowserWindow(options);
+        window.setIgnoreMouseEvents(true);
+        window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+        window.webContents.on('will-navigate', (event) => event.preventDefault());
+        overlay.window = window;
+        return window.webContents;
+      },
+    };
+  }
+}
 
 export function respondToDiscussionWindowTransition(
   sender: BrowserWindow | null,
@@ -45,7 +95,8 @@ export function transitionDiscussionWindow(
   const current = transitions.get(window.id);
   if (current) {
     current.direction = direction;
-    send(current.mainWindow, window.id, current, { type: 'animate', direction });
+    if (current.animating)
+      send(current.mainWindow, window.id, current, { type: 'animate', direction });
     return current.operation;
   }
   if (window.isVisible() === (direction === 'restore') && !window.isMinimized()) {
@@ -73,6 +124,8 @@ export function transitionDiscussionWindow(
   window.once('closed', closed);
   transition.operation = perform().finally(() => {
     window.removeListener('closed', closed);
+    const overlay = transition.overlay?.window;
+    if (overlay && !overlay.isDestroyed()) overlay.destroy();
     transitions.delete(window.id);
     send(host, window.id, transition, { type: 'cancel' });
   });
@@ -105,11 +158,22 @@ export function transitionDiscussionWindow(
     const mainBounds = host.getContentBounds();
     const bounds = window.getContentBounds();
     const zoom = host.webContents.getZoomFactor();
+    const x = Math.min(mainBounds.x, bounds.x);
+    const y = Math.min(mainBounds.y, bounds.y);
+    const width = Math.max(mainBounds.x + mainBounds.width, bounds.x + bounds.width) - x;
+    const height = Math.max(mainBounds.y + mainBounds.height, bounds.y + bounds.height) - y;
+    if (width > mainBounds.width || height > mainBounds.height) {
+      transition.overlay = {
+        name: `discussion-transition-${transition.id}`,
+        bounds: { x, y, width, height },
+      };
+    }
     const ready = await exchange(transition, 'ready', () =>
       send(host, window.id, transition, {
         type: 'prepare',
         direction: transition.direction,
         expanded: window.isVisible() && !window.isMinimized(),
+        overlayName: transition.overlay?.name,
         image: image.toDataURL(),
         bounds: {
           x: (bounds.x - mainBounds.x) / zoom,
@@ -122,6 +186,9 @@ export function transitionDiscussionWindow(
     );
     if (window.isDestroyed()) return;
     if (ready?.prepared) {
+      const overlay = transition.overlay?.window;
+      if (overlay && !overlay.isDestroyed()) overlay.showInactive();
+      transition.animating = true;
       if (transition.direction === 'minimize') settleWindow(window, 'minimize');
       await exchange(transition, 'finished', () =>
         send(host, window.id, transition, { type: 'animate', direction: transition.direction }),

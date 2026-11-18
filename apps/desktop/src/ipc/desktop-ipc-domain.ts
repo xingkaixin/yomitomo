@@ -277,6 +277,7 @@ export type AnnotationDiscussionWindowTransition = DiscussionTransitionIdentity 
         type: 'prepare';
         direction: 'minimize' | 'restore';
         expanded: boolean;
+        overlayName?: string;
         image: string;
         bounds: WindowAnimationSourceRect;
         view: AnnotationDiscussionTransitionView;
