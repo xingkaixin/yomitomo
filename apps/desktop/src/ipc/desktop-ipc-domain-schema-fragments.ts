@@ -561,7 +561,12 @@ export const articleDomainIpcInvokeSchemas = {
     z.object({ articleId: idSchema, progress: articleReadingProgressSchema }),
   ]),
   'article:reader-chat-state': z.tuple([
-    z.object({ articleId: idSchema, readerChatState: readerChatStateSchema.optional() }),
+    z.union([
+      z
+        .object({ articleId: idSchema, selectedAssistantId: idSchema, initialSessionId: idSchema })
+        .strict(),
+      z.object({ articleId: idSchema, readerChatState: readerChatStateSchema.optional() }).strict(),
+    ]),
   ]),
 };
 

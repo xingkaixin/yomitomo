@@ -5,8 +5,10 @@ import type {
   ArticleReadingProgress,
   ArticleReadingProgressPatch,
 } from '@yomitomo/shared';
+import { createReaderChatState } from '../../reader-chat-state';
+import type { ArticleReaderChatStateSaveInput } from '../../ipc-contract';
 import * as schema from '../db/schema';
-import type { StoreDatabase } from '../store/store-db';
+import type { StoreDatabase, StoreExecutor } from '../store/store-db';
 import {
   normalizeArticleReadingProgress,
   normalizeReaderChatState,
@@ -37,8 +39,31 @@ export function buildArticleReadingProgressPatch(
   return { articleId, readingProgress, updatedAt: readingProgress.updatedAt };
 }
 
-export function saveArticleReaderChatStateRows(
+export function selectArticleChatAssistantRows(
   database: StoreDatabase,
+  {
+    articleId,
+    selectedAssistantId,
+    initialSessionId,
+  }: Extract<ArticleReaderChatStateSaveInput, { selectedAssistantId: string }>,
+): ArticleReaderChatStatePatch {
+  return database.transaction((tx) => {
+    const row = tx
+      .select({ state: schema.articles.readerChatState })
+      .from(schema.articles)
+      .where(eq(schema.articles.id, articleId))
+      .get();
+    const current = normalizeReaderChatState(row?.state, articleId);
+    const now = new Date().toISOString();
+    const next = current
+      ? { ...current, selectedAssistantId, updatedAt: now }
+      : createReaderChatState(articleId, initialSessionId, selectedAssistantId, now);
+    return saveArticleReaderChatStateRows(tx, articleId, next);
+  });
+}
+
+export function saveArticleReaderChatStateRows(
+  database: StoreExecutor,
   articleId: string,
   readerChatState: ArticleRecord['readerChatState'],
 ): ArticleReaderChatStatePatch {

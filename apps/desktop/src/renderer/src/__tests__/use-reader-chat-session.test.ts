@@ -10,6 +10,8 @@ import type {
   PublicAgent,
   ReaderChatState,
 } from '@yomitomo/shared';
+import { createReaderChatState } from '../../../reader-chat-state';
+import type { ArticleReaderChatStateSaveInput } from '../../../ipc-contract';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { useReaderChatSession } from '../source/bookcase/use-reader-chat-session';
 
@@ -30,8 +32,7 @@ type ReaderChatSession = ReturnType<typeof useReaderChatSession>;
 
 function renderReaderChatSession(
   onSaveArticleReaderChatState: (
-    articleId: string,
-    readerChatState?: ReaderChatState,
+    input: ArticleReaderChatStateSaveInput,
   ) => void | Promise<void> = () => undefined,
 ) {
   let session: ReaderChatSession | null = null;
@@ -44,8 +45,21 @@ function renderReaderChatSession(
     const nextSession = useReaderChatSession({
       agents,
       article,
-      onSaveArticleReaderChatState: async (articleId, readerChatState) => {
-        await onSaveArticleReaderChatState(articleId, readerChatState);
+      onSaveArticleReaderChatState: async (input) => {
+        await onSaveArticleReaderChatState(input);
+        const { articleId } = input;
+        const readerChatState =
+          'selectedAssistantId' in input
+            ? {
+                ...(article.readerChatState ??
+                  createReaderChatState(
+                    articleId,
+                    input.initialSessionId,
+                    input.selectedAssistantId,
+                  )),
+                selectedAssistantId: input.selectedAssistantId,
+              }
+            : input.readerChatState;
         savedReaderChatState = readerChatState;
         setArticle((current) =>
           current.id === articleId ? { ...current, readerChatState, updatedAt: now } : current,

@@ -1,14 +1,12 @@
 import { useCallback } from 'react';
 import i18next from 'i18next';
-import type {
-  ArticleReadingProgress,
-  ArticleRecord,
-  Annotation,
-  Comment,
-  ReaderChatState,
-} from '@yomitomo/shared';
+import type { ArticleReadingProgress, ArticleRecord, Annotation, Comment } from '@yomitomo/shared';
 import { deleteAnnotationComment, sortAnnotations } from '@yomitomo/core';
-import type { TextImportCommitInput, WindowAnimationSourceRect } from '../../../ipc-contract';
+import type {
+  ArticleReaderChatStateSaveInput,
+  TextImportCommitInput,
+  WindowAnimationSourceRect,
+} from '../../../ipc-contract';
 import { articleStorePatchCommit, type ArticleStore } from './app-article-store';
 import { getDesktopApi } from './app-desktop-api';
 
@@ -220,9 +218,9 @@ export function useAppArticleStoreActions({ articleStore }: UseAppArticleStoreAc
   );
 
   const saveArticleReaderChatState = useCallback(
-    async (articleId: string, readerChatState?: ReaderChatState) => {
+    async (input: ArticleReaderChatStateSaveInput) => {
       return articleStore.runMutation({
-        invoke: () => getDesktopApi().article.saveReaderChatState({ articleId, readerChatState }),
+        invoke: () => getDesktopApi().article.saveReaderChatState(input),
         reconcile: articleStorePatchCommit,
       });
     },

@@ -7,7 +7,11 @@ import type {
   ArticleUpsertPatch,
   Comment,
 } from '@yomitomo/shared';
-import type { ArticleLibraryListInput, ArticleLibraryListResult } from '../../ipc-contract';
+import type {
+  ArticleReaderChatStateSaveInput,
+  ArticleLibraryListInput,
+  ArticleLibraryListResult,
+} from '../../ipc-contract';
 import { logError } from '../app/logger';
 import {
   deleteAnnotationRowsWithMemoryLifecycle,
@@ -33,6 +37,7 @@ import { readArticleStatsSummaryRows } from '../articles/article-stats';
 import {
   saveArticleReaderChatStateRows,
   saveArticleReadingProgressRows,
+  selectArticleChatAssistantRows,
 } from '../articles/article-reading-state';
 import {
   buildArticleUpsertPatch,
@@ -187,11 +192,9 @@ export async function saveArticleReadingProgress(
   return saveArticleReadingProgressRows(getDatabase(), articleId, progress);
 }
 
-export async function saveArticleReaderChatState(
-  articleId: string,
-  readerChatState: ArticleRecord['readerChatState'],
-) {
-  return saveArticleReaderChatStateRows(getDatabase(), articleId, readerChatState);
+export async function saveArticleReaderChatState(input: ArticleReaderChatStateSaveInput) {
+  if ('selectedAssistantId' in input) return selectArticleChatAssistantRows(getDatabase(), input);
+  return saveArticleReaderChatStateRows(getDatabase(), input.articleId, input.readerChatState);
 }
 
 export async function deleteArticle(id: string) {
