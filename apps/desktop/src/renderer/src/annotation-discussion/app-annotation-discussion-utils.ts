@@ -187,6 +187,7 @@ export function annotationWithAssistantRuns(
 ): Annotation {
   const commentIds = new Set(annotation.comments.map((comment) => comment.id));
   const placeholders = runs.flatMap((run): Comment[] => {
+    if (run.channel.kind === 'thread' && !commentIds.has(run.channel.threadId)) return [];
     const agent = agents.find((item) => item.id === run.agentId);
     if (!agent || (run.commentId && commentIds.has(run.commentId))) return [];
     return [

@@ -323,7 +323,9 @@ export function DiscussionThreadView({
             }
             mentionAgents={annotationAgents}
             status={composerStatus || undefined}
-            submitDisabled={!replyDraft.trim() || sendingReply}
+            submitDisabled={
+              !replyDraft.trim() || sendingReply || deletingCommentId === thread.root.id
+            }
             submitIcon={<HugeiconsIcon icon={SentIcon} size={14} />}
             submitLabel={t('discussion.threadView.reply')}
             submitTooltip={

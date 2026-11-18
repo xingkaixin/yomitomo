@@ -1145,6 +1145,7 @@ export const enResources = {
       createDistillation: 'Distill these thoughts',
       thread: 'Discussion',
       selectThoughtTitle: 'Select a thought to view discussion',
+      unsentReply: 'Unsent reply',
       selectThoughtDescription: 'The discussion for this annotation will appear here.',
       replyFailed: 'Reply failed to send',
       deleteFailed: 'Delete failed. Please try again.',

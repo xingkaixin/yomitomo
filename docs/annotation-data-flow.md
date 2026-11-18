@@ -189,8 +189,8 @@ agent 引用原文段落或另一条讨论时写 `[文字](#b35)`、`[文字](#c
 
 讨论窗口 `apps/desktop/src/renderer/src/annotation-discussion/app-annotation-discussion-window.tsx`
 先保存用户评论，再为每个被 @ 或按规则回复的 agent 投递到 `{ kind: 'thread' }` 频道，多个 agent
-并行，互不覆盖。main 用 `upsertCommentRows()` 保存回复（`replyTo` 为该 thread），并广播 article
-patch；不再有 renderer 侧的 `pending` 评论落库。
+并行，互不覆盖。main 在 `upsertCommentRows()` 的事务内确认父评论仍属于同一批注，再保存回复。
+父评论已删除时，讨论窗口隐藏这条想法下正在生成的回复，并保留用户输入。如果最后一条想法也已删除，用户仍可复制未发送的回复。成功保存后 main 广播 article patch。
 
 ### 在划线下追加助手想法
 

@@ -18,6 +18,7 @@ import {
   upsertAnnotationRows,
   upsertCommentRows,
 } from './article-annotation-upsert';
+import { deleteCommentRowsWithMemoryLifecycle } from './article-repository-lifecycle';
 import { readArticleRows } from './article-row-queries';
 
 const openDatabases: SQLiteDatabase.Database[] = [];
@@ -393,6 +394,23 @@ describe('article repository local child row writes', () => {
     expect(readReadingMemoryEntries({ articleId: 'article_1', executor: memory })).toEqual(
       expect.arrayContaining([expect.objectContaining({ id: 'comment_memory_comment_1' })]),
     );
+  });
+
+  it('rejects a reply submitted after its parent was deleted', () => {
+    const { database, memory } = repositoryDatabase();
+    const parent = comment();
+    const target = annotation({ comments: [parent] });
+    const thread = { articleId: 'article_1', annotationId: target.id };
+    upsertAnnotationRows(database, { articleId: thread.articleId, annotation: target }, memory);
+    deleteCommentRowsWithMemoryLifecycle(memory, { ...thread, commentId: parent.id });
+
+    const reply = comment({ id: 'late-reply', replyTo: parent.id });
+    expect(() => upsertCommentRows(database, { ...thread, comment: reply }, memory)).toThrow(
+      'COMMENT_PARENT_NOT_FOUND',
+    );
+    expect(
+      database.select().from(schema.comments).where(eq(schema.comments.id, reply.id)).get(),
+    ).toBeUndefined();
   });
 
   it('upserts one comment without replacing sibling comments', () => {

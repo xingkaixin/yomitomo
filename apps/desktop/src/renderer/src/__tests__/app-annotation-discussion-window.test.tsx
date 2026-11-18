@@ -1,11 +1,14 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Agent, Comment } from '@yomitomo/shared';
 import {
+  annotationWithAssistantRuns,
   discussionReplyPlaceholder,
+  discussionThreads,
   replyTargetAgents,
 } from '../annotation-discussion/app-annotation-discussion-utils';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { publicAnnotationAgents } from '../source/bookcase/source-public-agents';
+import { annotationFixture } from './article-actions-test-utils';
 
 const now = '2026-05-31T06:00:00.000Z';
 
@@ -14,6 +17,29 @@ beforeEach(() => {
 });
 
 describe('discussion reply targeting', () => {
+  it('removes a running assistant reply from the discussion when its parent is deleted', () => {
+    const root = rootThought();
+    const annotation = annotationFixture('annotation_1', { comments: [root] });
+    const publicAgents = publicAnnotationAgents(agents());
+    const run = {
+      articleId: 'article_1',
+      agentId: publicAgents[0].id,
+      runKey: 'reply',
+      channel: { kind: 'thread', annotationId: annotation.id, threadId: root.id },
+      status: 'running',
+      text: '正在回复',
+      startedAt: now,
+    } as const;
+    const threads = (comments: Comment[]) =>
+      discussionThreads(
+        annotationWithAssistantRuns({ ...annotation, comments }, [run], publicAgents),
+        new Set(),
+      );
+
+    expect(threads([root])[0].replies[0].content).toBe(run.text);
+    expect(threads([])).toEqual([]);
+  });
+
   it('keeps user-created thoughts passive until an assistant is mentioned', () => {
     const publicAgents = publicAnnotationAgents(agents());
 
