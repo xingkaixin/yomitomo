@@ -218,3 +218,55 @@
 .settings-nav-item:active {
   transform: scale(0.96);
 }
+
+.markdown-export-menu {
+  display: grid;
+  min-width: 172px;
+  gap: 2px;
+  border: 1px solid var(--app-edge);
+  border-radius: 10px;
+  background: var(--app-panel);
+  box-shadow: var(--app-panel-shadow);
+  padding: 4px;
+  color: hsl(var(--foreground));
+  font-family: var(--font-ui);
+}
+
+.markdown-export-menu-item {
+  display: inline-flex;
+  width: 100%;
+  height: 32px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  padding: 0 10px;
+  color: hsl(var(--foreground));
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.markdown-export-menu-item:hover {
+  background: var(--app-interactive-hover-bg);
+}
+
+.markdown-export-menu-item:focus-visible {
+  outline: 2px solid var(--app-interactive-focus-ring);
+  outline-offset: -2px;
+}
+
+.reader-toolbar-action-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reading-evidence-card-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}

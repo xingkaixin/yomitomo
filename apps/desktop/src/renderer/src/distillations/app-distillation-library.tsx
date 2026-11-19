@@ -10,9 +10,11 @@ import {
 import { useMemo, useReducer, useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { keepPreviousData, queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
+import { formatDistillationMarkdown } from '@yomitomo/core';
 import { ReadingEvidenceCard } from '@yomitomo/reader-ui/reading-evidence-card';
 import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import { getDesktopApi } from '../shell/app-desktop-api';
+import { MarkdownExportMenu, markdownExportLabels } from '../shell/app-markdown-export';
 import type { ReadingEvidenceSourceTarget } from '../shell/app-reading-types';
 import { useDesktopEvent } from '../shell/use-desktop-event';
 
@@ -219,6 +221,24 @@ export function DistillationLibrary({
                       annotationId: item.annotationId,
                       view: 'discussion',
                     })
+                  }
+                  extraActions={
+                    <MarkdownExportMenu
+                      buildMarkdown={() =>
+                        formatDistillationMarkdown({
+                          articleTitle: item.articleTitle,
+                          articleByline: item.articleByline,
+                          sourceUrl: item.sourceUrl,
+                          quote: item.anchorText,
+                          content: item.content,
+                          labels: markdownExportLabels(),
+                        })
+                      }
+                      buttonClassName="reading-evidence-card-export"
+                      fileName={`${item.articleTitle || t('discussion.untitledArticle')}-${t('markdownExport.distillation')}`}
+                      iconSize={14}
+                      triggerLabel={t('markdownExport.shortAction')}
+                    />
                   }
                 />
               ))}

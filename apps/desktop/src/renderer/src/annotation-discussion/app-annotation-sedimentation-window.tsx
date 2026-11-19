@@ -9,7 +9,7 @@ import {
 } from '@hugeicons/core-free-icons';
 import type { CSSProperties } from 'react';
 import type { Annotation, ArticleRecord, UserProfile } from '@yomitomo/shared';
-import { annotationAuthorName } from '@yomitomo/core';
+import { annotationAuthorName, formatDistillationMarkdown } from '@yomitomo/core';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { FloatingComposer } from '@yomitomo/reader-ui/floating-composer';
@@ -19,6 +19,8 @@ import {
   ReaderTooltip,
   SubmitShortcutTooltipContent,
 } from '@yomitomo/reader-ui/reader-component-primitives';
+import { AppIsland } from '../shell/app-island';
+import { MarkdownExportMenu, markdownExportLabels } from '../shell/app-markdown-export';
 import { useSourceAwareWindowTransition } from '../shell/app-window-transition';
 import { openAssistantReferenceFromClick } from '../shell/app-assistant-references';
 import {
@@ -75,13 +77,16 @@ function AnnotationSedimentationWindowApp({ route }: { route: AnnotationWindowRo
     );
   }
   return (
-    <SedimentationShell
-      status={status}
-      user={user}
-      style={windowTransition.style}
-      className={windowTransition.className}
-      onStatusChange={annotationChanged}
-    />
+    <>
+      <SedimentationShell
+        status={status}
+        user={user}
+        style={windowTransition.style}
+        className={windowTransition.className}
+        onStatusChange={annotationChanged}
+      />
+      <AppIsland />
+    </>
   );
 }
 
@@ -139,6 +144,25 @@ function SedimentationShell({
                 </span>
               </div>
               <div className="annotation-sedimentation-document-actions">
+                <MarkdownExportMenu
+                  buildMarkdown={() =>
+                    formatDistillationMarkdown({
+                      articleTitle: article.title,
+                      articleByline: article.byline,
+                      sourceUrl:
+                        article.sourceType === 'web'
+                          ? article.canonicalUrl || article.url
+                          : undefined,
+                      quote: annotation.anchor.exact,
+                      content: draft.value,
+                      labels: markdownExportLabels(),
+                    })
+                  }
+                  buttonClassName="is-secondary is-icon"
+                  disabled={!draft.value.trim()}
+                  fileName={`${article.title || t('discussion.untitledArticle')}-${t('markdownExport.distillation')}`}
+                  iconSize={15}
+                />
                 <ReaderTooltip
                   content={
                     draft.editing ? t('sedimentation.finishEditing') : t('sedimentation.editDraft')

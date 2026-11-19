@@ -7,7 +7,11 @@ import type {
   SelectionActionShortcuts,
 } from '@yomitomo/shared';
 import { errorMessageOrFallback } from '@yomitomo/shared';
-import { createUserAnnotation, type HighlightBox } from '@yomitomo/core';
+import {
+  createUserAnnotation,
+  formatArticleNotesMarkdown,
+  type HighlightBox,
+} from '@yomitomo/core';
 import type { ReaderAppViewProps } from '@yomitomo/reader-ui/reader-app-view';
 import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import i18next from 'i18next';
@@ -17,6 +21,7 @@ import type { ReadingEvidenceSourceTarget } from '../../shell/app-reading-types'
 import { ReadingRelationsPanel } from '../../reading-memory/reading-relations-panel';
 import { useReadingRelations } from '../../reading-memory/use-reading-relations';
 import { appToast } from '../../shell/app-toast';
+import { MarkdownExportMenu, markdownExportLabels } from '../../shell/app-markdown-export';
 import {
   useSourceReaderSession,
   type UseSourceReaderSessionOptions,
@@ -399,6 +404,27 @@ export function useSourceReaderApp({
       },
     };
 
+    const exportNotesMenu = createElement(MarkdownExportMenu, {
+      buildMarkdown: () =>
+        formatArticleNotesMarkdown({
+          article: { ...sessionInput.article, annotations: session.annotations },
+          userProfile,
+          agents: session.personaAgents,
+          labels: markdownExportLabels(),
+        }),
+      buttonClassName: 'open-article-button is-icon-only',
+      disabled: session.annotations.length === 0,
+      fileName: sessionInput.article.title || i18next.t('discussion.untitledArticle'),
+    });
+    const toolbarArticleAction = toolbar?.articleAction
+      ? createElement(
+          'span',
+          { className: 'reader-toolbar-action-group' },
+          exportNotesMenu,
+          toolbar.articleAction,
+        )
+      : exportNotesMenu;
+
     return {
       actions,
       agents: {
@@ -446,7 +472,10 @@ export function useSourceReaderApp({
         ...toc,
         open: activeTocOpen,
       },
-      toolbar,
+      toolbar: {
+        ...toolbar,
+        articleAction: toolbarArticleAction,
+      },
       userProfile,
     };
   }

@@ -7,8 +7,10 @@ import type {
   WeReadHighlight,
   WeReadThought,
 } from '@yomitomo/shared';
+import { formatWeReadBookMarkdown } from '@yomitomo/core';
 import { WeReadCover } from '../reading-library/app-reading-library-covers';
 import { useTranslation } from 'react-i18next';
+import { MarkdownExportMenu, markdownExportLabels } from './app-markdown-export';
 import type { WeReadReaderEvent, WeReadReaderMode } from './app-weread-reader-pane';
 import { closeWeReadReader, WeReadReaderCompact, WeReadReaderFull } from './app-weread-reader-pane';
 
@@ -130,6 +132,18 @@ export function WeReadBookcase({
         <div className="weread-bookcase-actions">
           {reading ? null : (
             <>
+              <MarkdownExportMenu
+                buildMarkdown={() =>
+                  formatWeReadBookMarkdown({
+                    detail,
+                    labels: markdownExportLabels(),
+                  })
+                }
+                buttonClassName="weread-icon-button"
+                disabled={detail.highlights.length === 0 && detail.thoughts.length === 0}
+                fileName={detail.book.title || t('discussion.untitledArticle')}
+                iconSize={16}
+              />
               <button
                 className="weread-icon-button"
                 type="button"

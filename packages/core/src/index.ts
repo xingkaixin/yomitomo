@@ -179,3 +179,17 @@ export type {
 
 export { createReaderSearch, findReaderSearchMatches } from './reader/search';
 export type { ReaderSearchMatch, ReaderSearchOptions, ReaderSearchResult } from './reader/search';
+
+export {
+  defaultMarkdownExportLabels,
+  formatArticleNotesMarkdown,
+  formatDistillationMarkdown,
+  formatWeReadBookMarkdown,
+  sanitizeMarkdownFileName,
+} from './export/markdown-export';
+export type {
+  ArticleMarkdownExportInput,
+  DistillationMarkdownExportInput,
+  MarkdownExportLabels,
+  WeReadBookMarkdownExportInput,
+} from './export/markdown-export';
