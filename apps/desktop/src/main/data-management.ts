@@ -7,6 +7,7 @@ import {
   type OpenDialogOptions,
   type SaveDialogOptions,
 } from 'electron';
+import { withAssistantSessionsPaused } from './assistant-sessions/assistant-session-lifecycle';
 import { validateDatabaseBackupFile } from './db/backup-validation';
 import type {
   DataManagementPathKind,
@@ -68,14 +69,16 @@ export async function restoreDatabaseWithDialog(
   if (result.canceled || !filePath) return { canceled: true };
 
   validateDatabaseBackupFile(filePath);
-  await beforeDatabaseRestore?.();
-  const backupPath = await replaceDatabaseFile(filePath);
-  await onDatabaseRestored();
-  return {
-    canceled: false,
-    backupPath,
-    store: await readStore(),
-  };
+  return withAssistantSessionsPaused(async () => {
+    await beforeDatabaseRestore?.();
+    const backupPath = await replaceDatabaseFile(filePath);
+    await onDatabaseRestored();
+    return {
+      canceled: false as const,
+      backupPath,
+      store: await readStore(),
+    };
+  });
 }
 
 export async function backupFullDataWithDialog(
@@ -101,9 +104,11 @@ export async function restoreFullDataWithDialog(
   );
   const directory = result.filePaths[0];
   if (result.canceled || !directory) return { canceled: true };
-  const backupPath = await restoreFullBackup(directory, beforeDatabaseRestore);
-  await onDatabaseRestored();
-  return { canceled: false, backupPath, store: await readStore() };
+  return withAssistantSessionsPaused(async () => {
+    const backupPath = await restoreFullBackup(directory, beforeDatabaseRestore);
+    await onDatabaseRestored();
+    return { canceled: false as const, backupPath, store: await readStore() };
+  });
 }
 
 function showBackupDirectoryDialog(parentWindow: BrowserWindow | null, title: string) {

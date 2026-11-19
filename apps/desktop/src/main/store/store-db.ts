@@ -29,6 +29,7 @@ let sqlite: SQLiteDatabase.Database | null = null;
 let db: StoreDatabase | null = null;
 let seedDatabase: ((database: StoreDatabase) => void) | null = null;
 let lifecycle: DatabaseLifecycleState = 'open';
+let maintenanceSettled: Promise<void> | undefined;
 let connectionGeneration = 0;
 let activeLeases = 0;
 let leasesDrained: (() => void) | null = null;
@@ -182,8 +183,17 @@ export async function replaceDatabaseFile(sourcePath: string, files?: DatabaseRe
   return withDatabaseMaintenance(() => installDatabaseReplacement(source, target, files));
 }
 
+export async function afterDatabaseMaintenance<T>(operation: () => Promise<T>): Promise<T> {
+  while (maintenanceSettled) await maintenanceSettled;
+  return operation();
+}
+
 export async function withDatabaseMaintenance<T>(operation: () => Promise<T>): Promise<T> {
   if (lifecycle !== 'open') throw new Error('DATA_MANAGEMENT_DATABASE_REPLACING');
+  let settle!: () => void;
+  maintenanceSettled = new Promise<void>((resolve) => {
+    settle = resolve;
+  });
   lifecycle = 'draining';
   logInfo('store.database_maintenance_started', {
     leases: activeLeases,
@@ -194,6 +204,8 @@ export async function withDatabaseMaintenance<T>(operation: () => Promise<T>): P
     return await operation();
   } finally {
     lifecycle = 'open';
+    maintenanceSettled = undefined;
+    settle();
     logInfo('store.database_maintenance_settled', { generation: connectionGeneration });
   }
 }

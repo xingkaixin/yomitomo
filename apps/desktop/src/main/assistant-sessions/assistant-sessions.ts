@@ -24,7 +24,7 @@ import {
 import * as schema from '../db/schema';
 import { searchReadingMemoryEntries } from '../reading-memory/reading-memory-store';
 import { readAgentRuntimeContext } from '../store/store-agents';
-import type { StoreDatabase } from '../store/store-db';
+import { afterDatabaseMaintenance, type StoreDatabase } from '../store/store-db';
 import { createAssistantChannelRuntime } from './assistant-channel-runtime';
 import {
   createAssistantChannelSources,
@@ -125,6 +125,11 @@ function createAssistantSessions(host: AssistantSessionHost) {
   const channelSources = createAssistantChannelSources(host.publishArticlePatch, {
     withDatabase: withPinnedDatabase,
   });
+  const withReplyDatabase: PinnedDatabaseRunner = (operation) =>
+    afterDatabaseMaintenance(() => withPinnedDatabase(operation));
+  const replySources = createAssistantChannelSources(host.publishArticlePatch, {
+    withDatabase: withReplyDatabase,
+  });
   const articleMeta = (articleId: string) =>
     withPinnedDatabase((database) => runtimeArticleMeta(database, articleId));
   const runtime = createAssistantChannelRuntime({
@@ -133,8 +138,10 @@ function createAssistantSessions(host: AssistantSessionHost) {
     articleText: (articleId) => assistantArticleTexts.load(articleId),
     resolveAgent: (agentId, allowDisabled) =>
       resolveAgent(withPinnedDatabase, agentId, allowDisabled),
-    resolveAgentIdentity: (agentId) => resolveAgentIdentity(withPinnedDatabase, agentId),
+    resolveAgentIdentity: (agentId) => resolveAgentIdentity(withReplyDatabase, agentId),
     ...channelSources,
+    publishReply: replySources.publishReply,
+    findDiscussion: replySources.findDiscussion,
     articleMeta,
     publishRun: host.publishRun,
     markPending: async (articleId, pending) => {

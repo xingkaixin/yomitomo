@@ -14,6 +14,10 @@ function listen(listener: (event: AssistantRunEvent) => void) {
 
 export async function deliverAssistantMessage(request: AssistantDeliveryRequest) {
   let runKey: string | null = null;
+  let deliveryId: string | undefined;
+  const matches = (event: AssistantRunEvent) =>
+    event.runKey === runKey &&
+    Boolean(deliveryId && event.settledDeliveryIds?.includes(deliveryId));
   const early: AssistantRunEvent[] = [];
   let resolveSettled!: (event: AssistantRunEvent) => void;
   const settled = new Promise<AssistantRunEvent>((resolve) => {
@@ -23,14 +27,14 @@ export async function deliverAssistantMessage(request: AssistantDeliveryRequest)
   const stop = listen((event) => {
     if (event.status === 'running') return;
     if (runKey === null) early.push(event);
-    else if (event.runKey === runKey) finish(event);
+    else if (matches(event)) finish(event);
   });
   function finish(event: AssistantRunEvent) {
     stop();
     resolveSettled(event);
   }
   try {
-    ({ runKey } = await getDesktopApi().assistant.deliver(request));
+    ({ runKey, deliveryId } = await getDesktopApi().assistant.deliver(request));
   } catch (error) {
     stop();
     throw error;
@@ -39,7 +43,7 @@ export async function deliverAssistantMessage(request: AssistantDeliveryRequest)
     stop();
     return null;
   }
-  const settledEarly = early.find((event) => event.runKey === runKey);
+  const settledEarly = early.find(matches);
   if (settledEarly) finish(settledEarly);
   return { runKey, settled };
 }

@@ -244,7 +244,10 @@ function mockDesktop(
 ) {
   const listeners = new Set<(event: AssistantRunEvent) => void>();
   const desktop = {
-    deliver: vi.fn(deliver),
+    deliver: vi.fn(async (request: AssistantDeliveryRequest) => ({
+      ...(await deliver(request)),
+      deliveryId: request.triggerId,
+    })),
     emit: (event: AssistantRunEvent) => {
       for (const listener of listeners) listener(event);
     },
@@ -274,6 +277,7 @@ function runEvent(
   event: Partial<AssistantRunEvent> & Pick<AssistantRunEvent, 'status'>,
 ): AssistantRunEvent {
   return {
+    settledDeliveryIds: [request.triggerId],
     runKey: runKeyFor(request),
     articleId: request.articleId,
     agentId: request.agentId,
