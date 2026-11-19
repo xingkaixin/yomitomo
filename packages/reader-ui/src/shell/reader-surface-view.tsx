@@ -240,6 +240,7 @@ export function ReaderSurfaceView({
     boxes,
     distillationAnimation,
     newAnnotationIds = emptyNewAnnotationIds,
+    passageFlashBoxes = [],
     searchBoxes = [],
     showEmptyNotes,
     temporaryBoxes,
@@ -287,6 +288,10 @@ export function ReaderSurfaceView({
   const temporarySegments = React.useMemo(
     () => buildHighlightSegments(temporaryBoxes),
     [temporaryBoxes],
+  );
+  const passageFlashSegments = React.useMemo(
+    () => buildHighlightSegments(passageFlashBoxes),
+    [passageFlashBoxes],
   );
   const searchSegments = React.useMemo(() => buildHighlightSegments(searchBoxes), [searchBoxes]);
   const newHighlightDelayBySegmentId = React.useMemo(() => {
@@ -392,6 +397,13 @@ export function ReaderSurfaceView({
                 <HighlightDots colors={segment.colors} />
               </div>
             ))}
+            {passageFlashSegments.map((segment) => (
+              <div
+                className="reader-highlight is-temporary is-passage-flash"
+                key={`${passageFlashBoxes[0]?.id}-${segment.id}`}
+                style={highlightSegmentStyle(segment, true) as React.CSSProperties}
+              />
+            ))}
             {searchSegments.map((segment) => (
               <div
                 className="reader-highlight is-search is-active"
@@ -482,6 +494,11 @@ export function ReaderSurfaceView({
               }
               onCopy={() => selectionActions.onCopySelection(selectionAction)}
               onCopySettled={selectionActions.onClearSelection}
+              onHighlight={
+                selectionActions.onHighlightSelection
+                  ? () => selectionActions.onHighlightSelection?.(selectionAction)
+                  : undefined
+              }
             />
           ) : null}
           {highlightChoice && highlightChoiceAnnotations.length > 1 ? (

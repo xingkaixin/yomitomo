@@ -32,6 +32,8 @@ import type { WebSourceBookcaseProps } from '../bookcase/source-bookcase-types';
 import { sourceTocOptions, useWebReaderBoxes } from './use-web-reader-boxes';
 import {
   articleLinkExternalUrl,
+  articleLinkFragment,
+  findArticleAnchorTarget,
   sourceArticleBodyHtml,
   sourceReaderTocStyles,
   webAnnotationNavigationState,
@@ -165,9 +167,37 @@ function WebSourceReader({
     () => buildTocAnnotationStats(tocItems, annotations, userProfile, annotationAgents),
     [annotationAgents, annotations, tocItems, userProfile],
   );
-  useAssistantPassageReveal(article.id, (start, end) => {
-    const anchor = createTextAnchor(currentArticleText(), start, end);
-    revealReaderChatContext({ sourceType: article.sourceType, quote: anchor.exact, anchor });
+  const passageReveal = useAssistantPassageReveal({
+    articleId: article.id,
+    ready: readingProgress.restored && Boolean(readerBoxes.text),
+    reveal: (start, end) => {
+      const articleElement = articleRef.current;
+      const canvasElement = canvasRef.current;
+      const scrollElement = scrollRef.current;
+      if (!articleElement || !canvasElement || !scrollElement) return [];
+
+      const text = currentArticleText();
+      const anchor = createTextAnchor(text, start, end);
+      const position = resolveTextAnchor(text, anchor);
+      const rangeStart = position?.start ?? start;
+      const rangeEnd = position?.end ?? end;
+      const range = rangeFromOffsetsIgnoringSelector(
+        articleElement,
+        rangeStart,
+        rangeEnd,
+        '[data-reader-translation]',
+      );
+      if (!range) return [];
+
+      const rect = range.getClientRects()[0] || range.getBoundingClientRect();
+      scrollReaderSurfaceToRect(scrollElement, rect, 82);
+      return rangeHighlightBoxes(
+        range,
+        canvasElement.getBoundingClientRect(),
+        'passage-flash',
+        '[data-reader-translation]',
+      );
+    },
   });
 
   const { labels, readerSettings, selection, updateReaderSettings } = sourceReaderWorkspace;
@@ -266,7 +296,37 @@ function WebSourceReader({
     const anchor = target?.closest<HTMLAnchorElement>('a[href]');
     if (!anchor) return;
 
-    const url = articleLinkExternalUrl(article, anchor.getAttribute('href'));
+    const rawHref = anchor.getAttribute('href');
+    const linkFragment = articleLinkFragment(article, rawHref);
+    if (linkFragment) {
+      const articleElement = articleRef.current;
+      const scrollElement = scrollRef.current;
+      if (!linkFragment.fragment && scrollElement) {
+        event.preventDefault();
+        scrollElement.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+      const fragmentTarget =
+        articleElement && linkFragment.fragment
+          ? findArticleAnchorTarget(articleElement, linkFragment.fragment)
+          : null;
+      if (fragmentTarget && scrollElement) {
+        event.preventDefault();
+        const targetRect = fragmentTarget.getBoundingClientRect();
+        const scrollRect = scrollElement.getBoundingClientRect();
+        scrollElement.scrollTo({
+          top: Math.max(0, scrollElement.scrollTop + targetRect.top - scrollRect.top - 24),
+          behavior: 'smooth',
+        });
+        return;
+      }
+      if (linkFragment.isHashOnly) {
+        event.preventDefault();
+        return;
+      }
+    }
+
+    const url = articleLinkExternalUrl(article, rawHref);
     if (!url) return;
 
     event.preventDefault();
@@ -467,6 +527,7 @@ function WebSourceReader({
       distillationAnimation,
       filteredAnnotations: annotations,
       newAnnotationIds,
+      passageFlashBoxes: passageReveal.flashBoxes,
       temporaryBoxes,
     },
     article: {
@@ -538,6 +599,7 @@ function WebSourceReader({
       {activeToc.marker}
       {railDiagnostics.marker}
       {annotationFocusMarker}
+      {passageReveal.marker}
     </section>
   );
 }

@@ -50,6 +50,7 @@ export type UseReaderShellInteractionsOptions = {
   onCopySelection: (action: SelectionAction) => void | Promise<void>;
   onOpenReaderChat?: (source: ReaderChatActivationSource) => void;
   onOpenComposer: (action: SelectionAction) => void;
+  onOpenSearch?: () => void;
   onToggleSettings: () => void;
   readerChatOpen?: boolean;
   shouldPreserveActiveAnnotationOnPointerDown?: (
@@ -82,6 +83,7 @@ export function useReaderShellInteractions({
   onCopySelection,
   onOpenReaderChat,
   onOpenComposer,
+  onOpenSearch,
   onToggleSettings,
   readerChatOpen = false,
   shouldPreserveActiveAnnotationOnPointerDown,
@@ -95,6 +97,14 @@ export function useReaderShellInteractions({
     if (!activeId || visibleAnnotationIds.has(activeId)) return;
     clearActiveAnnotation();
   }, [activeId, visibleAnnotationIds]);
+
+  useEventListener(onOpenSearch ? window : null, 'keydown', (event) => {
+    if (!readerSearchShortcut(event)) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    onOpenSearch?.();
+  });
 
   useEventListener(selectionAction && !composer ? window : null, 'keydown', (event) => {
     if (!selectionAction || event.defaultPrevented) return;
@@ -186,6 +196,19 @@ export function useReaderShellInteractions({
     handleReaderPointerDownCapture,
     toggleSettings,
   };
+}
+
+function readerSearchShortcut(event: KeyboardEvent) {
+  if (
+    event.defaultPrevented ||
+    event.isComposing ||
+    event.altKey ||
+    event.shiftKey ||
+    event.key.toUpperCase() !== 'F'
+  ) {
+    return false;
+  }
+  return (event.metaKey || event.ctrlKey) && !(event.metaKey && event.ctrlKey);
 }
 
 function readerChatShortcut(event: KeyboardEvent) {

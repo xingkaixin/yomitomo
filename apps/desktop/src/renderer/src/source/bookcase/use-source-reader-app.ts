@@ -9,6 +9,7 @@ import type {
 import { errorMessageOrFallback } from '@yomitomo/shared';
 import { createUserAnnotation, type HighlightBox } from '@yomitomo/core';
 import type { ReaderAppViewProps } from '@yomitomo/reader-ui/reader-app-view';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import i18next from 'i18next';
 import { readingMemoryEnabled } from '../../../../reading-memory-release';
 import type { ReaderArticleActions } from '../../shell/app-article-store-actions';
@@ -205,6 +206,8 @@ export function useSourceReaderApp({
     settings,
   );
   const submittedComposerRef = useRef<typeof workspace.selection.composer>(null);
+  const currentSelection = useStableCallback(() => workspace.selection.selectionAction);
+  const submittedQuickHighlightRef = useRef<typeof workspace.selection.selectionAction>(null);
 
   function isCurrentArticle(articleId: string) {
     return session.isCurrentArticle(articleId);
@@ -230,6 +233,29 @@ export function useSourceReaderApp({
     workspace.selection.cancelComposer();
     markAnnotationCreated(annotation.id);
     openAnnotation(annotation.id);
+  }
+
+  async function quickHighlightSelection(
+    action: Parameters<NonNullable<ReaderSelectionActions['onHighlightSelection']>>[0],
+  ) {
+    if (submittedQuickHighlightRef.current === action) return;
+    submittedQuickHighlightRef.current = action;
+    const annotation = createUserAnnotation(action.anchor, sessionInput.userProfile, '');
+    try {
+      await session.saveAnnotation(annotation);
+    } catch (error) {
+      if (submittedQuickHighlightRef.current === action) {
+        submittedQuickHighlightRef.current = null;
+      }
+      throw error;
+    }
+    if (!isCurrentArticle(sessionInput.article.id) || currentSelection()?.anchor !== action.anchor)
+      return false;
+    workspace.selection.clearSelection();
+    window.getSelection()?.removeAllRanges();
+    markAnnotationCreated(annotation.id);
+    openAnnotation(annotation.id);
+    return true;
   }
 
   async function runReaderPersistenceAction(action: string, operation: () => Promise<void>) {
@@ -334,6 +360,12 @@ export function useSourceReaderApp({
         },
         onCloseHighlightChoice: () => workspace.selection.setHighlightChoice(null),
         onCopySelection: workspace.selection.copySelection,
+        onHighlightSelection: async (action) => {
+          await runReaderPersistenceAction('create-annotation', async () => {
+            adapter.lifecycle?.onBeforeCreateAnnotation?.('', action.anchor);
+            if (await quickHighlightSelection(action)) adapter.lifecycle?.onClearSelection?.();
+          });
+        },
         onMouseUp: adapter.selection?.onMouseUp ?? (() => undefined),
         onOpenComposer: (action) => {
           adapter.lifecycle?.onOpenComposer?.(action);

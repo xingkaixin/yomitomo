@@ -1,7 +1,8 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Add01Icon, Cancel01Icon } from '@hugeicons/core-free-icons';
 import { useCallback, useReducer, useRef } from 'react';
-import type { PublicAgent } from '@yomitomo/shared';
+import type { MessageSendShortcut, PublicAgent } from '@yomitomo/shared';
+import { normalizeMessageSendShortcut } from '@yomitomo/shared';
 import { findMentionedAgents, getMentionQuery } from '@yomitomo/core';
 import { useTranslation } from 'react-i18next';
 import { FloatingComposer } from '@yomitomo/reader-ui/floating-composer';
@@ -31,6 +32,7 @@ export function AddThoughtDialog({
   caretIndex,
   celebrating,
   draft,
+  messageSendShortcut,
   mode,
   onCancel,
   onCaretChange,
@@ -46,6 +48,7 @@ export function AddThoughtDialog({
   caretIndex: number;
   celebrating: boolean;
   draft: string;
+  messageSendShortcut?: MessageSendShortcut;
   mode: 'self' | 'assistant';
   onCancel: () => void;
   onCaretChange: (value: number) => void;
@@ -64,7 +67,8 @@ export function AddThoughtDialog({
     query: null,
   });
   const shortcutModifier = getShortcutModifier();
-  const mentionQuery = mode === 'assistant' ? getMentionQuery(draft, caretIndex) : null;
+  const sendShortcut = normalizeMessageSendShortcut(messageSendShortcut);
+  const mentionQuery = getMentionQuery(draft, caretIndex);
   const matchedAgents =
     mentionQuery === null
       ? []
@@ -82,7 +86,7 @@ export function AddThoughtDialog({
   // The submission closes the dialog itself; closing early lets it close a reopened dialog.
   const canCancel = !submitting && (!showingAssistantRun || !runIsActive);
   const handleSubmitKeyDown = useCompositionSubmit({
-    messageSendShortcut: 'mod-enter',
+    messageSendShortcut: sendShortcut,
     onCancel,
     onSubmit,
   });
@@ -95,10 +99,7 @@ export function AddThoughtDialog({
 
   function updateCaret(element: HTMLTextAreaElement) {
     onCaretChange(element.selectionStart);
-    const query =
-      mode === 'assistant'
-        ? (getMentionQuery(element.value, element.selectionStart)?.query ?? null)
-        : null;
+    const query = getMentionQuery(element.value, element.selectionStart)?.query ?? null;
     dispatchMentionHighlight({ type: 'caretMoved', query });
   }
 
@@ -200,7 +201,7 @@ export function AddThoughtDialog({
                           {t('discussion.addThought.assistantMode')}
                         </button>
                       </div>
-                      {mode === 'assistant' ? (
+                      {agents.length > 0 ? (
                         <div className="annotation-discussion-add-agents">
                           <AgentAvatarStack
                             agents={agents}
@@ -240,7 +241,7 @@ export function AddThoughtDialog({
                       </div>
                     ) : null
                   }
-                  mentionAgents={mode === 'assistant' ? agents : []}
+                  mentionAgents={agents}
                   submitDisabled={!canSubmit}
                   submitIcon={<HugeiconsIcon icon={Add01Icon} size={14} />}
                   submitLabel={
@@ -249,7 +250,7 @@ export function AddThoughtDialog({
                   submitTooltip={
                     <SubmitShortcutTooltipContent
                       label={t('discussion.addThought.add')}
-                      shortcut="mod-enter"
+                      shortcut={sendShortcut}
                       shortcutModifier={shortcutModifier}
                     />
                   }
@@ -285,7 +286,16 @@ export function AddThoughtDialog({
                         );
                         return;
                       }
-                      if (matchedAgents.length > 0 && event.key === 'Tab') {
+                      if (
+                        matchedAgents.length > 0 &&
+                        (event.key === 'Tab' ||
+                          (event.key === 'Enter' &&
+                            !event.metaKey &&
+                            !event.ctrlKey &&
+                            !event.altKey &&
+                            !event.shiftKey &&
+                            !event.nativeEvent.isComposing))
+                      ) {
                         event.preventDefault();
                         const agent = matchedAgents[selectedMentionIndex] || matchedAgents[0];
                         if (agent) selectMentionAgent(agent);

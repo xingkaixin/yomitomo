@@ -52,6 +52,10 @@ export function bindMainWindowEvents(stores: {
     if (isStoreLocked(desktopStore.getState().store)) return;
     sessionStore.getState().actions.runMenuCommand(command);
   });
+  const unsubscribeRevealPassage = getDesktopApi().assistant?.onRevealPassage?.((request) => {
+    if (isStoreLocked(desktopStore.getState().store)) return;
+    sessionStore.getState().actions.revealPassage(request);
+  });
   const unsubscribeUpdateStatus = getDesktopApi().updates.onStatus((state) =>
     queryClient.setQueryData(appUpdateStateQuery.queryKey, state),
   );
@@ -88,6 +92,7 @@ export function bindMainWindowEvents(stores: {
   return () => {
     unsubscribeStore();
     unsubscribeMenuCommands();
+    unsubscribeRevealPassage?.();
     unsubscribeUpdateStatus();
     unbindLibraryQueryEvents();
     unbindUpdateDialogEvents();

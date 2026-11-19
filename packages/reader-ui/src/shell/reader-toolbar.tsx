@@ -64,6 +64,7 @@ export type ReaderFloatingToolbarProps = {
   controls?: React.ReactNode;
   hasToc: boolean;
   search?: ReaderSearchToolbarState;
+  searchInputRef?: React.MutableRefObject<HTMLInputElement | null>;
   labels?: ReaderFloatingToolbarLabels;
   showAnnotationNavigation: boolean;
   tocOpen: boolean;
@@ -176,6 +177,7 @@ export function ReaderFloatingToolbar({
   controls,
   hasToc,
   search,
+  searchInputRef,
   labels = defaultReaderUiLabels,
   showAnnotationNavigation,
   tocOpen,
@@ -188,7 +190,13 @@ export function ReaderFloatingToolbar({
       : '0/0';
 
   if (search?.open) {
-    return <ReaderFloatingSearchToolbar labels={labels} search={search} />;
+    return (
+      <ReaderFloatingSearchToolbar
+        labels={labels}
+        search={search}
+        searchInputRef={searchInputRef}
+      />
+    );
   }
 
   return (
@@ -305,9 +313,11 @@ function ReaderTocToggleIcon({ open }: { open: boolean }) {
 function ReaderFloatingSearchToolbar({
   labels = defaultReaderUiLabels,
   search,
+  searchInputRef,
 }: {
   labels?: ReaderFloatingSearchToolbarLabels;
   search: ReaderSearchToolbarState;
+  searchInputRef?: React.MutableRefObject<HTMLInputElement | null>;
 }) {
   const inputRef = React.useRef<HTMLInputElement | null>(null);
   const clear = useSearchClearDissolve({
@@ -328,13 +338,30 @@ function ReaderFloatingSearchToolbar({
           ? '0/0'
           : '';
 
-  const attachInput = React.useCallback((input: HTMLInputElement | null) => {
-    inputRef.current = input;
-    input?.focus();
-    input?.select();
-  }, []);
+  const attachInput = React.useCallback(
+    (input: HTMLInputElement | null) => {
+      inputRef.current = input;
+      if (searchInputRef) searchInputRef.current = input;
+      input?.focus();
+      input?.select();
+    },
+    [searchInputRef],
+  );
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (
+      !event.altKey &&
+      !event.shiftKey &&
+      (event.metaKey || event.ctrlKey) &&
+      !(event.metaKey && event.ctrlKey) &&
+      event.key.toUpperCase() === 'F'
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      inputRef.current?.focus();
+      inputRef.current?.select();
+      return;
+    }
     event.stopPropagation();
     if (event.key === 'Escape') {
       event.preventDefault();

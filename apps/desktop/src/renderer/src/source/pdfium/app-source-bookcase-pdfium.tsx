@@ -713,6 +713,55 @@ function PdfiumDocument({ actions, document, source, toc, viewportOverlay }: Pdf
     [annotationAgents, annotations, pdfTextDocument, tocItems, userProfile],
   );
 
+  const passageReveal = useAssistantPassageReveal({
+    articleId: article.id,
+    ready: Boolean(loadedDocument && pdfFirstPageReady),
+    reveal: async (start, end) => {
+      if (!loadedDocument) return [];
+      const textDocument = pdfTextDocument ?? (await ensurePdfTextDocument());
+      const page = textDocument.pages.find((item) => start < item.textEnd);
+      if (!page) return [];
+
+      const pdfPage = loadedDocument.pages[page.pageIndex];
+      if (!pdfPage) return [];
+      const rangeStart = Math.max(0, start - page.bodyStart);
+      const rangeEnd = Math.max(rangeStart, Math.min(end, page.bodyEnd) - page.bodyStart);
+      if (rangeEnd <= rangeStart) return [];
+
+      const geometry = await engine.getPageGeometry(loadedDocument, pdfPage).toPromise();
+      const rects = pdfiumRectsForTextRange(
+        geometry,
+        rangeStart,
+        rangeEnd,
+        pdfPage.size.width,
+        pdfPage.size.height,
+      );
+      const first = rects[0];
+      if (!first || !scroll) return [];
+      scroll.scrollToPage({
+        pageNumber: page.pageIndex + 1,
+        pageCoordinates: { x: first.x * pdfPage.size.width, y: first.y * pdfPage.size.height },
+        alignY: 25,
+        behavior: 'instant',
+      });
+      // The virtual list mounts a distant page after the viewport applies the scroll.
+      let metric;
+      for (let frame = 0; frame < 12 && !metric; frame += 1) {
+        await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+        pageMetricsSource.updatePageMetrics();
+        metric = pageMetricsRef.current[page.pageIndex];
+      }
+      if (!metric) return [];
+      return rects.map((rect, index) => ({
+        id: `passage-flash-${index}`,
+        top: metric.top + rect.y * metric.height,
+        left: metric.left + rect.x * metric.width,
+        width: Math.max(1, rect.width * metric.width),
+        height: Math.max(2, rect.height * metric.height),
+      }));
+    },
+  });
+
   const pdfHeaderByline = formatPdfHeaderAuthors(article.pdf.metadata.author || '');
   const { searchOpen, viewProps: readerAppViewProps } = useSourceReaderAppView({
     app: sourceReaderApp,
@@ -747,6 +796,7 @@ function PdfiumDocument({ actions, document, source, toc, viewportOverlay }: Pdf
       distillationAnimation,
       filteredAnnotations: visiblePdfAnnotations,
       newAnnotationIds,
+      passageFlashBoxes: passageReveal.flashBoxes,
       railLayoutOverride: annotationRailLayout,
       temporaryBoxes: visibleTemporaryBoxes,
     },
@@ -942,13 +992,6 @@ function PdfiumDocument({ actions, document, source, toc, viewportOverlay }: Pdf
       cancelled = true;
     };
   }, []);
-  useAssistantPassageReveal(article.id, (start) => {
-    void (async () => {
-      const textDocument = pdfTextDocument ?? (await ensurePdfTextDocument());
-      const page = textDocument.pages.find((item) => start < item.textEnd);
-      if (page) scroll?.scrollToPage({ pageNumber: page.pageIndex + 1, behavior: 'smooth' });
-    })().catch(() => undefined);
-  });
   const readSearchTextInput = useStableCallback(() => ({
     ensurePdfTextDocument,
     setStatusMessage,
@@ -1013,6 +1056,7 @@ function PdfiumDocument({ actions, document, source, toc, viewportOverlay }: Pdf
       {readerLayout.markers}
       {navigation.markers}
       {openLifecycleMarkers}
+      {passageReveal.marker}
       {loadedDocument && pdfFirstPageReady ? (
         <span
           hidden

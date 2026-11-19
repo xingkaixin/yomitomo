@@ -287,6 +287,12 @@ export function ReadingLibrary({
     sourceJumpRef.current = null;
     navigation.actions.resetLibrary();
   });
+  const isReadingArticle = useStableCallback(
+    (articleId: string) => activeShelf === 'source' && selectedArticleId === articleId,
+  );
+  const openArticleById = useStableCallback((articleId: string) => {
+    void openLibraryArticle(articleId);
+  });
   const receiveWeReadState = useStableCallback((state: WeReadState) => {
     void weRead.receiveState(state);
   });
@@ -301,6 +307,8 @@ export function ReadingLibrary({
       if (state.store?.articles !== previous.store?.articles) rehydrateCurrentArticle();
     });
     const unregisterView = librarySession.actions.registerLibraryView({
+      isReadingArticle: (articleId) => isReadingArticle(articleId),
+      openArticle: (articleId) => openArticleById(articleId),
       showHome: () => showLibraryHome(),
       receiveWeReadState: (state) => receiveWeReadState(state),
     });

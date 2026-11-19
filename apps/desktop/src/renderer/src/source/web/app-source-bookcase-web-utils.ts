@@ -177,6 +177,60 @@ export function sourceArticleBodyHtml(
   return sanitizeArticleContentHtml(document, html, article.canonicalUrl || article.url);
 }
 
+export function articleLinkFragment(
+  article: Pick<ArticleRecord, 'canonicalUrl' | 'url'>,
+  href: string | null,
+): { fragment: string; isHashOnly: boolean } | null {
+  const rawHref = href?.trim();
+  if (!rawHref) return null;
+  if (rawHref.startsWith('#')) {
+    return { fragment: rawHref.slice(1), isHashOnly: true };
+  }
+
+  const resolvedHref = httpUrlObject(
+    rawHref,
+    httpUrl(article.canonicalUrl) || httpUrl(article.url),
+  );
+  if (!resolvedHref || !resolvedHref.hash) return null;
+
+  const baseCandidates = [article.canonicalUrl, article.url]
+    .map((candidate) => (candidate ? httpUrlObject(candidate) : null))
+    .filter((candidate): candidate is URL => Boolean(candidate));
+
+  const sameDocument = baseCandidates.some(
+    (base) =>
+      base.origin === resolvedHref.origin &&
+      base.pathname === resolvedHref.pathname &&
+      base.search === resolvedHref.search,
+  );
+  return sameDocument ? { fragment: resolvedHref.hash.slice(1), isHashOnly: false } : null;
+}
+
+export function findArticleAnchorTarget(
+  articleElement: HTMLElement,
+  fragment: string,
+): HTMLElement | null {
+  if (!fragment) return null;
+  const decoded = safeDecodeFragment(fragment);
+  const candidates = decoded && decoded !== fragment ? [fragment, decoded] : [fragment];
+
+  const elementsWithId = articleElement.querySelectorAll<HTMLElement>('[id]');
+  for (const candidate of candidates) {
+    for (const element of elementsWithId) {
+      if (element.getAttribute('id') === candidate) return element;
+    }
+  }
+
+  const elementsWithName = articleElement.querySelectorAll<HTMLElement>('a[name], [name]');
+  for (const candidate of candidates) {
+    for (const element of elementsWithName) {
+      if (element.getAttribute('name') === candidate) return element;
+    }
+  }
+
+  return null;
+}
+
 export function articleLinkExternalUrl(article: ArticleRecord, href: string | null) {
   const rawHref = href?.trim();
   if (!rawHref || rawHref.startsWith('#')) return '';
@@ -191,9 +245,21 @@ export function articleLinkExternalUrl(article: ArticleRecord, href: string | nu
 }
 
 function httpUrl(value: string, base?: string) {
+  return httpUrlObject(value, base)?.href ?? '';
+}
+
+function httpUrlObject(value: string, base?: string) {
   try {
     const url = new URL(value, base);
-    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : '';
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url : null;
+  } catch {
+    return null;
+  }
+}
+
+function safeDecodeFragment(value: string) {
+  try {
+    return decodeURIComponent(value);
   } catch {
     return '';
   }

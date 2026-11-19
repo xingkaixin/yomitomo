@@ -235,7 +235,17 @@ export function useFoliateInputBridge({
           if (event.defaultPrevented || isEditableKeyboardTarget(event.target)) return;
           // Keys pressed inside the section iframe never reach the host window, where the reader's
           // own shortcuts listen.
-          window.dispatchEvent(new KeyboardEvent('keydown', event));
+          const forwarded = new KeyboardEvent('keydown', {
+            key: event.key,
+            code: event.code,
+            metaKey: event.metaKey,
+            ctrlKey: event.ctrlKey,
+            altKey: event.altKey,
+            shiftKey: event.shiftKey,
+            repeat: event.repeat,
+            cancelable: true,
+          });
+          if (!window.dispatchEvent(forwarded)) event.preventDefault();
         };
 
         doc.addEventListener('mousedown', handleMouseDown, true);

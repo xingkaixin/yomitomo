@@ -96,6 +96,7 @@ function ReaderAppViewComponent(
   const canvasRef = React.useRef<HTMLDivElement | null>(null);
   const noteRefs = React.useRef(new Map<string, HTMLElement>());
   const notesRef = React.useRef<HTMLElement | null>(null);
+  const searchInputRef = React.useRef<HTMLInputElement | null>(null);
   const surfaceRef = React.useRef<HTMLDivElement | null>(null);
   const { embedded = false } = options ?? {};
   const tocOpen = toc.open;
@@ -125,6 +126,14 @@ function ReaderAppViewComponent(
     },
     [selectionActions],
   );
+  const openSearch = React.useCallback(() => {
+    toolbar?.search?.onOpen();
+    const input = searchInputRef.current;
+    if (input) {
+      input.focus();
+      input.select();
+    }
+  }, [toolbar?.search]);
   const {
     annotationNavigation,
     annotationRail,
@@ -163,6 +172,7 @@ function ReaderAppViewComponent(
     onNavigateAnnotation: annotationActions.onNavigateAnnotation,
     onOpenReaderChat: chatActions ? openReaderChat : undefined,
     onOpenComposer: selectionActions.onOpenComposer,
+    onOpenSearch: toolbar?.search ? openSearch : undefined,
     onResolveAnnotationNavigation: annotationActions.onResolveAnnotationNavigation,
     onToggleSettings: shell.onToggleSettings,
     readerChatOpen: chat?.open,
@@ -247,6 +257,7 @@ function ReaderAppViewComponent(
           hasToc={hasToc}
           labels={labels}
           search={toolbar?.search}
+          searchInputRef={searchInputRef}
           showAnnotationNavigation={Boolean(
             annotationActions.onResolveAnnotationNavigation &&
             annotationActions.onNavigateAnnotation,
