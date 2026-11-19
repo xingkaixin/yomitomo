@@ -239,7 +239,7 @@ async function fileByteSize(filePath: string) {
 
 async function readLogTailText(filePath: string, fileSize: number, maxTailBytes: number) {
   if (fileSize <= 0 || maxTailBytes <= 0) return '';
-  const bytesToRead = Math.min(fileSize, maxTailBytes);
+  const bytesToRead = Math.min(fileSize, maxTailBytes + 1);
   const offset = fileSize - bytesToRead;
   const handle = await open(filePath, 'r');
   try {
@@ -256,7 +256,7 @@ async function readLogTailText(filePath: string, fileSize: number, maxTailBytes:
       totalRead += bytesRead;
     }
     const slice = buffer.subarray(0, totalRead);
-    if (offset === 0) return slice.toString('utf8');
+    if (fileSize <= maxTailBytes) return slice.toString('utf8');
     // 0x0a never occurs inside a multi-byte UTF-8 sequence, so advancing past it avoids split chars and partial JSON lines.
     const firstNewline = slice.indexOf(0x0a);
     if (firstNewline === -1) return '';

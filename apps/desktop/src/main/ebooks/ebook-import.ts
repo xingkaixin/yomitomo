@@ -741,7 +741,7 @@ function resolveZipPath(baseDir: string, href: string) {
 
 function decodeZipPathComponent(path: string) {
   try {
-    return decodeURIComponent(path);
+    return decodeURIComponent(path.replace(/%(?![\da-f]{2})/gi, '%25'));
   } catch {
     return path;
   }

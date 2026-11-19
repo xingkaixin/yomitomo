@@ -325,7 +325,7 @@ describe('articleRecordFromEpubFile', () => {
         </metadata>
         <manifest>
           <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
-          <item id="c1" href="100%.xhtml" media-type="application/xhtml+xml"/>
+          <item id="c1" href="Chapter%20100%.xhtml" media-type="application/xhtml+xml"/>
         </manifest>
         <spine>
           <itemref idref="c1"/>
@@ -334,9 +334,12 @@ describe('articleRecordFromEpubFile', () => {
     );
     zip.file(
       'OPS/nav.xhtml',
-      `<html><body><nav epub:type="toc"><ol><li><a href="100%.xhtml">百分百章节</a></li></ol></nav></body></html>`,
+      `<html><body><nav epub:type="toc"><ol><li><a href="Chapter%20100%.xhtml">百分百章节</a></li></ol></nav></body></html>`,
     );
-    zip.file('OPS/100%.xhtml', '<html><body><p>包含裸百分号路径的章节正文。</p></body></html>');
+    zip.file(
+      'OPS/Chapter 100%.xhtml',
+      '<html><body><p>包含裸百分号路径的章节正文。</p></body></html>',
+    );
 
     const buffer = await zip.generateAsync({ type: 'nodebuffer' });
     const article = await articleRecordFromEpubFile({

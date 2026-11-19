@@ -100,13 +100,20 @@ function articleRecordFromUrlEffect(input: string, options: ArticleImportOptions
         controller.signal,
       );
       yield* throwIfArticleImportCanceledEffect(controller.signal);
-      return yield* extractArticleRecordInWorkerEffect({
+      const renderedArticle = yield* extractArticleRecordInWorkerEffect({
         html: renderedPage.html,
         inlineImages: options.inlineImages === true,
         signal: controller.signal,
         url: renderedPage.url,
         userAgent: importUserAgent(renderedPage.url),
       });
+      if (!renderedArticle.contentHtml?.trim()) {
+        return yield* Effect.fail(new SourceImportError('ARTICLE_IMPORT_RENDER_EMPTY'));
+      }
+      return renderedArticle;
+    }
+    if (page.rendered && !extracted.contentHtml?.trim()) {
+      return yield* Effect.fail(new SourceImportError('ARTICLE_IMPORT_RENDER_EMPTY'));
     }
     return extracted;
   }).pipe(
@@ -413,12 +420,13 @@ async function waitForRenderedPage(
     url?: unknown;
   } = {};
 
-  while (Date.now() < deadline) {
-    await wait(RENDERED_IMPORT_SETTLE_MS, signal);
-    throwIfArticleImportCanceled(signal);
-    lastPage = renderedPageValue(
-      await webContents.executeJavaScript(
-        `(() => {
+  try {
+    while (Date.now() < deadline) {
+      await wait(RENDERED_IMPORT_SETTLE_MS, signal);
+      throwIfArticleImportCanceled(signal);
+      lastPage = renderedPageValue(
+        await webContents.executeJavaScript(
+          `(() => {
         const html = document.documentElement.outerHTML;
         const htmlByteLength = new Blob([html]).size;
         return {
@@ -429,20 +437,24 @@ async function waitForRenderedPage(
         url: location.href
       };
       })()`,
-        true,
-      ),
-    );
-    throwIfArticleImportCanceled(signal);
-    if (renderedPageTooLarge(lastPage)) {
-      throw new SourceImportError('ARTICLE_IMPORT_RESPONSE_TOO_LARGE');
+          true,
+        ),
+      );
+      throwIfArticleImportCanceled(signal);
+      if (renderedPageTooLarge(lastPage)) {
+        throw new SourceImportError('ARTICLE_IMPORT_RESPONSE_TOO_LARGE');
+      }
+      if (!isChallengePage(lastPage) && !isSpaShellHtml(stringField(lastPage.html)))
+        return lastPage;
     }
-    if (!isChallengePage(lastPage)) return lastPage;
+  } catch (error) {
+    if (!signal.aborted || !lastPage.html) throw error;
   }
 
   if (isChallengePage(lastPage)) {
     throw new SourceImportError('ARTICLE_IMPORT_CHALLENGE_BLOCKED');
   }
-  return lastPage;
+  throw new SourceImportError('ARTICLE_IMPORT_RENDER_EMPTY');
 }
 
 function isChallengePage(page: { text?: unknown; title?: unknown }) {
