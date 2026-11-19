@@ -1014,7 +1014,11 @@ function PdfiumDocument({ actions, document, source, toc, viewportOverlay }: Pdf
       {navigation.markers}
       {openLifecycleMarkers}
       {loadedDocument && pdfFirstPageReady ? (
-        <span hidden key={tocVersion} ref={saveAssistantText} />
+        <span
+          hidden
+          key={`${pdfTextDocument ? 'text' : 'pending'}:${tocVersion}`}
+          ref={saveAssistantText}
+        />
       ) : null}
       {searchOpen && loadedDocument ? <span hidden ref={prepareSearchText} /> : null}
     </section>
