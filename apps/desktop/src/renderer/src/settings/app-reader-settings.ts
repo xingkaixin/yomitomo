@@ -111,13 +111,16 @@ export function writeDesktopReaderBackgroundForTone(backgroundColor: string) {
 export function subscribeDesktopReaderSettings(listener: (settings: ReaderSettings) => void) {
   if (typeof window === 'undefined') return () => undefined;
 
-  const handleSettingsChange = (event: Event) => {
-    listener(
-      normalizeDesktopReaderSettings((event as CustomEvent<Partial<ReaderSettings>>).detail),
-    );
+  const handleSettingsChange = () => listener(readDesktopReaderSettings());
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === DESKTOP_READER_SETTINGS_KEY || event.key === null) handleSettingsChange();
   };
   window.addEventListener(DESKTOP_READER_SETTINGS_EVENT, handleSettingsChange);
-  return () => window.removeEventListener(DESKTOP_READER_SETTINGS_EVENT, handleSettingsChange);
+  window.addEventListener('storage', handleStorage);
+  return () => {
+    window.removeEventListener(DESKTOP_READER_SETTINGS_EVENT, handleSettingsChange);
+    window.removeEventListener('storage', handleStorage);
+  };
 }
 
 export function useDesktopReaderSettings() {

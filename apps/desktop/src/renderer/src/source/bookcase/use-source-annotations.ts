@@ -20,7 +20,6 @@ import {
 } from '@yomitomo/core';
 import {
   annotationsWithSavedAnnotation,
-  annotationsWithSavedColor,
   annotationsWithSavedComment,
   articleWithAnnotations,
 } from './source-annotation-updates';
@@ -291,12 +290,7 @@ export function useSourceAnnotations(options: UseSourceAnnotationsOptions) {
         return;
       }
       const timestamp = new Date().toISOString();
-      const updatedAt = await persist(articleId, annotationId, trimmed, timestamp);
-      if (updatedAt)
-        applySavedAnnotations(
-          (items) => annotationsWithSavedColor(items, annotationId, trimmed, timestamp),
-          updatedAt,
-        );
+      await persist(articleId, annotationId, trimmed, timestamp);
     }
 
     return {
