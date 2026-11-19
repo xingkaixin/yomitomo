@@ -6,6 +6,7 @@ const workerMocks = vi.hoisted(() => {
 
   class MockWorker {
     static nextMessage: unknown;
+    static nextMessages: unknown[] = [];
     static delayMessage = false;
 
     readonly handlers = new Map<string, Handler[]>();
@@ -18,8 +19,12 @@ const workerMocks = vi.hoisted(() => {
       this.workerData = options.workerData;
       instances.push(this);
 
-      if (MockWorker.nextMessage !== undefined && !MockWorker.delayMessage) {
-        queueMicrotask(() => this.emit('message', MockWorker.nextMessage));
+      const message =
+        MockWorker.nextMessages.length > 0
+          ? MockWorker.nextMessages.shift()
+          : MockWorker.nextMessage;
+      if (message !== undefined && !MockWorker.delayMessage) {
+        queueMicrotask(() => this.emit('message', message));
       }
     }
 
@@ -90,6 +95,9 @@ vi.mock('electron', () => ({
     }
 
     async loadURL() {
+      if (browserWindowMocks.loadUrlDelayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, browserWindowMocks.loadUrlDelayMs));
+      }
       return undefined;
     }
 
@@ -122,6 +130,7 @@ const browserWindowMocks = vi.hoisted(() => ({
       setWindowOpenHandler: ReturnType<typeof vi.fn>;
     };
   }>,
+  loadUrlDelayMs: 0,
   nextRenderedPage: undefined as
     | {
         html: string;
@@ -141,11 +150,14 @@ import {
 
 describe('article import', () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
     workerMocks.instances.length = 0;
     browserWindowMocks.instances.length = 0;
+    browserWindowMocks.loadUrlDelayMs = 0;
     browserWindowMocks.nextRenderedPage = undefined;
     workerMocks.MockWorker.nextMessage = undefined;
+    workerMocks.MockWorker.nextMessages = [];
     workerMocks.MockWorker.delayMessage = false;
   });
 
@@ -297,6 +309,101 @@ describe('article import', () => {
     expect(checkPermission(webContents, 'geolocation', 'https://example.com', {})).toBe(false);
     const openWindow = webContents.setWindowOpenHandler.mock.calls[0][0];
     expect(openWindow({ url: 'https://example.com/popup' })).toEqual({ action: 'deny' });
+  });
+
+  it('gives browser fallback its own timeout budget after a slow direct response', async () => {
+    vi.useFakeTimers();
+    const article = articleRecord();
+    workerMocks.MockWorker.nextMessage = { ok: true, article };
+    browserWindowMocks.loadUrlDelayMs = 12_000;
+    vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      (_input, init) =>
+        new Promise<Response>((resolve, reject) => {
+          const timer = setTimeout(
+            () => resolve(new Response('<html>cf-browser-verification</html>')),
+            10_000,
+          );
+          init?.signal?.addEventListener(
+            'abort',
+            () => {
+              clearTimeout(timer);
+              reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
+            },
+            { once: true },
+          );
+        }),
+    );
+
+    const pending = articleRecordFromUrl('https://example.com/slow-challenge');
+    await vi.advanceTimersByTimeAsync(10_000);
+    await vi.advanceTimersByTimeAsync(14_000);
+
+    await expect(pending).resolves.toEqual(article);
+    expect(browserWindowMocks.instances).toHaveLength(1);
+  });
+
+  it('terminates a stalled extraction worker after the worker timeout', async () => {
+    vi.useFakeTimers();
+    workerMocks.MockWorker.delayMessage = true;
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('<html><body>正文</body></html>'));
+
+    const pending = articleRecordFromUrl('https://example.com/stalled-worker');
+    const assertion = expect(pending).rejects.toMatchObject({
+      importCode: 'ARTICLE_IMPORT_TIMEOUT',
+    });
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    await assertion;
+    expect(workerMocks.instances).toHaveLength(1);
+    expect(workerMocks.instances[0].terminated).toBe(true);
+  });
+
+  it('falls back once to rendered import for 200 OK empty SPA shells', async () => {
+    const emptyShellArticle = { ...articleRecord(), contentHtml: '' };
+    const renderedArticle = {
+      ...articleRecord(),
+      contentHtml: '<article><p>Rendered SPA article content.</p></article>',
+    };
+    workerMocks.MockWorker.nextMessages = [
+      { ok: true, article: emptyShellArticle },
+      { ok: true, article: renderedArticle },
+    ];
+    browserWindowMocks.nextRenderedPage = {
+      html: '<html><body><div id="root"><article><p>Rendered SPA article content.</p></article></div></body></html>',
+      htmlByteLength: 106,
+      text: 'Rendered SPA article content.',
+      title: 'SPA Article',
+      url: 'https://example.com/spa',
+    };
+    vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        '<!doctype html><html><body><div id="root"></div><script type="module" src="/assets/app.js"></script></body></html>',
+        { headers: { 'content-type': 'text/html' } },
+      ),
+    );
+
+    await expect(articleRecordFromUrl('https://example.com/spa')).resolves.toEqual(renderedArticle);
+    expect(browserWindowMocks.instances).toHaveLength(1);
+    expect(workerMocks.instances).toHaveLength(2);
+  });
+
+  it('does not trigger rendered fallback for short static articles without a SPA shell', async () => {
+    const shortArticle = { ...articleRecord(), contentHtml: '<p>简短静态文章。</p>' };
+    workerMocks.MockWorker.nextMessage = { ok: true, article: shortArticle };
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        '<html><body><p>简短静态文章。</p><script src="/analytics.js"></script></body></html>',
+        {
+          headers: { 'content-type': 'text/html' },
+        },
+      ),
+    );
+
+    await expect(articleRecordFromUrl('https://example.com/short')).resolves.toEqual(shortArticle);
+    expect(browserWindowMocks.instances).toHaveLength(0);
+    expect(workerMocks.instances).toHaveLength(1);
   });
 });
 

@@ -27,10 +27,14 @@ const IMPORT_TIMEOUT_MS = 15_000;
 export const MAX_ARTICLE_IMPORT_HTML_BYTES = 5_000_000;
 const RENDERED_IMPORT_TIMEOUT_MS = 20_000;
 const RENDERED_IMPORT_SETTLE_MS = 1_500;
+const WORKER_IMPORT_TIMEOUT_MS = 60_000;
+const SPA_FALLBACK_MAX_TEXT_CHARS = 120;
 const MAX_ARTICLE_IMPORT_REDIRECTS = 5;
 const WECHAT_MOBILE_USER_AGENT =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1 MicroMessenger/8.0.49';
 const ARTICLE_IMPORT_CANCELED_CODE = 'ARTICLE_IMPORT_CANCELED';
+const EMPTY_SPA_MOUNT_PATTERN =
+  /<(div|main|section|span)\b[^>]*\bid\s*=\s*(?:"(?:root|app|__next|__nuxt|react-root|app-root)"|'(?:root|app|__next|__nuxt|react-root|app-root)')[^>]*>\s*(?:(?:<!--[\s\S]*?-->|<noscript\b[^>]*>[\s\S]*?<\/noscript>)\s*)*<\/\1>/i;
 
 type ArticleImportOptions = {
   inlineImages?: boolean;
@@ -39,8 +43,13 @@ type ArticleImportOptions = {
 
 type ArticleHtml = {
   html: string;
+  rendered: boolean;
   url: string;
 };
+
+type DirectArticleFetchResult =
+  | { kind: 'html'; html: string; url: string }
+  | { kind: 'render'; url: string; userAgent?: string };
 
 type ArticleFetchResponse = {
   response: Response;
@@ -76,13 +85,30 @@ function articleRecordFromUrlEffect(input: string, options: ArticleImportOptions
     yield* throwIfArticleImportCanceledEffect(controller.signal);
     const page = yield* fetchArticleHtmlEffect(url, controller.signal);
     yield* throwIfArticleImportCanceledEffect(controller.signal);
-    return yield* extractArticleRecordInWorkerEffect({
+    const extracted = yield* extractArticleRecordInWorkerEffect({
       html: page.html,
       inlineImages: options.inlineImages === true,
       signal: controller.signal,
       url: page.url,
       userAgent: importUserAgent(page.url),
     });
+    if (!page.rendered && shouldFallbackToRenderedImport(page.html, extracted)) {
+      yield* throwIfArticleImportCanceledEffect(controller.signal);
+      const renderedPage = yield* loadRenderedArticleHtmlEffect(
+        page.url,
+        importUserAgent(page.url),
+        controller.signal,
+      );
+      yield* throwIfArticleImportCanceledEffect(controller.signal);
+      return yield* extractArticleRecordInWorkerEffect({
+        html: renderedPage.html,
+        inlineImages: options.inlineImages === true,
+        signal: controller.signal,
+        url: renderedPage.url,
+        userAgent: importUserAgent(renderedPage.url),
+      });
+    }
+    return extracted;
   }).pipe(
     Effect.ensuring(Effect.sync(() => unregisterArticleImportTask(options.requestId, controller))),
   );
@@ -123,6 +149,19 @@ function normalizeImportUrl(input: string) {
 }
 
 function fetchArticleHtmlEffect(url: string, signal: AbortSignal) {
+  return Effect.gen(function* () {
+    const direct = yield* fetchDirectArticleHtmlEffect(url, signal);
+    if (direct.kind === 'render') {
+      return yield* loadRenderedArticleHtmlEffect(direct.url, direct.userAgent, signal);
+    }
+    return { html: direct.html, rendered: false, url: direct.url };
+  });
+}
+
+function fetchDirectArticleHtmlEffect(
+  url: string,
+  signal: AbortSignal,
+): Effect.Effect<DirectArticleFetchResult, unknown> {
   return withTimeoutSignalEffect(IMPORT_TIMEOUT_MS, signal, (fetchSignal) =>
     Effect.gen(function* () {
       const page = yield* Effect.tryPromise({
@@ -136,7 +175,7 @@ function fetchArticleHtmlEffect(url: string, signal: AbortSignal) {
       if (!response.ok) {
         yield* Effect.promise(() => cancelResponseBody(response));
         if (shouldLoadWithBrowser(response)) {
-          return yield* loadRenderedArticleHtmlEffect(page.url, userAgent, signal);
+          return { kind: 'render' as const, url: page.url, userAgent };
         }
         return yield* Effect.fail(new SourceImportError('ARTICLE_IMPORT_REQUEST_FAILED'));
       }
@@ -156,9 +195,9 @@ function fetchArticleHtmlEffect(url: string, signal: AbortSignal) {
         catch: (error) => articleFetchError(error, signal),
       });
       if (isChallengeHtml(html)) {
-        return yield* loadRenderedArticleHtmlEffect(page.url, userAgent, signal);
+        return { kind: 'render' as const, url: page.url, userAgent };
       }
-      return { html, url: page.url };
+      return { kind: 'html' as const, html, url: page.url };
     }),
   );
 }
@@ -267,7 +306,10 @@ async function loadRenderedArticleHtml(
   logArticleImportSession(url, importId, webPreferences.partition);
 
   const deadline = Date.now() + RENDERED_IMPORT_TIMEOUT_MS;
+  const timeoutController = new AbortController();
+  const renderSignal = AbortSignal.any([signal, timeoutController.signal]);
   const timeout = setTimeout(() => {
+    timeoutController.abort();
     if (!browserWindow.isDestroyed()) browserWindow.destroy();
   }, RENDERED_IMPORT_TIMEOUT_MS);
   const abort = () => {
@@ -278,15 +320,25 @@ async function loadRenderedArticleHtml(
   try {
     throwIfArticleImportCanceled(signal);
     await browserWindow.loadURL(url, userAgent ? { userAgent } : undefined);
-    const page = await waitForRenderedPage(browserWindow.webContents, deadline, signal);
+    const page = await waitForRenderedPage(browserWindow.webContents, deadline, renderSignal);
     if (typeof page.html !== 'string' || !page.html.trim()) {
       throw new SourceImportError('ARTICLE_IMPORT_RENDER_EMPTY');
     }
     assertArticleImportHtmlByteLimit(page.html);
     return {
       html: page.html,
+      rendered: true,
       url: typeof page.url === 'string' && page.url ? page.url : url,
     };
+  } catch (error) {
+    if (signal.aborted) throw new SourceImportError(ARTICLE_IMPORT_CANCELED_CODE, { cause: error });
+    if (timeoutController.signal.aborted) {
+      if (isSourceImportError(error) && error.importCode !== ARTICLE_IMPORT_CANCELED_CODE) {
+        throw error;
+      }
+      throw new SourceImportError('ARTICLE_IMPORT_TIMEOUT', { cause: error });
+    }
+    throw error;
   } finally {
     signal.removeEventListener('abort', abort);
     clearTimeout(timeout);
@@ -531,8 +583,10 @@ function extractArticleRecordInWorkerEffect({
       settle(Effect.fail(new SourceImportError(ARTICLE_IMPORT_CANCELED_CODE)));
     };
     const interrupt = () => {
-      void worker.terminate();
+      if (settled) return;
+      settled = true;
       cleanup();
+      void worker.terminate();
     };
 
     signal.addEventListener('abort', abort, { once: true });
@@ -566,7 +620,12 @@ function extractArticleRecordInWorkerEffect({
       cleanup();
       void worker.terminate();
     });
-  });
+  }).pipe(
+    Effect.timeoutOrElse({
+      duration: WORKER_IMPORT_TIMEOUT_MS,
+      orElse: () => Effect.fail(new SourceImportError('ARTICLE_IMPORT_TIMEOUT')),
+    }),
+  );
 }
 
 function articleImportWorkerUrl() {
@@ -612,6 +671,25 @@ function throwIfArticleImportCanceledEffect(signal: AbortSignal) {
 
 function errorFromUnknown(error: unknown, fallback: SourceImportErrorCode) {
   return error instanceof Error ? error : new SourceImportError(fallback);
+}
+
+function shouldFallbackToRenderedImport(rawHtml: string, article: ArticleRecord) {
+  if (!isSpaShellHtml(rawHtml)) return false;
+  return extractedHtmlTextLength(article.contentHtml || '') <= SPA_FALLBACK_MAX_TEXT_CHARS;
+}
+
+function isSpaShellHtml(html: string) {
+  return /<script\b/i.test(html) && EMPTY_SPA_MOUNT_PATTERN.test(html);
+}
+
+function extractedHtmlTextLength(html: string) {
+  return html
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim().length;
 }
 
 function isChallengeHtml(html: string) {

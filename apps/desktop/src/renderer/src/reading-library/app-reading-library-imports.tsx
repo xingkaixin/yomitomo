@@ -356,12 +356,17 @@ export function articleImportErrorMessage(error: unknown, t: AppT) {
 }
 
 export function articleImportErrorKey(code: string) {
+  if (code === 'ARTICLE_IMPORT_INVALID_URL') return 'library.import.article.invalidUrl';
+  if (code === 'ARTICLE_IMPORT_UNSUPPORTED_PROTOCOL')
+    return 'library.import.article.unsupportedProtocol';
   if (code === 'ARTICLE_IMPORT_REQUEST_FAILED') return 'library.import.article.requestFailed';
   if (code === 'ARTICLE_IMPORT_UNSUPPORTED_CONTENT_TYPE')
     return 'library.import.article.unsupportedContentType';
   if (code === 'ARTICLE_IMPORT_RESPONSE_TOO_LARGE')
     return 'library.import.article.responseTooLarge';
   if (code === 'ARTICLE_IMPORT_TIMEOUT') return 'library.import.article.timeout';
+  if (code === 'ARTICLE_IMPORT_CHALLENGE_BLOCKED') return 'library.import.article.challengeBlocked';
+  if (code === 'ARTICLE_IMPORT_RENDER_EMPTY') return 'library.import.article.renderEmpty';
   return '';
 }
 
@@ -431,6 +436,12 @@ export function fileImportErrorKey(code: string) {
   if (code === 'EBOOK_IMPORT_MISSING_CONTAINER') return 'library.import.ebook.missingContainer';
   if (code === 'EBOOK_IMPORT_MISSING_OPF') return 'library.import.ebook.missingOpf';
   if (code === 'EBOOK_IMPORT_OPF_UNREADABLE') return 'library.import.ebook.opfUnreadable';
+  if (code === 'EBOOK_IMPORT_DRM_PROTECTED') return 'library.import.ebook.drmProtected';
+  if (code === 'EBOOK_IMPORT_UNSUPPORTED_COMPRESSION')
+    return 'library.import.ebook.unsupportedCompression';
+  if (code === 'EBOOK_IMPORT_TIMEOUT') return 'library.import.ebook.timeout';
+  if (code === 'EBOOK_IMPORT_INVALID_HUFF' || code === 'EBOOK_IMPORT_INVALID_CDIC')
+    return 'library.import.ebook.corruptedFile';
   if (code === 'PDF_IMPORT_INVALID_FILE') return 'library.import.pdf.invalidFile';
   if (code === 'PDF_IMPORT_FILE_TOO_LARGE') return 'library.import.pdf.oversize';
   return '';
