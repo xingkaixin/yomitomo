@@ -42,8 +42,11 @@ import {
   getSqliteExecutor,
   readDatabaseLifecycle,
   replaceDatabaseFile,
+  runBackgroundSqliteMaintenance,
   withDatabaseLease,
 } from './store-db';
+import { readShellStore, readShellStoreWithProfile } from './store-snapshot';
+import { saveSettings } from './store-settings';
 import { rename } from 'node:fs/promises';
 import { migrations } from '../db/migrations';
 
@@ -332,6 +335,66 @@ describe('store database restore lifecycle', () => {
     expect(readDatabaseLifecycle().state).toBe('open');
     writeMarker('after failure');
     expect(readMarker()).toBe('after failure');
+  });
+});
+
+describe('sqlite startup pragmas, background maintenance, and shell store cache', () => {
+  it('configures WAL, synchronous=NORMAL, and busy_timeout=5000 on connection open', () => {
+    const sqlite = getSqliteExecutor();
+
+    expect(sqlite.pragma('journal_mode', { simple: true })).toBe('wal');
+    expect(sqlite.pragma('synchronous', { simple: true })).toBe(1);
+    expect(sqlite.pragma('busy_timeout', { simple: true })).toBe(5000);
+    expect(sqlite.pragma('foreign_keys', { simple: true })).toBe(1);
+  });
+
+  it('defers VACUUM out of connection open and runs it in background maintenance when due', async () => {
+    const sqlite = getSqliteExecutor();
+    sqlite.exec('CREATE TABLE temp_bloat (id INTEGER PRIMARY KEY, payload TEXT)');
+    const insert = sqlite.prepare('INSERT INTO temp_bloat (payload) VALUES (?)');
+    const chunk = 'x'.repeat(4096);
+    sqlite.transaction(() => {
+      for (let index = 0; index < 32; index += 1) insert.run(chunk);
+    })();
+    sqlite.exec('DROP TABLE temp_bloat');
+    const freelistBeforeReopen = sqlite.pragma('freelist_count', { simple: true }) as number;
+    expect(freelistBeforeReopen).toBeGreaterThan(0);
+
+    closeDatabase();
+    const reopened = getSqliteExecutor();
+    expect(reopened.pragma('freelist_count', { simple: true })).toBe(freelistBeforeReopen);
+
+    const result = await runBackgroundSqliteMaintenance({ freelistThresholdBytes: 1 });
+    expect(result).toMatchObject({ status: 'vacuumed' });
+    expect(reopened.pragma('freelist_count', { simple: true })).toBe(0);
+  });
+
+  it('reuses the startup shell store snapshot until a write or database restore occurs', async () => {
+    const { store: initial } = await readShellStoreWithProfile();
+    const sqlite = getSqliteExecutor();
+    const prepareSpy = vi.spyOn(sqlite, 'prepare');
+
+    const cached = await readShellStore();
+    expect(cached).toEqual(initial);
+    // Only the lightweight total_changes() check runs on a cache hit.
+    expect(prepareSpy.mock.calls.map(([sql]) => sql)).toEqual(['SELECT total_changes()']);
+
+    await saveSettings({ logRetentionDays: 15 });
+    expect((await readShellStore()).settings.logRetentionDays).toBe(15);
+
+    prepareSpy.mockClear();
+    sqlite.prepare('UPDATE user_profiles SET nickname = ?').run('Fresh Reader');
+    const updated = await readShellStore();
+    expect(updated.user.nickname).toBe('Fresh Reader');
+    expect(prepareSpy.mock.calls.length).toBeGreaterThan(1);
+
+    const backup = join(testPaths.userData, 'shell-cache-backup.sqlite');
+    await backupDatabaseFile(backup);
+    await saveSettings({ logRetentionDays: 30 });
+    expect((await readShellStore()).settings.logRetentionDays).toBe(30);
+
+    await replaceDatabaseFile(backup);
+    expect((await readShellStore()).settings.logRetentionDays).toBe(15);
   });
 });
 
