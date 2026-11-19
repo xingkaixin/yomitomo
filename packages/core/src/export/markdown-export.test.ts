@@ -148,18 +148,19 @@ describe('markdown export formatting', () => {
       article: {
         ...article,
         sourceType: 'pdf',
-        annotations: article.annotations.map((annotation, index) => ({
-          ...annotation,
-          anchor: createPdfTextAnchor({
-            pageIndex: 1 - index,
-            pageText: index === 0 ? 'later page' : 'an earlier page',
-            start: index === 0 ? 0 : 3,
-            end: index === 0 ? 10 : 15,
-            pageWidth: 600,
-            pageHeight: 800,
-            rects: [],
+        annotations: article.annotations.map((annotation, index) =>
+          Object.assign({}, annotation, {
+            anchor: createPdfTextAnchor({
+              pageIndex: 1 - index,
+              pageText: index === 0 ? 'later page' : 'an earlier page',
+              start: index === 0 ? 0 : 3,
+              end: index === 0 ? 10 : 15,
+              pageWidth: 600,
+              pageHeight: 800,
+              rects: [],
+            }),
           }),
-        })),
+        ),
       },
     });
     expect(pdf).toMatch(/> earlier page[\s\S]*> later page/);
