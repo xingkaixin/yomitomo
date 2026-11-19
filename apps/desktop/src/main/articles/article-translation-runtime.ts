@@ -71,6 +71,10 @@ export function createArticleTranslationRuntime(context: ArticleTranslationRunti
 
 type ArticleTranslationSessions = ReturnType<typeof createArticleTranslationSessions>;
 
+function translationSessionKey(identity: ArticleTranslationIdentity, generation: number) {
+  return `${generation}:${articleTranslationIdentityKey(identity)}`;
+}
+
 async function readCurrentArticleTranslation(
   context: ArticleTranslationRuntimeContext,
   sessions: ArticleTranslationSessions,
@@ -89,7 +93,7 @@ async function readCurrentArticleTranslation(
     settings: store.settings,
     promptVersion: aiModule.bilingualTranslationPromptVersion,
   });
-  const sessionKey = articleTranslationIdentityKey(identity);
+  const sessionKey = translationSessionKey(identity, readDatabaseLifecycle().generation);
   if (sessions.has(sessionKey)) return articlePersistence.readCurrentArticleTranslation(identity);
   return articlePersistence.recoverInterruptedArticleTranslation(identity);
 }
@@ -122,7 +126,7 @@ async function translateArticle(
   });
   const source = await articleTranslationSource(article, input, identity.sourceId);
 
-  return sessions.run(articleTranslationIdentityKey(identity), (signal) =>
+  return sessions.run(translationSessionKey(identity, generation), (signal) =>
     runTranslationSession({
       aiModule,
       generation,
@@ -325,7 +329,7 @@ async function deleteCurrentArticleTranslation(
     promptVersion: aiModule.bilingualTranslationPromptVersion,
   });
 
-  const sessionKey = articleTranslationIdentityKey(identity);
+  const sessionKey = translationSessionKey(identity, readDatabaseLifecycle().generation);
   sessions.cancel(sessionKey);
   return sessions.run(sessionKey, () =>
     articlePersistence.deleteCurrentArticleTranslation(identity),
