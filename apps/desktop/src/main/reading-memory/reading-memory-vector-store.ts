@@ -322,6 +322,8 @@ LIMIT ?
     );
 }
 
+const dayMs = 24 * 60 * 60 * 1_000;
+
 export function readReadingMemoryReviewVectorWindow(
   executor: ReadingMemorySqliteExecutor,
   options: VectorModel & { candidateEvidenceIds: readonly string[]; now: Date },
@@ -330,7 +332,12 @@ export function readReadingMemoryReviewVectorWindow(
   recentEvidence: ReadingMemoryReviewVector[];
 } {
   assertVectorModel(options);
-  const now = options.now.toISOString();
+  const nowMs = options.now.getTime();
+  if (!Number.isFinite(nowMs)) throw new Error('Invalid reading review vector window date');
+  const now = new Date(nowMs).toISOString();
+  const windowStart = new Date(
+    nowMs - readingReviewSignalLimits.evidenceWindowDays * dayMs,
+  ).toISOString();
   const ids = uniqueNonEmptyStrings(options.candidateEvidenceIds).slice(
     0,
     readingReviewSignalLimits.candidateCount,
@@ -346,9 +353,9 @@ WITH recent AS (
   ${currentEntryTables}
   INNER JOIN reading_memory_evidence_vectors AS stored ON ${matchingVectorCondition}
   WHERE ${currentEntryCondition}
-    AND julianday(entry.source_created_at) >= julianday(?) - ?
-    AND julianday(entry.source_created_at) <= julianday(?)
-  ORDER BY julianday(entry.source_created_at) DESC, entry.id ASC
+    AND entry.source_created_at >= ?
+    AND entry.source_created_at <= ?
+  ORDER BY entry.source_created_at DESC, entry.id ASC
   LIMIT ?
 ), selected AS (
   SELECT value AS id FROM json_each(?)
@@ -365,15 +372,14 @@ INNER JOIN reading_memory_evidence_vectors AS stored ON ${matchingVectorConditio
 INNER JOIN selected ON selected.id = entry.id
 LEFT JOIN recent ON recent.id = entry.id
 WHERE ${currentEntryCondition}
-ORDER BY julianday(entry.source_created_at) DESC, entry.id ASC
+ORDER BY entry.source_created_at DESC, entry.id ASC
 `,
     )
     .all(
       options.modelVersion,
       options.dimension,
       readingMemoryEvidenceProjectorVersion,
-      now,
-      readingReviewSignalLimits.evidenceWindowDays,
+      windowStart,
       now,
       readingReviewSignalLimits.recentEvidenceCount,
       JSON.stringify(ids),
