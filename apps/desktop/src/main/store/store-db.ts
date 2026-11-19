@@ -184,15 +184,16 @@ export async function replaceDatabaseFile(sourcePath: string, files?: DatabaseRe
 }
 
 export async function afterDatabaseMaintenance<T>(operation: () => Promise<T>): Promise<T> {
-  while (maintenanceSettled) await maintenanceSettled;
-  return operation();
+  return maintenanceSettled
+    ? maintenanceSettled.then(() => afterDatabaseMaintenance(operation))
+    : operation();
 }
 
 export async function withDatabaseMaintenance<T>(operation: () => Promise<T>): Promise<T> {
   if (lifecycle !== 'open') throw new Error('DATA_MANAGEMENT_DATABASE_REPLACING');
   let settle!: () => void;
-  maintenanceSettled = new Promise<void>((resolve) => {
-    settle = resolve;
+  maintenanceSettled = new Promise<void>((complete) => {
+    settle = complete;
   });
   lifecycle = 'draining';
   logInfo('store.database_maintenance_started', {

@@ -126,6 +126,13 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     });
   }
 
+  function syncSettledMarker(harness: Harness, articleId: string) {
+    // The committed run already settled; a stale restart marker can be repaired on reopen.
+    return syncPendingMarker(harness, articleId).catch((error: unknown) =>
+      ports.logError('assistant_channel.pending_marker_failed', error, { articleId }),
+    );
+  }
+
   function publish(event: AssistantRunEvent) {
     if (event.status === 'running') active.set(event.runKey, event);
     else active.delete(event.runKey);
@@ -453,7 +460,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
         remainingOnFork: remainingRuns.filter((run) => run.forkId === forkId).length,
       };
     }, context);
-    await syncPendingMarker(harness, articleId);
+    await syncSettledMarker(harness, articleId);
     if (remainingOnFork === 0) stopProgress(runKey);
     publish({
       runKey,
@@ -491,7 +498,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
         remainingOnFork: remainingRuns.filter((item) => item.forkId === run.forkId).length,
       };
     }, context);
-    await syncPendingMarker(harness, articleId);
+    await syncSettledMarker(harness, articleId);
     publishFailed(articleId, requestId, run, reason, remainingOnFork > 0);
   }
 
