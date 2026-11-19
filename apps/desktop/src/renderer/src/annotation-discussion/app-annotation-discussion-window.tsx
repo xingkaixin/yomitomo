@@ -941,6 +941,7 @@ function AnnotationDiscussionShell({
               articleId={article.id}
               deletingCommentId={deletingCommentId}
               layoutMode={layoutMode}
+              messageSendShortcut={settings.messageSendShortcut}
               thread={selectedThread}
               userProfile={userProfile}
               onDelete={(commentId) => void deleteComment(commentId)}
@@ -973,6 +974,7 @@ function AnnotationDiscussionShell({
           agents={annotationAgents}
           caretIndex={newThoughtCaretIndex}
           draft={newThoughtDraft}
+          messageSendShortcut={settings.messageSendShortcut}
           mode={newThoughtMode}
           runningAgents={addThoughtAgentRuns}
           celebrating={addThoughtCelebrating}

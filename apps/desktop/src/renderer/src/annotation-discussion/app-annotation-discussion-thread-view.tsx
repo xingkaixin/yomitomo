@@ -3,7 +3,8 @@ import { ArrowDown01Icon, BubbleChatIcon, SentIcon } from '@hugeicons/core-free-
 import { useCallback, useMemo, useReducer, useRef, type RefObject } from 'react';
 import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { useTranslation } from 'react-i18next';
-import type { Comment, PublicAgent, UserProfile } from '@yomitomo/shared';
+import type { Comment, MessageSendShortcut, PublicAgent, UserProfile } from '@yomitomo/shared';
+import { normalizeMessageSendShortcut } from '@yomitomo/shared';
 import { getMentionQuery } from '@yomitomo/core';
 import { FloatingComposer } from '@yomitomo/reader-ui/floating-composer';
 import {
@@ -36,6 +37,7 @@ export function DiscussionThreadView({
   articleId,
   deletingCommentId,
   layoutMode,
+  messageSendShortcut,
   onDelete,
   onReplyCaretChange,
   onReplyDraftChange,
@@ -52,6 +54,7 @@ export function DiscussionThreadView({
   articleId: string;
   deletingCommentId: string | null;
   layoutMode: DiscussionLayoutMode;
+  messageSendShortcut?: MessageSendShortcut;
   onDelete: (commentId: string) => void;
   onReplyCaretChange: (value: number) => void;
   onReplyDraftChange: (value: string) => void;
@@ -93,6 +96,7 @@ export function DiscussionThreadView({
       ? mentionIndex
       : 0;
   const shortcutModifier = getShortcutModifier();
+  const sendShortcut = normalizeMessageSendShortcut(messageSendShortcut);
   const composerStatus = sendError || (sendingReply ? t('discussion.sending') : '');
   const replyPlaceholder = discussionReplyPlaceholder(thread.root, annotationAgents);
   const className = [
@@ -231,7 +235,7 @@ export function DiscussionThreadView({
   }
 
   const handleSubmitKeyDown = useCompositionSubmit({
-    messageSendShortcut: 'mod-enter',
+    messageSendShortcut: sendShortcut,
     onSubmit: handleSubmitReply,
   });
 
@@ -331,7 +335,7 @@ export function DiscussionThreadView({
             submitTooltip={
               <SubmitShortcutTooltipContent
                 label={t('discussion.threadView.reply')}
-                shortcut="mod-enter"
+                shortcut={sendShortcut}
                 shortcutModifier={shortcutModifier}
               />
             }
@@ -359,7 +363,16 @@ export function DiscussionThreadView({
                   );
                   return;
                 }
-                if (matchedAgents.length > 0 && event.key === 'Tab') {
+                if (
+                  matchedAgents.length > 0 &&
+                  (event.key === 'Tab' ||
+                    (event.key === 'Enter' &&
+                      !event.metaKey &&
+                      !event.ctrlKey &&
+                      !event.altKey &&
+                      !event.shiftKey &&
+                      !event.nativeEvent.isComposing))
+                ) {
                   event.preventDefault();
                   const agent = matchedAgents[selectedMentionIndex] || matchedAgents[0];
                   if (agent) selectMentionAgent(agent);
