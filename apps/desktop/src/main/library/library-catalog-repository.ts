@@ -7,6 +7,8 @@ import type {
   LibraryCatalogListInput,
   LibraryCatalogListResult,
   LibraryCatalogScope,
+  LibraryCatalogSort,
+  LibraryCatalogStatusFilter,
   LibraryCatalogType,
 } from '../../ipc-contract';
 import * as schema from '../db/schema';
@@ -19,6 +21,15 @@ const DEFAULT_PAGE_SIZE = 12;
 const MAX_PAGE = 10_000;
 const MAX_PAGE_SIZE = 100;
 const ALL_TYPES: LibraryCatalogType[] = ['collection', ...ARTICLE_SOURCE_TYPES, 'weread'];
+const ALL_SORTS = new Set<LibraryCatalogSort>(['recent', 'title', 'progress', 'annotations']);
+const ALL_STATUSES = new Set<LibraryCatalogStatusFilter>([
+  'all',
+  'unread',
+  'reading',
+  'completed',
+  'annotated',
+]);
+const COMPLETED_PROGRESS_THRESHOLD = 0.99;
 const memberArticle = alias(schema.articles, 'member_article');
 const memberWeReadBook = alias(schema.wereadBooks, 'member_weread_book');
 
@@ -45,6 +56,8 @@ type NormalizedInput = {
   scope: LibraryCatalogScope;
   types: ReadonlySet<LibraryCatalogType>;
   query: string;
+  sort: LibraryCatalogSort;
+  status: LibraryCatalogStatusFilter;
   page: number;
   pageSize: number;
 };
@@ -55,9 +68,21 @@ function normalizeInput(input: LibraryCatalogListInput): NormalizedInput {
     scope: normalizeScope(input.scope),
     types: new Set(selectedTypes.length > 0 ? selectedTypes : ALL_TYPES),
     query: input.query?.trim() || '',
+    sort: normalizeSort(input.sort),
+    status: normalizeStatus(input.status),
     page: normalizePositiveInteger(input.page, DEFAULT_PAGE, MAX_PAGE),
     pageSize: normalizePositiveInteger(input.pageSize, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE),
   };
+}
+
+function normalizeSort(value: unknown): LibraryCatalogSort {
+  return ALL_SORTS.has(value as LibraryCatalogSort) ? (value as LibraryCatalogSort) : 'recent';
+}
+
+function normalizeStatus(value: unknown): LibraryCatalogStatusFilter {
+  return ALL_STATUSES.has(value as LibraryCatalogStatusFilter)
+    ? (value as LibraryCatalogStatusFilter)
+    : 'all';
 }
 
 function normalizeScope(scope: LibraryCatalogScope): LibraryCatalogScope {
@@ -95,21 +120,23 @@ function readCatalogPage(
     selects.push(collectionCandidateSelect(database, input));
   }
   const union = selects.length > 0 ? sql.join(selects, sql` union all `) : emptyCandidateSelect();
+  const statusCondition = statusMatchSql(input.status);
+  const orderBy = orderBySql(input.sort);
   let rows: CatalogPageRow[];
   try {
     rows = database.all(sql`
       with all_candidates as (${union}),
       catalog_counts as (
         select
-          coalesce(sum(matchesQuery), 0) as totalCount,
+          coalesce(sum(case when matchesQuery = 1 and ${statusCondition} then 1 else 0 end), 0) as totalCount,
           count(*) as unfilteredCount
         from all_candidates
       ),
       page_candidates as (
         select kind, id, type, sortTime, title, pinned, memberCount
         from all_candidates
-        where matchesQuery = 1
-        order by pinned desc, sortTime desc, title collate nocase asc, id asc
+        where matchesQuery = 1 and ${statusCondition}
+        order by ${orderBy}
         limit ${limit}
         offset ${offset}
       )
@@ -133,6 +160,8 @@ function readCatalogPage(
       offset,
       query: input.query,
       scope: input.scope,
+      sort: input.sort,
+      status: input.status,
       types: [...input.types],
     });
     throw error;
@@ -191,17 +220,25 @@ function articleCandidateSelect(
   source: Exclude<LibraryCatalogItemType, 'weread'>,
 ) {
   const pinned = sql`case when ${schema.libraryPins.targetId} is null then 0 else 1 end`;
+  const title =
+    source === 'ebook'
+      ? sql`coalesce(nullif(json_extract(${schema.articles.ebookMetadata}, '$.displayTitle'), ''), ${schema.articles.title})`
+      : schema.articles.title;
   const matchesQuery = searchMatch(articleSearchCondition(schema.articles, input.query));
+  const readingProgress = needsReadingProgress(input) ? articleReadingProgressSql() : sql`0.0`;
+  const annotationCount = needsAnnotationCount(input) ? articleAnnotationCountSql() : sql`0`;
   if (input.scope.kind === 'collection') {
     return sql`
       select
         ${'item'} as kind,
         ${schema.articles.id} as id,
         ${source} as type,
-        ${schema.collectionMembers.addedAt} as sortTime,
-        ${schema.articles.title} as title,
+        ${schema.articles.updatedAt} as sortTime,
+        ${title} as title,
         ${pinned} as pinned,
         null as memberCount,
+        ${readingProgress} as readingProgress,
+        ${annotationCount} as annotationCount,
         ${matchesQuery} as matchesQuery
       from ${schema.collectionMembers}
       inner join ${schema.articles}
@@ -221,10 +258,12 @@ function articleCandidateSelect(
       ${'item'} as kind,
       ${schema.articles.id} as id,
       ${source} as type,
-      ${schema.articles.createdAt} as sortTime,
-      ${schema.articles.title} as title,
+      ${schema.articles.updatedAt} as sortTime,
+      ${title} as title,
       ${pinned} as pinned,
       null as memberCount,
+      ${readingProgress} as readingProgress,
+      ${annotationCount} as annotationCount,
       ${matchesQuery} as matchesQuery
     from ${schema.articles}
     left join ${schema.libraryPins}
@@ -237,16 +276,22 @@ function articleCandidateSelect(
 function weReadCandidateSelect(database: StoreDatabase, input: NormalizedInput) {
   const pinned = sql`case when ${schema.libraryPins.targetId} is null then 0 else 1 end`;
   const matchesQuery = searchMatch(weReadSearchCondition(schema.wereadBooks, input.query));
+  const readingProgress = needsReadingProgress(input) ? weReadReadingProgressSql() : sql`0.0`;
+  const annotationCount = needsAnnotationCount(input)
+    ? sql`coalesce(${schema.wereadBooks.noteCount}, 0)`
+    : sql`0`;
   if (input.scope.kind === 'collection') {
     return sql`
       select
         ${'item'} as kind,
         ${schema.wereadBooks.bookId} as id,
         ${'weread'} as type,
-        ${schema.collectionMembers.addedAt} as sortTime,
+        ${weReadSortTime()} as sortTime,
         ${schema.wereadBooks.title} as title,
         ${pinned} as pinned,
         null as memberCount,
+        ${readingProgress} as readingProgress,
+        ${annotationCount} as annotationCount,
         ${matchesQuery} as matchesQuery
       from ${schema.collectionMembers}
       inner join ${schema.wereadBooks}
@@ -267,6 +312,8 @@ function weReadCandidateSelect(database: StoreDatabase, input: NormalizedInput) 
       ${schema.wereadBooks.title} as title,
       ${pinned} as pinned,
       null as memberCount,
+      ${readingProgress} as readingProgress,
+      ${annotationCount} as annotationCount,
       ${matchesQuery} as matchesQuery
     from ${schema.wereadBooks}
     left join ${schema.libraryPins}
@@ -288,10 +335,12 @@ function collectionCandidateSelect(database: StoreDatabase, input: NormalizedInp
       ${'collection'} as kind,
       ${schema.collections.id} as id,
       ${'collection'} as type,
-      ${schema.collections.createdAt} as sortTime,
+      ${schema.collections.updatedAt} as sortTime,
       ${schema.collections.name} as title,
       case when ${schema.libraryPins.targetId} is null then 0 else 1 end as pinned,
       ${memberCount} as memberCount,
+      0.0 as readingProgress,
+      0 as annotationCount,
       ${matchesQuery} as matchesQuery
     from ${schema.collections}
     left join ${schema.libraryPins}
@@ -310,9 +359,79 @@ function emptyCandidateSelect() {
       ${''} as title,
       0 as pinned,
       null as memberCount,
+      0.0 as readingProgress,
+      0 as annotationCount,
       0 as matchesQuery
     where 0
   `;
+}
+
+function needsReadingProgress(input: NormalizedInput) {
+  return (
+    input.sort === 'progress' ||
+    input.status === 'unread' ||
+    input.status === 'reading' ||
+    input.status === 'completed'
+  );
+}
+
+function needsAnnotationCount(input: NormalizedInput) {
+  return input.sort === 'annotations' || input.status === 'annotated';
+}
+
+function articleReadingProgressSql() {
+  const progress = schema.articles.readingProgress;
+  return sql`case coalesce(json_extract(${progress}, '$.kind'), case
+    when ${schema.articles.sourceType} = 'pdf' and json_extract(${progress}, '$.pageIndex') is not null then 'page'
+  end)
+    when 'scroll' then min(1.0, max(0.0, coalesce(cast(json_extract(${schema.articles.readingProgress}, '$.progress') as real), 0.0)))
+    when 'chapter' then min(1.0, max(0.0, coalesce(cast(json_extract(${schema.articles.readingProgress}, '$.bookProgress') as real), 0.0)))
+    when 'page' then case
+      when json_extract(${schema.articles.readingProgress}, '$.updatedAt') = ${schema.articles.createdAt} and json_extract(${schema.articles.readingProgress}, '$.pageIndex') = 0 then 0.0
+      else min(1.0, (1.0 + json_extract(${schema.articles.readingProgress}, '$.pageIndex')) / max(1, json_extract(${schema.articles.readingProgress}, '$.pageCount')))
+    end
+    else 0.0
+  end`;
+}
+
+function weReadReadingProgressSql() {
+  return sql`min(1.0, max(0.0, coalesce(cast(${schema.wereadBooks.readingProgress} as real), 0.0) / 100.0))`;
+}
+
+function articleAnnotationCountSql() {
+  return sql`(
+    select count(*)
+    from ${schema.annotations}
+    where ${schema.annotations.articleId} = ${schema.articles.id}
+  )`;
+}
+
+function statusMatchSql(status: LibraryCatalogStatusFilter) {
+  switch (status) {
+    case 'unread':
+      return sql`readingProgress <= 0`;
+    case 'reading':
+      return sql`readingProgress > 0 and readingProgress < case when type = 'pdf' then 1.0 else ${COMPLETED_PROGRESS_THRESHOLD} end`;
+    case 'completed':
+      return sql`readingProgress >= case when type = 'pdf' then 1.0 else ${COMPLETED_PROGRESS_THRESHOLD} end`;
+    case 'annotated':
+      return sql`annotationCount > 0`;
+    case 'all':
+      return sql`1`;
+  }
+}
+
+function orderBySql(sort: LibraryCatalogSort) {
+  switch (sort) {
+    case 'title':
+      return sql`pinned desc, title collate nocase asc, sortTime desc, id asc`;
+    case 'progress':
+      return sql`pinned desc, readingProgress desc, sortTime desc, title collate nocase asc, id asc`;
+    case 'annotations':
+      return sql`pinned desc, annotationCount desc, sortTime desc, title collate nocase asc, id asc`;
+    case 'recent':
+      return sql`pinned desc, sortTime desc, title collate nocase asc, id asc`;
+  }
 }
 
 function requiredCondition(condition: SQL | undefined) {
@@ -324,7 +443,7 @@ function searchMatch(condition: SQL | undefined) {
 }
 
 function showsCollections(input: NormalizedInput) {
-  return input.scope.kind === 'library' && input.types.has('collection');
+  return input.scope.kind === 'library' && input.status === 'all' && input.types.has('collection');
 }
 
 function articleScopeCondition(database: StoreDatabase, input: NormalizedInput): SQL | undefined {

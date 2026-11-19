@@ -1,3 +1,4 @@
+import type { ArticleRecord } from '@yomitomo/shared';
 import { createHash } from 'node:crypto';
 import type { ArticleSourceImportRepository } from '../articles/article-source-import';
 import type { ImportedEbookArticle } from './ebook-import-types';
@@ -16,14 +17,17 @@ export async function resolveEbookImportRecord(
 
   // Old prefix hashes locate candidates; only full chapter equality permits reusing an old ID.
   const legacy = await repository.readArticle(legacyId);
-  if (
-    legacy?.sourceType === 'ebook' &&
-    legacy.title === record.title &&
-    legacy.byline === record.byline &&
-    legacy.ebook.metadata.format === record.ebook.metadata.format &&
-    JSON.stringify(legacy.ebook.chapters) === JSON.stringify(record.ebook.chapters)
-  ) {
-    return legacy;
-  }
+  if (legacy?.sourceType === 'ebook' && matchesLegacyEbook(legacy, imported)) return legacy;
   return record;
+}
+
+export function matchesLegacyEbook(
+  legacy: Pick<ArticleRecord, 'id' | 'ebook'>,
+  imported: ImportedEbookArticle,
+) {
+  return (
+    legacy.id === imported.legacyId &&
+    legacy.ebook?.metadata.format === imported.ebook.metadata.format &&
+    JSON.stringify(legacy.ebook.chapters) === JSON.stringify(imported.ebook.chapters)
+  );
 }

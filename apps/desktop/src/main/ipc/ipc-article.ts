@@ -39,6 +39,8 @@ type ArticlePersistence = Pick<
   | 'saveArticleComment'
   | 'saveArticleReaderChatState'
   | 'saveArticleReadingProgress'
+  | 'updateArticleEbookFormat'
+  | 'updateArticleMetadata'
   | 'updateArticleTranslationSegment'
 >;
 type ArticleTranslationPersistenceModules = Awaited<
@@ -47,7 +49,7 @@ type ArticleTranslationPersistenceModules = Awaited<
 
 type ArticleIpcContext = Pick<
   DesktopMainIpcContext,
-  'elapsedMs' | 'logError' | 'logInfo' | 'sendArticlePatched'
+  'elapsedMs' | 'getMainWindow' | 'logError' | 'logInfo' | 'sendArticlePatched'
 > &
   Pick<ArticleTranslationRuntimeContext, 'getAiModule'> & {
     getPersistenceModules: () => Promise<{
@@ -150,6 +152,29 @@ export function registerArticleIpc(context: ArticleIpcContext) {
     context.sendArticlePatched(event, patch);
     return patch;
   });
+  handleDesktopIpc('article:update-metadata', async (event, input) => {
+    const { storeArticles: articlePersistence } = await context.getPersistenceModules();
+    const patch = await articlePersistence.updateArticleMetadata(input);
+    if (patch) context.sendArticlePatched(event, patch);
+    return patch;
+  });
+  handleDesktopIpc('article:relink-source-file', (event, articleId) =>
+    withSourceImportIpcErrors(async () => {
+      const { storeArticles: articlePersistence } = await context.getPersistenceModules();
+      const article = await articlePersistence.readArticle(articleId);
+      if (!article) throw new Error('ARTICLE_NOT_FOUND');
+      const { relinkArticleSourceWithDialog } = await import('../articles/article-source-relink');
+      const result = await relinkArticleSourceWithDialog({
+        article,
+        mainWindow: context.getMainWindow(),
+        updateEbookFormat: (id, format) => articlePersistence.updateArticleEbookFormat(id, format),
+      });
+      if (!result.canceled && result.patch) {
+        context.sendArticlePatched(event, result.patch);
+      }
+      return result;
+    }),
+  );
   handleDesktopIpc('article:import-url', (event, input) =>
     withSourceImportIpcErrors(async () => {
       const { storeArticles: articlePersistence } = await context.getPersistenceModules();

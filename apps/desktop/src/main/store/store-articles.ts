@@ -8,6 +8,7 @@ import type {
   Comment,
 } from '@yomitomo/shared';
 import type {
+  ArticleMetadataUpdateInput,
   ArticleReaderChatStateSaveInput,
   ArticleLibraryListInput,
   ArticleLibraryListResult,
@@ -43,6 +44,8 @@ import {
   buildArticleUpsertPatch,
   saveArticleRows,
   touchArticleRows,
+  updateArticleEbookFormatRows,
+  updateArticleMetadataRows,
 } from '../articles/article-row-writes';
 import {
   deleteArticleTranslationRows,
@@ -200,6 +203,17 @@ export async function saveArticleReadingProgress(
 export async function saveArticleReaderChatState(input: ArticleReaderChatStateSaveInput) {
   if ('selectedAssistantId' in input) return selectArticleChatAssistantRows(getDatabase(), input);
   return saveArticleReaderChatStateRows(getDatabase(), input.articleId, input.readerChatState);
+}
+
+export async function updateArticleMetadata(input: ArticleMetadataUpdateInput) {
+  return updateArticleMetadataRows(getDatabase(), input);
+}
+
+export async function updateArticleEbookFormat(
+  articleId: string,
+  format: 'epub' | 'azw3' | 'mobi',
+) {
+  return updateArticleEbookFormatRows(getDatabase(), articleId, format);
 }
 
 export async function deleteArticle(id: string) {

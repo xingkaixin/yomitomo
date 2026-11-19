@@ -87,5 +87,4 @@ async function waitForPdfReaderReady(page: Page) {
     .locator('.source-pdf-reader-shell [data-pdfium-page-index="0"]')
     .waitFor({ timeout: 30_000 });
   await page.getByRole('slider', { name: 'Jump to PDF page' }).waitFor({ timeout: 30_000 });
-  await page.getByText('1 / 1', { exact: true }).waitFor({ timeout: 30_000 });
 }

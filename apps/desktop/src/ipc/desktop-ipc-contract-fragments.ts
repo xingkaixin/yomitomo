@@ -36,6 +36,7 @@ import type {
   AppLockVerifyPinResult,
   ArticleImportResult,
   ArticleLibraryListResult,
+  ArticleRelinkSourceResult,
   AssistantExecutionRunDetail,
   AssistantExecutionRunListItem,
   AssistantExecutionSummary,
@@ -355,6 +356,22 @@ export const articleIpcInvokeDescriptors = {
     ArticleReaderChatStatePatch
   >()({
     route: ['article', 'saveReaderChatState'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'article:update-metadata': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'article:update-metadata'>,
+    ArticleUpsertPatch | null
+  >()({
+    route: ['article', 'updateMetadata'],
+    roles: mainOnly,
+    validation: 'schema',
+  }),
+  'article:relink-source-file': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'article:relink-source-file'>,
+    ArticleRelinkSourceResult
+  >()({
+    route: ['article', 'relinkSourceFile'],
     roles: mainOnly,
     validation: 'schema',
   }),

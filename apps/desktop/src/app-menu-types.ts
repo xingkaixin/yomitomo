@@ -3,6 +3,7 @@ export type AppMenuCommand =
   | 'check-updates'
   | 'import-ebook'
   | 'import-pdf'
+  | 'import-text'
   | 'import-web'
   | 'open-about'
   | 'open-release-notes'

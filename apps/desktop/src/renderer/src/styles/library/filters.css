@@ -85,9 +85,9 @@
 /* 类型筛选内嵌搜索框（方案 C，阅读库主视图） */
 .library-search-typed {
   display: grid;
-  flex: 0 1 auto;
-  width: min(560px, 48vw);
-  min-width: 260px;
+  flex: 0 1 460px;
+  width: min(460px, 42vw);
+  min-width: 240px;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   border: 1px solid var(--app-edge);
@@ -95,6 +95,29 @@
   background: var(--app-field);
   box-shadow: var(--app-field-shadow);
   overflow: hidden;
+}
+
+.library-query-select-trigger {
+  height: 38px;
+  min-width: 102px;
+  width: auto;
+  flex: 0 0 auto;
+  gap: 6px;
+  border: 1px solid var(--app-edge);
+  border-radius: 10px;
+  background: var(--app-raised);
+  box-shadow: var(--app-raised-shadow);
+  color: hsl(var(--foreground));
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0 10px 0 12px;
+  white-space: nowrap;
+}
+
+.library-query-select-trigger.is-active {
+  border-color: var(--app-interactive-badge-border);
+  background: var(--app-interactive-badge-bg);
+  color: var(--app-interactive-badge-fg);
 }
 
 .library-search-typed:has(.library-search-field input:focus-visible) {

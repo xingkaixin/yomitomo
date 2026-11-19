@@ -2,7 +2,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowLeft01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons';
 import type React from 'react';
 import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useReducer, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Annotation, ReaderQuestionContext } from '@yomitomo/shared';
 import {
@@ -44,6 +44,8 @@ import {
   type ReaderPageTurnDirection,
 } from '../../shell/use-reader-page-turn-keys';
 import { ArticleBook } from '../../shell/app-article-book';
+import { getDesktopApi } from '../../shell/app-desktop-api';
+import { appToast } from '../../shell/app-toast';
 import { articleDisplayTitle } from '../../reading-library/app-reading-library-utils';
 import { saveAssistantArticleText } from '../bookcase/assistant-article-text';
 import { useAssistantPassageReveal } from '../bookcase/use-assistant-passage-reveal';
@@ -646,6 +648,33 @@ function EbookReader({
     userProfile,
   });
 
+  const [relinkingSource, dispatchRelinkingSource] = useReducer(
+    (_busy: boolean, event: { type: 'started' | 'finished' }) => event.type === 'started',
+    false,
+  );
+  const handleRelinkSource = useCallback(async () => {
+    if (relinkingSource) return;
+    dispatchRelinkingSource({ type: 'started' });
+    try {
+      const result = await getDesktopApi().article.relinkSourceFile(article.id);
+      if (!result.canceled) {
+        if (result.patch?.article.sourceType === 'ebook') {
+          onArticleChange({
+            ...article,
+            ebook: { ...article.ebook, metadata: result.patch.article.ebook.metadata },
+            updatedAt: result.patch.article.updatedAt,
+          });
+        }
+        appToast.success(t('ebookReader.relinkSuccess'));
+        foliateView.reload();
+      }
+    } catch {
+      appToast.error(t('ebookReader.relinkFailed'));
+    } finally {
+      dispatchRelinkingSource({ type: 'finished' });
+    }
+  }, [article, foliateView, onArticleChange, relinkingSource, t]);
+
   return (
     <>
       <EbookReaderShell
@@ -654,8 +683,10 @@ function EbookReader({
         readerApp={{ ...readerAppViewProps, viewportOverlay }}
         readerSurfaceRef={readerSurfaceRef}
         readerState={readerState}
+        relinkingSource={relinkingSource}
         viewHostRef={viewHostRef}
         onReaderKeyDown={handleReaderKeyDown}
+        onRelinkSource={() => void handleRelinkSource()}
       />
       {spreadLayout.marker}
       {foliateView.markers}

@@ -117,6 +117,7 @@ export function ReadingLibrary({
     importPdfFile,
     openArticleDiscussion,
     readArticle,
+    updateArticleMetadata,
   } = articleActions;
   const { t } = useTranslation();
   const desktopStore = useDesktopStoreApi();
@@ -426,6 +427,13 @@ export function ReadingLibrary({
         openWeReadReaderView(book);
       },
       onSetLibraryPin: setLibraryPin,
+      onUpdateArticleMetadata: async (input: {
+        articleId: string;
+        title: string;
+        byline?: string;
+      }) => {
+        await updateArticleMetadata(input);
+      },
     },
     querySession: libraryQuerySession,
     settingsControl: {

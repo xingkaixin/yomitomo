@@ -203,3 +203,94 @@ export function touchArticleRows(database: StoreExecutor, articleId: string, upd
     .where(eq(schema.articles.id, articleId))
     .run();
 }
+
+export function updateArticleMetadataRows(
+  database: StoreDatabase,
+  input: {
+    articleId: string;
+    title: string;
+    byline?: string;
+    updatedAt?: string;
+  },
+): ArticleUpsertPatch | null {
+  const existing = database
+    .select({
+      id: schema.articles.id,
+      sourceType: schema.articles.sourceType,
+      ebookMetadata: schema.articles.ebookMetadata,
+      pdfMetadata: schema.articles.pdfMetadata,
+    })
+    .from(schema.articles)
+    .where(eq(schema.articles.id, input.articleId))
+    .get();
+  if (!existing) return null;
+
+  const title = input.title.trim();
+  const byline = input.byline?.trim() || null;
+  const updatedAt = input.updatedAt || new Date().toISOString();
+  const sourceType = normalizeArticleSourceType(existing.sourceType);
+
+  const patch: Partial<typeof schema.articles.$inferInsert> = {
+    title,
+    byline,
+    updatedAt,
+  };
+
+  if (sourceType === 'pdf' && existing.pdfMetadata && typeof existing.pdfMetadata === 'object') {
+    patch.pdfMetadata = {
+      ...(existing.pdfMetadata as Record<string, unknown>),
+      author: byline ?? undefined,
+    };
+  }
+
+  if (
+    sourceType === 'ebook' &&
+    existing.ebookMetadata &&
+    typeof existing.ebookMetadata === 'object'
+  ) {
+    patch.ebookMetadata = {
+      ...(existing.ebookMetadata as Record<string, unknown>),
+      displayTitle: title,
+    };
+  }
+
+  database.update(schema.articles).set(patch).where(eq(schema.articles.id, input.articleId)).run();
+
+  const summary = readArticleSummaryRows(database, input.articleId);
+  return summary ? buildArticleUpsertPatch(summary) : null;
+}
+
+export function updateArticleEbookFormatRows(
+  database: StoreDatabase,
+  articleId: string,
+  format: 'epub' | 'azw3' | 'mobi',
+): ArticleUpsertPatch | null {
+  const existing = database
+    .select({
+      id: schema.articles.id,
+      sourceType: schema.articles.sourceType,
+      ebookMetadata: schema.articles.ebookMetadata,
+    })
+    .from(schema.articles)
+    .where(eq(schema.articles.id, articleId))
+    .get();
+  if (!existing || normalizeArticleSourceType(existing.sourceType) !== 'ebook') return null;
+
+  const metadata =
+    existing.ebookMetadata && typeof existing.ebookMetadata === 'object'
+      ? (existing.ebookMetadata as Record<string, unknown>)
+      : {};
+  if (metadata.format === format) return null;
+
+  database
+    .update(schema.articles)
+    .set({
+      ebookMetadata: { ...metadata, format },
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(schema.articles.id, articleId))
+    .run();
+
+  const summary = readArticleSummaryRows(database, articleId);
+  return summary ? buildArticleUpsertPatch(summary) : null;
+}

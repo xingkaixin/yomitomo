@@ -14,7 +14,7 @@ import type { ArticleSummaryRecord } from '@yomitomo/shared';
 import { urlHost } from '../shell/app-article-presentation';
 import { ArticleBook, formatPdfAuthors } from '../shell/app-article-book';
 import { ArticleDeleteMenuItem, useArticleDeleteConfirm } from './app-reading-library-delete';
-import { CollectionRemoveIcon } from './collection-icon';
+import { CollectionAddIcon, CollectionRemoveIcon } from './collection-icon';
 import { libraryMenuReducer } from './library-menu-state';
 import { removeShelfItem } from './library-shelf-removal';
 import {
@@ -33,6 +33,8 @@ import {
 export function ArticleLibraryCard({
   article,
   onDelete,
+  onEditMetadata,
+  onManageCollections,
   onOpen,
   onRemoveFromCollection,
   onSetPinned,
@@ -40,6 +42,8 @@ export function ArticleLibraryCard({
 }: {
   article: ArticleSummaryRecord;
   onDelete: () => Promise<boolean>;
+  onEditMetadata?: () => void;
+  onManageCollections?: () => void;
   onOpen: () => void;
   onRemoveFromCollection?: () => Promise<void> | void;
   onSetPinned?: (pinned: boolean) => Promise<void> | void;
@@ -52,6 +56,12 @@ export function ArticleLibraryCard({
   const statsLabel = t('library.stats.label', { annotations, distillations });
   const isEbook = article.sourceType === 'ebook';
   const isPdf = article.sourceType === 'pdf';
+  const progress = article.readingProgress;
+  const initialPdfPage =
+    isPdf &&
+    progress?.kind === 'page' &&
+    progress.pageIndex === 0 &&
+    progress.updatedAt === article.createdAt;
   const isText = article.sourceType === 'text';
   const authorLabel = libraryArticleAuthorLabel(article);
   const title = articleDisplayTitle(article);
@@ -118,6 +128,34 @@ export function ArticleLibraryCard({
                       </button>
                     </DropdownMenuItem>
                   ) : null}
+                  {onManageCollections ? (
+                    <DropdownMenuItem asChild>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          dispatchMenu({ type: 'itemChosen' });
+                          onManageCollections();
+                        }}
+                      >
+                        <HugeiconsIcon icon={CollectionAddIcon} size={14} />
+                        <span>{t('library.collection.addToCollection')}</span>
+                      </button>
+                    </DropdownMenuItem>
+                  ) : null}
+                  {onEditMetadata ? (
+                    <DropdownMenuItem asChild>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          dispatchMenu({ type: 'itemChosen' });
+                          onEditMetadata();
+                        }}
+                      >
+                        <HugeiconsIcon icon={PencilEdit01Icon} size={14} />
+                        <span>{t('library.editMetadata.menuAction')}</span>
+                      </button>
+                    </DropdownMenuItem>
+                  ) : null}
                   {onRemoveFromCollection ? (
                     <DropdownMenuItem asChild>
                       <button
@@ -149,7 +187,9 @@ export function ArticleLibraryCard({
       cover={<ArticleBook article={article} />}
       itemRef={itemRef}
       openLabel={openLabel}
-      progress={<LibraryCoverProgress progress={readingProgressRatio(article.readingProgress)} />}
+      progress={
+        <LibraryCoverProgress progress={initialPdfPage ? 0 : readingProgressRatio(progress)} />
+      }
       onOpen={onOpen}
     >
       <p className="library-card-author" aria-hidden={authorLabel ? undefined : true}>
@@ -224,11 +264,15 @@ export function LibraryShelfItem({
 
 function libraryArticleAuthorLabel(article: ArticleSummaryRecord) {
   if (article.sourceType === 'pdf')
-    return formatPdfAuthors(article.pdf?.metadata.author || '', { maxAuthors: 3, maxLength: 42 });
+    return formatPdfAuthors(article.byline || article.pdf?.metadata.author || '', {
+      maxAuthors: 3,
+      maxLength: 42,
+    });
   if (article.sourceType === 'ebook')
     return article.byline || article.ebook?.metadata.fileName || '';
   if (article.sourceType === 'text') return article.byline || '';
   return (
+    article.byline ||
     urlHost(article.canonicalUrl || article.url) ||
     article.siteName ||
     i18next.t('library.meta.unknownAuthor')

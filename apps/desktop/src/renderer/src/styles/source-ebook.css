@@ -69,6 +69,14 @@
   font-weight: 820;
 }
 
+.ebook-reader-status-card {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  text-align: center;
+  padding: 16px 24px;
+}
+
 .ebook-reader-progress {
   position: relative;
   display: flex;

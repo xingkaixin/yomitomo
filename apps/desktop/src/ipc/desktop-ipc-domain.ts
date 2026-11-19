@@ -96,6 +96,12 @@ export type ArticleCommentUpsertInput = {
 
 export type ArticleReaderChatStateSaveInput = DesktopIpcSchemaArgs<'article:reader-chat-state'>[0];
 
+export type ArticleMetadataUpdateInput = DesktopIpcSchemaArgs<'article:update-metadata'>[0];
+
+export type ArticleRelinkSourceResult =
+  | { canceled: true }
+  | { canceled: false; patch?: ArticleUpsertPatch };
+
 export type ArticleLibrarySource = ArticleSourceType;
 
 export type ArticleLibrarySourceCounts = Record<ArticleLibrarySource, number>;
@@ -165,10 +171,16 @@ export type LibraryCatalogEntity = LibraryCatalogItem | LibraryCatalogCollection
 
 export type LibraryCatalogItemCounts = Record<LibraryCatalogItemType, number>;
 
+export type LibraryCatalogSort = 'recent' | 'title' | 'progress' | 'annotations';
+
+export type LibraryCatalogStatusFilter = 'all' | 'unread' | 'reading' | 'completed' | 'annotated';
+
 export type LibraryCatalogListInput = {
   scope: LibraryCatalogScope;
   types?: LibraryCatalogType[];
   query?: string;
+  sort?: LibraryCatalogSort;
+  status?: LibraryCatalogStatusFilter;
   page?: number;
   pageSize?: number;
 };

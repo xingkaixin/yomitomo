@@ -5,6 +5,7 @@ import {
   ArrowRight01Icon,
   Book02Icon,
   Cancel01Icon,
+  FileUploadIcon,
   FilterIcon,
   Globe02Icon,
   LibraryIcon,
@@ -52,6 +53,9 @@ import type {
 } from '../shell/app-reading-types';
 import {
   libraryCatalogItemRef,
+  type LibraryCatalogItem,
+  type LibraryCatalogSort,
+  type LibraryCatalogStatusFilter,
   type SetLibraryPinInput,
   type TextImportCommitInput,
 } from '../../../ipc-contract';
@@ -69,15 +73,24 @@ import {
   useLibraryImportDialogs,
   type ArticleImportResult,
 } from './app-reading-library-imports';
-import { libraryEntityPinTarget } from './app-reading-library-entities';
+import { libraryEntityPinTarget, libraryItemTitle } from './app-reading-library-entities';
+import {
+  EditArticleMetadataDialog,
+  ItemCollectionsDialog,
+} from './app-reading-library-item-dialogs';
 import { useLibrarySearchClearDissolve } from './app-reading-library-search-clear-dissolve';
+import { useLibraryFileDrop } from './use-library-file-drop';
 import type { LibraryTypeFilter } from './library-filter-types';
 import {
   LibraryImportEntryGrid,
   type LibraryImportEntryHandlers,
 } from './app-reading-library-import-entries';
 import { libraryEmptyReason, type LibraryEmptyMessageKey } from './library-empty-reason';
-import { LIBRARY_PAGE_SIZE_OPTIONS } from './library-query-session';
+import {
+  LIBRARY_PAGE_SIZE_OPTIONS,
+  LIBRARY_SORT_OPTIONS,
+  LIBRARY_STATUS_FILTER_OPTIONS,
+} from './library-query-session';
 import type { LibraryQuerySession } from './use-library-query-session';
 
 const TYPE_FILTER_ICONS: Record<LibraryTypeFilter, React.ReactNode> = {
@@ -114,6 +127,11 @@ type LibraryHomeItemActions = {
   onOpenWeReadBook: (book: WeReadBook) => void;
   onOpenWeReadExternal: (book: WeReadBook) => void;
   onSetLibraryPin: (input: SetLibraryPinInput) => Promise<void> | void;
+  onUpdateArticleMetadata: (input: {
+    articleId: string;
+    title: string;
+    byline?: string;
+  }) => Promise<void>;
 };
 
 type LibraryHomeCollectionActions = {
@@ -179,6 +197,7 @@ export function LibraryHome({
     onOpenWeReadBook,
     onOpenWeReadExternal,
     onSetLibraryPin,
+    onUpdateArticleMetadata,
   } = itemActions;
   const { settings } = settingsControl;
   const {
@@ -188,10 +207,16 @@ export function LibraryHome({
     settings: wereadSettings,
     syncing: wereadSyncing,
   } = weRead;
-  const [{ collectionNameDialog, pickerCollectionId, typeMenuOpen }, dispatchOverlay] = useReducer(
-    libraryHomeOverlayReducer,
-    initialLibraryHomeOverlays,
-  );
+  const [
+    {
+      collectionNameDialog,
+      editingArticle,
+      managingCollectionsItem,
+      pickerCollectionId,
+      typeMenuOpen,
+    },
+    dispatchOverlay,
+  ] = useReducer(libraryHomeOverlayReducer, initialLibraryHomeOverlays);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const leavingPagePanel = useRef<PagePanelSnapshot | null>(null);
   const {
@@ -201,7 +226,7 @@ export function LibraryHome({
     pageCount,
     state: libraryQuery,
   } = querySession;
-  const { page, pageSize, searchQuery, selectedTypes } = libraryQuery;
+  const { page, pageSize, searchQuery, selectedTypes, sort, statusFilter } = libraryQuery;
   const activeCollectionId =
     libraryQuery.scope.kind === 'collection' ? libraryQuery.scope.collectionId : null;
   const activeCollection = activeCollectionId
@@ -285,6 +310,7 @@ export function LibraryHome({
       ? {
           scope: 'collection',
           filteredCount: activeItemsLength,
+          hasFilter: statusFilter !== 'all' || selectedTypes.size > 0,
           libraryHasItems,
           searchQuery,
         }
@@ -309,6 +335,19 @@ export function LibraryHome({
     onCancelArticleImport,
     onCommitTextImport,
     onOpenArticle,
+  });
+  const fileDrop = useLibraryFileDrop({
+    disabled: Boolean(
+      importDialogs.active ||
+      collectionNameDialog ||
+      pickerCollection ||
+      editingArticle ||
+      managingCollectionsItem,
+    ),
+    settings,
+    onImportEbookFile: importEbookFile,
+    onImportPdfFile: importPdfFile,
+    onCommitTextImport,
   });
 
   const createCollection = async (name: string) => {
@@ -339,7 +378,13 @@ export function LibraryHome({
     : t('library.searchPlaceholder');
 
   return (
-    <section className="library-home is-mixed" aria-label={t('library.title')}>
+    <section
+      className={
+        fileDrop.dragging ? 'library-home is-mixed is-file-dragging' : 'library-home is-mixed'
+      }
+      aria-label={t('library.title')}
+      {...fileDrop.handlers}
+    >
       <header className="library-home-header" ref={measureLibraryHeader}>
         <div className="library-home-header-main">
           {activeCollection ? (
@@ -482,6 +527,52 @@ export function LibraryHome({
             </div>
           </div>
           <div className="library-home-actions">
+            <Select
+              value={statusFilter}
+              onValueChange={(value) =>
+                libraryQueryActions.changeStatusFilter(value as LibraryCatalogStatusFilter)
+              }
+            >
+              <SelectTrigger
+                className={
+                  statusFilter !== 'all'
+                    ? 'library-query-select-trigger is-active'
+                    : 'library-query-select-trigger'
+                }
+                aria-label={t('library.statusFilter.label')}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="theme-select-content">
+                <SelectGroup>
+                  {LIBRARY_STATUS_FILTER_OPTIONS.map((option) => (
+                    <SelectItem value={option} key={option}>
+                      {t(`library.statusFilter.${option}`)}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <Select
+              value={sort}
+              onValueChange={(value) => libraryQueryActions.changeSort(value as LibraryCatalogSort)}
+            >
+              <SelectTrigger
+                className="library-query-select-trigger"
+                aria-label={t('library.sort.label')}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="theme-select-content">
+                <SelectGroup>
+                  {LIBRARY_SORT_OPTIONS.map((option) => (
+                    <SelectItem value={option} key={option}>
+                      {t(`library.sort.${option}`)}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
             <LibraryImportControls
               weReadSyncDisabled={!wereadSettings.configured || wereadSyncing}
               weReadSyncVisible={wereadAvailable}
@@ -521,7 +612,7 @@ export function LibraryHome({
         >
           <div
             className="library-page-panel"
-            key={`${selectedTypesKey}-${catalog.page}`}
+            key={`${selectedTypesKey}-${sort}-${statusFilter}-${catalog.page}`}
             ref={pagePanelRef}
           >
             {catalogPending ? (
@@ -544,6 +635,10 @@ export function LibraryHome({
                 actions={{
                   deleteArticle: (article) => onDeleteArticle(article.id),
                   deleteCollection: (collection) => void deleteCollection(collection.id),
+                  editArticleMetadata: (article) =>
+                    dispatchOverlay({ type: 'articleMetadataEditRequested', article }),
+                  manageItemCollections: (entity) =>
+                    dispatchOverlay({ type: 'itemCollectionsOpened', item: entity }),
                   openArticle: onOpenArticle,
                   openCollection: (collection) =>
                     openCollectionWithTransition(collection.id, () =>
@@ -698,7 +793,37 @@ export function LibraryHome({
           onClose={() => dispatchOverlay({ type: 'collectionPickerClosed' })}
         />
       ) : null}
+      {editingArticle ? (
+        <EditArticleMetadataDialog
+          article={editingArticle}
+          onClose={() => dispatchOverlay({ type: 'articleMetadataEditClosed' })}
+          onSave={onUpdateArticleMetadata}
+        />
+      ) : null}
+      {managingCollectionsItem ? (
+        <ItemCollectionsDialog
+          collections={collections}
+          collectionMembers={collectionMembers}
+          itemTitle={libraryItemTitle(managingCollectionsItem)}
+          memberRef={libraryCatalogItemRef(managingCollectionsItem)}
+          onAddMember={(collectionId, member) => addCollectionMembers(collectionId, [member])}
+          onClose={() => dispatchOverlay({ type: 'itemCollectionsClosed' })}
+          onCreateCollection={onCreateCollection}
+          onRemoveMember={removeCollectionMember}
+        />
+      ) : null}
       {importDialogs.dialogs}
+      {fileDrop.dragging ? (
+        <div className="library-file-drop-overlay" aria-live="polite">
+          <div className="library-file-drop-card">
+            <span className="library-file-drop-icon" aria-hidden="true">
+              <HugeiconsIcon icon={FileUploadIcon} size={28} />
+            </span>
+            <strong>{t('library.import.dropOverlayTitle')}</strong>
+            <span>{t('library.import.dropOverlayFormats')}</span>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -726,6 +851,8 @@ type CollectionNameDialogState = { type: 'create' } | { type: 'rename'; collecti
 
 type LibraryHomeOverlays = {
   collectionNameDialog: CollectionNameDialogState | null;
+  editingArticle: ArticleSummaryRecord | null;
+  managingCollectionsItem: LibraryCatalogItem | null;
   pickerCollectionId: string | null;
   typeMenuOpen: boolean;
 };
@@ -736,10 +863,16 @@ type LibraryHomeOverlayEvent =
   | { type: 'collectionRenameRequested'; collection: Collection }
   | { type: 'collectionNameDialogClosed' }
   | { type: 'collectionPickerOpened'; collectionId: string }
-  | { type: 'collectionPickerClosed' };
+  | { type: 'collectionPickerClosed' }
+  | { type: 'articleMetadataEditRequested'; article: ArticleSummaryRecord }
+  | { type: 'articleMetadataEditClosed' }
+  | { type: 'itemCollectionsOpened'; item: LibraryCatalogItem }
+  | { type: 'itemCollectionsClosed' };
 
 const initialLibraryHomeOverlays: LibraryHomeOverlays = {
   collectionNameDialog: null,
+  editingArticle: null,
+  managingCollectionsItem: null,
   pickerCollectionId: null,
   typeMenuOpen: false,
 };
@@ -764,6 +897,14 @@ function libraryHomeOverlayReducer(
       return { ...overlays, pickerCollectionId: event.collectionId };
     case 'collectionPickerClosed':
       return { ...overlays, pickerCollectionId: null };
+    case 'articleMetadataEditRequested':
+      return { ...overlays, editingArticle: event.article };
+    case 'articleMetadataEditClosed':
+      return { ...overlays, editingArticle: null };
+    case 'itemCollectionsOpened':
+      return { ...overlays, managingCollectionsItem: event.item };
+    case 'itemCollectionsClosed':
+      return { ...overlays, managingCollectionsItem: null };
   }
 }
 

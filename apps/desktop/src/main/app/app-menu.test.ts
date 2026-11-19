@@ -23,6 +23,17 @@ describe('app menu', () => {
     expect(viewRoles).not.toContain('forceReload');
     expect(viewRoles).not.toContain('toggleDevTools');
   });
+
+  it('includes Import Text in the File menu and dispatches import-text', () => {
+    const onCommand = vi.fn();
+    const template = buildAppMenuTemplate(menuOptions({ locale: 'zh-CN', onCommand }));
+    const fileItems = topLevelSubmenu(template, '文件');
+    const importTextItem = fileItems.find((item) => item.label === '导入文本...');
+
+    expect(importTextItem).toBeTruthy();
+    importTextItem?.click?.(undefined as never, undefined, undefined as never);
+    expect(onCommand).toHaveBeenCalledWith('import-text');
+  });
 });
 
 function menuOptions(overrides: Partial<AppMenuOptions> = {}): AppMenuOptions {

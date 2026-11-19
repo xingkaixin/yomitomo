@@ -96,7 +96,10 @@ export function usePdfiumReadingProgress({
   const { saveNow: savePdfProgressNow } = useSourceReadingProgressSaver({
     articleId: article.id,
     debounceMs: 0,
-    initialProgress: article.readingProgress,
+    initialProgress:
+      article.readingProgress?.updatedAt === article.createdAt
+        ? undefined
+        : article.readingProgress,
     onSaveArticleReadingProgress,
   });
   const readScrollInput = useStableCallback(() => ({
@@ -167,6 +170,7 @@ export function usePdfiumReadingProgress({
   const markInitialPageReady = useCallback(() => {
     restoringInitialPageRef.current = false;
     suppressPageSaveUntilRestoreRef.current = false;
+    if (initialPageIndex === 0) void savePdfProgressNow(pdfReadingProgress(0, pageCount));
     if (initialPageIndex > 0 && !restoreOverlayHiddenLoggedRef.current) {
       restoreOverlayHiddenLoggedRef.current = true;
       recordPdfOpenTiming(openTrace, 'initial_restore_overlay_hidden', {

@@ -484,6 +484,7 @@ function playImportSuccessSound(importedCount: number, settings: ResolvedAppSett
 }
 
 export type LibraryImportDialogs = {
+  active: boolean;
   openArticleImport: () => void;
   openEbookImport: () => void;
   openPdfImport: () => void;
@@ -562,6 +563,7 @@ export function useLibraryImportDialogs({
   );
 
   return {
+    active: activeDialog !== null,
     openArticleImport: () => openDialog('article'),
     openEbookImport: () => openDialog('ebook'),
     openPdfImport: () => openDialog('pdf'),

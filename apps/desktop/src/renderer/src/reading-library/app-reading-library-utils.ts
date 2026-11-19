@@ -16,11 +16,13 @@ export function articleDisplayTitle(article: ArticleRecord | ArticleSummaryRecor
   if (article.sourceType !== 'ebook') return article.title;
   const metadata = article.ebook.metadata;
   return (
+    metadata.displayTitle ||
     cleanEpubDisplayTitle({
       metadataTitle: metadata.originalTitle || article.title || metadata.displayTitle,
       fileName: metadata.fileName,
       creator: article.byline,
-    }) || article.title
+    }) ||
+    article.title
   );
 }
 

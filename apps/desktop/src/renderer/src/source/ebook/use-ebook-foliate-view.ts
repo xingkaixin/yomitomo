@@ -27,6 +27,7 @@ import { useSourceReadingProgressSaver } from '../bookcase/use-source-reading-pr
 type EbookReaderState = {
   status: 'loading' | 'ready' | 'error';
   message: string;
+  sourceMissing?: boolean;
 };
 
 type UseEbookFoliateViewInput = {
@@ -51,6 +52,7 @@ type EbookFoliateViewState = {
   progress: number;
   readerState: EbookReaderState;
   openSettled: boolean;
+  reloadVersion: number;
 };
 
 type EbookFoliateViewEvent =
@@ -59,8 +61,9 @@ type EbookFoliateViewEvent =
       tocItems: ReturnType<typeof flattenFoliateToc>;
       sectionFractions: number[];
     }
-  | { type: 'openFailed'; message: string }
+  | { type: 'openFailed'; message: string; sourceMissing?: boolean }
   | { type: 'openSettled' }
+  | { type: 'reloadRequested' }
   | { type: 'relocated'; pageInfo: FoliatePageInfo | null; progress: number }
   | { type: 'pageInfoMeasured'; pageInfo: FoliatePageInfo | null }
   | { type: 'progressJumped'; progress: number };
@@ -75,6 +78,7 @@ function initialEbookFoliateViewState(
     progress: readingProgressRatio(readingProgress),
     readerState: { status: 'loading', message: i18next.t('ebookReader.opening') },
     openSettled: false,
+    reloadVersion: 0,
   };
 }
 
@@ -93,11 +97,22 @@ function ebookFoliateViewReducer(
     case 'openFailed':
       return {
         ...state,
-        readerState: { status: 'error', message: event.message },
+        readerState: {
+          status: 'error',
+          message: event.message,
+          sourceMissing: event.sourceMissing,
+        },
         openSettled: true,
       };
     case 'openSettled':
       return { ...state, openSettled: true };
+    case 'reloadRequested':
+      return {
+        ...state,
+        readerState: { status: 'loading', message: i18next.t('ebookReader.opening') },
+        openSettled: false,
+        reloadVersion: state.reloadVersion + 1,
+      };
     case 'relocated':
       return { ...state, pageInfo: event.pageInfo, progress: event.progress };
     case 'pageInfoMeasured':
@@ -180,8 +195,10 @@ export function useEbookFoliateView({
   const pageTurnQueueRef = useRef<PageTurnDirection[]>([]);
   const pageTurnRunningRef = useRef(false);
   const pageTurnSequenceRef = useRef(0);
-  const [{ tocItems, sectionFractions, pageInfo, progress, readerState, openSettled }, dispatch] =
-    useReducer(ebookFoliateViewReducer, article.readingProgress, initialEbookFoliateViewState);
+  const [
+    { tocItems, sectionFractions, pageInfo, progress, readerState, openSettled, reloadVersion },
+    dispatch,
+  ] = useReducer(ebookFoliateViewReducer, article.readingProgress, initialEbookFoliateViewState);
   const readerStateStatusRef = useRef<EbookReaderState['status']>(readerState.status);
   const { scheduleSave: scheduleEbookProgressSave } = useSourceReadingProgressSaver({
     articleId: article.id,
@@ -415,7 +432,11 @@ export function useEbookFoliateView({
         } catch (error) {
           if (cancelled) return;
           readerStateStatusRef.current = 'error';
-          dispatch({ type: 'openFailed', message: ebookOpenErrorMessage(error) });
+          dispatch({
+            type: 'openFailed',
+            message: ebookOpenErrorMessage(error),
+            sourceMissing: error instanceof Error && error.message === 'EBOOK_SOURCE_FILE_MISSING',
+          });
         }
       }
 
@@ -502,6 +523,11 @@ export function useEbookFoliateView({
     [progress],
   );
 
+  const reload = useCallback(() => {
+    readerStateStatusRef.current = 'loading';
+    dispatch({ type: 'reloadRequested' });
+  }, []);
+
   return {
     viewHostRef,
     measureHostRef,
@@ -520,13 +546,14 @@ export function useEbookFoliateView({
     // Rendered after the reader shell; layout settings attach before pagination reads them.
     markers: [
       createElement('span', { hidden: true, key: layoutKey, ref: applyLayout }),
-      createElement('span', { hidden: true, key: 'open', ref: openBook }),
+      createElement('span', { hidden: true, key: `open:${reloadVersion}`, ref: openBook }),
       ...pagination.markers,
     ],
     goLeft,
     goRight,
     goToProgress,
     goToTocItem,
+    reload,
   };
 }
 

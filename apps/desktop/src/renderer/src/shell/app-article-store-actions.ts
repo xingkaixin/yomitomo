@@ -3,6 +3,7 @@ import i18next from 'i18next';
 import type { ArticleReadingProgress, ArticleRecord, Annotation, Comment } from '@yomitomo/shared';
 import { deleteAnnotationComment, sortAnnotations } from '@yomitomo/core';
 import type {
+  ArticleMetadataUpdateInput,
   ArticleReaderChatStateSaveInput,
   TextImportCommitInput,
   WindowAnimationSourceRect,
@@ -227,6 +228,50 @@ export function useAppArticleStoreActions({ articleStore }: UseAppArticleStoreAc
     [articleStore],
   );
 
+  const updateArticleMetadata = useCallback(
+    async (input: ArticleMetadataUpdateInput) => {
+      return articleStore.runMutation({
+        invoke: () => getDesktopApi().article.updateMetadata(input),
+        reconcile: (patch) => ({
+          patches: patch ? [patch] : [],
+          current: patch
+            ? {
+                type: 'update',
+                articleId: input.articleId,
+                update: (article): ArticleRecord => {
+                  if (article.sourceType === 'pdf' && patch.article.sourceType === 'pdf') {
+                    return {
+                      ...article,
+                      title: patch.article.title,
+                      byline: patch.article.byline,
+                      updatedAt: patch.article.updatedAt,
+                      pdf: { ...article.pdf, metadata: patch.article.pdf.metadata },
+                    };
+                  }
+                  if (article.sourceType === 'ebook' && patch.article.sourceType === 'ebook') {
+                    return {
+                      ...article,
+                      title: patch.article.title,
+                      byline: patch.article.byline,
+                      updatedAt: patch.article.updatedAt,
+                      ebook: { ...article.ebook, metadata: patch.article.ebook.metadata },
+                    };
+                  }
+                  return {
+                    ...article,
+                    title: patch.article.title,
+                    byline: patch.article.byline,
+                    updatedAt: patch.article.updatedAt,
+                  };
+                },
+              }
+            : undefined,
+        }),
+      });
+    },
+    [articleStore],
+  );
+
   const importArticleUrl = useCallback(
     async (url: string, requestId?: string) => {
       return articleStore.runMutation({
@@ -326,6 +371,7 @@ export function useAppArticleStoreActions({ articleStore }: UseAppArticleStoreAc
     saveArticleComment,
     saveArticleReadingProgress,
     saveArticleReaderChatState,
+    updateArticleMetadata,
     importArticleUrl,
     cancelArticleUrlImport,
     commitTextImport,
