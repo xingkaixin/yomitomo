@@ -110,18 +110,28 @@ export function createDesktopTelemetryController(
   dependencies: DesktopTelemetryControllerDependencies,
 ): DesktopTelemetryController {
   const disposeController = new AbortController();
+  let heartbeatGeneration: number | undefined;
   const clientDependencies: DesktopTelemetryClientDependencies = {
     fetch: globalThis.fetch.bind(globalThis),
     getAppVersion: dependencies.getAppVersion,
     getSettings: () =>
-      withDatabaseLease(async () => ({ telemetryEnabled: readTelemetryEnabled(getDatabase()) })),
-    getState: () => withDatabaseLease(async () => readTelemetryState(getDatabase())),
+      withDatabaseLease(async () => {
+        const telemetryEnabled = readTelemetryEnabled(getDatabase());
+        heartbeatGeneration = readDatabaseLifecycle().generation;
+        return { telemetryEnabled };
+      }),
+    getState: () =>
+      withDatabaseLease(async () => readTelemetryState(getDatabase()), heartbeatGeneration),
     now: () => new Date(),
     osRelease: () => os.release(),
     platform: process.platform,
     arch: process.arch,
     randomId: randomUUID,
-    saveState: (state) => withDatabaseLease(async () => upsertTelemetryState(getDatabase(), state)),
+    saveState: (state) =>
+      withDatabaseLease(
+        async () => upsertTelemetryState(getDatabase(), state),
+        heartbeatGeneration,
+      ),
     timezone: currentTimezone,
     signal: disposeController.signal,
     logInfo: dependencies.logInfo,

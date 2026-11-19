@@ -109,7 +109,12 @@ export function readDatabaseWriteVersion(): DatabaseWriteVersion | null {
  * Entry point for asynchronous database work: a restore waits for the outstanding
  * leases before it closes the connection, and refuses new ones once it starts.
  */
-export async function withDatabaseLease<T>(operation: () => Promise<T>): Promise<T> {
+export async function withDatabaseLease<T>(
+  operation: () => Promise<T>,
+  generation?: number,
+): Promise<T> {
+  if (generation !== undefined && generation !== connectionGeneration)
+    throw new Error('DATA_MANAGEMENT_DATABASE_REPLACING');
   if (lifecycle !== 'open') throw new Error('DATA_MANAGEMENT_DATABASE_REPLACING');
 
   activeLeases += 1;
@@ -343,6 +348,7 @@ export async function runBackgroundSqliteMaintenance(
     throw error;
   });
   if (!inspection || inspection.status === 'skipped') return inspection;
+  if (activeLeases > 0) return null;
 
   return withDatabaseMaintenance(async () => {
     if (!sqlite) return null;

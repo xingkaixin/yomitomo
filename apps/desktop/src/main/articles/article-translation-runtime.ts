@@ -10,7 +10,7 @@ import type {
 import { hashText } from '@yomitomo/shared';
 import { taskProvider } from '../agents/agent-runtime-routing';
 import type { DesktopAiModule } from '../ipc/ipc';
-import { withDatabaseLease } from '../store/store-db';
+import { readDatabaseLifecycle, withDatabaseLease } from '../store/store-db';
 import {
   articleTranslationIdentityKey,
   resolveArticleTranslationIdentity,
@@ -103,11 +103,15 @@ async function translateArticle(
   const { storeAgents: agentRuntimePersistence, storeArticles: articlePersistence } =
     await context.getPersistenceModules();
   const aiModule = await context.getAiModule();
-  const { article, store } = await withDatabaseLease(async () => {
+  const { article, store, generation } = await withDatabaseLease(async () => {
     const loadedArticle = await articlePersistence.readArticle(input.articleId);
     if (!loadedArticle) throw new Error('ARTICLE_NOT_FOUND');
     const runtimeStore = await agentRuntimePersistence.readAgentRuntimeContext();
-    return { article: loadedArticle, store: runtimeStore };
+    return {
+      article: loadedArticle,
+      store: runtimeStore,
+      generation: readDatabaseLifecycle().generation,
+    };
   });
   const identity = resolveArticleTranslationIdentity({
     article,
@@ -121,6 +125,7 @@ async function translateArticle(
   return sessions.run(articleTranslationIdentityKey(identity), (signal) =>
     runTranslationSession({
       aiModule,
+      generation,
       articlePersistence,
       input,
       key: identity,
@@ -135,6 +140,7 @@ async function translateArticle(
 }
 
 type TranslationSessionInput = {
+  generation: number;
   aiModule: Awaited<ReturnType<ArticleTranslationRuntimeContext['getAiModule']>>;
   articlePersistence: ArticlePersistence;
   input: ArticleTranslationRequest;
@@ -150,8 +156,10 @@ async function runTranslationSession(
   session: TranslationSessionInput,
 ): Promise<ArticleTranslation> {
   const { articlePersistence, input, key, onUpdate, signal, source } = session;
+  const withSessionLease = <T>(operation: () => Promise<T>) =>
+    withDatabaseLease(operation, session.generation);
   signal.throwIfAborted();
-  const current = await withDatabaseLease(async () =>
+  const current = await withSessionLease(async () =>
     articlePersistence.recoverInterruptedArticleTranslation(key),
   );
   if (!input.force && !input.sourceBlockIds?.length && current?.status === 'ready') return current;
@@ -168,7 +176,7 @@ async function runTranslationSession(
   );
   const provider = await session.provider();
   signal.throwIfAborted();
-  let latest = await withDatabaseLease(() =>
+  let latest = await withSessionLease(() =>
     articlePersistence.initializeArticleTranslation({
       ...key,
       providerId: provider.id,
@@ -208,7 +216,7 @@ async function runTranslationSession(
             // Deletion shares the session queue and must wait for an already-started write.
             const segment = yield* Effect.tryPromise({
               try: () =>
-                withDatabaseLease(() =>
+                withSessionLease(() =>
                   articlePersistence.updateArticleTranslationSegment({
                     translationId: latest.id,
                     sourceBlockId: block.id,
@@ -230,7 +238,7 @@ async function runTranslationSession(
   }
   if (signal.aborted) return latest;
 
-  const finalized = await withDatabaseLease(() =>
+  const finalized = await withSessionLease(() =>
     articlePersistence.finalizeArticleTranslation({
       translationId: latest.id,
       updatedAt: new Date().toISOString(),

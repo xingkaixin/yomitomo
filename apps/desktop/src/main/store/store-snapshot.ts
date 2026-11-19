@@ -44,8 +44,6 @@ export async function readStore(): Promise<DesktopStore> {
 }
 
 export async function readShellStore(): Promise<DesktopStore> {
-  const cached = readCachedShellStore();
-  if (cached) return cached;
   return readStoreInternal(undefined, { includeArticles: false });
 }
 
@@ -79,6 +77,10 @@ async function readStoreInternal(
   );
   backfillAnnotationMemoryOnce(database, profile);
   const includeArticles = options.includeArticles !== false;
+  if (!includeArticles && !profile) {
+    const cached = readCachedShellStore();
+    if (cached) return cached;
+  }
   const store = measureStoreRead(profile, 'read_store_rows', () =>
     readStoreRows(database, profile, { includeArticles }),
   );
