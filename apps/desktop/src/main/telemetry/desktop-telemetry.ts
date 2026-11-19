@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import os from 'node:os';
 import { powerMonitor } from 'electron';
 import type { ReadingMemoryUsageKey, ResolvedAppSettings } from '@yomitomo/shared';
-import { getDatabase, withDatabaseLease } from '../store/store-db';
+import { getDatabase, readDatabaseLifecycle, withDatabaseLease } from '../store/store-db';
 import {
   readTelemetryEnabled,
   readTelemetryState,
@@ -34,16 +34,19 @@ type DesktopTelemetryClientDependencies = {
   endpoint?: string;
   fetch: typeof fetch;
   getAppVersion: () => string;
-  getSettings: () => Pick<ResolvedAppSettings, 'telemetryEnabled'>;
-  getState: () => StoredTelemetryState;
+  getSettings: () =>
+    | Pick<ResolvedAppSettings, 'telemetryEnabled'>
+    | Promise<Pick<ResolvedAppSettings, 'telemetryEnabled'>>;
+  getState: () => StoredTelemetryState | Promise<StoredTelemetryState>;
   now: () => Date;
   osRelease: () => string;
   platform: NodeJS.Platform;
   arch: string;
   randomId: () => string;
-  saveState: (state: StoredTelemetryState) => void;
+  saveState: (state: StoredTelemetryState) => unknown;
   timezone: () => string | undefined;
   timeoutMs?: number;
+  signal?: AbortSignal;
   logInfo?: (event: string, data?: Record<string, unknown>) => void;
   logError?: (event: string, error: unknown, data?: Record<string, unknown>) => void;
 };
@@ -106,24 +109,28 @@ export function createDesktopTelemetryControllerForEnvironment(
 export function createDesktopTelemetryController(
   dependencies: DesktopTelemetryControllerDependencies,
 ): DesktopTelemetryController {
+  const disposeController = new AbortController();
   const clientDependencies: DesktopTelemetryClientDependencies = {
     fetch: globalThis.fetch.bind(globalThis),
     getAppVersion: dependencies.getAppVersion,
-    getSettings: () => ({ telemetryEnabled: readTelemetryEnabled(getDatabase()) }),
-    getState: () => readTelemetryState(getDatabase()),
+    getSettings: () =>
+      withDatabaseLease(async () => ({ telemetryEnabled: readTelemetryEnabled(getDatabase()) })),
+    getState: () => withDatabaseLease(async () => readTelemetryState(getDatabase())),
     now: () => new Date(),
     osRelease: () => os.release(),
     platform: process.platform,
     arch: process.arch,
     randomId: randomUUID,
-    saveState: (state) => upsertTelemetryState(getDatabase(), state),
+    saveState: (state) => withDatabaseLease(async () => upsertTelemetryState(getDatabase(), state)),
     timezone: currentTimezone,
+    signal: disposeController.signal,
     logInfo: dependencies.logInfo,
     logError: dependencies.logError,
   };
   const readingMemoryTelemetry = createReadingMemoryTelemetry({
     fetch: clientDependencies.fetch,
-    isEnabled: () => clientDependencies.getSettings().telemetryEnabled,
+    isEnabled: () =>
+      readDatabaseLifecycle().state === 'open' && readTelemetryEnabled(getDatabase()),
     endpoint: readingMemoryTelemetryEndpoint,
     timeoutMs: requestTimeoutMs,
   });
@@ -133,13 +140,13 @@ export function createDesktopTelemetryController(
     if (disposed) return;
     void readingMemoryTelemetry.flush();
     if (running) return;
-    running = withDatabaseLease(() => runDesktopTelemetryHeartbeat(reason, clientDependencies))
+    running = runDesktopTelemetryHeartbeat(reason, clientDependencies)
       .then((result) => {
         if (result.status === 'sent')
           dependencies.logInfo?.('telemetry.heartbeat_sent', { reason });
       })
       .catch((error) => {
-        dependencies.logError?.('telemetry.heartbeat_failed', error, { reason });
+        if (!disposed) dependencies.logError?.('telemetry.heartbeat_failed', error, { reason });
       })
       .finally(() => {
         running = null;
@@ -158,6 +165,7 @@ export function createDesktopTelemetryController(
     recordReadingMemoryUsage: readingMemoryTelemetry.record,
     dispose: () => {
       disposed = true;
+      disposeController.abort();
       readingMemoryTelemetry.dispose();
       clearTimeout(startupTimer);
       clearInterval(intervalTimer);
@@ -170,17 +178,17 @@ export async function runDesktopTelemetryHeartbeat(
   reason: TelemetryReason,
   dependencies: DesktopTelemetryClientDependencies,
 ) {
-  if (!dependencies.getSettings().telemetryEnabled) {
+  if (!(await dependencies.getSettings()).telemetryEnabled) {
     return { status: 'disabled' as const };
   }
 
   const now = dependencies.now();
   const today = clientDay(now);
-  const state = dependencies.getState();
+  const state = await dependencies.getState();
   if (state.lastHeartbeatDay === today) return { status: 'already-sent' as const };
 
   const installId = state.installId || dependencies.randomId();
-  if (!state.installId) dependencies.saveState({ ...state, installId });
+  if (!state.installId) await dependencies.saveState({ ...state, installId });
 
   const payload = buildTelemetryHeartbeatPayload({
     installId,
@@ -202,7 +210,7 @@ export async function runDesktopTelemetryHeartbeat(
     return { status: 'failed' as const };
   }
 
-  dependencies.saveState({ installId, lastHeartbeatDay: today });
+  await dependencies.saveState({ installId, lastHeartbeatDay: today });
   return { status: 'sent' as const };
 }
 
@@ -237,12 +245,15 @@ async function postTelemetryHeartbeat(
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), dependencies.timeoutMs ?? requestTimeoutMs);
   timeout.unref?.();
+  const signal = dependencies.signal
+    ? AbortSignal.any([controller.signal, dependencies.signal])
+    : controller.signal;
   try {
     return await dependencies.fetch(dependencies.endpoint ?? telemetryEndpoint, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(payload),
-      signal: controller.signal,
+      signal,
     });
   } finally {
     clearTimeout(timeout);

@@ -10,6 +10,7 @@ import type {
 import { hashText } from '@yomitomo/shared';
 import { taskProvider } from '../agents/agent-runtime-routing';
 import type { DesktopAiModule } from '../ipc/ipc';
+import { withDatabaseLease } from '../store/store-db';
 import {
   articleTranslationIdentityKey,
   resolveArticleTranslationIdentity,
@@ -102,9 +103,12 @@ async function translateArticle(
   const { storeAgents: agentRuntimePersistence, storeArticles: articlePersistence } =
     await context.getPersistenceModules();
   const aiModule = await context.getAiModule();
-  const article = await articlePersistence.readArticle(input.articleId);
-  if (!article) throw new Error('ARTICLE_NOT_FOUND');
-  const store = await agentRuntimePersistence.readAgentRuntimeContext();
+  const { article, store } = await withDatabaseLease(async () => {
+    const loadedArticle = await articlePersistence.readArticle(input.articleId);
+    if (!loadedArticle) throw new Error('ARTICLE_NOT_FOUND');
+    const runtimeStore = await agentRuntimePersistence.readAgentRuntimeContext();
+    return { article: loadedArticle, store: runtimeStore };
+  });
   const identity = resolveArticleTranslationIdentity({
     article,
     requestedSourceId: input.sourceId,
@@ -147,7 +151,9 @@ async function runTranslationSession(
 ): Promise<ArticleTranslation> {
   const { articlePersistence, input, key, onUpdate, signal, source } = session;
   signal.throwIfAborted();
-  const current = articlePersistence.recoverInterruptedArticleTranslation(key);
+  const current = await withDatabaseLease(async () =>
+    articlePersistence.recoverInterruptedArticleTranslation(key),
+  );
   if (!input.force && !input.sourceBlockIds?.length && current?.status === 'ready') return current;
 
   const blocks = source.blocks;
@@ -162,21 +168,25 @@ async function runTranslationSession(
   );
   const provider = await session.provider();
   signal.throwIfAborted();
-  let latest = await articlePersistence.initializeArticleTranslation({
-    ...key,
-    providerId: provider.id,
-    providerName: provider.name,
-    modelName: provider.modelName,
-    updatedAt: new Date().toISOString(),
-    segments: blocks.map((block) => ({
-      sourceBlockId: block.id,
-      sourceText: block.text,
-      sourceTextHash: block.textHash,
-      order: block.order,
-      retranslate:
-        Boolean(input.force) || !translatedBlockIds.has(block.id) || selectedBlockIds.has(block.id),
-    })),
-  });
+  let latest = await withDatabaseLease(() =>
+    articlePersistence.initializeArticleTranslation({
+      ...key,
+      providerId: provider.id,
+      providerName: provider.name,
+      modelName: provider.modelName,
+      updatedAt: new Date().toISOString(),
+      segments: blocks.map((block) => ({
+        sourceBlockId: block.id,
+        sourceText: block.text,
+        sourceTextHash: block.textHash,
+        order: block.order,
+        retranslate:
+          Boolean(input.force) ||
+          !translatedBlockIds.has(block.id) ||
+          selectedBlockIds.has(block.id),
+      })),
+    }),
+  );
   if (signal.aborted) return latest;
   onUpdate(latest);
 
@@ -198,11 +208,13 @@ async function runTranslationSession(
             // Deletion shares the session queue and must wait for an already-started write.
             const segment = yield* Effect.tryPromise({
               try: () =>
-                articlePersistence.updateArticleTranslationSegment({
-                  translationId: latest.id,
-                  sourceBlockId: block.id,
-                  ...update,
-                }),
+                withDatabaseLease(() =>
+                  articlePersistence.updateArticleTranslationSegment({
+                    translationId: latest.id,
+                    sourceBlockId: block.id,
+                    ...update,
+                  }),
+                ),
               catch: (error) => error,
             }).pipe(Effect.uninterruptible);
             if (!segment) return;
@@ -218,10 +230,12 @@ async function runTranslationSession(
   }
   if (signal.aborted) return latest;
 
-  const finalized = await articlePersistence.finalizeArticleTranslation({
-    translationId: latest.id,
-    updatedAt: new Date().toISOString(),
-  });
+  const finalized = await withDatabaseLease(() =>
+    articlePersistence.finalizeArticleTranslation({
+      translationId: latest.id,
+      updatedAt: new Date().toISOString(),
+    }),
+  );
   if (finalized) latest = finalized;
   onUpdate(latest);
   return latest;

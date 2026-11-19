@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { readDatabaseLifecycle, withDatabaseMaintenance } from '../store/store-db';
 import { pdfSourceArrayBufferForIpc, registerArticleIpc } from './ipc-article';
 
 const storageMocks = vi.hoisted(() => ({
@@ -17,6 +18,11 @@ vi.mock('electron', () => ({
   ipcMain: {
     handle: storageMocks.ipcMainHandle,
   },
+}));
+
+vi.mock('../app/logger', () => ({
+  logInfo: vi.fn(),
+  logError: vi.fn(),
 }));
 
 vi.mock('../ebooks/ebook-storage', () => ({
@@ -74,6 +80,38 @@ describe('article IPC challenge reimport', () => {
     expect(
       mergeExistingArticle(next, { id: 'legacy', createdAt: '2026-06-01T00:00:00.000Z' }),
     ).toEqual({ id: 'legacy', createdAt: '2026-06-01T00:00:00.000Z' });
+  });
+
+  it('does not hold a database lease while URL import waits on network fetch', async () => {
+    storageMocks.ipcMainHandle.mockClear();
+    storageMocks.importArticleSource.mockClear();
+    let releaseImport!: (value: unknown) => void;
+    const pendingImport = new Promise((resolve) => {
+      releaseImport = resolve;
+    });
+    const next = { id: 'web_net', createdAt: '2026-06-04T00:00:00.000Z' };
+    storageMocks.articleRecordFromUrl.mockReturnValueOnce(pendingImport);
+    storageMocks.importArticleSource.mockResolvedValueOnce({ status: 'duplicate', article: next });
+    registerArticleIpc(
+      articleIpcContext(
+        { readImportSettings: vi.fn().mockReturnValue({ saveArticleImages: false }) },
+        {},
+      ),
+    );
+    const handler = storageMocks.ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === 'article:import-url',
+    )?.[1];
+
+    const invoke = handler({}, { url: 'https://example.com/slow-post' });
+    await vi.waitFor(() => expect(storageMocks.articleRecordFromUrl).toHaveBeenCalledOnce());
+
+    expect(readDatabaseLifecycle().leases).toBe(0);
+    await expect(withDatabaseMaintenance(async () => 'maintenance-ok')).resolves.toBe(
+      'maintenance-ok',
+    );
+
+    releaseImport(next);
+    await invoke;
   });
 });
 

@@ -309,6 +309,7 @@ export const articleIpcInvokeDescriptors = {
     route: ['article', 'getSiteIcon'],
     roles: mainOnly,
     validation: 'schema',
+    databaseIndependent: true,
   }),
   'article:import-url': desktopIpcInvoke<
     DesktopIpcSchemaArgs<'article:import-url'>,
@@ -317,6 +318,7 @@ export const articleIpcInvokeDescriptors = {
     route: ['article', 'importUrl'],
     roles: mainOnly,
     validation: 'schema',
+    databaseIndependent: true,
   }),
   'article:import-url-cancel': desktopIpcInvoke<
     DesktopIpcSchemaArgs<'article:import-url-cancel'>,
@@ -325,6 +327,7 @@ export const articleIpcInvokeDescriptors = {
     route: ['article', 'cancelUrlImport'],
     roles: mainOnly,
     validation: 'schema',
+    databaseIndependent: true,
   }),
   'article:list-library': desktopIpcInvoke<
     DesktopIpcSchemaArgs<'article:list-library'>,
@@ -370,6 +373,7 @@ export const articleIpcInvokeDescriptors = {
     route: ['article', 'translation', 'translate'],
     roles: mainOnly,
     validation: 'schema',
+    databaseIndependent: true,
   }),
   'article-translation:delete-current': desktopIpcInvoke<
     DesktopIpcSchemaArgs<'article-translation:delete-current'>,
@@ -386,6 +390,7 @@ export const articleIpcInvokeDescriptors = {
     route: ['article', 'ebook', 'importFile'],
     roles: mainOnly,
     validation: 'schema',
+    databaseIndependent: true,
   }),
   'ebook:read-file': desktopIpcInvoke<DesktopIpcSchemaArgs<'ebook:read-file'>, ArrayBuffer>()({
     route: ['article', 'ebook', 'readFile'],
@@ -399,6 +404,7 @@ export const articleIpcInvokeDescriptors = {
     route: ['article', 'pdf', 'importFile'],
     roles: mainOnly,
     validation: 'schema',
+    databaseIndependent: true,
   }),
   'pdf:read-file': desktopIpcInvoke<DesktopIpcSchemaArgs<'pdf:read-file'>, ArrayBuffer>()({
     route: ['article', 'pdf', 'readFile'],
@@ -491,6 +497,7 @@ export const dataIpcInvokeDescriptors = {
     route: ['data', 'backupDatabase'],
     roles: mainOnly,
     validation: { exempt: 'no-args' },
+    databaseIndependent: true,
   }),
   'data:database-restore': desktopIpcInvoke<[], DatabaseRestoreResult>()({
     route: ['data', 'restoreDatabase'],
@@ -737,11 +744,13 @@ export const weReadIpcInvokeDescriptors = {
     route: ['weRead', 'test'],
     roles: mainOnly,
     validation: 'schema',
+    databaseIndependent: true,
   }),
   'weread:sync': desktopIpcInvoke<[], WeReadSyncResult>()({
     route: ['weRead', 'sync'],
     roles: mainOnly,
     validation: { exempt: 'no-args' },
+    databaseIndependent: true,
   }),
   'weread:sync-book': desktopIpcInvoke<
     DesktopIpcSchemaArgs<'weread:sync-book'>,
@@ -750,6 +759,7 @@ export const weReadIpcInvokeDescriptors = {
     route: ['weRead', 'syncBook'],
     roles: mainOnly,
     validation: 'schema',
+    databaseIndependent: true,
   }),
   'weread:get-book': desktopIpcInvoke<
     DesktopIpcSchemaArgs<'weread:get-book'>,
@@ -807,5 +817,6 @@ export const weReadIpcInvokeDescriptors = {
     route: ['weRead', 'queryReadingStats'],
     roles: mainOnly,
     validation: 'schema',
+    databaseIndependent: true,
   }),
 } as const;

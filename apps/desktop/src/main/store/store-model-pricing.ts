@@ -1,6 +1,9 @@
-import { refreshModelsDevPrices } from '../providers/model-pricing-repository';
-import { getDatabase } from './store-db';
+import { refreshModelsDevPricesWithDatabase } from '../providers/model-pricing-repository';
+import { getDatabase, withDatabaseLease } from './store-db';
 
-export function refreshModelPrices() {
-  return refreshModelsDevPrices(getDatabase());
+export function refreshModelPrices(options?: { signal?: AbortSignal }) {
+  return refreshModelsDevPricesWithDatabase(
+    (operation) => withDatabaseLease(async () => operation(getDatabase())),
+    options,
+  );
 }

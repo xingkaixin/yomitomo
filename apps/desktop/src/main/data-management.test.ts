@@ -45,6 +45,7 @@ vi.mock('./store/store-db', () => ({
   getDataDirectoryPath: () => testState.userData,
   getDatabasePath: () => join(testState.userData, 'yomitomo.sqlite'),
   replaceDatabaseFile: testState.store.replaceDatabaseFile,
+  withDatabaseLease: (operation: () => Promise<unknown>) => operation(),
 }));
 
 vi.mock('./native/sqlite', () => ({

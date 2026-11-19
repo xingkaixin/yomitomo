@@ -17,6 +17,12 @@ import {
 } from './article-translation-repository';
 import type { ArticleTranslationIdentity } from './article-translation-identity';
 import { createArticleTranslationRuntime } from './article-translation-runtime';
+import { readDatabaseLifecycle, withDatabaseMaintenance } from '../store/store-db';
+
+vi.mock('../app/logger', () => ({
+  logInfo: vi.fn(),
+  logError: vi.fn(),
+}));
 
 const routingMocks = vi.hoisted(() => ({ taskProvider: vi.fn() }));
 
@@ -70,6 +76,11 @@ describe('article translation runtime', () => {
     );
     const running = harness.runtime.translate(translateRequest(2), () => {});
     await vi.waitFor(() => expect(pending.size).toBe(2));
+
+    expect(readDatabaseLifecycle().leases).toBe(0);
+    await expect(withDatabaseMaintenance(async () => 'maintenance-ok')).resolves.toBe(
+      'maintenance-ok',
+    );
 
     const current = await harness.runtime.readCurrent(translateRequest(2));
     for (const [blockId, resolve] of pending) resolve(`translated ${blockId}`);

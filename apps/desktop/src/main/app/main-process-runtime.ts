@@ -98,15 +98,14 @@ export function startMainProcessRuntime(
     logError: dependencies.logError,
   });
 
-  const refreshModelPrices = (reason: string) => {
-    if (disposePromise) return;
+  const refreshModelPrices = (reason: string, signal: AbortSignal) => {
+    if (disposePromise || signal.aborted) return;
     const startedAt = performance.now();
-    return withDatabaseLease(async () => {
-      const modules = await dependencies.getPersistenceModules();
-      return modules.storeModelPricing.refreshModelPrices();
-    })
+    return dependencies
+      .getPersistenceModules()
+      .then((modules) => modules.storeModelPricing.refreshModelPrices({ signal }))
       .then((result) => {
-        if (disposePromise) return;
+        if (disposePromise || signal.aborted) return;
         dependencies.logInfo('model_pricing.refresh', {
           reason,
           refreshed: result.refreshed,
@@ -116,22 +115,23 @@ export function startMainProcessRuntime(
         });
       })
       .catch((error) => {
-        if (!disposePromise)
+        if (!disposePromise && !signal.aborted)
           dependencies.logError('model_pricing.refresh_failed', error, { reason });
       });
   };
 
-  const checkForAppUpdates = (reason: string) => {
-    if (disposePromise) return;
+  const checkForAppUpdates = (reason: string, signal: AbortSignal) => {
+    if (disposePromise || signal.aborted) return;
     return dependencies
       .getAppUpdaterModule()
       .then((module) => module.checkForAppUpdates('auto'))
       .then((state) => {
-        if (!disposePromise)
+        if (!disposePromise && !signal.aborted)
           dependencies.logInfo('updater.auto_check', { reason, status: state.status });
       })
       .catch((error) => {
-        if (!disposePromise) dependencies.logError('updater.auto_check_failed', error, { reason });
+        if (!disposePromise && !signal.aborted)
+          dependencies.logError('updater.auto_check_failed', error, { reason });
       });
   };
 
@@ -140,35 +140,34 @@ export function startMainProcessRuntime(
     weReadFiber = null;
   };
 
-  const runWeReadAutoSync = async (reason: string) => {
-    if (disposePromise) return;
+  const runWeReadAutoSync = async (reason: string, signal: AbortSignal) => {
+    if (disposePromise || signal.aborted) return;
     const startedAt = performance.now();
     try {
-      const result = await withDatabaseLease(async () => {
-        const modules = await dependencies.getPersistenceModules();
-        const settings = await modules.weReadRepository.readWeReadSettings();
-        if (disposePromise) return;
-        if (!settings.configured || settings.syncMode !== 'auto') {
-          dependencies.logInfo('weread.auto_sync.skipped', {
-            reason,
-            configured: settings.configured,
-            syncMode: settings.syncMode ?? 'manual',
-            skippedReason: 'disabled',
-          });
-          return;
-        }
-
-        // A run from a replaced schedule may still be in flight; the sync queue runs this one
-        // after it, so a changed key is synced now instead of at the next interval.
-        return syncWeRead({
-          persistence: modules.weReadRepository,
-          reason: `auto:${reason}`,
-          logInfo: dependencies.logInfo,
-          logError: dependencies.logError,
-          elapsedMs: dependencies.elapsedMs,
+      const modules = await dependencies.getPersistenceModules();
+      const settings = await withDatabaseLease(() => modules.weReadRepository.readWeReadSettings());
+      if (disposePromise || signal.aborted) return;
+      if (!settings.configured || settings.syncMode !== 'auto') {
+        dependencies.logInfo('weread.auto_sync.skipped', {
+          reason,
+          configured: settings.configured,
+          syncMode: settings.syncMode ?? 'manual',
+          skippedReason: 'disabled',
         });
+        return;
+      }
+
+      // A run from a replaced schedule may still be in flight; the sync queue runs this one
+      // after it, so a changed key is synced now instead of at the next interval.
+      const result = await syncWeRead({
+        persistence: modules.weReadRepository,
+        reason: `auto:${reason}`,
+        signal,
+        logInfo: dependencies.logInfo,
+        logError: dependencies.logError,
+        elapsedMs: dependencies.elapsedMs,
       });
-      if (disposePromise || !result) return;
+      if (disposePromise || signal.aborted || !result) return;
       dependencies.sendWeReadStateUpdated(result);
       dependencies.logInfo('weread.auto_sync.complete', {
         reason,
@@ -176,7 +175,7 @@ export function startMainProcessRuntime(
         durationMs: dependencies.elapsedMs(startedAt),
       });
     } catch (error) {
-      if (!disposePromise) {
+      if (!disposePromise && !signal.aborted) {
         dependencies.logError('weread.auto_sync.failed', error, {
           reason,
           durationMs: dependencies.elapsedMs(startedAt),
@@ -296,18 +295,19 @@ function scheduleRecurringTask(
   input: {
     startupDelayMs: number;
     intervalMs: number;
-    run: (reason: 'startup' | 'interval') => void | Promise<void>;
+    run: (reason: 'startup' | 'interval', signal: AbortSignal) => void | Promise<void>;
   },
 ) {
   return Effect.runSync(
     Effect.forkIn(
       recurringTaskEffect({
         ...input,
-        // Opaque operations must release their database leases before shutdown completes.
+        // Network-bound tasks take short database leases internally, so shutdown can interrupt them.
         run: (reason) =>
-          Effect.promise(async () => {
-            await input.run(reason);
-          }).pipe(Effect.uninterruptible),
+          Effect.tryPromise({
+            try: (signal) => Promise.resolve(input.run(reason, signal)),
+            catch: () => undefined,
+          }).pipe(Effect.ignore),
       }),
       scope,
       { startImmediately: true },

@@ -36,7 +36,7 @@ afterEach(async () => {
 });
 
 it.each(['weread', 'model-pricing'] as const)(
-  'waits for an in-flight %s task before replacing its database',
+  'does not block database replacement or shutdown while %s network work is in flight',
   async (task) => {
     writeMarker('restored');
     const backup = join(paths.userData, 'backup.sqlite');
@@ -44,22 +44,22 @@ it.each(['weread', 'model-pricing'] as const)(
     writeMarker('current');
     const started = deferred();
     const release = deferred();
-    const finished = deferred();
+    let receivedSignal: AbortSignal | undefined;
     const settings = {
       configured: task === 'weread',
       openMethod: 'deeplink' as const,
       syncMode: 'auto' as const,
     };
-    const work = async () => {
+    const networkWork = async (signal?: AbortSignal) => {
+      receivedSignal = signal;
       started.resolve();
       await release.promise;
-      writeMarker('background');
     };
     const runtime = startMainProcessRuntime({
       getPersistenceModules: async () => ({
         storeModelPricing: {
-          refreshModelPrices: async () => {
-            if (task === 'model-pricing') await work();
+          refreshModelPrices: async (options) => {
+            if (task === 'model-pricing') await networkWork(options?.signal);
             return { refreshed: false, recordCount: 0, reason: 'fresh_cache' as const };
           },
         },
@@ -74,11 +74,7 @@ it.each(['weread', 'model-pricing'] as const)(
       getAppVersion: () => 'test',
       sendWeReadStateUpdated: vi.fn(),
       elapsedMs: () => 0,
-      logInfo: (event) => {
-        if (event === 'weread.auto_sync.complete' || event === 'model_pricing.refresh') {
-          finished.resolve();
-        }
-      },
+      logInfo: vi.fn(),
       logError: vi.fn(),
       createTelemetryController: () => ({
         check() {},
@@ -87,8 +83,8 @@ it.each(['weread', 'model-pricing'] as const)(
       }),
       startEvidenceProjectionWorker: () => ({ requestRun() {}, async dispose() {} }),
       readingMemoryControls: readingMemoryControlsStub(),
-      syncWeRead: async () => {
-        await work();
+      syncWeRead: async (input) => {
+        await networkWork(input.signal);
         return { settings, books: [] };
       },
       timing: {
@@ -101,22 +97,18 @@ it.each(['weread', 'model-pricing'] as const)(
       },
     });
 
-    let restoration: Promise<string> | undefined;
     try {
       await started.promise;
-      restoration = replaceDatabaseFile(backup);
-      expect(readDatabaseLifecycle()).toMatchObject({ state: 'draining', leases: 1 });
-      release.resolve();
-      await finished.promise;
-      await restoration;
+      expect(readDatabaseLifecycle().leases).toBe(0);
+      await replaceDatabaseFile(backup);
       expect(getSqliteExecutor().prepare('SELECT value FROM review_marker').get()).toEqual({
         value: 'restored',
       });
-      expect(readDatabaseLifecycle().leases).toBe(0);
+
+      await runtime.dispose();
+      expect(receivedSignal?.aborted).toBe(true);
     } finally {
       release.resolve();
-      await finished.promise;
-      await restoration;
       await runtime.dispose();
     }
   },

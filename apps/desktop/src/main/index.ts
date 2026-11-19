@@ -69,7 +69,12 @@ import {
   type ReadingReviewRuntime,
 } from './reading-memory/reading-review-runtime';
 import { createReadingReviewQueue } from './reading-memory/reading-review-queue';
-import { getSqliteExecutor, readDatabaseLifecycle, withDatabaseLease } from './store/store-db';
+import {
+  closeDatabase,
+  getSqliteExecutor,
+  readDatabaseLifecycle,
+  withDatabaseLease,
+} from './store/store-db';
 import { secureRendererWebPreferences } from './windows/renderer-window-security';
 import { openDiscussionTransitionOverlay } from './windows/discussion-window-transition';
 import { installRendererNavigationGuard } from './windows/renderer-navigation';
@@ -391,9 +396,16 @@ const beforeQuit = createBeforeQuitHandler({
     readingLibraryRuntime = null;
     readingReviewRuntime?.cancelAll();
     readingReviewRuntime = null;
-    await mainProcessRuntime?.dispose();
+    const runtime = mainProcessRuntime;
     mainProcessRuntime = null;
-    await disposeAssistantSessions();
+    const results = await Promise.allSettled([runtime?.dispose(), disposeAssistantSessions()]);
+    const failure = results.find(
+      (result): result is PromiseRejectedResult => result.status === 'rejected',
+    );
+    if (failure) throw failure.reason;
+  },
+  finalize: () => {
+    closeDatabase();
   },
   quit: () => app.quit(),
   logError,
