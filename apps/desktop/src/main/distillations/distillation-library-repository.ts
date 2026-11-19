@@ -25,6 +25,8 @@ export function readDistillationLibraryRows(
       anchor: schema.annotations.anchor,
       articleByline: schema.articles.byline,
       articleId: schema.articles.id,
+      url: schema.articles.url,
+      canonicalUrl: schema.articles.canonicalUrl,
       articleTitle: schema.articles.title,
       content: schema.annotations.distillationContent,
       publishedAt: schema.annotations.distillationPublishedAt,
@@ -118,6 +120,8 @@ function toLibraryItem(row: {
   articleByline: string | null;
   articleId: string;
   articleTitle: string;
+  canonicalUrl: string;
+  url: string;
   content: string | null;
   publishedAt: string | null;
   sourceType: string;
@@ -129,6 +133,7 @@ function toLibraryItem(row: {
     articleId: row.articleId,
     articleTitle: row.articleTitle,
     ...(row.articleByline ? { articleByline: row.articleByline } : {}),
+    ...(row.sourceType === 'web' ? { sourceUrl: row.canonicalUrl || row.url } : {}),
     sourceType: normalizeArticleSourceType(row.sourceType),
     anchorText: anchorExactText(row.anchor),
     content: row.content || '',

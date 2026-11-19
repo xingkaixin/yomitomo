@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createPdfTextAnchor } from '@yomitomo/shared';
 import type { ArticleRecord, PublicAgent, UserProfile, WeReadBookDetail } from '@yomitomo/shared';
 import {
   formatArticleNotesMarkdown,
@@ -95,7 +96,7 @@ describe('markdown export formatting', () => {
                 username: 'kevin',
                 nickname: 'Kevin',
               },
-              content: 'Line one of my thought\nLine two with `code`',
+              content: '```ts\nconst value = 1;\n```',
               createdAt: '2026-06-01T01:00:00.000Z',
             },
           ],
@@ -119,15 +120,20 @@ describe('markdown export formatting', () => {
         '- 来源: https://example.com/essay',
         '',
         '> First line',
-        '> Second line with *verbatim* text',
+        '> Second line with \\*verbatim\\* text',
         '',
         '### 沉淀',
         '',
         'Published synthesis **verbatim**.',
         '',
-        '- **Kevin**: Line one of my thought',
-        '  Line two with `code`',
-        '  - **林知微** (AI): Follow-up question',
+        '- **Kevin**:',
+        '',
+        '  ```ts',
+        '  const value = 1;',
+        '  ```',
+        '  - **林知微** (AI):',
+        '',
+        '    Follow-up question',
         '',
         '---',
         '',
@@ -136,6 +142,27 @@ describe('markdown export formatting', () => {
       ].join('\n'),
     );
     expect(markdown).not.toContain('Unpublished draft should not appear');
+
+    const pdf = formatArticleNotesMarkdown({
+      userProfile,
+      article: {
+        ...article,
+        sourceType: 'pdf',
+        annotations: article.annotations.map((annotation, index) => ({
+          ...annotation,
+          anchor: createPdfTextAnchor({
+            pageIndex: 1 - index,
+            pageText: index === 0 ? 'later page' : 'an earlier page',
+            start: index === 0 ? 0 : 3,
+            end: index === 0 ? 10 : 15,
+            pageWidth: 600,
+            pageHeight: 800,
+            rects: [],
+          }),
+        })),
+      },
+    });
+    expect(pdf).toMatch(/> earlier page[\s\S]*> later page/);
   });
 
   it('formats a single distillation while preserving quote and user content verbatim', () => {
@@ -154,7 +181,7 @@ describe('markdown export formatting', () => {
         '- 作者: Donella Meadows',
         '- 来源: https://example.com/systems',
         '',
-        '> A system is an interconnected set of elements.',
+        '> A system is an interconnected set of elements\\.',
         '',
         'My distilled note:',
         '',

@@ -192,6 +192,7 @@ export type DistillationLibraryItem = {
   articleId: string;
   articleTitle: string;
   articleByline?: string;
+  sourceUrl?: string;
   sourceType: ArticleLibrarySource;
   anchorText: string;
   content: string;

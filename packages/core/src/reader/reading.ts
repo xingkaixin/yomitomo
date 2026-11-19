@@ -1,3 +1,4 @@
+import { isPdfTextAnchor } from '@yomitomo/shared';
 import type {
   Annotation,
   ArticleActivityDates,
@@ -39,6 +40,10 @@ export function sortArticles<T extends ReadingStatsArticle>(articles: T[]) {
 
 export function sortAnnotations(annotations: Annotation[]) {
   return annotations.toSorted((left, right) => {
+    const pageOrder =
+      (isPdfTextAnchor(left.anchor) ? left.anchor.pageIndex : 0) -
+      (isPdfTextAnchor(right.anchor) ? right.anchor.pageIndex : 0);
+    if (pageOrder) return pageOrder;
     const leftStart = Number.isFinite(left.anchor.start) ? left.anchor.start : 0;
     const rightStart = Number.isFinite(right.anchor.start) ? right.anchor.start : 0;
     if (leftStart !== rightStart) return leftStart - rightStart;

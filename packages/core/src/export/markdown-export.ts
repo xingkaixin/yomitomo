@@ -258,18 +258,19 @@ function formatCommentListItem(
   const indent = depth === 1 ? '  ' : '';
   const continuationIndent = depth === 1 ? '    ' : '  ';
   const lines = normalizeLineEndings(comment.content).split('\n');
-  if (lines.length === 1) {
-    return `${indent}- ${authorLabel}: ${lines[0]}`;
-  }
-  const rest = lines.slice(1).map((line) => (line ? `${continuationIndent}${line}` : ''));
-  return [`${indent}- ${authorLabel}: ${lines[0]}`, ...rest].join('\n');
+  const body = lines.map((line) => (line ? `${continuationIndent}${line}` : ''));
+  return [`${indent}- ${authorLabel}:`, '', ...body].join('\n');
 }
 
 function formatBlockquote(text: string): string {
-  return normalizeLineEndings(text)
-    .split('\n')
-    .map((line) => (line ? `> ${line}` : '>'))
-    .join('\n');
+  return (
+    normalizeLineEndings(text)
+      // CommonMark allows backslash escapes for all ASCII punctuation.
+      .replace(/[!-/:-@[-\x60{-~]/g, '\\$&')
+      .split('\n')
+      .map((line) => (line ? `> ${line}` : '>'))
+      .join('\n')
+  );
 }
 
 function formatWeReadNoteGroup(group: WeReadNoteGroup): string {

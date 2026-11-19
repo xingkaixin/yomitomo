@@ -255,7 +255,7 @@
 }
 
 .markdown-export-menu-item:focus-visible {
-  outline: 2px solid var(--app-focus-ring);
+  outline: 2px solid var(--app-interactive-focus-ring);
   outline-offset: -2px;
 }
 

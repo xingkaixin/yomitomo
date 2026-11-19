@@ -29,7 +29,10 @@ describe('distillation library repository', () => {
         publishedAt: '2026-07-14T00:00:00.000Z',
         updatedAt: '2026-07-15T00:00:00.000Z',
       },
-      expect.objectContaining({ annotationId: 'annotation_older' }),
+      expect.objectContaining({
+        annotationId: 'annotation_older',
+        sourceUrl: 'https://example.com/complexity',
+      }),
     ]);
   });
 

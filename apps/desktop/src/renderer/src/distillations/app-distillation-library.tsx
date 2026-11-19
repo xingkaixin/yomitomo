@@ -228,6 +228,7 @@ export function DistillationLibrary({
                         formatDistillationMarkdown({
                           articleTitle: item.articleTitle,
                           articleByline: item.articleByline,
+                          sourceUrl: item.sourceUrl,
                           quote: item.anchorText,
                           content: item.content,
                           labels: markdownExportLabels(),
