@@ -248,7 +248,7 @@ describe('useSourceAnnotations', () => {
     expect(screen.getByTestId('annotations').textContent).toBe('');
   });
 
-  it('edits only user comments via fine-grained saveComment and updates highlight color via saveAnnotation', async () => {
+  it('edits user comments and preserves concurrent replies when changing highlight color', async () => {
     const userComment: AnnotationComment = {
       id: 'comment_user',
       author: {
@@ -283,8 +283,18 @@ describe('useSourceAnnotations', () => {
       comments: [userComment, aiComment],
     });
     const onSaveArticleComment = vi.fn(() => Promise.resolve('2026-05-16T08:05:00.000Z'));
-    const persistColor = vi.fn(() => Promise.resolve('2026-05-16T08:06:00.000Z'));
-    const onArticleChange = vi.fn();
+    let visible = target;
+    const persistColor = async () => {
+      visible = {
+        ...target,
+        color: '#6fa48f',
+        comments: [userComment, { ...aiComment, content: 'updated reply' }],
+      };
+      return '2026-05-16T08:06:00.000Z';
+    };
+    const onArticleChange = (record: ArticleRecord) => {
+      visible = record.annotations[0];
+    };
 
     const { result } = renderHook(() =>
       useSourceAnnotations({
@@ -314,10 +324,7 @@ describe('useSourceAnnotations', () => {
     await act(async () => {
       await result.current.changeAnnotationColor('annotation_1', '#6fa48f', persistColor);
     });
-    expect(onArticleChange.mock.lastCall?.[0].annotations[0]).toMatchObject({
-      id: 'annotation_1',
-      color: '#6fa48f',
-      author: { annotationColor: undefined },
-    });
+    expect(visible.color).toBe('#6fa48f');
+    expect(visible.comments[1]?.content).toBe('updated reply');
   });
 });
