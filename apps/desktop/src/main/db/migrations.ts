@@ -1402,6 +1402,15 @@ SET bilingual_translation_provider_id = NULL
 WHERE bilingual_translation_provider_id = default_provider_id;
 `,
   },
+  // articles_summary_cover_idx no longer covers articleSummaryColumns (missing text_metadata),
+  // article_bodies already moved large blobs off the table, and its leading updated_at column
+  // amplified every reading-progress write.
+  {
+    id: '0076_drop_articles_summary_cover_idx',
+    sql: `
+DROP INDEX IF EXISTS articles_summary_cover_idx;
+`,
+  },
 ];
 
 type MigrationDatabase = {

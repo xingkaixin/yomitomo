@@ -93,6 +93,54 @@ describe('reading memory migrations', () => {
     });
   });
 
+  it('drops the redundant articles_summary_cover_idx without changing summary query results', () => {
+    const database = new DatabaseSync(':memory:');
+    database.exec('PRAGMA foreign_keys = ON');
+    for (const migration of migrations) {
+      if (migration.id === '0076_drop_articles_summary_cover_idx') break;
+      database.exec(migration.sql);
+      migration.apply?.(database);
+    }
+    insertArticle(database, 'article_older');
+    database
+      .prepare(
+        `
+INSERT INTO articles (
+  id, url, canonical_url, title, content_hash, text_metadata, reading_progress, created_at, updated_at
+)
+VALUES (
+  'article_newer', 'https://example.com/newer', 'https://example.com/newer', 'Newer', 'hash-2',
+  '{"wordCount":120}', '{"percent":50}', '2026-05-26T00:00:00.000Z', '2026-05-27T00:00:00.000Z'
+)
+`,
+      )
+      .run();
+
+    const querySummaries = () =>
+      database
+        .prepare(
+          'SELECT id, title, text_metadata, reading_progress, updated_at FROM articles ORDER BY updated_at DESC',
+        )
+        .all();
+    const indexNames = () =>
+      database
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'articles'")
+        .all()
+        .map((row) => (row as { name: string }).name);
+
+    const beforeRows = querySummaries();
+    expect(indexNames()).toContain('articles_summary_cover_idx');
+
+    const migration = migrations.find((item) => item.id === '0076_drop_articles_summary_cover_idx');
+    if (!migration) throw new Error('missing migration 0076_drop_articles_summary_cover_idx');
+    expect(migration.minReaderLevel).toBeUndefined();
+    database.exec(migration.sql);
+
+    expect(indexNames()).not.toContain('articles_summary_cover_idx');
+    expect(indexNames()).toContain('articles_updated_at_idx');
+    expect(querySummaries()).toEqual(beforeRows);
+  });
+
   it('scopes persisted translations by article or ebook chapter', () => {
     const database = new DatabaseSync(':memory:');
     for (const id of [
