@@ -84,6 +84,7 @@ type DeleteActionMenuLabels = Pick<
 export type { ReaderWindowSourceRect } from './reader-annotation-types';
 
 type AnnotationCardProps = {
+  distillationColor?: string;
   active: boolean;
   agents: PublicAgent[];
   annotation: Annotation;
@@ -289,6 +290,7 @@ type AnnotationCardContentProps = Omit<
 };
 
 const AnnotationCardContent = React.memo(function AnnotationCardContent({
+  distillationColor,
   active,
   agents,
   annotation,
@@ -312,7 +314,7 @@ const AnnotationCardContent = React.memo(function AnnotationCardContent({
     () => [...agents, ...extraPersonaAgents],
     [agents, extraPersonaAgents],
   );
-  const activeColor = annotationColor(annotation, userProfile, personaAgents);
+  const activeColor = annotationColor(annotation, userProfile, personaAgents, distillationColor);
   const discussionThreads = useMemo(() => annotationDiscussionThreads(annotation), [annotation]);
   const thoughts = discussionThreads.filter((thread) => thread.root.content.trim());
   const firstThoughtComment = (

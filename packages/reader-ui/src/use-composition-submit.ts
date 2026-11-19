@@ -16,6 +16,7 @@ export function useCompositionSubmit({
 }: UseCompositionSubmitOptions) {
   return useCallback(
     (event: React.KeyboardEvent<HTMLElement>) => {
+      if (event.nativeEvent.isComposing) return;
       if (onCancel && event.key === 'Escape') {
         event.preventDefault();
         onCancel();

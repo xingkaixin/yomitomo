@@ -2,7 +2,11 @@ import React from 'react';
 import { useStableCallback } from '../hooks/use-stable-callback';
 import { annotationOrdinalsById, highlightDiscussionLabel } from './reader-highlight-labels';
 import type { Annotation, MessageSendShortcut, PublicAgent, UserProfile } from '@yomitomo/shared';
-import { buildHighlightSegments, highlightSegmentStyle } from '@yomitomo/core';
+import {
+  buildHighlightSegments,
+  highlightSegmentStyle,
+  usesDistillationLineColor,
+} from '@yomitomo/core';
 import { buildFootnoteGroups } from '../annotations/annotation-footnotes';
 import { AnnotationCard, type ReaderWindowSourceRect } from '../annotations/reader-annotation-card';
 import type { ReaderAnnotationRailState } from '../annotations/use-reader-annotation-rail';
@@ -253,7 +257,7 @@ export function ReaderSurfaceView({
   labels = defaultReaderUiLabels,
   refs: { articleRef, canvasRef, notesRef, selectionMenuRef, surfaceRef },
   selection: { composer, highlightChoice, selectionAction },
-  settings: { messageSendShortcut, selectionActionShortcuts, shortcutModifier },
+  settings: { readerSettings, messageSendShortcut, selectionActionShortcuts, shortcutModifier },
   userProfile,
 }: ReaderSurfaceViewProps) {
   const timeFormatter = React.useMemo(() => createReaderTimeFormatter(labels), [labels]);
@@ -273,14 +277,7 @@ export function ReaderSurfaceView({
   );
   // A string key keeps segments stable while unrelated annotation fields change.
   const distilledIdsKey = annotations
-    .filter(
-      (annotation) =>
-        annotation.distillation?.status === 'published' &&
-        Boolean(
-          annotation.author.annotationColor &&
-          annotation.color === annotation.author.annotationColor,
-        ),
-    )
+    .filter(usesDistillationLineColor)
     .map((annotation) => annotation.id)
     .join('\n');
   const highlightSegments = React.useMemo(() => {
@@ -458,6 +455,7 @@ export function ReaderSurfaceView({
             {annotationRailItems.map(
               ({ annotation, isStackFront, railSide, stackCount, stackIndex, style }) => (
                 <AnnotationCard
+                  distillationColor={readerSettings.distillationColor}
                   active={annotation.id === activeId}
                   agents={agents}
                   annotation={annotation}

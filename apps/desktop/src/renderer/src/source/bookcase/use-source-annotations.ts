@@ -16,11 +16,11 @@ import {
   editUserComment,
   findMentionedAgents,
   isEditableUserComment,
-  setAnnotationColor,
   sortAnnotations,
 } from '@yomitomo/core';
 import {
   annotationsWithSavedAnnotation,
+  annotationsWithSavedColor,
   annotationsWithSavedComment,
   articleWithAnnotations,
 } from './source-annotation-updates';
@@ -269,7 +269,16 @@ export function useSourceAnnotations(options: UseSourceAnnotationsOptions) {
       await saveComment(annotationId, updated);
     }
 
-    async function changeAnnotationColor(annotationId: string, color: string) {
+    async function changeAnnotationColor(
+      annotationId: string,
+      color: string,
+      persist: (
+        articleId: string,
+        annotationId: string,
+        color: string,
+        updatedAt: string,
+      ) => Promise<string | undefined>,
+    ) {
       const { annotationAgents = [], userProfile } = readInput().options;
       const annotation = annotationsRef.current.find((item) => item.id === annotationId);
       if (!annotation) return;
@@ -281,8 +290,13 @@ export function useSourceAnnotations(options: UseSourceAnnotationsOptions) {
       ) {
         return;
       }
-      const updated = setAnnotationColor(annotation, trimmed);
-      await saveAnnotation(updated);
+      const timestamp = new Date().toISOString();
+      const updatedAt = await persist(articleId, annotationId, trimmed, timestamp);
+      if (updatedAt)
+        applySavedAnnotations(
+          (items) => annotationsWithSavedColor(items, annotationId, trimmed, timestamp),
+          updatedAt,
+        );
     }
 
     return {

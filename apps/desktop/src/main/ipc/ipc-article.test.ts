@@ -207,6 +207,7 @@ function articleIpcContext(
         recoverInterruptedArticleTranslation: vi.fn(),
         readImportSettings: vi.fn(),
         saveArticle: vi.fn(),
+        saveArticleAnnotationColor: vi.fn(),
         saveArticleAnnotation: vi.fn(),
         saveArticleAnnotationDistillation: vi.fn(),
         saveArticleComment: vi.fn(),

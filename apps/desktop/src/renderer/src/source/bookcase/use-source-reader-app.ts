@@ -270,6 +270,7 @@ export function useSourceReaderApp({
         error: error instanceof Error ? error.message : String(error),
       });
       appToast.error(fallback, { description: errorMessageOrFallback(error, fallback) });
+      if (action === 'edit-comment') throw error;
     }
   }
 
@@ -308,7 +309,11 @@ export function useSourceReaderApp({
         onAnnotationLayoutChange,
         onChangeAnnotationColor: (annotationId, color) =>
           runReaderPersistenceAction('update-annotation-color', () =>
-            session.changeAnnotationColor(annotationId, color),
+            session.changeAnnotationColor(
+              annotationId,
+              color,
+              articleActions.saveArticleAnnotationColor,
+            ),
           ),
         onClearActiveAnnotation: () => sessionInput.onOpenAnnotation?.(null),
         onCreateAnnotation: async (note) => {

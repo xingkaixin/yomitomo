@@ -276,6 +276,14 @@ export const articleIpcInvokeDescriptors = {
     roles: mainOnly,
     validation: 'schema',
   }),
+  'article:save-annotation-color': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'article:save-annotation-color'>,
+    ArticleUpsertPatch | null
+  >()({
+    route: ['article', 'saveAnnotationColor'],
+    roles: annotationAndMain,
+    validation: 'schema',
+  }),
   'article:save-annotation-distillation': desktopIpcInvoke<
     DesktopIpcSchemaArgs<'article:save-annotation-distillation'>,
     ArticleUpsertPatch | null

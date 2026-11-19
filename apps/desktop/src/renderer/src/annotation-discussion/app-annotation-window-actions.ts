@@ -37,13 +37,9 @@ export function createAnnotationWindowActions(getDesktop: () => AnnotationWindow
         AnnotationWindowDesktopApi['agent']['requestDistillationReviewStream']
       >[1],
     ) => getDesktop().agent.requestDistillationReviewStream(payload, onEvent),
-    saveAnnotation: (
-      articleId: string,
-      annotation: Parameters<
-        AnnotationWindowDesktopApi['article']['saveAnnotation']
-      >[0]['annotation'],
-      updatedAt?: string,
-    ) => getDesktop().article.saveAnnotation({ articleId, annotation, updatedAt }),
+    saveAnnotationColor: (
+      input: Parameters<AnnotationWindowDesktopApi['article']['saveAnnotationColor']>[0],
+    ) => getDesktop().article.saveAnnotationColor(input),
     saveComment: (
       articleId: string,
       annotationId: string,

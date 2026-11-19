@@ -397,11 +397,17 @@ export function commentPersona(
   };
 }
 
+export function usesDistillationLineColor(annotation: Annotation) {
+  return annotation.distillation?.status === 'published' && !hasCustomAnnotationColor(annotation);
+}
+
 export function annotationColor(
   annotation: Annotation,
   userProfile: UserProfile,
   agents: PublicAgent[],
+  distillationColor?: string,
 ) {
+  if (distillationColor && usesDistillationLineColor(annotation)) return distillationColor;
   if (hasCustomAnnotationColor(annotation)) return annotation.color;
   return annotationPersona(annotation, userProfile, agents).color;
 }

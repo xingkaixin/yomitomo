@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import type { Annotation, ArticleUpsertPatch, Comment } from '@yomitomo/shared';
 import { DesktopIpcError, desktopIpcErrorCodes } from '../../ipc-errors';
 import * as schema from '../db/schema';
@@ -60,6 +60,33 @@ export function upsertAnnotationRows(
   );
   const article = readArticleSummaryRows(database, input.articleId);
   return article ? buildArticleUpsertPatch(article) : null;
+}
+
+export function saveAnnotationColorRows(
+  database: StoreDatabase,
+  input: { articleId: string; annotationId: string; color: string; updatedAt: string },
+) {
+  return database.transaction((tx) => {
+    const { changes } = tx
+      .update(schema.annotations)
+      .set({
+        color: input.color,
+        userAnnotationColor: null,
+        agentAnnotationColor: null,
+        updatedAt: input.updatedAt,
+      })
+      .where(
+        and(
+          eq(schema.annotations.id, input.annotationId),
+          eq(schema.annotations.articleId, input.articleId),
+        ),
+      )
+      .run();
+    if (!changes) return null;
+    touchArticleRows(tx, input.articleId, input.updatedAt);
+    const article = readArticleSummaryRows(database, input.articleId);
+    return article ? buildArticleUpsertPatch(article) : null;
+  });
 }
 
 export function upsertCommentRows(

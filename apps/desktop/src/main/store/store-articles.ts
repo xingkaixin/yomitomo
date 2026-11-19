@@ -28,6 +28,7 @@ import {
   updateArticleSiteIconRows,
 } from '../articles/article-row-queries';
 import {
+  saveAnnotationColorRows,
   saveAnnotationDistillationRows,
   upsertAnnotationRows,
   upsertCommentRows,
@@ -169,6 +170,12 @@ export async function saveArticleAnnotation(input: {
   updatedAt?: string;
 }) {
   return upsertAnnotationRows(getDatabase(), input, getReadingMemorySqliteExecutor());
+}
+
+export async function saveArticleAnnotationColor(
+  input: Parameters<typeof saveAnnotationColorRows>[1],
+) {
+  return saveAnnotationColorRows(getDatabase(), input);
 }
 
 export async function saveArticleAnnotationDistillation(input: {

@@ -283,7 +283,7 @@ describe('useSourceAnnotations', () => {
       comments: [userComment, aiComment],
     });
     const onSaveArticleComment = vi.fn(() => Promise.resolve('2026-05-16T08:05:00.000Z'));
-    const onSaveArticleAnnotation = vi.fn(() => Promise.resolve('2026-05-16T08:06:00.000Z'));
+    const persistColor = vi.fn(() => Promise.resolve('2026-05-16T08:06:00.000Z'));
     const onArticleChange = vi.fn();
 
     const { result } = renderHook(() =>
@@ -292,7 +292,6 @@ describe('useSourceAnnotations', () => {
         annotations: [target],
         userProfile,
         onArticleChange,
-        onSaveArticleAnnotation,
         onSaveArticleComment,
       }),
     );
@@ -313,16 +312,12 @@ describe('useSourceAnnotations', () => {
     );
 
     await act(async () => {
-      await result.current.changeAnnotationColor('annotation_1', '#6fa48f');
+      await result.current.changeAnnotationColor('annotation_1', '#6fa48f', persistColor);
     });
-    expect(onSaveArticleAnnotation).toHaveBeenCalledWith(
-      'article_1',
-      expect.objectContaining({
-        id: 'annotation_1',
-        color: '#6fa48f',
-        author: expect.objectContaining({ annotationColor: undefined }),
-      }),
-      expect.any(String),
-    );
+    expect(onArticleChange.mock.lastCall?.[0].annotations[0]).toMatchObject({
+      id: 'annotation_1',
+      color: '#6fa48f',
+      author: { annotationColor: undefined },
+    });
   });
 });

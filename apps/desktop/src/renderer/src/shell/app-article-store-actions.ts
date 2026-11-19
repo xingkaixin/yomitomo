@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import i18next from 'i18next';
 import type { ArticleReadingProgress, ArticleRecord, Annotation, Comment } from '@yomitomo/shared';
+import { annotationsWithSavedColor } from '../source/bookcase/source-annotation-updates';
 import { deleteAnnotationComment, sortAnnotations } from '@yomitomo/core';
 import type {
   ArticleReaderChatStateSaveInput,
@@ -115,6 +116,37 @@ export function useAppArticleStoreActions({ articleStore }: UseAppArticleStoreAc
                   articleWithAnnotations(
                     article,
                     annotationsWithSavedAnnotation(article.annotations, annotation),
+                    patch.article.updatedAt,
+                  ),
+              }
+            : undefined,
+        }),
+      });
+      return result?.article.updatedAt;
+    },
+    [articleStore],
+  );
+
+  const saveArticleAnnotationColor = useCallback(
+    async (articleId: string, annotationId: string, color: string, updatedAt: string) => {
+      const result = await articleStore.runMutation({
+        invoke: () =>
+          getDesktopApi().article.saveAnnotationColor({
+            articleId,
+            annotationId,
+            color,
+            updatedAt,
+          }),
+        reconcile: (patch) => ({
+          patches: patch ? [patch] : [],
+          current: patch
+            ? {
+                type: 'update',
+                articleId,
+                update: (article) =>
+                  articleWithAnnotations(
+                    article,
+                    annotationsWithSavedColor(article.annotations, annotationId, color, updatedAt),
                     patch.article.updatedAt,
                   ),
               }
@@ -323,6 +355,7 @@ export function useAppArticleStoreActions({ articleStore }: UseAppArticleStoreAc
     openArticleDiscussion,
     readArticle,
     saveArticleAnnotation,
+    saveArticleAnnotationColor,
     saveArticleComment,
     saveArticleReadingProgress,
     saveArticleReaderChatState,
@@ -340,6 +373,7 @@ export type ReaderArticleActions = Pick<
   | 'deleteArticleAnnotation'
   | 'deleteArticleComment'
   | 'openArticleDiscussion'
+  | 'saveArticleAnnotationColor'
   | 'saveArticleAnnotation'
   | 'saveArticleComment'
   | 'saveArticleReadingProgress'

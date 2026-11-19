@@ -525,6 +525,14 @@ export const articleDomainIpcInvokeSchemas = {
       updatedAt: timestampSchema.optional(),
     }),
   ]),
+  'article:save-annotation-color': z.tuple([
+    z.object({
+      articleId: idSchema,
+      annotationId: idSchema,
+      color: z.string().trim().min(1).max(128),
+      updatedAt: timestampSchema,
+    }),
+  ]),
   'article:save-annotation-distillation': z.tuple([
     checkedSchema<ArticleAnnotationDistillationSaveSchemaInput>(
       z

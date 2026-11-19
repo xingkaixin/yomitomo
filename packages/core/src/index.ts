@@ -1,5 +1,6 @@
 export {
   annotationColor,
+  usesDistillationLineColor,
   annotationCommentThreads,
   annotationAgentAuthorRef,
   annotationAuthorName,

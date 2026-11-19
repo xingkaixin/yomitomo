@@ -1,3 +1,4 @@
+import { useDesktopReaderSettings } from '../settings/app-reader-settings';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   Add01Icon,
@@ -28,14 +29,13 @@ import {
   editUserComment,
   findMentionedAgents,
   isEditableUserComment,
-  setAnnotationColor,
   sortAnnotations,
 } from '@yomitomo/core';
 import { readerLineColorOptions } from '@yomitomo/reader-ui/reader-settings';
 import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import { agentInstructionFromNote } from '../source/bookcase/app-source-agent-mention-request';
 import {
-  annotationsWithSavedAnnotation,
+  annotationsWithSavedColor,
   annotationsWithSavedComment,
 } from '../source/bookcase/source-annotation-updates';
 import {
@@ -664,18 +664,18 @@ function AnnotationDiscussionShell({
       return;
     }
     const updatedAt = new Date().toISOString();
-    const updatedAnnotation = setAnnotationColor(currentAnnotation, trimmed, updatedAt);
     try {
-      const patch = await annotationWindowActions.saveAnnotation(
-        latestArticle().id,
-        updatedAnnotation,
+      const patch = await annotationWindowActions.saveAnnotationColor({
+        articleId: article.id,
+        annotationId: annotation.id,
+        color: trimmed,
         updatedAt,
+      });
+      if (!patch) return;
+      applyAnnotations(
+        annotationsWithSavedColor(latestArticle().annotations, annotation.id, trimmed, updatedAt),
+        patch.article.updatedAt,
       );
-      const nextAnnotations = annotationsWithSavedAnnotation(
-        latestArticle().annotations,
-        updatedAnnotation,
-      );
-      applyAnnotations(nextAnnotations, patch?.article.updatedAt || updatedAt);
     } catch (error) {
       console.warn('[annotation-discussion] highlight color update failed', {
         articleId: article.id,
@@ -901,7 +901,13 @@ function AnnotationDiscussionShell({
     });
   }
 
-  const activeHighlightColor = annotationColor(annotation, userProfile, personaAgents);
+  const [readerSettings] = useDesktopReaderSettings();
+  const activeHighlightColor = annotationColor(
+    annotation,
+    userProfile,
+    personaAgents,
+    readerSettings.distillationColor,
+  );
 
   return (
     <main className={className} style={style}>

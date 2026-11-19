@@ -14,6 +14,7 @@ import {
 import { readReadingMemoryProjectionJobs } from '../reading-memory/reading-memory-projection-job-store';
 
 import {
+  saveAnnotationColorRows,
   saveAnnotationDistillationRows,
   upsertAnnotationRows,
   upsertCommentRows,
@@ -460,6 +461,33 @@ describe('article repository local child row writes', () => {
     expect(readReadingMemoryEntries({ articleId: 'article_1', executor: memory })).toEqual(
       expect.arrayContaining([expect.objectContaining({ id: 'comment_memory_comment_2' })]),
     );
+  });
+
+  it('keeps newer discussion replies when a highlight changes color', () => {
+    const { database, memory } = repositoryDatabase();
+    const target = annotation({ comments: [] });
+    upsertAnnotationRows(database, { articleId: 'article_1', annotation: target }, memory);
+    upsertCommentRows(
+      database,
+      {
+        articleId: 'article_1',
+        annotationId: target.id,
+        comment: comment({ content: 'newer reply' }),
+      },
+      memory,
+    );
+    saveAnnotationColorRows(database, {
+      articleId: 'article_1',
+      annotationId: target.id,
+      color: '#6fa48f',
+      updatedAt: '2026-06-04T04:00:00.000Z',
+    });
+    expect(
+      readArticleRows(database, 'article_1')?.annotations.find((item) => item.id === target.id),
+    ).toMatchObject({
+      color: '#6fa48f',
+      comments: [expect.objectContaining({ content: 'newer reply' })],
+    });
   });
 
   it('updates only distillation fields without replacing concurrent comments', () => {
