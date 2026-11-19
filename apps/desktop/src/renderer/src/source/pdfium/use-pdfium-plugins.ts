@@ -8,30 +8,12 @@ import { BookmarkPluginPackage } from '@embedpdf/plugin-bookmark/react';
 import { SelectionPluginPackage } from '@embedpdf/plugin-selection/react';
 import { ViewportPluginPackage } from '@embedpdf/plugin-viewport/react';
 import { ZoomMode, ZoomPluginPackage } from '@embedpdf/plugin-zoom/react';
-import type { ArticleRecord } from '@yomitomo/shared';
 
-type PdfArticleRecord = ArticleRecord & { pdf: NonNullable<ArticleRecord['pdf']> };
-
-export function usePdfiumPlugins(input: {
-  article: PdfArticleRecord;
-  buffer: ArrayBuffer | null;
-  documentId: string;
-}) {
-  const { article, buffer, documentId } = input;
-  return useMemo(() => {
-    if (!buffer) return [];
-    return [
-      createPluginRegistration(DocumentManagerPluginPackage, {
-        initialDocuments: [
-          {
-            autoActivate: true,
-            buffer,
-            documentId,
-            name: article.pdf.metadata.title || article.title,
-            scale: 1,
-          },
-        ],
-      }),
+export function usePdfiumPlugins() {
+  return useMemo(
+    () => [
+      // Open documents imperatively in onInitialized so PluginRegistry config never retains the PDF buffer.
+      createPluginRegistration(DocumentManagerPluginPackage),
       createPluginRegistration(ViewportPluginPackage),
       createPluginRegistration(ScrollPluginPackage, { defaultBufferSize: 1, defaultPageGap: 24 }),
       createPluginRegistration(RenderPluginPackage),
@@ -39,6 +21,7 @@ export function usePdfiumPlugins(input: {
       createPluginRegistration(SelectionPluginPackage, { marquee: { enabled: false } }),
       createPluginRegistration(BookmarkPluginPackage),
       createPluginRegistration(ZoomPluginPackage, { defaultZoomLevel: ZoomMode.FitWidth }),
-    ];
-  }, [article.pdf.metadata.title, article.title, buffer, documentId]);
+    ],
+    [],
+  );
 }
