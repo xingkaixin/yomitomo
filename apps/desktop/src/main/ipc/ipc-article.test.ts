@@ -90,6 +90,49 @@ describe('article IPC PDF source reads', () => {
   });
 });
 
+describe('article IPC reader chat state', () => {
+  it('broadcasts the persisted reader chat state patch to other windows', async () => {
+    storageMocks.ipcMainHandle.mockClear();
+    const patch = {
+      type: 'article-reader-chat-state' as const,
+      articleId: 'article_chat_1',
+      readerChatState: {
+        articleId: 'article_chat_1',
+        activeSessionId: 'session_1',
+        selectedAssistantId: 'agent_1',
+        sessions: [
+          {
+            id: 'session_1',
+            articleId: 'article_chat_1',
+            createdAt: '2026-06-04T00:00:00.000Z',
+            updatedAt: '2026-06-04T00:00:00.000Z',
+            messages: [],
+          },
+        ],
+        createdAt: '2026-06-04T00:00:00.000Z',
+        updatedAt: '2026-06-04T00:00:00.000Z',
+      },
+      updatedAt: '2026-06-04T00:00:00.000Z',
+    };
+    const saveArticleReaderChatState = vi.fn().mockResolvedValueOnce(patch);
+    const sendArticlePatched = vi.fn();
+    registerArticleIpc(articleIpcContext({ saveArticleReaderChatState }, { sendArticlePatched }));
+    const handler = storageMocks.ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === 'article:reader-chat-state',
+    )?.[1];
+    const event = { sender: { id: 1 } };
+
+    const result = await handler(event, {
+      articleId: 'article_chat_1',
+      initialSessionId: 'session_1',
+      selectedAssistantId: 'agent_1',
+    });
+
+    expect(result).toEqual({ ok: true, value: patch });
+    expect(sendArticlePatched).toHaveBeenCalledWith(event, patch);
+  });
+});
+
 type ArticleIpcContext = Parameters<typeof registerArticleIpc>[0];
 type ArticlePersistence = Awaited<
   ReturnType<ArticleIpcContext['getPersistenceModules']>
