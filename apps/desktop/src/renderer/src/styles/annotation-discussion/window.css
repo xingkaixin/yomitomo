@@ -113,11 +113,58 @@
   padding: 20px 28px;
 }
 
+.annotation-discussion-quote-header {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .annotation-discussion-quote strong {
   color: hsl(var(--muted-foreground));
   font-size: 12px;
   font-weight: 400;
   line-height: 17px;
+}
+
+.annotation-discussion-color-swatches {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.annotation-discussion-color-swatch {
+  display: grid;
+  width: 26px;
+  height: 22px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  padding: 0;
+}
+
+.annotation-discussion-color-swatch::after {
+  content: '';
+  width: 16px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--annotation-swatch);
+}
+
+.annotation-discussion-color-swatch:hover {
+  background: var(--app-interactive-hover-bg);
+}
+
+.annotation-discussion-color-swatch[aria-checked='true'] {
+  border-color: var(--app-interactive-selected-border);
+  background: var(--app-interactive-selected-bg);
+}
+
+.annotation-discussion-color-swatch:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 1px;
 }
 
 .annotation-discussion-quote p {

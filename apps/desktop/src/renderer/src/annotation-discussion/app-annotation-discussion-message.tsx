@@ -1,10 +1,11 @@
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Delete02Icon } from '@hugeicons/core-free-icons';
+import { Delete02Icon, PencilEdit01Icon } from '@hugeicons/core-free-icons';
 import { useMemo, useReducer } from 'react';
 import type { Comment, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { commentPersona } from '@yomitomo/core';
 import { useTranslation } from 'react-i18next';
 import { AvatarBadge, ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
+import { useCompositionSubmit } from '@yomitomo/reader-ui/use-composition-submit';
 import { useStreamingWordReveal, wordRevealAccent } from '../components/ui/word-reveal';
 import { AssistantRuntimeProgressList } from '../shell/app-assistant-runtime-progress';
 import { formatAbsoluteTime, formatRelativeTime } from './app-annotation-discussion-utils';
@@ -23,6 +24,7 @@ export function DiscussionMessage({
   isDeleting,
   message,
   onDelete,
+  onEdit,
   showIdentity,
   userProfile,
 }: {
@@ -31,11 +33,12 @@ export function DiscussionMessage({
   isDeleting: boolean;
   message: Comment;
   onDelete?: () => void;
+  onEdit?: (content: string) => Promise<void>;
   showIdentity: boolean;
   userProfile: UserProfile;
 }) {
   const { t } = useTranslation();
-  const [{ confirmOpen, entering, leaving }, dispatch] = useReducer(
+  const [{ confirmOpen, draft, editing, entering, leaving, saving }, dispatch] = useReducer(
     messageReducer,
     message,
     initialMessageState,
@@ -50,11 +53,38 @@ export function DiscussionMessage({
   const waiting = streaming && !message.content.trim();
   const revealRef = useStreamingWordReveal(message.id, streaming);
   const groupStart = groupPosition === 'single' || groupPosition === 'first';
+  const trimmedDraft = draft.trim();
+  const canSaveEdit =
+    editing && !saving && Boolean(trimmedDraft) && trimmedDraft !== message.content;
+
+  function cancelEdit() {
+    if (saving) return;
+    dispatch({ type: 'editCancelled' });
+  }
+
+  async function saveEdit() {
+    if (!onEdit || !canSaveEdit) return;
+    dispatch({ type: 'editSaveStarted' });
+    try {
+      await onEdit(trimmedDraft);
+      dispatch({ type: 'editSaved' });
+    } catch {
+      dispatch({ type: 'editSaveFailed' });
+    }
+  }
+
+  const handleEditKeyDown = useCompositionSubmit({
+    messageSendShortcut: 'mod-enter',
+    onCancel: cancelEdit,
+    onSubmit: () => void saveEdit(),
+  });
+
   const className = [
     'annotation-discussion-bubble-row',
     isUser ? 'is-user' : 'is-assistant',
     `is-${groupPosition}`,
     streaming ? 'is-pending' : '',
+    editing ? 'is-editing' : '',
     entering ? 'is-entering' : '',
     leaving ? 'is-leaving' : '',
     isDeleting ? 'is-deleting' : '',
@@ -101,6 +131,39 @@ export function DiscussionMessage({
               <i key={dot} />
             ))}
           </span>
+        ) : editing ? (
+          <div className="annotation-discussion-inline-editor">
+            <textarea
+              aria-label={t('discussion.editMessageAria')}
+              autoFocus
+              className="annotation-discussion-inline-textarea"
+              disabled={saving}
+              rows={3}
+              value={draft}
+              onChange={(event) =>
+                dispatch({ type: 'editDraftChanged', draft: event.currentTarget.value })
+              }
+              onKeyDown={handleEditKeyDown}
+            />
+            <div className="annotation-discussion-inline-actions">
+              <button
+                className="annotation-discussion-inline-cancel"
+                disabled={saving}
+                type="button"
+                onClick={cancelEdit}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                className="annotation-discussion-inline-save"
+                disabled={!canSaveEdit}
+                type="button"
+                onClick={() => void saveEdit()}
+              >
+                {t('common.save')}
+              </button>
+            </div>
+          </div>
         ) : (
           <div className="annotation-discussion-bubble">
             <div
@@ -112,16 +175,31 @@ export function DiscussionMessage({
           </div>
         )}
       </div>
-      {onDelete ? (
-        <button
-          className="annotation-discussion-message-delete"
-          type="button"
-          disabled={isDeleting || leaving}
-          aria-label={t('discussion.deleteReplyAria')}
-          onClick={() => dispatch({ type: 'deleteRequested' })}
-        >
-          <HugeiconsIcon icon={Delete02Icon} size={13} />
-        </button>
+      {!editing && (onEdit || onDelete) ? (
+        <div className="annotation-discussion-message-actions">
+          {onEdit ? (
+            <button
+              className="annotation-discussion-message-action"
+              type="button"
+              disabled={isDeleting || leaving}
+              aria-label={t('discussion.editMessageAria')}
+              onClick={() => dispatch({ type: 'editStarted', draft: message.content })}
+            >
+              <HugeiconsIcon icon={PencilEdit01Icon} size={13} />
+            </button>
+          ) : null}
+          {onDelete ? (
+            <button
+              className="annotation-discussion-message-action annotation-discussion-message-delete"
+              type="button"
+              disabled={isDeleting || leaving}
+              aria-label={t('discussion.deleteReplyAria')}
+              onClick={() => dispatch({ type: 'deleteRequested' })}
+            >
+              <HugeiconsIcon icon={Delete02Icon} size={13} />
+            </button>
+          ) : null}
+        </div>
       ) : null}
       <SettingsConfirmDialog
         cancelLabel={t('settings.confirm.cancel')}
@@ -136,14 +214,24 @@ export function DiscussionMessage({
   );
 }
 
-type MessageState = { confirmOpen: boolean; entering: boolean; leaving: boolean };
+type MessageState = {
+  confirmOpen: boolean;
+  draft: string;
+  editing: boolean;
+  entering: boolean;
+  leaving: boolean;
+  saving: boolean;
+};
 
 function initialMessageState(message: Comment): MessageState {
   return {
     confirmOpen: false,
+    draft: '',
+    editing: false,
     entering:
       message.author.kind === 'user' && Date.now() - Date.parse(message.createdAt) < freshMessageMs,
     leaving: false,
+    saving: false,
   };
 }
 
@@ -151,6 +239,12 @@ type DiscussionMessageEvent =
   | { type: 'deleteConfirmed' }
   | { type: 'deleteDismissed' }
   | { type: 'deleteRequested' }
+  | { type: 'editCancelled' }
+  | { type: 'editDraftChanged'; draft: string }
+  | { type: 'editSaved' }
+  | { type: 'editSaveFailed' }
+  | { type: 'editSaveStarted' }
+  | { type: 'editStarted'; draft: string }
   | { type: 'leaveFinished' };
 
 // The bubble plays its exit before the delete is sent, then stays collapsed while it runs.
@@ -162,6 +256,17 @@ function messageReducer(state: MessageState, event: DiscussionMessageEvent): Mes
       return { ...state, confirmOpen: false };
     case 'deleteRequested':
       return { ...state, confirmOpen: true };
+    case 'editCancelled':
+    case 'editSaved':
+      return { ...state, draft: '', editing: false, saving: false };
+    case 'editDraftChanged':
+      return { ...state, draft: event.draft };
+    case 'editSaveFailed':
+      return { ...state, saving: false };
+    case 'editSaveStarted':
+      return { ...state, saving: true };
+    case 'editStarted':
+      return { ...state, draft: event.draft, editing: true, saving: false };
     case 'leaveFinished':
       return { ...state, leaving: false };
   }

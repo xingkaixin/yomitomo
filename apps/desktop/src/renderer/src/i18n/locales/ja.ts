@@ -16,6 +16,7 @@ export const jaResources = {
       originalLinkUnavailable: '元のリンクは利用できません',
       send: '送信',
       sending: '送信中',
+      save: '保存',
       saveFailed: '保存に失敗しました。',
       articleReadingStatsLine:
         '{{annotations}} 件のハイライト · {{comments}} 件の意見 · {{aiContributions}} 件のアシスタント投稿',
@@ -374,6 +375,7 @@ export const jaResources = {
         'これにより、このハイライトがその感想やコメントとともに削除されます。アプリ内からは復元できません。',
       deleteAnnotationConfirmAction: 'ハイライトを削除',
       distillations: '蒸留',
+      editThought: '考えを編集',
       emptyNotesDescription:
         '記事内のテキストを選択して強調表示したり、考えを保存したり、ディスカッションを開始したりできます。',
       emptyNotesGestureLabel:
@@ -383,6 +385,7 @@ export const jaResources = {
       fontSize: 'フォントサイズ',
       highlightActions: 'ハイライトアクションを開く',
       highlightChoice: 'ハイライトを選択',
+      highlightColor: 'ハイライト色',
       nameSeparator: ', ',
       nextHighlight: '次のハイライト',
       nextSearchResult: '次の検索結果',
@@ -1169,7 +1172,11 @@ export const jaResources = {
       unsentReply: '未送信の返信',
       selectThoughtDescription: 'この注釈に関するディスカッションはここに表示されます。',
       replyFailed: '返信を送信できませんでした',
+      editFailed: '変更を保存できませんでした。もう一度お試しください。',
+      colorFailed: 'ハイライト色の更新に失敗しました。もう一度お試しください。',
       deleteFailed: '削除できませんでした。もう一度お試しください。',
+      highlightColor: 'ハイライト色',
+      editMessageAria: 'このメッセージを編集',
       windowTitle: '注釈ディスカッション - {{title}}',
       untitledArticle: '無題の記事',
       replyPlaceholder:

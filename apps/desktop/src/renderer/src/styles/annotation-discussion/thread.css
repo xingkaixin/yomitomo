@@ -441,10 +441,28 @@
   animation-delay: 0.47s;
 }
 
-.annotation-discussion-message-delete {
+.annotation-discussion-message-actions {
   position: absolute;
   top: 50%;
   left: calc(100% + 6px);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  translate: 0 -50%;
+}
+
+.annotation-discussion-bubbles.is-split .is-user .annotation-discussion-message-actions {
+  right: calc(100% + 6px);
+  left: auto;
+}
+
+.annotation-discussion-bubble-row:hover .annotation-discussion-message-actions,
+.annotation-discussion-message-actions:focus-within {
+  opacity: 1;
+}
+
+.annotation-discussion-message-action {
   display: grid;
   width: 24px;
   height: 24px;
@@ -452,22 +470,79 @@
   border: 0;
   border-radius: 999px;
   background: transparent;
-  opacity: 0;
-  translate: 0 -50%;
+  color: hsl(var(--muted-foreground));
 }
 
-.annotation-discussion-bubbles.is-split .is-user .annotation-discussion-message-delete {
-  right: calc(100% + 6px);
-  left: auto;
-}
-
-.annotation-discussion-bubble-row:hover .annotation-discussion-message-delete,
-.annotation-discussion-message-delete:focus-visible {
-  opacity: 1;
-}
-
-.annotation-discussion-message-delete:hover {
+.annotation-discussion-message-action:hover {
   background: var(--app-interactive-hover-bg);
+  color: hsl(var(--foreground));
+}
+
+.annotation-discussion-bubble-row.is-editing {
+  width: 100%;
+  max-width: min(100%, 540px);
+}
+
+.annotation-discussion-inline-editor {
+  display: grid;
+  width: 100%;
+  gap: 8px;
+  border: 1px solid var(--app-edge);
+  border-radius: 14px;
+  background: var(--app-panel);
+  padding: 10px 12px;
+}
+
+.annotation-discussion-inline-textarea {
+  width: 100%;
+  min-height: 68px;
+  resize: vertical;
+  border: 0;
+  background: transparent;
+  color: hsl(var(--foreground));
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.65;
+  outline: 0;
+}
+
+.annotation-discussion-inline-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.annotation-discussion-inline-cancel,
+.annotation-discussion-inline-save {
+  height: 28px;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0 12px;
+}
+
+.annotation-discussion-inline-cancel {
+  border: 1px solid var(--app-edge);
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+}
+
+.annotation-discussion-inline-cancel:hover:not(:disabled) {
+  background: var(--app-interactive-hover-bg);
+  color: hsl(var(--foreground));
+}
+
+.annotation-discussion-inline-save {
+  border: 0;
+  background: var(--app-ink);
+  color: var(--app-ink-fg);
+}
+
+.annotation-discussion-inline-save:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .annotation-discussion-bubble-row.is-entering .annotation-discussion-bubble {

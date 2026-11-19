@@ -16,6 +16,7 @@ export const enResources = {
       originalLinkUnavailable: 'Original link unavailable',
       send: 'Send',
       sending: 'Sending',
+      save: 'Save',
       saveFailed: 'Save failed.',
       articleReadingStatsLine:
         '{{annotations}} highlights · {{comments}} thoughts · {{aiContributions}} assistant contributions',
@@ -375,6 +376,7 @@ export const enResources = {
         'This deletes this highlight along with its thoughts and comments. It cannot be restored from inside the app.',
       deleteAnnotationConfirmAction: 'Delete highlight',
       distillations: 'Distillations',
+      editThought: 'Edit thought',
       emptyNotesDescription:
         'Select text in the article to highlight it, save a thought, or start a discussion.',
       emptyNotesGestureLabel:
@@ -384,6 +386,7 @@ export const enResources = {
       fontSize: 'Font size',
       highlightActions: 'Open highlight actions',
       highlightChoice: 'Choose highlight',
+      highlightColor: 'Highlight color',
       nameSeparator: ', ',
       nextHighlight: 'Next highlight',
       nextSearchResult: 'Next search result',
@@ -1156,7 +1159,11 @@ export const enResources = {
       unsentReply: 'Unsent reply',
       selectThoughtDescription: 'The discussion for this annotation will appear here.',
       replyFailed: 'Reply failed to send',
+      editFailed: 'Failed to save changes. Please try again.',
+      colorFailed: 'Failed to update highlight color. Please try again.',
       deleteFailed: 'Delete failed. Please try again.',
+      highlightColor: 'Highlight color',
+      editMessageAria: 'Edit this message',
       windowTitle: 'Annotation discussion - {{title}}',
       untitledArticle: 'Untitled article',
       replyPlaceholder: 'Reply to this thought. Type @assistant to invite assistants.',

@@ -216,6 +216,7 @@ export type ReaderUiLabels = {
   deleteAnnotationConfirmAction: string;
   dateLocale?: string;
   distillations: string;
+  editThought: string;
   emptyNotesDescription: string;
   emptyNotesGestureLabel: string;
   emptyNotesTitle: string;
@@ -223,6 +224,7 @@ export type ReaderUiLabels = {
   fontSize: string;
   highlightActions: string;
   highlightChoice: string;
+  highlightColor: string;
   me: string;
   nextHighlight: string;
   nextSearchResult: string;
@@ -246,6 +248,7 @@ export type ReaderUiLabels = {
   relativeTimeLabel?: (parts: RelativeTimeParts) => string;
   readerLibrary: string;
   recordThought: string;
+  save: string;
   searchBody: string;
   searchBodyPlaceholder: string;
   searchPreparing: string;
@@ -303,6 +306,7 @@ export const defaultReaderUiLabels: ReaderUiLabels = {
     '会删除这条划线，以及它的想法和评论。此操作无法从应用内恢复。',
   deleteAnnotationConfirmAction: '删除划线',
   distillations: '沉淀',
+  editThought: '编辑想法',
   emptyNotesDescription: '在正文里选中文字，即可高亮、写想法或发起讨论。',
   emptyNotesGestureLabel: '在正文里选中文字后，生成一条保存在右侧的划线或想法',
   emptyNotesTitle: '划线、想法就留在这里',
@@ -310,6 +314,7 @@ export const defaultReaderUiLabels: ReaderUiLabels = {
   fontSize: '字号',
   highlightActions: '打开划线操作',
   highlightChoice: '选择划线',
+  highlightColor: '划线颜色',
   me: '我',
   nextHighlight: '下一个划线',
   nextSearchResult: '下一个搜索结果',
@@ -332,6 +337,7 @@ export const defaultReaderUiLabels: ReaderUiLabels = {
   readingProgress: '阅读进度',
   readerLibrary: '阅读库',
   recordThought: '记录想法',
+  save: '保存',
   searchBody: '搜索正文',
   searchBodyPlaceholder: '搜索正文',
   searchPreparing: '准备中',
@@ -354,9 +360,15 @@ export type ReaderShellOptions = {
 
 export type ReaderAnnotationActions = {
   onAnnotationLayoutChange?: () => void;
+  onChangeAnnotationColor?: (annotationId: string, color: string) => void | Promise<void>;
   onClearActiveAnnotation: () => void;
   onCreateAnnotation: (note: string) => void | Promise<void>;
   onDeleteAnnotation: (annotationId: string) => void | Promise<void>;
+  onEditComment?: (
+    annotationId: string,
+    commentId: string,
+    content: string,
+  ) => void | Promise<void>;
   onFocusAnnotation: (annotationId: string) => void;
   onHighlightClick: (
     annotationId: string,

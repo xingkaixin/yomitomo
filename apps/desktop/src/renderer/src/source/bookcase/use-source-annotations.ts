@@ -9,10 +9,14 @@ import type {
   UserProfile,
 } from '@yomitomo/shared';
 import {
+  annotationColor,
   appendAnnotationComment,
   createUserComment,
   deleteAnnotationComment,
+  editUserComment,
   findMentionedAgents,
+  isEditableUserComment,
+  setAnnotationColor,
   sortAnnotations,
 } from '@yomitomo/core';
 import {
@@ -255,11 +259,39 @@ export function useSourceAnnotations(options: UseSourceAnnotationsOptions) {
       if (change) readInput().options.onOpenAnnotation?.(annotationId);
     }
 
+    async function editComment(annotationId: string, commentId: string, content: string) {
+      const { userProfile } = readInput().options;
+      const annotation = annotationsRef.current.find((item) => item.id === annotationId);
+      const target = annotation?.comments.find((item) => item.id === commentId);
+      if (!target || !isEditableUserComment(target, userProfile)) return;
+      const updated = editUserComment(target, content);
+      if (!updated) return;
+      await saveComment(annotationId, updated);
+    }
+
+    async function changeAnnotationColor(annotationId: string, color: string) {
+      const { annotationAgents = [], userProfile } = readInput().options;
+      const annotation = annotationsRef.current.find((item) => item.id === annotationId);
+      if (!annotation) return;
+      const trimmed = color.trim();
+      if (!trimmed) return;
+      if (
+        !annotation.author.annotationColor &&
+        annotationColor(annotation, userProfile, annotationAgents) === trimmed
+      ) {
+        return;
+      }
+      const updated = setAnnotationColor(annotation, trimmed);
+      await saveAnnotation(updated);
+    }
+
     return {
       addComment,
       applyAnnotations,
+      changeAnnotationColor,
       deleteAnnotation,
       deleteComment,
+      editComment,
       isCurrentArticle,
       saveAnnotation,
       saveComment,

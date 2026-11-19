@@ -306,6 +306,10 @@ export function useSourceReaderApp({
     const actions: ReaderAppActions = {
       annotation: {
         onAnnotationLayoutChange,
+        onChangeAnnotationColor: (annotationId, color) =>
+          runReaderPersistenceAction('update-annotation-color', () =>
+            session.changeAnnotationColor(annotationId, color),
+          ),
         onClearActiveAnnotation: () => sessionInput.onOpenAnnotation?.(null),
         onCreateAnnotation: async (note) => {
           await runReaderPersistenceAction('create-annotation', async () => {
@@ -317,6 +321,10 @@ export function useSourceReaderApp({
         onDeleteAnnotation: (annotationId) =>
           runReaderPersistenceAction('delete-annotation', () =>
             session.deleteAnnotation(annotationId),
+          ),
+        onEditComment: (annotationId, commentId, content) =>
+          runReaderPersistenceAction('edit-comment', () =>
+            session.editComment(annotationId, commentId, content),
           ),
         onFocusAnnotation: openAnnotation,
         onHighlightClick: adapter.onHighlightClick,

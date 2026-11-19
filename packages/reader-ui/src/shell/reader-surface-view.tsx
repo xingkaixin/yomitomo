@@ -74,15 +74,18 @@ type ReaderSurfaceViewLabels = Pick<
   | 'deleteAnnotationConfirmTitle'
   | 'deleteHighlight'
   | 'distillations'
+  | 'editThought'
   | 'emptyNotesDescription'
   | 'emptyNotesGestureLabel'
   | 'emptyNotesTitle'
   | 'enterDiscussion'
   | 'highlightChoice'
+  | 'highlightColor'
   | 'openDistillationActions'
   | 'openHighlightActions'
   | 'recordThought'
   | 'relativeTimeLabel'
+  | 'save'
   | 'submitHighlight'
   | 'submitThought'
   | 'thoughtContent'
@@ -257,7 +260,11 @@ export function ReaderSurfaceView({
   const latestAnnotationActions = useStableCallback(() => annotationActions);
   const cardActions = React.useMemo(
     () => ({
+      onChangeColor: (id: string, color: string) =>
+        latestAnnotationActions().onChangeAnnotationColor?.(id, color),
       onDelete: (id: string) => latestAnnotationActions().onDeleteAnnotation(id),
+      onEditComment: (id: string, commentId: string, content: string) =>
+        latestAnnotationActions().onEditComment?.(id, commentId, content),
       onFocus: (id: string) => latestAnnotationActions().onScrollToHighlight(id),
       onOpenDiscussion: (id: string, rect?: ReaderWindowSourceRect) =>
         latestAnnotationActions().onOpenAnnotationDiscussion?.(id, rect),
@@ -266,7 +273,14 @@ export function ReaderSurfaceView({
   );
   // A string key keeps segments stable while unrelated annotation fields change.
   const distilledIdsKey = annotations
-    .filter((annotation) => annotation.distillation?.status === 'published')
+    .filter(
+      (annotation) =>
+        annotation.distillation?.status === 'published' &&
+        Boolean(
+          annotation.author.annotationColor &&
+          annotation.color === annotation.author.annotationColor,
+        ),
+    )
     .map((annotation) => annotation.id)
     .join('\n');
   const highlightSegments = React.useMemo(() => {
@@ -465,7 +479,15 @@ export function ReaderSurfaceView({
                   style={style}
                   userProfile={userProfile}
                   timeFormatter={timeFormatter}
+                  onChangeColor={
+                    annotationActions.onChangeAnnotationColor
+                      ? cardActions.onChangeColor
+                      : undefined
+                  }
                   onDelete={cardActions.onDelete}
+                  onEditComment={
+                    annotationActions.onEditComment ? cardActions.onEditComment : undefined
+                  }
                   onFocus={cardActions.onFocus}
                   onOpenDiscussion={
                     annotationActions.onOpenAnnotationDiscussion
