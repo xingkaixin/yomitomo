@@ -38,5 +38,5 @@ export function articlePublishedDistillationCount(annotations: Annotation[]) {
 }
 
 export function annotationStoredColor(annotation: Annotation) {
-  return annotation.author.annotationColor || annotation.color || defaultUserAnnotationColor;
+  return annotation.color || annotation.author.annotationColor || defaultUserAnnotationColor;
 }

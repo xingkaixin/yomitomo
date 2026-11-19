@@ -9,10 +9,13 @@ import type {
   UserProfile,
 } from '@yomitomo/shared';
 import {
+  annotationColor,
   appendAnnotationComment,
   createUserComment,
   deleteAnnotationComment,
+  editUserComment,
   findMentionedAgents,
+  isEditableUserComment,
   sortAnnotations,
 } from '@yomitomo/core';
 import {
@@ -255,11 +258,48 @@ export function useSourceAnnotations(options: UseSourceAnnotationsOptions) {
       if (change) readInput().options.onOpenAnnotation?.(annotationId);
     }
 
+    async function editComment(annotationId: string, commentId: string, content: string) {
+      const { userProfile } = readInput().options;
+      const annotation = annotationsRef.current.find((item) => item.id === annotationId);
+      const target = annotation?.comments.find((item) => item.id === commentId);
+      if (!target || !isEditableUserComment(target, userProfile)) return;
+      const updated = editUserComment(target, content);
+      if (!updated) return;
+      await saveComment(annotationId, updated);
+    }
+
+    async function changeAnnotationColor(
+      annotationId: string,
+      color: string,
+      persist: (
+        articleId: string,
+        annotationId: string,
+        color: string,
+        updatedAt: string,
+      ) => Promise<string | undefined>,
+    ) {
+      const { annotationAgents = [], userProfile } = readInput().options;
+      const annotation = annotationsRef.current.find((item) => item.id === annotationId);
+      if (!annotation) return;
+      const trimmed = color.trim();
+      if (!trimmed) return;
+      if (
+        !annotation.author.annotationColor &&
+        annotationColor(annotation, userProfile, annotationAgents) === trimmed
+      ) {
+        return;
+      }
+      const timestamp = new Date().toISOString();
+      await persist(articleId, annotationId, trimmed, timestamp);
+    }
+
     return {
       addComment,
       applyAnnotations,
+      changeAnnotationColor,
       deleteAnnotation,
       deleteComment,
+      editComment,
       isCurrentArticle,
       saveAnnotation,
       saveComment,

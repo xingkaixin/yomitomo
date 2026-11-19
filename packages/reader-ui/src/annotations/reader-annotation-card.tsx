@@ -6,12 +6,20 @@ import {
   Layers02Icon,
   BubbleChatIcon,
   MoreHorizontalIcon,
+  PencilEdit01Icon,
 } from '@hugeicons/core-free-icons';
 import React, { useMemo, useReducer, useRef } from 'react';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
-import { annotationCommentThreads, commentPersona } from '@yomitomo/core';
+import {
+  annotationColor,
+  annotationCommentThreads,
+  commentPersona,
+  isEditableUserComment,
+} from '@yomitomo/core';
 import { AvatarBadge, ReaderTooltip } from '../shared/reader-component-primitives';
 import { formatRelativeTime, formatTime } from '../reader-date-utils';
+import { readerLineColorOptions } from '../reader-settings';
+import { useCompositionSubmit } from '../use-composition-submit';
 import type { AnnotationRailSide } from './annotation-rail-layout';
 import type { ReaderWindowSourceRect } from './reader-annotation-types';
 import type { ReaderUiLabels } from '../shell/reader-app-view-types';
@@ -48,10 +56,14 @@ type AnnotationCardLabels = Pick<
   | 'deleteAnnotationConfirmTitle'
   | 'deleteHighlight'
   | 'distillations'
+  | 'editThought'
   | 'enterDiscussion'
+  | 'highlightColor'
   | 'openDistillationActions'
   | 'openHighlightActions'
   | 'relativeTimeLabel'
+  | 'save'
+  | 'thoughtContent'
   | 'thoughtSummary'
 >;
 
@@ -64,12 +76,15 @@ type DeleteActionMenuLabels = Pick<
   | 'deleteAnnotationConfirmAction'
   | 'deleteAnnotationConfirmDescription'
   | 'deleteAnnotationConfirmTitle'
+  | 'editThought'
   | 'enterDiscussion'
+  | 'highlightColor'
 >;
 
 export type { ReaderWindowSourceRect } from './reader-annotation-types';
 
 type AnnotationCardProps = {
+  distillationColor?: string;
   active: boolean;
   agents: PublicAgent[];
   annotation: Annotation;
@@ -95,7 +110,13 @@ type AnnotationCardProps = {
   stackIndex?: number;
   style?: React.CSSProperties;
   userProfile: UserProfile;
+  onChangeColor?: (annotationId: string, color: string) => void | Promise<void>;
   onDelete: (annotationId: string) => void;
+  onEditComment?: (
+    annotationId: string,
+    commentId: string,
+    content: string,
+  ) => void | Promise<void>;
   onFocus: (annotationId: string) => void;
   onOpenDiscussion?: (annotationId: string, sourceRect?: ReaderWindowSourceRect) => void;
   pendingAgents?: PublicAgent[];
@@ -269,13 +290,16 @@ type AnnotationCardContentProps = Omit<
 };
 
 const AnnotationCardContent = React.memo(function AnnotationCardContent({
+  distillationColor,
   active,
   agents,
   annotation,
   labels = defaultReaderUiLabels,
   personaAgents: extraPersonaAgents = emptyAgents,
   userProfile,
+  onChangeColor,
   onDelete,
+  onEditComment,
   onFocus,
   onOpenDiscussion,
   ordinal,
@@ -290,11 +314,62 @@ const AnnotationCardContent = React.memo(function AnnotationCardContent({
     () => [...agents, ...extraPersonaAgents],
     [agents, extraPersonaAgents],
   );
+  const activeColor = annotationColor(annotation, userProfile, personaAgents, distillationColor);
   const discussionThreads = useMemo(() => annotationDiscussionThreads(annotation), [annotation]);
   const thoughts = discussionThreads.filter((thread) => thread.root.content.trim());
-  const firstThought = (
+  const firstThoughtComment = (
     thoughts.find((thread) => thread.root.author.kind === 'user') ?? thoughts[0]
-  )?.root.content;
+  )?.root;
+  const firstThought = firstThoughtComment?.content;
+  const canEditFirstThought = Boolean(
+    firstThoughtComment && onEditComment && isEditableUserComment(firstThoughtComment, userProfile),
+  );
+  const [inlineEdit, dispatchInlineEdit] = useReducer(inlineThoughtEditReducer, {
+    commentId: null,
+    draft: '',
+    saving: false,
+  });
+  const editingFirstThought =
+    canEditFirstThought &&
+    firstThoughtComment !== undefined &&
+    inlineEdit.commentId === firstThoughtComment.id;
+  const canSaveEdit =
+    editingFirstThought &&
+    !inlineEdit.saving &&
+    Boolean(inlineEdit.draft.trim()) &&
+    inlineEdit.draft.trim() !== firstThoughtComment.content;
+
+  function startEditingThought() {
+    if (!firstThoughtComment || !canEditFirstThought) return;
+    dispatchInlineEdit({
+      type: 'started',
+      commentId: firstThoughtComment.id,
+      draft: firstThoughtComment.content,
+    });
+  }
+
+  function cancelEditingThought() {
+    if (inlineEdit.saving) return;
+    dispatchInlineEdit({ type: 'cancelled' });
+  }
+
+  async function saveEditedThought() {
+    if (!firstThoughtComment || !onEditComment || !canSaveEdit) return;
+    const trimmed = inlineEdit.draft.trim();
+    dispatchInlineEdit({ type: 'saveStarted' });
+    try {
+      await onEditComment(annotation.id, firstThoughtComment.id, trimmed);
+      dispatchInlineEdit({ type: 'saved' });
+    } catch {
+      dispatchInlineEdit({ type: 'saveFailed' });
+    }
+  }
+
+  const handleEditKeyDown = useCompositionSubmit({
+    messageSendShortcut: 'mod-enter',
+    onCancel: cancelEditingThought,
+    onSubmit: () => void saveEditedThought(),
+  });
   const visibleThoughtCount = discussionThreads.length + pendingAgents.length;
   const assistantParticipants = useMemo(
     () => uniqueAssistantParticipants(annotation.comments, userProfile, personaAgents),
@@ -334,17 +409,55 @@ const AnnotationCardContent = React.memo(function AnnotationCardContent({
               <ReaderRelativeTime fullTime={fullTime} value={timestamp} text={timeLabel} />
             </span>
           </header>
-          {firstThought ? (
+          {editingFirstThought ? (
+            <div className="reader-note-inline-editor">
+              <textarea
+                aria-label={labels.thoughtContent}
+                autoFocus
+                className="reader-note-inline-textarea"
+                disabled={inlineEdit.saving}
+                rows={3}
+                value={inlineEdit.draft}
+                onChange={(event) =>
+                  dispatchInlineEdit({ type: 'draftChanged', draft: event.currentTarget.value })
+                }
+                onKeyDown={handleEditKeyDown}
+              />
+              <div className="reader-note-inline-actions">
+                <button
+                  className="reader-note-inline-cancel"
+                  disabled={inlineEdit.saving}
+                  type="button"
+                  onClick={cancelEditingThought}
+                >
+                  {labels.cancel}
+                </button>
+                <button
+                  className="reader-note-inline-save"
+                  disabled={!canSaveEdit}
+                  type="button"
+                  onClick={() => void saveEditedThought()}
+                >
+                  {labels.save}
+                </button>
+              </div>
+            </div>
+          ) : firstThought ? (
             <p className="reader-note-text">{firstThought}</p>
           ) : (
             <p className="reader-note-text reader-note-highlight-text">{annotation.anchor.exact}</p>
           )}
           <DeleteActionMenu
+            activeColor={activeColor}
             ariaLabel={labels.openHighlightActions}
             className="reader-note-action-menu"
             deleteAriaLabel={labels.deleteHighlight}
             labels={labels}
+            onChangeColor={
+              onChangeColor ? (color) => void onChangeColor(annotation.id, color) : undefined
+            }
             onDelete={() => onDelete(annotation.id)}
+            onEdit={canEditFirstThought ? startEditingThought : undefined}
           />
           <footer className={toolbarClassName}>
             <div
@@ -397,11 +510,15 @@ const AnnotationCardContent = React.memo(function AnnotationCardContent({
           </header>
           <p className="reader-note-text">{content}</p>
           <DeleteActionMenu
+            activeColor={activeColor}
             ariaLabel={labels.openDistillationActions}
             className="reader-note-action-menu reader-note-distillation-menu"
             deleteAriaLabel={labels.deleteHighlight}
             discussionAriaLabel={labels.enterDiscussion}
             labels={labels}
+            onChangeColor={
+              onChangeColor ? (color) => void onChangeColor(annotation.id, color) : undefined
+            }
             onDelete={() => onDelete(annotation.id)}
             onOpenDiscussion={openDiscussion}
           />
@@ -564,20 +681,26 @@ function ReaderRelativeTime({
 }
 
 function DeleteActionMenu({
+  activeColor,
   ariaLabel,
   className,
   deleteAriaLabel,
   discussionAriaLabel,
   labels = defaultReaderUiLabels,
+  onChangeColor,
   onDelete,
+  onEdit,
   onOpenDiscussion,
 }: {
+  activeColor: string;
   ariaLabel: string;
   className: string;
   deleteAriaLabel: string;
   discussionAriaLabel?: string;
   labels?: DeleteActionMenuLabels;
+  onChangeColor?: (color: string) => void;
   onDelete: () => void;
+  onEdit?: () => void;
   onOpenDiscussion?: (sourceElement: Element) => void;
 }) {
   const [{ confirmOpen, open }, dispatch] = useReducer(deleteActionMenuReducer, {
@@ -588,6 +711,16 @@ function DeleteActionMenu({
   function openDiscussionAndClose(sourceElement: Element) {
     dispatch({ type: 'menuOpenChanged', open: false });
     onOpenDiscussion?.(sourceElement);
+  }
+
+  function editAndClose() {
+    dispatch({ type: 'menuOpenChanged', open: false });
+    onEdit?.();
+  }
+
+  function pickColorAndClose(color: string) {
+    dispatch({ type: 'menuOpenChanged', open: false });
+    onChangeColor?.(color);
   }
 
   return (
@@ -606,6 +739,34 @@ function DeleteActionMenu({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="reader-action-menu-panel" side="bottom" sideOffset={7}>
+          {onChangeColor ? (
+            <div
+              className="reader-action-menu-colors"
+              role="radiogroup"
+              aria-label={labels.highlightColor}
+            >
+              {readerLineColorOptions.map((color, index) => (
+                <button
+                  aria-checked={activeColor === color}
+                  aria-label={`${labels.highlightColor} ${index + 1}`}
+                  className="reader-appearance-line reader-note-color-swatch"
+                  key={color}
+                  role="radio"
+                  style={{ '--reader-swatch': color } as React.CSSProperties}
+                  type="button"
+                  onClick={() => pickColorAndClose(color)}
+                />
+              ))}
+            </div>
+          ) : null}
+          {onEdit ? (
+            <DropdownMenuItem asChild>
+              <button className="reader-action-menu-item" type="button" onClick={editAndClose}>
+                <HugeiconsIcon icon={PencilEdit01Icon} size={13} />
+                <span>{labels.editThought}</span>
+              </button>
+            </DropdownMenuItem>
+          ) : null}
           {onOpenDiscussion ? (
             <DropdownMenuItem asChild>
               <button
@@ -646,6 +807,39 @@ function DeleteActionMenu({
       </div>
     </DropdownMenu>
   );
+}
+
+type InlineThoughtEditState = {
+  commentId: string | null;
+  draft: string;
+  saving: boolean;
+};
+
+type InlineThoughtEditEvent =
+  | { type: 'cancelled' }
+  | { type: 'draftChanged'; draft: string }
+  | { type: 'saved' }
+  | { type: 'saveFailed' }
+  | { type: 'saveStarted' }
+  | { type: 'started'; commentId: string; draft: string };
+
+function inlineThoughtEditReducer(
+  state: InlineThoughtEditState,
+  event: InlineThoughtEditEvent,
+): InlineThoughtEditState {
+  switch (event.type) {
+    case 'cancelled':
+    case 'saved':
+      return { commentId: null, draft: '', saving: false };
+    case 'draftChanged':
+      return { ...state, draft: event.draft };
+    case 'saveFailed':
+      return { ...state, saving: false };
+    case 'saveStarted':
+      return { ...state, saving: true };
+    case 'started':
+      return { commentId: event.commentId, draft: event.draft, saving: false };
+  }
 }
 
 type DeleteActionMenuState = { confirmOpen: boolean; open: boolean };

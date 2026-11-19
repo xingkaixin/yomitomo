@@ -270,6 +270,7 @@ export function useSourceReaderApp({
         error: error instanceof Error ? error.message : String(error),
       });
       appToast.error(fallback, { description: errorMessageOrFallback(error, fallback) });
+      if (action === 'edit-comment') throw error;
     }
   }
 
@@ -306,6 +307,14 @@ export function useSourceReaderApp({
     const actions: ReaderAppActions = {
       annotation: {
         onAnnotationLayoutChange,
+        onChangeAnnotationColor: (annotationId, color) =>
+          runReaderPersistenceAction('update-annotation-color', () =>
+            session.changeAnnotationColor(
+              annotationId,
+              color,
+              articleActions.saveArticleAnnotationColor,
+            ),
+          ),
         onClearActiveAnnotation: () => sessionInput.onOpenAnnotation?.(null),
         onCreateAnnotation: async (note) => {
           await runReaderPersistenceAction('create-annotation', async () => {
@@ -317,6 +326,10 @@ export function useSourceReaderApp({
         onDeleteAnnotation: (annotationId) =>
           runReaderPersistenceAction('delete-annotation', () =>
             session.deleteAnnotation(annotationId),
+          ),
+        onEditComment: (annotationId, commentId, content) =>
+          runReaderPersistenceAction('edit-comment', () =>
+            session.editComment(annotationId, commentId, content),
           ),
         onFocusAnnotation: openAnnotation,
         onHighlightClick: adapter.onHighlightClick,

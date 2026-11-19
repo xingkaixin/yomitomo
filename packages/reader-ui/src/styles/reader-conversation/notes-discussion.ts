@@ -251,6 +251,77 @@ export const notesDiscussionStyles = `.reader-note {
 .reader-action-delete:hover {
   background:var(--app-reader-paper-hover)
 }
+.reader-action-menu-colors {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:2px;
+  padding:2px 2px 6px;
+  margin-bottom:4px;
+  border-bottom:1px solid var(--app-reader-ink-a8)
+}
+.reader-note-color-swatch {
+  width:30px;
+  height:24px
+}
+.reader-note-color-swatch::after {
+  width:20px;
+  height:5px
+}
+.reader-note-inline-editor {
+  display:grid;
+  gap:8px;
+  margin:4px 0 6px
+}
+.reader-note-inline-textarea {
+  width:100%;
+  min-height:66px;
+  resize:vertical;
+  border:1px solid var(--app-reader-ink-a16);
+  border-radius:8px;
+  background:var(--reader-paper);
+  color:var(--reader-ink);
+  font:inherit;
+  font-size:13px;
+  line-height:1.55;
+  padding:7px 9px;
+  outline:0
+}
+.reader-note-inline-textarea:focus {
+  border-color:var(--reader-focus-ring)
+}
+.reader-note-inline-actions {
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:6px
+}
+.reader-note-inline-cancel,.reader-note-inline-save {
+  height:26px;
+  border-radius:7px;
+  font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);
+  font-size:11.5px;
+  font-weight:760;
+  padding:0 10px
+}
+.reader-note-inline-cancel {
+  border:1px solid var(--app-reader-ink-a12);
+  background:transparent;
+  color:var(--reader-muted)
+}
+.reader-note-inline-cancel:hover:not(:disabled) {
+  background:var(--reader-paper-hover);
+  color:var(--reader-ink)
+}
+.reader-note-inline-save {
+  border:0;
+  background:var(--reader-green);
+  color:var(--reader-paper)
+}
+.reader-note-inline-save:disabled {
+  opacity:.48;
+  cursor:default
+}
 .reader-note-card-header {
   position:relative;
   display:block;

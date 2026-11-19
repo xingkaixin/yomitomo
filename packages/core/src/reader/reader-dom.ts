@@ -627,7 +627,7 @@ function removeActiveHighlightContributor(active: ActiveHighlightContributor[], 
 function uniqueContributors(boxes: HighlightBox[]) {
   const seen = new Set<string>();
   return boxes.filter((box) => {
-    const contributorId = box.contributorId || box.annotationId;
+    const contributorId = `${box.contributorId || box.annotationId}:${box.color}`;
     if (seen.has(contributorId)) return false;
     seen.add(contributorId);
     return true;

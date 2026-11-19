@@ -23,6 +23,7 @@ export function articleActionStubs(overrides: Partial<ArticleActions> = {}): Art
     importPdfFile: vi.fn<ArticleActions['importPdfFile']>(),
     openArticleDiscussion: vi.fn<ArticleActions['openArticleDiscussion']>(),
     readArticle: vi.fn<ArticleActions['readArticle']>(),
+    saveArticleAnnotationColor: vi.fn<ArticleActions['saveArticleAnnotationColor']>(),
     saveArticleAnnotation: vi.fn<ArticleActions['saveArticleAnnotation']>(),
     saveArticleComment: vi.fn<ArticleActions['saveArticleComment']>(),
     saveArticleReaderChatState: vi.fn<ArticleActions['saveArticleReaderChatState']>(),

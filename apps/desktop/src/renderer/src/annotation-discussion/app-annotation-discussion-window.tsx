@@ -1,3 +1,4 @@
+import { useDesktopReaderSettings } from '../settings/app-reader-settings';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   Add01Icon,
@@ -22,10 +23,21 @@ import type {
 } from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
-import { createUserComment, findMentionedAgents, sortAnnotations } from '@yomitomo/core';
+import {
+  annotationColor,
+  createUserComment,
+  editUserComment,
+  findMentionedAgents,
+  isEditableUserComment,
+  sortAnnotations,
+} from '@yomitomo/core';
+import { readerLineColorOptions } from '@yomitomo/reader-ui/reader-settings';
 import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import { agentInstructionFromNote } from '../source/bookcase/app-source-agent-mention-request';
-import { annotationsWithSavedComment } from '../source/bookcase/source-annotation-updates';
+import {
+  annotationsWithSavedColor,
+  annotationsWithSavedComment,
+} from '../source/bookcase/source-annotation-updates';
 import {
   publicAnnotationAgents,
   publicPersonaAgents,
@@ -620,6 +632,60 @@ function AnnotationDiscussionShell({
     applyAnnotations(nextAnnotations, articleUpdatedAt);
   }
 
+  async function editComment(commentId: string, content: string) {
+    const currentAnnotation = latestArticle().annotations.find((item) => item.id === annotation.id);
+    const target = currentAnnotation?.comments.find((item) => item.id === commentId);
+    if (!target || !isEditableUserComment(target, userProfile)) return;
+    const updated = editUserComment(target, content);
+    if (!updated) return;
+    try {
+      await saveComment(annotation.id, updated);
+    } catch (error) {
+      console.warn('[annotation-discussion] comment edit failed', {
+        articleId: article.id,
+        annotationId: annotation.id,
+        commentId,
+        error,
+      });
+      appToast.error(assistantRuntimeErrorMessage(error, 'discussion.editFailed'));
+      throw error;
+    }
+  }
+
+  async function changeAnnotationColor(color: string) {
+    const currentAnnotation = latestArticle().annotations.find((item) => item.id === annotation.id);
+    if (!currentAnnotation) return;
+    const trimmed = color.trim();
+    if (!trimmed) return;
+    if (
+      !currentAnnotation.author.annotationColor &&
+      annotationColor(currentAnnotation, userProfile, personaAgents) === trimmed
+    ) {
+      return;
+    }
+    const updatedAt = new Date().toISOString();
+    try {
+      const patch = await annotationWindowActions.saveAnnotationColor({
+        articleId: article.id,
+        annotationId: annotation.id,
+        color: trimmed,
+        updatedAt,
+      });
+      if (!patch) return;
+      applyAnnotations(
+        annotationsWithSavedColor(latestArticle().annotations, annotation.id, trimmed, updatedAt),
+        patch.article.updatedAt,
+      );
+    } catch (error) {
+      console.warn('[annotation-discussion] highlight color update failed', {
+        articleId: article.id,
+        annotationId: annotation.id,
+        error,
+      });
+      appToast.error(assistantRuntimeErrorMessage(error, 'discussion.colorFailed'));
+    }
+  }
+
   async function submitReply() {
     const selectedRoot = selectedThread?.root;
     const draft = replyDraft;
@@ -835,13 +901,41 @@ function AnnotationDiscussionShell({
     });
   }
 
+  const [readerSettings] = useDesktopReaderSettings();
+  const activeHighlightColor = annotationColor(
+    annotation,
+    userProfile,
+    personaAgents,
+    readerSettings.distillationColor,
+  );
+
   return (
     <main className={className} style={style}>
       <section
         className="annotation-discussion-quote"
         aria-labelledby="annotation-discussion-quote-title"
       >
-        <strong id="annotation-discussion-quote-title">{t('discussion.quoteTitle')}</strong>
+        <div className="annotation-discussion-quote-header">
+          <strong id="annotation-discussion-quote-title">{t('discussion.quoteTitle')}</strong>
+          <div
+            className="annotation-discussion-color-swatches"
+            role="radiogroup"
+            aria-label={t('discussion.highlightColor')}
+          >
+            {readerLineColorOptions.map((color, index) => (
+              <button
+                key={color}
+                aria-checked={activeHighlightColor === color}
+                aria-label={`${t('discussion.highlightColor')} ${index + 1}`}
+                className="annotation-discussion-color-swatch"
+                role="radio"
+                style={{ '--annotation-swatch': color } as CSSProperties}
+                type="button"
+                onClick={() => void changeAnnotationColor(color)}
+              />
+            ))}
+          </div>
+        </div>
         <p>{annotation.anchor.exact}</p>
       </section>
 
@@ -945,6 +1039,7 @@ function AnnotationDiscussionShell({
               thread={selectedThread}
               userProfile={userProfile}
               onDelete={(commentId) => void deleteComment(commentId)}
+              onEdit={editComment}
               onReplyCaretChange={(caretIndex) => dispatch({ type: 'replyCaretMoved', caretIndex })}
               onReplyDraftChange={(draft) => dispatch({ type: 'replyDraftChanged', draft })}
               onSubmitReply={() => void submitReply()}

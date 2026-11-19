@@ -2,7 +2,11 @@ import React from 'react';
 import { useStableCallback } from '../hooks/use-stable-callback';
 import { annotationOrdinalsById, highlightDiscussionLabel } from './reader-highlight-labels';
 import type { Annotation, MessageSendShortcut, PublicAgent, UserProfile } from '@yomitomo/shared';
-import { buildHighlightSegments, highlightSegmentStyle } from '@yomitomo/core';
+import {
+  buildHighlightSegments,
+  highlightSegmentStyle,
+  usesDistillationLineColor,
+} from '@yomitomo/core';
 import { buildFootnoteGroups } from '../annotations/annotation-footnotes';
 import { AnnotationCard, type ReaderWindowSourceRect } from '../annotations/reader-annotation-card';
 import type { ReaderAnnotationRailState } from '../annotations/use-reader-annotation-rail';
@@ -74,15 +78,18 @@ type ReaderSurfaceViewLabels = Pick<
   | 'deleteAnnotationConfirmTitle'
   | 'deleteHighlight'
   | 'distillations'
+  | 'editThought'
   | 'emptyNotesDescription'
   | 'emptyNotesGestureLabel'
   | 'emptyNotesTitle'
   | 'enterDiscussion'
   | 'highlightChoice'
+  | 'highlightColor'
   | 'openDistillationActions'
   | 'openHighlightActions'
   | 'recordThought'
   | 'relativeTimeLabel'
+  | 'save'
   | 'submitHighlight'
   | 'submitThought'
   | 'thoughtContent'
@@ -250,14 +257,18 @@ export function ReaderSurfaceView({
   labels = defaultReaderUiLabels,
   refs: { articleRef, canvasRef, notesRef, selectionMenuRef, surfaceRef },
   selection: { composer, highlightChoice, selectionAction },
-  settings: { messageSendShortcut, selectionActionShortcuts, shortcutModifier },
+  settings: { readerSettings, messageSendShortcut, selectionActionShortcuts, shortcutModifier },
   userProfile,
 }: ReaderSurfaceViewProps) {
   const timeFormatter = React.useMemo(() => createReaderTimeFormatter(labels), [labels]);
   const latestAnnotationActions = useStableCallback(() => annotationActions);
   const cardActions = React.useMemo(
     () => ({
+      onChangeColor: (id: string, color: string) =>
+        latestAnnotationActions().onChangeAnnotationColor?.(id, color),
       onDelete: (id: string) => latestAnnotationActions().onDeleteAnnotation(id),
+      onEditComment: (id: string, commentId: string, content: string) =>
+        latestAnnotationActions().onEditComment?.(id, commentId, content),
       onFocus: (id: string) => latestAnnotationActions().onScrollToHighlight(id),
       onOpenDiscussion: (id: string, rect?: ReaderWindowSourceRect) =>
         latestAnnotationActions().onOpenAnnotationDiscussion?.(id, rect),
@@ -266,7 +277,7 @@ export function ReaderSurfaceView({
   );
   // A string key keeps segments stable while unrelated annotation fields change.
   const distilledIdsKey = annotations
-    .filter((annotation) => annotation.distillation?.status === 'published')
+    .filter(usesDistillationLineColor)
     .map((annotation) => annotation.id)
     .join('\n');
   const highlightSegments = React.useMemo(() => {
@@ -444,6 +455,7 @@ export function ReaderSurfaceView({
             {annotationRailItems.map(
               ({ annotation, isStackFront, railSide, stackCount, stackIndex, style }) => (
                 <AnnotationCard
+                  distillationColor={readerSettings.distillationColor}
                   active={annotation.id === activeId}
                   agents={agents}
                   annotation={annotation}
@@ -465,7 +477,15 @@ export function ReaderSurfaceView({
                   style={style}
                   userProfile={userProfile}
                   timeFormatter={timeFormatter}
+                  onChangeColor={
+                    annotationActions.onChangeAnnotationColor
+                      ? cardActions.onChangeColor
+                      : undefined
+                  }
                   onDelete={cardActions.onDelete}
+                  onEditComment={
+                    annotationActions.onEditComment ? cardActions.onEditComment : undefined
+                  }
                   onFocus={cardActions.onFocus}
                   onOpenDiscussion={
                     annotationActions.onOpenAnnotationDiscussion

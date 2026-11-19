@@ -247,4 +247,84 @@ describe('useSourceAnnotations', () => {
 
     expect(screen.getByTestId('annotations').textContent).toBe('');
   });
+
+  it('edits user comments and preserves concurrent replies when changing highlight color', async () => {
+    const userComment: AnnotationComment = {
+      id: 'comment_user',
+      author: {
+        kind: 'user',
+        userId: userProfile.id,
+        username: userProfile.username,
+        nickname: userProfile.nickname,
+      },
+      content: 'original thought',
+      createdAt: now,
+    };
+    const aiComment: AnnotationComment = {
+      id: 'comment_ai',
+      author: {
+        kind: 'agent',
+        agentId: 'agent_1',
+        username: 'assistant',
+        nickname: 'Assistant',
+      },
+      content: 'ai reply',
+      createdAt: now,
+      replyTo: 'comment_user',
+    };
+    const target = annotation('annotation_1', {
+      author: {
+        kind: 'user',
+        userId: userProfile.id,
+        username: userProfile.username,
+        nickname: userProfile.nickname,
+        annotationColor: userProfile.annotationColor,
+      },
+      comments: [userComment, aiComment],
+    });
+    const onSaveArticleComment = vi.fn(() => Promise.resolve('2026-05-16T08:05:00.000Z'));
+    let visible = target;
+    const persistColor = async () => {
+      visible = {
+        ...target,
+        color: '#6fa48f',
+        comments: [userComment, { ...aiComment, content: 'updated reply' }],
+      };
+      return '2026-05-16T08:06:00.000Z';
+    };
+    const onArticleChange = (record: ArticleRecord) => {
+      visible = record.annotations[0];
+    };
+
+    const { result } = renderHook(() =>
+      useSourceAnnotations({
+        article: article({ annotations: [target] }),
+        annotations: [target],
+        userProfile,
+        onArticleChange,
+        onSaveArticleComment,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.editComment('annotation_1', 'comment_ai', 'tampered');
+    });
+    expect(onSaveArticleComment).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await result.current.editComment('annotation_1', 'comment_user', '  edited thought  ');
+    });
+    expect(onSaveArticleComment).toHaveBeenCalledWith(
+      'article_1',
+      'annotation_1',
+      expect.objectContaining({ id: 'comment_user', content: 'edited thought' }),
+      expect.any(String),
+    );
+
+    await act(async () => {
+      await result.current.changeAnnotationColor('annotation_1', '#6fa48f', persistColor);
+    });
+    expect(visible.color).toBe('#6fa48f');
+    expect(visible.comments[1]?.content).toBe('updated reply');
+  });
 });

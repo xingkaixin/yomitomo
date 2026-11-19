@@ -122,7 +122,7 @@ function annotationAuthorToRow(author: AnnotationAuthorRef) {
       agentUsername: author.username ?? null,
       agentNickname: author.nickname,
       agentAvatar: null,
-      agentAnnotationColor: author.annotationColor,
+      agentAnnotationColor: author.annotationColor ?? null,
       userId: null,
       userUsername: null,
       userNickname: null,
@@ -141,6 +141,6 @@ function annotationAuthorToRow(author: AnnotationAuthorRef) {
     userUsername: author.username ?? null,
     userNickname: author.nickname,
     userAvatar: null,
-    userAnnotationColor: author.annotationColor,
+    userAnnotationColor: author.annotationColor ?? null,
   };
 }

@@ -5,7 +5,7 @@ import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { useTranslation } from 'react-i18next';
 import type { Comment, MessageSendShortcut, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { normalizeMessageSendShortcut } from '@yomitomo/shared';
-import { getMentionQuery } from '@yomitomo/core';
+import { getMentionQuery, isEditableUserComment } from '@yomitomo/core';
 import { FloatingComposer } from '@yomitomo/reader-ui/floating-composer';
 import {
   matchesAgentMentionQuery,
@@ -39,6 +39,7 @@ export function DiscussionThreadView({
   layoutMode,
   messageSendShortcut,
   onDelete,
+  onEdit,
   onReplyCaretChange,
   onReplyDraftChange,
   onSubmitReply,
@@ -56,6 +57,7 @@ export function DiscussionThreadView({
   layoutMode: DiscussionLayoutMode;
   messageSendShortcut?: MessageSendShortcut;
   onDelete: (commentId: string) => void;
+  onEdit: (commentId: string, content: string) => Promise<void>;
   onReplyCaretChange: (value: number) => void;
   onReplyDraftChange: (value: string) => void;
   onSubmitReply: () => void;
@@ -259,6 +261,11 @@ export function DiscussionThreadView({
                 showIdentity={layoutMode === 'left' || message.author.kind !== 'user'}
                 userProfile={userProfile}
                 onDelete={index === 0 ? undefined : () => onDelete(message.id)}
+                onEdit={
+                  isEditableUserComment(message, userProfile)
+                    ? (content) => onEdit(message.id, content)
+                    : undefined
+                }
               />
             ))}
           </div>

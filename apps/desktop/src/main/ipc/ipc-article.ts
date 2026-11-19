@@ -34,6 +34,7 @@ type ArticlePersistence = Pick<
   | 'recoverInterruptedArticleTranslation'
   | 'readImportSettings'
   | 'saveArticle'
+  | 'saveArticleAnnotationColor'
   | 'saveArticleAnnotation'
   | 'saveArticleAnnotationDistillation'
   | 'saveArticleComment'
@@ -102,6 +103,12 @@ export function registerArticleIpc(context: ArticleIpcContext) {
   handleDesktopIpc('article:save-annotation', async (event, input) => {
     const { storeArticles: articlePersistence } = await context.getPersistenceModules();
     const patch = await articlePersistence.saveArticleAnnotation(input);
+    if (patch) context.sendArticlePatched(event, patch);
+    return patch;
+  });
+  handleDesktopIpc('article:save-annotation-color', async (event, input) => {
+    const { storeArticles } = await context.getPersistenceModules();
+    const patch = await storeArticles.saveArticleAnnotationColor(input);
     if (patch) context.sendArticlePatched(event, patch);
     return patch;
   });

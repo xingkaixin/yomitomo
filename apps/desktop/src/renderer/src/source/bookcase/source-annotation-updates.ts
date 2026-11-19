@@ -1,5 +1,5 @@
 import type { Annotation, ArticleRecord, Comment } from '@yomitomo/shared';
-import { sortAnnotations } from '@yomitomo/core';
+import { setAnnotationColor, sortAnnotations } from '@yomitomo/core';
 
 export function articleWithAnnotations(
   article: ArticleRecord,
@@ -39,4 +39,15 @@ export function annotationsWithSavedComment(
     };
   });
   return foundAnnotation ? nextAnnotations : null;
+}
+
+export function annotationsWithSavedColor(
+  annotations: Annotation[],
+  annotationId: string,
+  color: string,
+  updatedAt: string,
+) {
+  return annotations.map((item) =>
+    item.id === annotationId ? setAnnotationColor(item, color, updatedAt) : item,
+  );
 }
