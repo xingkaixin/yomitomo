@@ -1,4 +1,5 @@
 import { useCallback, useReducer, useRef } from 'react';
+import { useReadingMemoryStatus } from './use-reading-memory-status';
 import { useTranslation } from 'react-i18next';
 import type { Collection, ReadingEvidenceScope, ReadingJudgmentClaim } from '@yomitomo/shared';
 import type { ReadingLibraryAnswerResult, ReadingLibraryContext } from '../../../ipc-contract';
@@ -6,6 +7,7 @@ import { Button } from '../components/ui/button';
 import { ShimmeringText } from '../components/ui/shimmering-text';
 import { Textarea } from '../components/ui/textarea';
 import type { ReadingEvidenceSourceTarget } from '../shell/app-reading-types';
+import { useOptionalAppSessionStoreApi } from '../shell/app-session';
 import { ReadingLibraryAnswer } from './reading-library-answer';
 import { ReadingLibraryThoughtDraft } from './reading-library-thought-draft';
 import { ReadingMemoryEvidenceCard } from './reading-memory-evidence-card';
@@ -32,12 +34,29 @@ export function ReadingLibraryQuestion({
   collections,
   catalogRevision,
   onOpenEvidenceSource,
+  onOpenLocalModelSettings,
+  onOpenModelSettings,
 }: {
   collections: Collection[];
   catalogRevision: unknown;
   onOpenEvidenceSource: (target: ReadingEvidenceSourceTarget) => void;
+  onOpenLocalModelSettings?: () => void;
+  onOpenModelSettings?: () => void;
 }) {
   const { t } = useTranslation();
+  const appSessionStore = useOptionalAppSessionStoreApi();
+  const openModelSettings = () => {
+    if (onOpenModelSettings) onOpenModelSettings();
+    else appSessionStore?.getState().actions.openSettingsSection('models');
+  };
+  const openLocalModelSettings = () => {
+    if (onOpenLocalModelSettings) onOpenLocalModelSettings();
+    else appSessionStore?.getState().actions.openSettingsSection('models', 'local-memory');
+  };
+  const { data: liveStatus } = useReadingMemoryStatus();
+  const canNavigateSettings = Boolean(
+    onOpenModelSettings || onOpenLocalModelSettings || appSessionStore,
+  );
   const [{ draft, question, selection, sourcePickerOpen }, dispatch] = useReducer(
     libraryQuestionReducer,
     initialLibraryQuestionState,
@@ -53,12 +72,32 @@ export function ReadingLibraryQuestion({
       : selection.kind === 'sources'
         ? { kind: 'sources', sources: selection.sources.map((source) => source.ref) }
         : { kind: 'library' };
-  const { contextState, state, ask, answer, dismissPrivacy, cancel, reloadContext } =
-    useReadingLibraryQuestion(scope, catalogRevision);
+  const {
+    contextState,
+    history,
+    state,
+    ask,
+    answer,
+    dismissPrivacy,
+    cancel,
+    reloadContext,
+    selectHistory,
+  } = useReadingLibraryQuestion(scope, catalogRevision);
   const context = contextState?.phase === 'ready' ? contextState.context : null;
+  const showKeywordHint =
+    context?.semantic.queryModelVersion === null ||
+    (state?.phase === 'ready' && state.result.mode === 'keyword');
+  const showDownload =
+    canNavigateSettings &&
+    (liveStatus
+      ? liveStatus.model.status === 'not-installed'
+      : context?.semantic.state === 'not_installed');
   const ready = state?.phase === 'ready' ? state : null;
   const result = ready?.result;
-  const judged = ready?.remote === 'idle' && result && 'judgment' in result ? result : undefined;
+  const judged =
+    (ready?.remote === 'idle' || ready?.remote === 'history') && result && 'judgment' in result
+      ? result
+      : undefined;
   const judgment = judged?.judgment;
   const evidence = judgment?.evidence ?? result?.evidence ?? [];
   const output =
@@ -83,6 +122,7 @@ export function ReadingLibraryQuestion({
     : undefined;
   const canAnswer =
     ready &&
+    ready.remote !== 'history' &&
     recipient &&
     evidence.length > 0 &&
     !result?.providerChanged &&
@@ -193,11 +233,54 @@ export function ReadingLibraryQuestion({
                 </Button>
               </div>
             ) : null}
-            {context ? <LibraryContextSummary context={context} /> : null}
-            {context?.semantic.queryModelVersion === null || result?.mode === 'keyword' ? (
-              <p>{t('readingMemory.library.keywordHint')}</p>
+            {context ? (
+              <LibraryContextSummary
+                context={context}
+                onOpenModelSettings={canNavigateSettings ? openModelSettings : undefined}
+              />
+            ) : null}
+            {showKeywordHint || showDownload ? (
+              <div className="reading-library-onboarding-row">
+                {showKeywordHint ? <p>{t('readingMemory.library.keywordHint')}</p> : null}
+                {showDownload ? (
+                  <Button
+                    className="reading-library-inline-cta"
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={openLocalModelSettings}
+                  >
+                    {t('readingMemory.onboarding.downloadLocalModel')}
+                  </Button>
+                ) : null}
+              </div>
             ) : null}
           </section>
+
+          {history.length > 0 ? (
+            <nav
+              className="reading-library-history"
+              aria-label={t('readingMemory.library.historyLabel')}
+            >
+              <span>{t('readingMemory.library.historyLabel')}</span>
+              <div className="reading-library-history-list">
+                {history.map((entry) => {
+                  const active = state?.request.requestId === entry.id;
+                  return (
+                    <button
+                      key={entry.id}
+                      type="button"
+                      className={`reading-library-history-item${active ? ' is-active' : ''}`}
+                      aria-current={active ? 'true' : undefined}
+                      onClick={() => selectHistory(entry.id)}
+                    >
+                      {entry.question}
+                    </button>
+                  );
+                })}
+              </div>
+            </nav>
+          ) : null}
 
           <form
             className="reading-library-query"
@@ -314,6 +397,7 @@ export function ReadingLibraryQuestion({
           ) : null}
           {output && judged ? (
             <ReadingLibraryAnswer
+              question={state?.request.question}
               output={output}
               evidence={evidence}
               onOpenEvidenceSource={onOpenEvidenceSource}
@@ -421,7 +505,13 @@ function libraryQuestionReducer(
   }
 }
 
-function LibraryContextSummary({ context }: { context: ReadingLibraryContext }) {
+function LibraryContextSummary({
+  context,
+  onOpenModelSettings,
+}: {
+  context: ReadingLibraryContext;
+  onOpenModelSettings?: () => void;
+}) {
   const { t } = useTranslation();
   return (
     <>
@@ -438,14 +528,27 @@ function LibraryContextSummary({ context }: { context: ReadingLibraryContext }) 
           judgments: context.judgmentCount,
         })}
       </p>
-      <p>
-        {context.provider
-          ? t('readingMemory.privacy.recipient', {
-              provider: context.provider.name,
-              model: context.provider.modelName,
-            })
-          : t('readingMemory.noProvider')}
-      </p>
+      <div className="reading-library-onboarding-row">
+        <p>
+          {context.provider
+            ? t('readingMemory.privacy.recipient', {
+                provider: context.provider.name,
+                model: context.provider.modelName,
+              })
+            : t('readingMemory.noProvider')}
+        </p>
+        {!context.provider && onOpenModelSettings ? (
+          <Button
+            className="reading-library-inline-cta"
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={onOpenModelSettings}
+          >
+            {t('readingMemory.onboarding.configureProvider')}
+          </Button>
+        ) : null}
+      </div>
       <div className="reading-library-coverage" aria-label={t('readingMemory.coverage')}>
         <p>
           {t('readingMemory.projectionCoverage', {

@@ -6,6 +6,7 @@ import { SegmentedControl } from '../components/ui/segmented-control';
 import { DistillationLibrary } from '../distillations/app-distillation-library';
 import type { ReadingEvidenceSourceTarget } from '../shell/app-reading-types';
 import { ReadingLibraryQuestion } from './reading-library-question';
+import { ReadingMemoryProgressBanner } from './reading-memory-progress-banner';
 import { ReadingReview } from './reading-review';
 import { recordReadingMemoryUsage } from './reading-memory-usage';
 import './app-reading-memory.css';
@@ -47,6 +48,7 @@ export function ReadingMemory({
           ]}
         />
       </header>
+      <ReadingMemoryProgressBanner className="reading-memory-top-progress" />
       <div
         className="reading-memory-content"
         role="tabpanel"

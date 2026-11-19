@@ -22,6 +22,7 @@ export class ProviderApiKeyRequiredError extends Error {
 }
 
 export type SaveProviderInput = Partial<LlmProvider> & {
+  cloneApiKeyFromProviderId?: string;
   removeApiKey?: boolean;
 };
 
@@ -44,12 +45,13 @@ export async function hydrateProviderApiKey(provider: LlmProvider): Promise<LlmP
 }
 
 export async function hydrateProviderInputApiKey(
-  provider: Partial<LlmProvider>,
+  provider: SaveProviderInput,
 ): Promise<Partial<LlmProvider>> {
+  const sourceProviderId = provider.id || provider.cloneApiKeyFromProviderId;
   const apiKey =
     provider.apiKey?.trim() ||
-    (provider.id
-      ? await readProviderApiKey(readProviderSecretStorageRow(provider.id)?.apiKeyRef)
+    (!provider.removeApiKey && sourceProviderId
+      ? await readProviderApiKey(readProviderSecretStorageRow(sourceProviderId)?.apiKeyRef)
       : '');
   return { ...provider, apiKey };
 }
@@ -64,11 +66,17 @@ export async function resolveProviderApiKeyStorage(
   existingRow: ProviderApiKeyStorageRow | undefined,
 ): Promise<ProviderApiKeyStorage> {
   const existingApiKeyRef = existingRow?.apiKeyRef || undefined;
+  let secret = input.apiKey;
+  // Clone copies the source secret into a dedicated keyring entry so deleting either provider never breaks the other.
+  if (!existingRow && !secret?.trim() && !input.removeApiKey && input.cloneApiKeyFromProviderId) {
+    const clonedSecret = await readStoredProviderApiKey(input.cloneApiKeyFromProviderId);
+    if (clonedSecret) secret = clonedSecret;
+  }
   const credentialChange = await prepareCredentialChange({
     currentRef: existingApiKeyRef,
     defaultRef: providerApiKeyRef(providerId),
     remove: input.removeApiKey,
-    secret: input.apiKey,
+    secret,
   });
   const retainsLegacyApiKey = !credentialChange.apiKeyRef && !input.removeApiKey;
   return {
@@ -90,7 +98,7 @@ export function buildProviderRecord(
   const id = options.id || existing?.id || makeId('provider');
   const preset =
     providerPresets.find((item) => item.id === input.presetId) ||
-    (existing ? undefined : defaultProviderPreset);
+    (existing || input.type ? undefined : defaultProviderPreset);
   const modelInputMode =
     normalizeProviderModelInputMode(input.modelInputMode ?? existing?.modelInputMode) || 'list';
 

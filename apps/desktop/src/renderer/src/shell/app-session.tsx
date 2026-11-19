@@ -113,8 +113,11 @@ const libraryImportMenuCommands: Partial<Record<AppMenuCommand, LibraryImportDia
   'import-web': 'article',
 };
 
+export type SettingsSectionAnchor = 'local-memory';
+
 export type AppSessionActions = {
   changeSettingsSection: (section: SettingsSectionKey) => void;
+  clearSettingsAnchor: () => void;
   closeLibraryImport: () => void;
   closeModelSettingsDialog: () => void;
   closeProfileDialog: () => void;
@@ -129,7 +132,7 @@ export type AppSessionActions = {
   openProfileDialog: (sourceElement?: Element) => void;
   openReadingMemory: () => void;
   openSettings: () => void;
-  openSettingsSection: (section: SettingsSectionKey) => void;
+  openSettingsSection: (section: SettingsSectionKey, anchor?: SettingsSectionAnchor) => void;
   openStats: () => Promise<void>;
   refreshStatsArticles: () => void;
   registerLibraryView: (view: LibraryView) => () => void;
@@ -148,6 +151,7 @@ export type AppSessionState = {
   libraryQuery: LibraryQuerySessionState;
   navigation: AppNavigationState;
   pendingRevealPassage: PendingPassageReveal | null;
+  requestedSettingsAnchor: SettingsSectionAnchor | null;
   requestedSettingsSection: SettingsSectionKey;
   onboardingForced: boolean;
   onboardingFlowKey: number;
@@ -203,7 +207,7 @@ export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSession
 
     function changeSettingsSection(section: SettingsSectionKey) {
       if (!developerModeEnabled() && section === 'aiTrace') {
-        set({ requestedSettingsSection: 'about' });
+        set({ requestedSettingsAnchor: null, requestedSettingsSection: 'about' });
         return;
       }
       recordStartupTiming('secondary_modules.settings_section_change', {
@@ -212,12 +216,13 @@ export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSession
         settingsProviderStatus: preloadEntries.settingsProvider.status,
         settingsAboutStatus: preloadEntries.settingsAbout.status,
       });
-      set({ requestedSettingsSection: section });
+      set({ requestedSettingsAnchor: null, requestedSettingsSection: section });
     }
 
-    function openSettingsSection(section: SettingsSectionKey) {
+    function openSettingsSection(section: SettingsSectionKey, anchor?: SettingsSectionAnchor) {
       openSettings();
       changeSettingsSection(section);
+      if (anchor) set({ requestedSettingsAnchor: anchor });
     }
 
     async function openStats() {
@@ -291,6 +296,7 @@ export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSession
       }),
       navigation: initialNavigation,
       pendingRevealPassage: null,
+      requestedSettingsAnchor: null,
       requestedSettingsSection: 'collection',
       onboardingForced: false,
       onboardingFlowKey: 0,
@@ -303,6 +309,7 @@ export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSession
       weReadLibrarySyncing: false,
       actions: {
         changeSettingsSection,
+        clearSettingsAnchor: () => set({ requestedSettingsAnchor: null }),
         closeLibraryImport: () => {
           if (!libraryImportBusy) navigate({ type: 'import-dialog-closed' });
         },

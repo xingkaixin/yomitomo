@@ -8,7 +8,7 @@ import {
   normalizeSelectionActionShortcutDraft,
   selectionActionShortcutsConflict,
 } from '@yomitomo/shared';
-import { providerPresetDisplayName } from '../i18n/app-i18n-labels';
+import { providerDisplayName, providerPresetDisplayName } from '../i18n/app-i18n-labels';
 
 import {
   defaultUser,
@@ -43,6 +43,7 @@ import { normalizeAppSettings } from '../../../settings/app-settings-normalizati
 type DraftKey = 'profile' | 'general' | 'shortcuts' | 'routes' | 'provider';
 
 type SettingsDraftActions = {
+  cloneProvider: (source: LlmProvider) => void;
   createProvider: () => void;
   deleteProvider: (id: string) => Promise<void>;
   general: DraftSaver<ResolvedAppSettings, DesktopStore | null>;
@@ -176,7 +177,11 @@ export function createSettingsDraftStore(desktopStore: DesktopStoreApi): Setting
         if (savedProvider && !draft.id && providerEditor === editor) {
           // Keep the newly assigned identity even when edits invalidate the saved draft.
           set((state) => ({
-            providerDraft: { ...state.providerDraft, id: savedProvider.id },
+            providerDraft: {
+              ...state.providerDraft,
+              id: savedProvider.id,
+              cloneApiKeyFromProviderId: undefined,
+            },
             selectedProviderId: savedProvider.id,
           }));
         }
@@ -197,6 +202,27 @@ export function createSettingsDraftStore(desktopStore: DesktopStoreApi): Setting
 
     function selectProvider(selected: LlmProvider) {
       openProviderEditor(selected.id, selected);
+    }
+
+    function cloneProvider(source: LlmProvider) {
+      openProviderEditor(null, {
+        name: i18next.t('settings.models.cloneProviderName', {
+          name: providerDisplayName(source),
+          defaultValue: '{{name}} (Copy)',
+        }),
+        type: source.type,
+        presetId: source.presetId,
+        logo: source.logo,
+        baseUrl: source.baseUrl,
+        modelName: source.modelName,
+        modelNames: source.modelNames ? [...source.modelNames] : undefined,
+        modelInputMode: source.modelInputMode || 'list',
+        reasoningEffort: source.reasoningEffort || 'none',
+        apiKey: '',
+        hasApiKey: Boolean(source.hasApiKey),
+        cloneApiKeyFromProviderId: source.hasApiKey ? source.id : undefined,
+        removeApiKey: false,
+      });
     }
 
     function closeProviderEditor() {
@@ -231,6 +257,7 @@ export function createSettingsDraftStore(desktopStore: DesktopStoreApi): Setting
       testState: idleTestState,
       userDraft: defaultUser,
       actions: {
+        cloneProvider,
         createProvider: () => openProviderEditor(null, localizedEmptyProvider()),
         deleteProvider: async (id) => {
           const patch = await getDesktopApi().provider.delete(id);
@@ -329,6 +356,7 @@ export function settingsDraftsView(state: SettingsDraftState) {
     profile: draft(actions.profile, 'profile', state.userDraft),
     provider: {
       ...draft(actions.provider, 'provider', state.providerDraft),
+      clone: actions.cloneProvider,
       create: actions.createProvider,
       deleteProvider: actions.deleteProvider,
       select: actions.selectProvider,

@@ -174,6 +174,7 @@ function modelFetchReducer(state: ModelFetchState, event: ModelFetchEvent): Mode
 function providerModelScope(draft: ProviderDraft) {
   return JSON.stringify([
     draft.id,
+    draft.cloneApiKeyFromProviderId,
     draft.presetId,
     draft.type,
     draft.baseUrl,

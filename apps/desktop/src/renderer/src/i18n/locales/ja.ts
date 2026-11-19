@@ -278,6 +278,7 @@ export const jaResources = {
         retryAnswer: '回答を再試行',
         receipt: '今回の送信内容',
         submittedQuestion: '今回の質問',
+        historyLabel: 'このセッションの質問履歴',
         sourcePicker: {
           title: '資料を選択',
           description:
@@ -301,6 +302,8 @@ export const jaResources = {
           emptySection: '現在の根拠だけでは、この項目について結論を出せません。',
           citations: '引用を確認（{{count}}件）',
           saveThought: '考えとして保存',
+          copyMarkdown: 'Markdown をコピー',
+          copiedMarkdown: 'Markdown をコピーしました',
         },
         thought: {
           title: '考えとして保存',
@@ -317,6 +320,17 @@ export const jaResources = {
           draftLoadFailed:
             '下書きを読み込めませんでした。「ライブラリに質問」に戻って再試行してください。',
         },
+      },
+      onboarding: {
+        downloadLocalModel: 'ローカルモデルをダウンロード',
+        configureProvider: 'モデルサービスを設定',
+      },
+      progress: {
+        downloadingModel:
+          'ローカル意味検索モデルをダウンロード中：{{downloaded}} / {{total}}（{{percent}}%）',
+        buildingSemantic: '意味検索インデックスを構築中：{{count}} / {{total}} 件（{{percent}}%）',
+        buildingProjection:
+          '読書記録インデックスを構築中：{{count}} / {{total}} 件（{{percent}}%）',
       },
       scopeLibrary: '範囲：ライブラリ全体の保存済み読書記録',
       coverage: '今回の検索のインデックス範囲',
@@ -2093,6 +2107,8 @@ export const jaResources = {
         cancel: 'キャンセル',
         editProvider: 'プロバイダーの編集',
         newProvider: '新しいプロバイダー',
+        cloneProviderTitle: 'プロバイダー設定を複製',
+        cloneProviderName: '{{name}} (コピー)',
         editorKicker: '設定・モデルサービス',
         editorDescription:
           'モデルプロバイダー、API キー、ベース URL、および利用可能なモデルを管理します。',
@@ -2116,6 +2132,7 @@ export const jaResources = {
         used: '中古',
         openProviderMenu: '{{name}} の設定メニューを開く',
         edit: '編集',
+        cloneProvider: '設定を複製',
         deleteProvider: '削除',
         deleteProviderAria: 'モデルプロバイダーを削除します: {{name}}',
         deleteProviderConfirmTitle: 'プロバイダ「{{name}}」を削除しますか?',

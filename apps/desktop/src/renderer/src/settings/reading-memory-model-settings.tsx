@@ -1,7 +1,8 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Delete02Icon } from '@hugeicons/core-free-icons';
-import { useReducer, useRef, type ReactNode } from 'react';
+import { useCallback, useReducer, useRef, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useStore } from 'zustand';
 import { useTranslation } from 'react-i18next';
 import type { ReadingMemoryStatusSnapshot } from '../../../ipc-contract';
 import {
@@ -16,28 +17,16 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import { Button } from '../components/ui/button';
+import {
+  readingMemoryStatusPollDelay,
+  readingMemoryStatusQueryKey,
+} from '../reading-memory/use-reading-memory-status';
 import { getDesktopApi } from '../shell/app-desktop-api';
+import { useOptionalAppSessionStoreApi } from '../shell/app-session';
 import { SettingsConfirmDialog } from './app-settings-confirm-dialog';
 import { SettingsGroup, SettingsRow } from './app-settings-kit';
 
 type ModelAction = 'download' | 'cancel' | 'remove' | 'pause' | 'resume' | 'rebuild';
-const activeStatusPollMs = 1_000;
-const idleStatusPollMs = 10_000;
-
-// Each status read runs coverage queries in main; poll quickly only while something is changing.
-function statusPollDelay(snapshot: ReadingMemoryStatusSnapshot | undefined) {
-  if (!snapshot) return idleStatusPollMs;
-  const active =
-    snapshot.model.status === 'checking' ||
-    snapshot.model.status === 'downloading' ||
-    snapshot.semantic.state === 'building' ||
-    snapshot.semantic.state === 'rebuilding' ||
-    snapshot.projection.state === 'building' ||
-    snapshot.projection.state === 'stale';
-  return active ? activeStatusPollMs : idleStatusPollMs;
-}
-
-const readingMemoryStatusQueryKey = ['reading-memory', 'status'] as const;
 
 type ModelActionState = { error: boolean; pending: ModelAction | null };
 
@@ -65,7 +54,7 @@ function useReadingMemoryModelStatus() {
   const status = useQuery({
     queryKey: readingMemoryStatusQueryKey,
     queryFn: () => getDesktopApi().readingMemory.model.status(),
-    refetchInterval: (query) => statusPollDelay(query.state.data),
+    refetchInterval: (query) => readingMemoryStatusPollDelay(query.state.data),
   });
   const [action, dispatch] = useReducer(modelActionReducer, { error: false, pending: null });
   const operationRef = useRef<{ action: ModelAction } | null>(null);
@@ -184,6 +173,19 @@ function StatusLabel({
 
 export function ReadingMemoryModelSettings() {
   const { t, i18n } = useTranslation();
+  const sessionStore = useOptionalAppSessionStoreApi();
+  const scrollRequested = useStore(
+    sessionStore ?? fallbackEmptyStore,
+    (state) => state?.requestedSettingsAnchor === 'local-memory',
+  );
+  const attachSectionAnchor = useCallback(
+    (element: HTMLDivElement | null) => {
+      if (!element || !scrollRequested) return;
+      element.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+      sessionStore?.getState().actions.clearSettingsAnchor();
+    },
+    [scrollRequested, sessionStore],
+  );
   const { snapshot, error, pending, run, refresh } = useReadingMemoryModelStatus();
   const [{ removeConfirmationOpen, selectedSource }, dispatch] = useReducer(
     modelSettingsViewReducer,
@@ -209,18 +211,20 @@ export function ReadingMemoryModelSettings() {
 
   if (!snapshot) {
     return (
-      <SettingsGroup
-        label={t('settings.models.localMemory.title')}
-        note={t('settings.models.localMemory.description')}
-        cardProps={{ role: 'region', 'aria-label': t('settings.models.localMemory.title') }}
-      >
-        <p className="px-4 py-3 text-sm text-muted-foreground" role="status">
-          {error
-            ? t('settings.models.localMemory.loadFailed')
-            : t('settings.models.localMemory.loading')}
-        </p>
-        {error === 'load' ? <LoadRetry onRetry={() => void refresh()} /> : null}
-      </SettingsGroup>
+      <div id="reading-memory-model-settings" ref={attachSectionAnchor}>
+        <SettingsGroup
+          label={t('settings.models.localMemory.title')}
+          note={t('settings.models.localMemory.description')}
+          cardProps={{ role: 'region', 'aria-label': t('settings.models.localMemory.title') }}
+        >
+          <p className="px-4 py-3 text-sm text-muted-foreground" role="status">
+            {error
+              ? t('settings.models.localMemory.loadFailed')
+              : t('settings.models.localMemory.loading')}
+          </p>
+          {error === 'load' ? <LoadRetry onRetry={() => void refresh()} /> : null}
+        </SettingsGroup>
+      </div>
     );
   }
 
@@ -259,7 +263,7 @@ export function ReadingMemoryModelSettings() {
   }
 
   return (
-    <>
+    <div id="reading-memory-model-settings" ref={attachSectionAnchor}>
       <SettingsGroup
         label={t('settings.models.localMemory.title')}
         note={t('settings.models.localMemory.description')}
@@ -471,9 +475,16 @@ export function ReadingMemoryModelSettings() {
           void run('remove');
         }}
       />
-    </>
+    </div>
   );
 }
+
+const fallbackEmptyStore = {
+  getInitialState: () => null,
+  getState: () => null,
+  setState: () => undefined,
+  subscribe: () => () => undefined,
+};
 
 function LoadRetry({ onRetry }: { onRetry: () => void }) {
   const { t } = useTranslation();

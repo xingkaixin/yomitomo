@@ -106,6 +106,36 @@ describe('settings draft store', () => {
 
     expect(drafts().general.canSave).toBe(true);
   });
+
+  it('clones an existing provider into an unsaved draft reusing connection and secret reference', () => {
+    const source: LlmProvider = {
+      ...makeProvider('provider_deepseek'),
+      name: 'DeepSeek',
+      presetId: 'deepseek',
+      baseUrl: 'https://api.deepseek.com',
+      modelName: 'deepseek-chat',
+      modelNames: ['deepseek-chat', 'deepseek-reasoner'],
+      hasApiKey: true,
+    };
+    const { drafts } = startDrafts({ ...emptyStore, providers: [source] });
+
+    drafts().provider.clone(source);
+
+    expect(drafts().provider.selectedProviderId).toBeNull();
+    expect(drafts().provider.canSave).toBe(true);
+    expect(drafts().provider.value.id).toBeUndefined();
+    expect(drafts().provider.value).toMatchObject({
+      type: 'openai-chat',
+      presetId: 'deepseek',
+      baseUrl: 'https://api.deepseek.com',
+      modelName: 'deepseek-chat',
+      modelNames: ['deepseek-chat', 'deepseek-reasoner'],
+      apiKey: '',
+      hasApiKey: true,
+      cloneApiKeyFromProviderId: 'provider_deepseek',
+      removeApiKey: false,
+    });
+  });
 });
 
 function startDrafts(initialStore: DesktopStore = emptyStore) {

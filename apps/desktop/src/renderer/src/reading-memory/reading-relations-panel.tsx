@@ -1,4 +1,5 @@
 import { useCallback, useReducer, useRef, type RefObject } from 'react';
+import { useReadingMemoryStatus } from './use-reading-memory-status';
 import { useTranslation } from 'react-i18next';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Cancel01Icon } from '@hugeicons/core-free-icons';
@@ -13,8 +14,10 @@ import {
   DialogTitle,
 } from '../components/ui/dialog';
 import type { ReadingEvidenceSourceTarget } from '../shell/app-reading-types';
+import { useOptionalAppSessionStoreApi } from '../shell/app-session';
 import type { ReadingRelationsState } from './use-reading-relations';
 import { ReadingMemoryEvidenceCard } from './reading-memory-evidence-card';
+import { ReadingMemoryProgressBanner } from './reading-memory-progress-banner';
 import './reading-relations-panel.css';
 
 export function ReadingRelationsPanel({
@@ -25,6 +28,8 @@ export function ReadingRelationsPanel({
   onJudge,
   onDismissPrivacy,
   onOpenEvidenceSource,
+  onOpenLocalModelSettings,
+  onOpenModelSettings,
 }: {
   state: ReadingRelationsState;
   returnFocus: RefObject<HTMLElement | null>;
@@ -33,8 +38,25 @@ export function ReadingRelationsPanel({
   onJudge: (confirmPrivacy?: boolean) => void;
   onDismissPrivacy: () => void;
   onOpenEvidenceSource?: (target: ReadingEvidenceSourceTarget) => void;
+  onOpenLocalModelSettings?: () => void;
+  onOpenModelSettings?: () => void;
 }) {
   const { t } = useTranslation();
+  const appSessionStore = useOptionalAppSessionStoreApi();
+  const openModelSettings = () => {
+    onClose();
+    if (onOpenModelSettings) onOpenModelSettings();
+    else appSessionStore?.getState().actions.openSettingsSection('models');
+  };
+  const openLocalModelSettings = () => {
+    onClose();
+    if (onOpenLocalModelSettings) onOpenLocalModelSettings();
+    else appSessionStore?.getState().actions.openSettingsSection('models', 'local-memory');
+  };
+  const { data: liveStatus } = useReadingMemoryStatus();
+  const canNavigateSettings = Boolean(
+    onOpenModelSettings || onOpenLocalModelSettings || appSessionStore,
+  );
   const [question, dispatch] = useReducer(relationsQuestionReducer, state.request.question ?? '');
   const titleRef = useRef<HTMLHeadingElement>(null);
   const privacyRef = useRef<HTMLElement>(null);
@@ -97,6 +119,7 @@ export function ReadingRelationsPanel({
               </button>
             </header>
             <div className="reading-relations-body">
+              <ReadingMemoryProgressBanner className="reading-relations-progress" />
               <blockquote className="reading-relations-selection">
                 {state.request.context.quote}
               </blockquote>
@@ -150,13 +173,29 @@ export function ReadingRelationsPanel({
                     {' · '}
                     {t(`settings.models.localMemory.projectionState.${result.projection.state}`)}
                   </p>
-                  <p>
-                    {t('readingMemory.semanticCoverage', {
-                      count: result.semantic.coverage.indexedEntryCount,
-                      total: result.semantic.coverage.eligibleEntryCount,
-                    })}
-                    {' · '}
-                    {t(`settings.models.localMemory.semanticState.${result.semantic.state}`)}
+                  <p className="reading-relations-coverage-row">
+                    <span>
+                      {t('readingMemory.semanticCoverage', {
+                        count: result.semantic.coverage.indexedEntryCount,
+                        total: result.semantic.coverage.eligibleEntryCount,
+                      })}
+                      {' · '}
+                      {t(`settings.models.localMemory.semanticState.${result.semantic.state}`)}
+                    </span>
+                    {canNavigateSettings &&
+                    (liveStatus
+                      ? liveStatus.model.status === 'not-installed'
+                      : result.semantic.state === 'not_installed') ? (
+                      <Button
+                        className="reading-relations-inline-cta"
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={openLocalModelSettings}
+                      >
+                        {t('readingMemory.onboarding.downloadLocalModel')}
+                      </Button>
+                    ) : null}
                   </p>
                 </section>
               ) : null}
@@ -222,14 +261,29 @@ export function ReadingRelationsPanel({
               ) : null}
             </div>
             <footer ref={moveFocusWithRemote} className="reading-relations-footer">
-              <p role="status">
-                {receiptRecipient
-                  ? t('readingMemory.privacy.recipient', receiptRecipient)
-                  : t('readingMemory.noProvider')}
-                {judgment
-                  ? ` · ${t('readingMemory.sentEvidence', { count: judgment.sentEvidenceCount })}`
-                  : ''}
-              </p>
+              {result ? (
+                <div className="reading-relations-footer-status">
+                  <p role="status">
+                    {receiptRecipient
+                      ? t('readingMemory.privacy.recipient', receiptRecipient)
+                      : t('readingMemory.noProvider')}
+                    {judgment
+                      ? ` · ${t('readingMemory.sentEvidence', { count: judgment.sentEvidenceCount })}`
+                      : ''}
+                  </p>
+                  {canNavigateSettings && !receiptRecipient ? (
+                    <Button
+                      className="reading-relations-inline-cta"
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={openModelSettings}
+                    >
+                      {t('readingMemory.onboarding.configureProvider')}
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
               {busy ? (
                 <div className="reading-relations-actions">
                   <span role="status">

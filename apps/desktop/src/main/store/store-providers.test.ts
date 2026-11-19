@@ -66,6 +66,7 @@ vi.mock('../app/logger', () => ({
 
 import {
   buildProviderRecord,
+  hydrateProviderInputApiKey,
   readStoredProviderApiKey,
   resolveProviderApiKeyStorage,
 } from '../providers/provider-repository';
@@ -268,6 +269,98 @@ describe('desktop store providers', () => {
       apiKey: '',
       apiKeyRef: 'provider:provider_1:apiKey',
     });
+  });
+
+  it('clones provider credentials into an independent keyring entry isolated from source deletion', async () => {
+    insertProviderRow({
+      id: 'provider_source',
+      name: 'DeepSeek Chat',
+      type: 'openai-chat',
+      baseUrl: 'https://api.deepseek.com',
+      modelName: 'deepseek-chat',
+      apiKeyRef: 'provider:provider_source:apiKey',
+    });
+    testState.secrets.set('provider:provider_source:apiKey', 'sk-shared-secret');
+
+    const hydrated = await hydrateProviderInputApiKey({
+      baseUrl: 'https://api.deepseek.com',
+      modelName: 'deepseek-reasoner',
+      cloneApiKeyFromProviderId: 'provider_source',
+    });
+    expect(hydrated.apiKey).toBe('sk-shared-secret');
+
+    const hydratedRemoved = await hydrateProviderInputApiKey({
+      cloneApiKeyFromProviderId: 'provider_source',
+      removeApiKey: true,
+    });
+    expect(hydratedRemoved.apiKey).toBe('');
+
+    const patch = await saveProvider({
+      name: 'DeepSeek Reasoner',
+      type: 'openai-chat',
+      baseUrl: 'https://api.deepseek.com',
+      modelName: 'deepseek-reasoner',
+      cloneApiKeyFromProviderId: 'provider_source',
+    });
+
+    const cloned = patch.providers.find((provider) => provider.name === 'DeepSeek Reasoner');
+    expect(cloned).toBeDefined();
+    expect(cloned?.id).not.toBe('provider_source');
+    expect(cloned?.hasApiKey).toBe(true);
+    expect(cloned?.apiKey).toBe('');
+
+    const clonedRow = readProviderRow(cloned!.id);
+    expect(clonedRow?.apiKey).toBe('');
+    expect(clonedRow?.apiKeyRef).toMatch(new RegExp(`^provider:${cloned!.id}:apiKey:version:`));
+    expect(clonedRow?.apiKeyRef).not.toBe('provider:provider_source:apiKey');
+    await expect(readStoredProviderApiKey(cloned!.id)).resolves.toBe('sk-shared-secret');
+
+    // Deleting source must not affect the cloned provider's keyring entry.
+    await deleteProvider('provider_source');
+    expect(testState.secrets.has('provider:provider_source:apiKey')).toBe(false);
+    await expect(readStoredProviderApiKey(cloned!.id)).resolves.toBe('sk-shared-secret');
+
+    // Cloning again and deleting the clone must not affect the surviving provider's keyring entry.
+    const secondPatch = await saveProvider({
+      name: 'DeepSeek V3',
+      type: 'openai-chat',
+      baseUrl: 'https://api.deepseek.com',
+      modelName: 'deepseek-v3',
+      cloneApiKeyFromProviderId: cloned!.id,
+    });
+    const secondClone = secondPatch.providers.find((provider) => provider.name === 'DeepSeek V3');
+    expect(secondClone).toBeDefined();
+    await deleteProvider(secondClone!.id);
+    await expect(readStoredProviderApiKey(cloned!.id)).resolves.toBe('sk-shared-secret');
+  });
+
+  it('prefers explicit apiKey override or removeApiKey over cloned source credentials', async () => {
+    insertProviderRow({
+      id: 'provider_source',
+      apiKeyRef: 'provider:provider_source:apiKey',
+    });
+    testState.secrets.set('provider:provider_source:apiKey', 'sk-source');
+
+    const overriddenPatch = await saveProvider({
+      name: 'Overridden Clone',
+      modelName: 'model-b',
+      apiKey: 'sk-override',
+      cloneApiKeyFromProviderId: 'provider_source',
+    });
+    const overridden = overriddenPatch.providers.find(
+      (provider) => provider.name === 'Overridden Clone',
+    );
+    await expect(readStoredProviderApiKey(overridden!.id)).resolves.toBe('sk-override');
+
+    const strippedPatch = await saveProvider({
+      name: 'Stripped Clone',
+      modelName: 'model-c',
+      removeApiKey: true,
+      cloneApiKeyFromProviderId: 'provider_source',
+    });
+    const stripped = strippedPatch.providers.find((provider) => provider.name === 'Stripped Clone');
+    expect(stripped?.hasApiKey).toBe(false);
+    await expect(readStoredProviderApiKey(stripped!.id)).resolves.toBe('');
   });
 });
 
