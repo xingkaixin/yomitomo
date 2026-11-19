@@ -298,8 +298,141 @@
   mix-blend-mode: multiply;
 }
 
+.source-pdfium-spike-reader.is-pdf-eye-care .pdfium-spike-page {
+  background: #1f2023;
+}
+
+.source-pdfium-spike-reader.is-pdf-eye-care .pdfium-spike-page canvas,
+.source-pdf-reader-shell
+  .source-pdfium-spike-reader.is-pdf-eye-care
+  .reader-app.is-reader-background-light
+  .pdfium-spike-page
+  canvas {
+  background: white;
+  mix-blend-mode: normal;
+  filter: invert(0.88) hue-rotate(180deg) brightness(0.95) contrast(0.92);
+}
+
+.pdfium-zoom-presets {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--app-edge-soft);
+}
+
+.pdfium-zoom-presets button,
+.pdfium-eye-care-toggle button {
+  height: 28px;
+  border: 1px solid var(--app-edge);
+  border-radius: 7px;
+  background: var(--app-raised);
+  color: hsl(var(--foreground));
+  font-size: 12px;
+  font-weight: 500;
+  padding: 0 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.pdfium-zoom-presets button {
+  height: auto;
+  min-height: 28px;
+  padding: 3px;
+  white-space: normal;
+}
+
+.pdfium-zoom-presets button:hover,
+.pdfium-eye-care-toggle button:hover {
+  background: var(--app-interactive-hover-bg);
+}
+
+.pdfium-eye-care-toggle {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.pdfium-eye-care-toggle button.is-active {
+  border-color: var(--app-ink-edge);
+  background: var(--app-ink);
+  color: var(--app-ink-fg);
+}
+
 .pdfium-page-slider {
   width: 92px;
+}
+
+.pdfium-translation-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  user-select: none;
+  overflow: hidden;
+}
+
+.pdfium-translation-block {
+  position: absolute;
+  box-sizing: border-box;
+  border-left: 2.5px solid var(--app-reader-primary);
+  border-radius: 4px;
+  background: var(--app-reader-paper);
+  box-shadow: 0 1px 6px var(--app-shadow-a12);
+  color: var(--app-reader-ink);
+  font-size: clamp(10px, calc(var(--pdf-page-width, 640px) * 0.0175), 18px);
+  line-height: 1.42;
+  opacity: 0.94;
+  padding: 3px 8px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.pdfium-translation-block p {
+  margin: 0;
+  word-break: break-word;
+}
+
+.pdfium-translation-block.is-loading {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  color: var(--app-reader-muted);
+  font-size: 12px;
+  opacity: 0.86;
+}
+
+.pdfium-translation-block.is-failed {
+  display: inline-flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  border-left-color: var(--app-reader-danger);
+  background: transparent;
+  box-shadow: none;
+  opacity: 1;
+  padding: 2px;
+}
+
+.pdfium-translation-retry {
+  border: 1px solid var(--app-edge);
+  border-radius: 6px;
+  background: var(--app-card-surface);
+  color: var(--app-reader-danger);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: var(--app-raised-shadow);
+}
+
+.pdfium-translation-retry:hover {
+  background: var(--app-interactive-hover-bg);
 }
 
 @media (max-width: 760px) {

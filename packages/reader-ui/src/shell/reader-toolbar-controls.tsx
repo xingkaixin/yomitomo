@@ -87,12 +87,14 @@ const defaultToolbarLabels: ReaderToolbarLabels = {
 
 export function ReaderToolbarAppearancePopover({
   annotationLine,
+  extraSections,
   labels = defaultToolbarLabels,
   showPaper = true,
   settings,
   onChange,
 }: {
   annotationLine?: ReaderAnnotationLineControl;
+  extraSections?: React.ReactNode;
   labels?: ReaderToolbarLabels;
   showPaper?: boolean;
   settings: ReaderSettings;
@@ -159,6 +161,7 @@ export function ReaderToolbarAppearancePopover({
           value={settings.distillationColor}
           onChange={(distillationColor) => onChange({ ...settings, distillationColor })}
         />
+        {extraSections}
       </PopoverContent>
     </Popover>
   );
@@ -197,6 +200,7 @@ function ReaderLineColorSection({
 }
 
 export function ReaderToolbarSliderPopover({
+  footer,
   icon,
   label,
   max,
@@ -206,6 +210,7 @@ export function ReaderToolbarSliderPopover({
   value,
   onChange,
 }: {
+  footer?: React.ReactNode;
   icon: React.ReactNode;
   label: string;
   max: number;
@@ -269,6 +274,7 @@ export function ReaderToolbarSliderPopover({
           </button>
           <strong>{formattedValue}</strong>
         </div>
+        {footer}
       </PopoverContent>
     </Popover>
   );

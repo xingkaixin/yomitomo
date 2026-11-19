@@ -1077,6 +1077,12 @@ export const enResources = {
       jumpEbookProgress: 'Jump to reading progress',
       jumpPdfPage: 'Jump to PDF page',
       pdfZoom: 'PDF zoom',
+      pdfFitWidth: 'Fit width',
+      pdfFitPage: 'Fit page',
+      pdfActualSize: '100%',
+      pdfEyeCare: 'Dark eye-care filter',
+      pdfEyeCareOriginal: 'Original',
+      pdfEyeCareDark: 'Dark eye-care',
     },
     readerTranslation: {
       article: {
@@ -1136,6 +1142,32 @@ export const enResources = {
         translationNoText: 'No translatable text was found in this chapter.',
         translationFailed: 'Chapter translation failed. Try again later.',
         deleteTranslationFailed: 'Could not delete the chapter translation. Try again later.',
+      },
+      pdfPage: {
+        translate: 'Translate current page',
+        confirmTranslateTitle: 'Translate this PDF page?',
+        confirmTranslateDescription:
+          'Calls the bilingual translation model and overlays translations on this page, reusing cached results. Initial support targets single-column text PDFs; multi-column layouts and cross-page paragraphs are known limitations.',
+        confirmTranslate: 'Start translation',
+        confirmRetranslateTitle: 'Translate this PDF page again?',
+        confirmRetranslateDescription:
+          'This replaces the saved translation for this page and target language.',
+        confirmRetranslate: 'Translate again',
+        confirmDeleteTranslationTitle: 'Delete this page translation?',
+        confirmDeleteTranslationDescription:
+          'This deletes the translation cache for this page and target language. The PDF file is unchanged.',
+        confirmDeleteTranslation: 'Delete translation',
+        showTranslation: 'Show translation',
+        hideTranslation: 'Hide translation',
+        retranslate: 'Translate page again',
+        deleteTranslation: 'Delete page translation',
+        translating: 'Translating current page...',
+        translationInProgressToastDescription:
+          'Initial support targets single-column text PDFs. Translations overlay each paragraph.',
+        translationNoText:
+          'No selectable text layer was detected on this page (likely a scanned PDF). Bilingual translation is not supported.',
+        translationFailed: 'PDF page translation failed. Try again later.',
+        deleteTranslationFailed: 'Could not delete the PDF page translation. Try again later.',
       },
       common: {
         retryTranslationSegment: 'Retry this paragraph',

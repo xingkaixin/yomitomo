@@ -201,8 +201,8 @@ telemetry → shared
   分别验证 EPUB 翻页与 PDF 缩放。
 - **书库目录查询保留候选集物化。** 取消物化在 50,000 条数据下更慢。大书库优化先用真实形态的
   数据测量计数、筛选和排序，不直接加索引。
-- **PDF 双语翻译尚未提供。** 当前只支持 Web 和 EPUB
-  （`apps/desktop/src/main/articles/article-translation-identity.ts`）。
-  `apps/desktop/src/renderer/src/source/pdfium/pdfium-translation-blocks.ts` 已验证 block identity。
-  实现时首版限定单栏文本型 PDF，双栏和跨页段落作为已知限制在界面说明；译文 overlay 必须在
-  真实文档上验证缩放、resize 和页面虚拟化后才能发布；无文本层的扫描件给出提示，不进入翻译。
+- **PDF 双语翻译首版限定单栏文本型文档。** `apps/desktop/src/main/articles/article-translation-identity.ts`
+  与 `apps/desktop/src/renderer/src/source/pdfium/pdfium-translation-blocks.ts` 已按页（`pdf-page-<index>`）
+  和内容哈希 block identity 接入单栏文本型 PDF 翻译缓存复用，并在已渲染的 PDF 页面层上按归一化坐标叠加
+  `pointer-events: none` 译文 overlay，保证缩放、resize 和页面虚拟化下对齐且不阻挡选区交互。已知限制：
+  双栏排版与跨页段落尚未做版面重排（已在界面提示）；无文本层的扫描件拒绝进入翻译并提示用户。
