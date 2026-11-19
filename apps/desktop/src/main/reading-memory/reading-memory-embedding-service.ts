@@ -99,12 +99,22 @@ type WorkerSession = {
   onExit: (code: number | null, signal: NodeJS.Signals | null) => void;
 };
 
+type QueuedBatch = {
+  request: ReadingMemoryEmbeddingRequest;
+  signal?: AbortSignal;
+  response: Deferred.Deferred<ReadingMemoryEmbeddingResult, ReadingMemoryEmbeddingError>;
+  onAbort?: () => void;
+};
+
 type ActiveBatch = {
   requestId: number;
   count: number;
   session: WorkerSession;
-  response: Deferred.Deferred<ReadingMemoryEmbeddingResult, ReadingMemoryEmbeddingError>;
-  fiber: Fiber.Fiber<ReadingMemoryEmbeddingResult, ReadingMemoryEmbeddingError>;
+  canceled: boolean;
+  workerResponse: Deferred.Deferred<ReadingMemoryEmbeddingResult, ReadingMemoryEmbeddingError>;
+  callerResponse: Deferred.Deferred<ReadingMemoryEmbeddingResult, ReadingMemoryEmbeddingError>;
+  fiber: Fiber.Fiber<ReadingMemoryEmbeddingResult, ReadingMemoryEmbeddingError> | null;
+  detachAbort: () => void;
 };
 
 export function createReadingMemoryEmbeddingService(
@@ -114,15 +124,22 @@ export function createReadingMemoryEmbeddingService(
   const config = embeddingWorkerConfig(installation);
   const timeoutMs = positiveTimeout(options.timeoutMs ?? defaultEmbeddingTimeoutMs);
   const idleTimeoutMs = positiveTimeout(options.idleTimeoutMs ?? defaultIdleTimeoutMs);
-  // A separate process contains native ONNX aborts during hard cancellation.
+  // A separate process contains native ONNX aborts during hard cancellation or timeout recovery.
   const createProcess: NonNullable<ReadingMemoryEmbeddingServiceOptions['createProcess']> =
     options.createProcess ?? ((url, forkOptions) => fork(url, [], forkOptions));
+  const queryQueue: QueuedBatch[] = [];
+  const documentQueue: QueuedBatch[] = [];
   let session: WorkerSession | null = null;
   let activeBatch: ActiveBatch | null = null;
   let terminating: Promise<void> | null = null;
+  let waitingForTermination = false;
   let idle: Fiber.Fiber<void> | null = null;
   let nextRequestId = 1;
   let disposePromise: Promise<void> | null = null;
+
+  const hasQueued = () => queryQueue.length > 0 || documentQueue.length > 0;
+
+  const nextQueued = () => queryQueue.shift() ?? documentQueue.shift();
 
   const cancelIdle = () => {
     if (idle) Effect.runFork(Fiber.interrupt(idle));
@@ -152,7 +169,9 @@ export function createReadingMemoryEmbeddingService(
       Effect.sleep(idleTimeoutMs).pipe(
         Effect.flatMap(() => {
           idle = null;
-          if (session !== current || activeBatch || disposePromise) return Effect.void;
+          if (session !== current || activeBatch || hasQueued() || disposePromise) {
+            return Effect.void;
+          }
           return Effect.promise(() => terminateSession(current));
         }),
       ),
@@ -165,7 +184,10 @@ export function createReadingMemoryEmbeddingService(
     cause?: unknown,
   ) => {
     if (activeBatch !== batch) return;
-    Deferred.doneUnsafe(batch.response, Effect.fail(new ReadingMemoryEmbeddingError(code, cause)));
+    Deferred.doneUnsafe(
+      batch.workerResponse,
+      Effect.fail(new ReadingMemoryEmbeddingError(code, cause)),
+    );
   };
 
   const failSession = (current: WorkerSession, cause: unknown) => {
@@ -186,7 +208,7 @@ export function createReadingMemoryEmbeddingService(
       return;
     }
 
-    Deferred.doneUnsafe(batch.response, decodeWorkerResult(value, batch, config));
+    Deferred.doneUnsafe(batch.workerResponse, decodeWorkerResult(value, batch, config));
   };
 
   const spawnSession = () => {
@@ -215,15 +237,154 @@ export function createReadingMemoryEmbeddingService(
     return current;
   };
 
+  const startBatch = (queued: QueuedBatch) => {
+    cancelIdle();
+    const initialize = session === null;
+    let current: WorkerSession;
+    try {
+      current = session ?? spawnSession();
+    } catch (error) {
+      Deferred.doneUnsafe(
+        queued.response,
+        Effect.fail(
+          new ReadingMemoryEmbeddingError('READING_MEMORY_EMBEDDING_WORKER_FAILED', error),
+        ),
+      );
+      return false;
+    }
+
+    const requestId = nextRequestId;
+    nextRequestId = requestId === Number.MAX_SAFE_INTEGER ? 1 : requestId + 1;
+    const workerResponse = Deferred.makeUnsafe<
+      ReadingMemoryEmbeddingResult,
+      ReadingMemoryEmbeddingError
+    >();
+    const onActiveAbort = () => {
+      batch.canceled = true;
+      Deferred.doneUnsafe(
+        batch.callerResponse,
+        Effect.fail(new ReadingMemoryEmbeddingError('READING_MEMORY_EMBEDDING_CANCELED')),
+      );
+    };
+    const detachAbort = () => {
+      queued.signal?.removeEventListener('abort', onActiveAbort);
+    };
+    const batch: ActiveBatch = {
+      requestId,
+      count: queued.request.texts.length,
+      session: current,
+      canceled: false,
+      workerResponse,
+      callerResponse: queued.response,
+      fiber: null,
+      detachAbort,
+    };
+    activeBatch = batch;
+    batch.fiber = Effect.runFork(
+      Deferred.await(workerResponse).pipe(
+        Effect.timeoutOrElse({
+          duration: timeoutMs,
+          orElse: () =>
+            Effect.fail(new ReadingMemoryEmbeddingError('READING_MEMORY_EMBEDDING_TIMEOUT')),
+        }),
+        Effect.onExit((exit) =>
+          Effect.gen(function* () {
+            detachAbort();
+            if (Exit.isFailure(exit)) {
+              const error = Cause.squash(exit.cause);
+              const failure =
+                error instanceof ReadingMemoryEmbeddingError
+                  ? error
+                  : new ReadingMemoryEmbeddingError(
+                      'READING_MEMORY_EMBEDDING_WORKER_FAILED',
+                      error,
+                    );
+              yield* Effect.promise(() => terminateSession(current));
+              if (activeBatch?.workerResponse === workerResponse) activeBatch = null;
+              if (!batch.canceled) {
+                Deferred.doneUnsafe(batch.callerResponse, Effect.fail(failure));
+              }
+              if (!disposePromise && hasQueued()) pumpQueue();
+              return;
+            }
+            if (activeBatch?.workerResponse === workerResponse) activeBatch = null;
+            if (!disposePromise) {
+              if (hasQueued()) pumpQueue();
+              else if (session === current) scheduleIdle(current);
+            }
+            if (!batch.canceled) {
+              Deferred.doneUnsafe(batch.callerResponse, Effect.succeed(exit.value));
+            }
+          }),
+        ),
+      ),
+    );
+    if (queued.signal) {
+      if (queued.signal.aborted) onActiveAbort();
+      else queued.signal.addEventListener('abort', onActiveAbort, { once: true });
+    }
+
+    const send = (message: ReadingMemoryEmbeddingWorkerRequest) => {
+      current.worker.send(message, (error) => {
+        if (error) failSession(current, error);
+      });
+    };
+    try {
+      if (initialize) send({ type: 'initialize', config });
+      send({ type: 'embed', requestId, ...queued.request });
+    } catch (error) {
+      failBatch(batch, 'READING_MEMORY_EMBEDDING_WORKER_FAILED', error);
+    }
+    return true;
+  };
+
+  const pumpQueue = () => {
+    if (disposePromise || activeBatch) return;
+    if (terminating) {
+      if (!waitingForTermination) {
+        waitingForTermination = true;
+        void terminating.finally(() => {
+          waitingForTermination = false;
+          pumpQueue();
+        });
+      }
+      return;
+    }
+
+    for (let queued = nextQueued(); queued; queued = nextQueued()) {
+      if (queued.onAbort) {
+        queued.signal?.removeEventListener('abort', queued.onAbort);
+        queued.onAbort = undefined;
+      }
+      if (queued.signal?.aborted) {
+        Deferred.doneUnsafe(
+          queued.response,
+          Effect.fail(new ReadingMemoryEmbeddingError('READING_MEMORY_EMBEDDING_CANCELED')),
+        );
+        continue;
+      }
+      if (startBatch(queued) || disposePromise || activeBatch) return;
+    }
+    if (!disposePromise && !activeBatch && session) scheduleIdle(session);
+  };
+
+  const drainQueues = (code: ReadingMemoryEmbeddingErrorCode) => {
+    for (const queue of [queryQueue, documentQueue]) {
+      for (const queued of queue.splice(0)) {
+        if (queued.onAbort) {
+          queued.signal?.removeEventListener('abort', queued.onAbort);
+          queued.onAbort = undefined;
+        }
+        Deferred.doneUnsafe(queued.response, Effect.fail(new ReadingMemoryEmbeddingError(code)));
+      }
+    }
+  };
+
   const embed = async (
     requestValue: ReadingMemoryEmbeddingRequest,
     { signal }: ReadingMemoryEmbeddingCallOptions = {},
   ) => {
-    if (terminating) await terminating;
     if (disposePromise) throw new ReadingMemoryEmbeddingError('READING_MEMORY_EMBEDDING_DISPOSED');
-    if (activeBatch || terminating) {
-      throw new ReadingMemoryEmbeddingError('READING_MEMORY_EMBEDDING_BUSY');
-    }
     let request: ReadingMemoryEmbeddingRequest;
     try {
       request = validateReadingMemoryEmbeddingRequest(requestValue);
@@ -233,64 +394,33 @@ export function createReadingMemoryEmbeddingService(
     if (signal?.aborted) {
       throw new ReadingMemoryEmbeddingError('READING_MEMORY_EMBEDDING_CANCELED');
     }
-    cancelIdle();
-    const initialize = session === null;
-    let current: WorkerSession;
-    try {
-      current = session ?? spawnSession();
-    } catch (error) {
-      throw new ReadingMemoryEmbeddingError('READING_MEMORY_EMBEDDING_WORKER_FAILED', error);
-    }
-    if (signal?.aborted) {
-      await terminateSession(current);
-      throw new ReadingMemoryEmbeddingError('READING_MEMORY_EMBEDDING_CANCELED');
-    }
 
-    const requestId = nextRequestId;
-    nextRequestId = requestId === Number.MAX_SAFE_INTEGER ? 1 : requestId + 1;
     const response = Deferred.makeUnsafe<
       ReadingMemoryEmbeddingResult,
       ReadingMemoryEmbeddingError
     >();
-    const fiber = Effect.runFork(
-      Deferred.await(response).pipe(
-        Effect.timeoutOrElse({
-          duration: timeoutMs,
-          orElse: () =>
-            Effect.fail(new ReadingMemoryEmbeddingError('READING_MEMORY_EMBEDDING_TIMEOUT')),
-        }),
-        Effect.onExit((exit) =>
-          Effect.gen(function* () {
-            if (Exit.isFailure(exit)) yield* Effect.promise(() => terminateSession(current));
-            if (activeBatch?.response === response) activeBatch = null;
-            if (!Exit.isFailure(exit) && session === current && !disposePromise) {
-              scheduleIdle(current);
-            }
-          }),
-        ),
-      ),
-      { signal },
-    );
-    const batch = { requestId, count: request.texts.length, session: current, response, fiber };
-    activeBatch = batch;
-    const send = (message: ReadingMemoryEmbeddingWorkerRequest) => {
-      current.worker.send(message, (error) => {
-        if (error) failSession(current, error);
-      });
-    };
-    try {
-      if (initialize) send({ type: 'initialize', config });
-      send({ type: 'embed', requestId, ...request });
-    } catch (error) {
-      failBatch(batch, 'READING_MEMORY_EMBEDDING_WORKER_FAILED', error);
+    const queue = request.purpose === 'query' ? queryQueue : documentQueue;
+    const queued: QueuedBatch = { request, signal, response };
+    if (signal) {
+      const onAbort = () => {
+        const index = queue.indexOf(queued);
+        if (index === -1) return;
+        queue.splice(index, 1);
+        signal.removeEventListener('abort', onAbort);
+        queued.onAbort = undefined;
+        Deferred.doneUnsafe(
+          response,
+          Effect.fail(new ReadingMemoryEmbeddingError('READING_MEMORY_EMBEDDING_CANCELED')),
+        );
+      };
+      queued.onAbort = onAbort;
+      signal.addEventListener('abort', onAbort, { once: true });
     }
-    const exit = await Effect.runPromise(Fiber.await(fiber));
-    if (Exit.isFailure(exit)) {
-      if (Cause.hasInterrupts(exit.cause)) {
-        throw new ReadingMemoryEmbeddingError('READING_MEMORY_EMBEDDING_CANCELED');
-      }
-      throw Cause.squash(exit.cause);
-    }
+    queue.push(queued);
+    pumpQueue();
+
+    const exit = await Effect.runPromiseExit(Deferred.await(response));
+    if (Exit.isFailure(exit)) throw Cause.squash(exit.cause);
     return exit.value;
   };
 
@@ -298,10 +428,11 @@ export function createReadingMemoryEmbeddingService(
     if (disposePromise) return disposePromise;
     cancelIdle();
     disposePromise = (async () => {
+      drainQueues('READING_MEMORY_EMBEDDING_DISPOSED');
       if (activeBatch) {
         const batch = activeBatch;
         failBatch(batch, 'READING_MEMORY_EMBEDDING_DISPOSED');
-        await Effect.runPromise(Fiber.await(batch.fiber));
+        if (batch.fiber) await Effect.runPromise(Fiber.await(batch.fiber));
       }
       if (terminating) await terminating;
       const current = session;

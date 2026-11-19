@@ -31,16 +31,20 @@ database leases, and closes the queue. Persisted projection jobs, retry timestam
 database-generation checks remain authoritative. Timing and Promise-boundary tests retain their
 Vitest timer fixtures; `@effect/vitest@4.1.4` is pinned alongside the runtime.
 
-Embedding requests use Deferred responses and Effect timeouts. A single exit finalizer recycles
-failed or interrupted workers and waits for the operating system's exit event before releasing
-the busy slot. Disposal joins that same request fiber, including cancellation already in progress.
-Successful requests reset a one-minute idle timer; idle native exit is joined before an incoming
-request starts a fresh worker. Disposal cancels that timer and joins pending exit.
+Embedding requests use a priority queue (`query` ahead of `document`) with Deferred responses and
+Effect timeouts. Aborting a queued or in-flight request rejects only that caller without restarting
+the worker; a single exit finalizer recycles failed, timed-out, or disposed workers and waits for
+the operating system's exit event before advancing the queue. Disposal fails queued requests, joins
+the active request fiber, cancels the idle timer, and waits for pending exit. Successful requests
+reset a one-minute idle timer once the queue drains; idle native exit is joined before an incoming
+request starts a fresh worker.
 Worker responses are decoded with Schema before checking request identity, vector dimensions,
 finite values, and normalization. Idle workers retain their bounded graceful-disposal handshake.
 
-Semantic indexing owns its scheduled and active fibers in a Scope. Interruption aborts the embedding
-call and joins native exit and database leases before a query, reset, or suspension proceeds.
+Semantic indexing shares one embedding service per model installation (`internalId` and directory)
+and owns its scheduled and active fibers in a Scope. Interruption aborts the background batch and
+joins database leases before a query proceeds, while maintenance and disposal dispose all embedding
+services and wait for native exit.
 Queries remain serialized; committed vectors, source snapshots, generation checks, and model
 activation still govern recovery. Batches read missing vectors with a keyset cursor over evidence
 ids; reaching the end triggers one pass from the start, and activation then stops the loop until the
@@ -116,7 +120,7 @@ The renamed Schema filters and changed `Effect.partition` result order are not u
 | `Schema.decodeUnknownEffect` | Decoding reports `SchemaError` through the typed error channel. | HTTP JSON remains `unknown` until endpoint schemas validate consumed fields; schema failures map to domain response errors before business mapping or writes. | Provider model and models.dev tests cover malformed valid JSON and distinguish failures from defects. |
 | `Scope.close`, `Effect.forkIn`, `Schedule.spaced` | Closing a scope interrupts and joins its children; spaced repetition waits after completion. | Recurring tasks never overlap themselves, acquire short database leases only for SQLite reads/writes, and receive an `AbortSignal` so shutdown interrupts in-flight network work promptly. | Main-process disposal, restore, and semantic-index tests cover timing and interruption with Vitest timer fixtures. |
 | `Queue.make`, `Queue.take`, `Effect.timeoutOption` | A sliding capacity-one queue retains the latest pending request; timeout interrupts the waiting take. | Projection requests wake idle work and coalesce during a batch without replacing persisted job state. | Projection worker tests cover preemption, coalescing, database replacement, and disposal. |
-| `Deferred.makeUnsafe`, `Deferred.doneUnsafe`, `Effect.timeoutOrElse`, `Effect.onExit`, `Fiber.await` | Callback boundaries can complete a Deferred directly; exit finalizers finish before a fiber's Exit is observable. | Embedding errors and cancellation recycle the child process exactly once; busy requests stay rejected until OS exit, and disposal joins pending cleanup. | Embedding service tests cover native exit, timeout, malformed IPC, graceful disposal, and disposal during cancellation. |
+| `Deferred.makeUnsafe`, `Deferred.doneUnsafe`, `Effect.timeoutOrElse`, `Effect.onExit`, `Fiber.await` | Callback boundaries can complete a Deferred directly; exit finalizers finish before a fiber's Exit is observable. | Embedding failures, timeouts, and disposal recycle the child process once and await OS exit before advancing the priority queue; aborting a request cancels only that caller without restarting a healthy worker. | Embedding service tests cover priority scheduling, queued/in-flight cancellation, timeout/failure recovery, and disposal. |
 | `Effect.all`, `Effect.gen`, `Effect.try`, `Effect.catch`, `Effect.fail`, `Effect.succeed`, `Effect.sync`, `Effect.map`, `Effect.flatMap`, `Effect.mapError` | `Effect.catch` replaces `Effect.catchAll`; the remaining primitives have no repository-relevant v4 semantic change. | Keep explicit concurrency, composition, and typed error mapping at the call site. | Existing domain tests cover their behavior. |
 
 ## Upgrade procedure

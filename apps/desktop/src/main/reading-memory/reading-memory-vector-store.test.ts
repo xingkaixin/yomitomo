@@ -11,6 +11,7 @@ import {
   deleteReadingMemoryModelVectors,
   readActiveReadingMemoryModelVersion,
   readMissingReadingMemoryVectors,
+  readReadingMemoryReviewVectorWindow,
   readReadingMemoryVectorChunk,
   readReadingMemoryVectorCoverage,
   writeReadingMemoryVectors,
@@ -87,6 +88,73 @@ describe('reading memory vector storage', () => {
     deleteReadingMemoryModelVectors(fixture.database, nextModel.modelVersion);
     expect(readActiveReadingMemoryModelVersion(fixture.database)).toBeNull();
     expect(fixture.missing(nextModel)).toHaveLength(2);
+  });
+
+  it('filters review vector windows at exact ISO boundaries and preserves tie-broken descending order', () => {
+    const fixture = createFixture();
+    const now = new Date('2026-08-30T12:00:00.000Z');
+    const dayMs = 24 * 60 * 60 * 1_000;
+    const windowStartMs = now.getTime() - 30 * dayMs;
+
+    const entries: Array<[string, string]> = [
+      ['future', new Date(now.getTime() + 1).toISOString()],
+      ['exact_now', now.toISOString()],
+      ['tie_b', new Date(now.getTime() - 5 * dayMs).toISOString()],
+      ['tie_a', new Date(now.getTime() - 5 * dayMs).toISOString()],
+      ['exact_start', new Date(windowStartMs).toISOString()],
+      ['before_start', new Date(windowStartMs - 1).toISOString()],
+      ['old_candidate', new Date(windowStartMs - 10 * dayMs).toISOString()],
+    ];
+
+    for (const [id, createdAt] of entries) {
+      fixture.add(id, createdAt);
+      fixture.project(id);
+    }
+    fixture.write(fixture.missing());
+
+    const result = readReadingMemoryReviewVectorWindow(fixture.database, {
+      ...model,
+      candidateEvidenceIds: [
+        'reading_evidence_annotation:old_candidate',
+        'reading_evidence_annotation:tie_b',
+      ],
+      now,
+    });
+
+    expect(result.recentEvidence.map((entry) => entry.targetId)).toEqual([
+      'exact_now',
+      'tie_a',
+      'tie_b',
+      'exact_start',
+    ]);
+    expect(result.candidateVectors.map((entry) => entry.targetId)).toEqual([
+      'tie_b',
+      'old_candidate',
+    ]);
+  });
+
+  it('caps recent review evidence to the newest 128 entries', () => {
+    const fixture = createFixture();
+    const now = new Date('2026-08-30T12:00:00.000Z');
+
+    for (let index = 0; index < 135; index += 1) {
+      const id = `item_${String(index).padStart(3, '0')}`;
+      const createdAt = new Date(now.getTime() - index * 60_000).toISOString();
+      fixture.add(id, createdAt);
+      fixture.project(id);
+    }
+    fixture.write(readMissingReadingMemoryVectors(fixture.database, { ...model, limit: 200 }));
+
+    const result = readReadingMemoryReviewVectorWindow(fixture.database, {
+      ...model,
+      candidateEvidenceIds: ['reading_evidence_annotation:item_134'],
+      now,
+    });
+
+    expect(result.recentEvidence).toHaveLength(128);
+    expect(result.recentEvidence[0]?.targetId).toBe('item_000');
+    expect(result.recentEvidence[127]?.targetId).toBe('item_127');
+    expect(result.candidateVectors.map((entry) => entry.targetId)).toEqual(['item_134']);
   });
 });
 
