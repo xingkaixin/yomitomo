@@ -23,6 +23,7 @@ const DB_FILE_NAME = 'yomitomo.sqlite';
 const SQLITE_MAINTENANCE_STATE_ID = 'startup-vacuum';
 const SQLITE_VACUUM_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
 const SQLITE_VACUUM_FREELIST_THRESHOLD_BYTES = 32 * 1024 * 1024;
+const SQLITE_BACKGROUND_MAINTENANCE_DELAY_MS = 30_000;
 const LEASE_DRAIN_TIMEOUT_MS = 5000;
 
 let sqlite: SQLiteDatabase.Database | null = null;
@@ -87,15 +88,33 @@ export function getDatabase() {
   return db || openDatabaseConnection();
 }
 
+export type DatabaseWriteVersion = {
+  generation: number;
+  totalChanges: number;
+};
+
 export function readDatabaseLifecycle() {
   return { state: lifecycle, generation: connectionGeneration, leases: activeLeases };
+}
+
+export function readDatabaseWriteVersion(): DatabaseWriteVersion | null {
+  if (!sqlite || lifecycle !== 'open') return null;
+  const totalChanges = sqlite.prepare('SELECT total_changes()').pluck().get();
+  return typeof totalChanges === 'number'
+    ? { generation: connectionGeneration, totalChanges }
+    : null;
 }
 
 /**
  * Entry point for asynchronous database work: a restore waits for the outstanding
  * leases before it closes the connection, and refuses new ones once it starts.
  */
-export async function withDatabaseLease<T>(operation: () => Promise<T>): Promise<T> {
+export async function withDatabaseLease<T>(
+  operation: () => Promise<T>,
+  generation?: number,
+): Promise<T> {
+  if (generation !== undefined && generation !== connectionGeneration)
+    throw new Error('DATA_MANAGEMENT_DATABASE_REPLACING');
   if (lifecycle !== 'open') throw new Error('DATA_MANAGEMENT_DATABASE_REPLACING');
 
   activeLeases += 1;
@@ -114,13 +133,10 @@ function openDatabaseConnection() {
   const SQLiteDatabase = loadSQLiteDatabase();
   sqlite = new SQLiteDatabase(file);
   sqlite.pragma('journal_mode = WAL');
+  sqlite.pragma('synchronous = NORMAL');
+  sqlite.pragma('busy_timeout = 5000');
   sqlite.pragma('foreign_keys = ON');
   runMigrations(sqlite);
-  try {
-    runSqliteMaintenance(sqlite);
-  } catch (error) {
-    console.warn('[sqlite] startup maintenance failed', error);
-  }
 
   db = drizzle(sqlite, { schema });
   connectionGeneration += 1;
@@ -294,24 +310,128 @@ export function runSqliteMaintenance(
   const freelistThresholdBytes =
     options.freelistThresholdBytes ?? SQLITE_VACUUM_FREELIST_THRESHOLD_BYTES;
 
+  const inspection = inspectSqliteMaintenance(database, {
+    now,
+    minIntervalMs,
+    freelistThresholdBytes,
+  });
+  if (inspection.status === 'skipped') return inspection;
+
+  database.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+  database.exec('VACUUM');
+  writeSqliteMaintenanceLastVacuumAt(database, now.toISOString());
+  return {
+    status: 'vacuumed',
+    freelistBytes: inspection.freelistBytes,
+    lastVacuumAt: inspection.lastVacuumAt,
+  };
+}
+
+export async function runBackgroundSqliteMaintenance(
+  options: {
+    now?: Date;
+    minIntervalMs?: number;
+    freelistThresholdBytes?: number;
+  } = {},
+): Promise<SqliteMaintenanceResult | null> {
+  if (!sqlite || lifecycle !== 'open') return null;
+  const now = options.now || new Date();
+  const minIntervalMs = options.minIntervalMs ?? SQLITE_VACUUM_INTERVAL_MS;
+  const freelistThresholdBytes =
+    options.freelistThresholdBytes ?? SQLITE_VACUUM_FREELIST_THRESHOLD_BYTES;
+
+  const inspection = await withDatabaseLease(async () => {
+    if (!sqlite) return null;
+    return inspectSqliteMaintenance(sqlite, { now, minIntervalMs, freelistThresholdBytes });
+  }).catch((error) => {
+    if (isDatabaseBusyOrReplacingError(error)) return null;
+    throw error;
+  });
+  if (!inspection || inspection.status === 'skipped') return inspection;
+  if (activeLeases > 0) return null;
+
+  return withDatabaseMaintenance(async () => {
+    if (!sqlite) return null;
+    return runSqliteMaintenance(sqlite, { now, minIntervalMs, freelistThresholdBytes });
+  }).catch((error) => {
+    if (isDatabaseBusyOrReplacingError(error)) return null;
+    throw error;
+  });
+}
+
+export function scheduleBackgroundSqliteMaintenance(
+  options: {
+    delayMs?: number;
+    logInfo?: (event: string, data?: Record<string, unknown>) => void;
+    logError?: (event: string, error: unknown, data?: Record<string, unknown>) => void;
+  } = {},
+) {
+  let canceled = false;
+  const timer = setTimeout(() => {
+    if (canceled) return;
+    void runBackgroundSqliteMaintenance()
+      .then((result) => {
+        if (!canceled && result) {
+          options.logInfo?.('sqlite.background_maintenance', result);
+        }
+      })
+      .catch((error) => {
+        if (!canceled) {
+          options.logError?.('sqlite.background_maintenance_failed', error);
+        }
+      });
+  }, options.delayMs ?? SQLITE_BACKGROUND_MAINTENANCE_DELAY_MS);
+  timer.unref?.();
+  return () => {
+    canceled = true;
+    clearTimeout(timer);
+  };
+}
+
+type SqliteMaintenanceInspection =
+  | {
+      status: 'skipped';
+      reason: 'freelist_below_threshold' | 'interval_not_due';
+      freelistBytes: number;
+      lastVacuumAt?: string;
+    }
+  | {
+      status: 'due';
+      freelistBytes: number;
+      lastVacuumAt?: string;
+    };
+
+function inspectSqliteMaintenance(
+  database: SqliteMaintenanceDatabase,
+  options: {
+    now: Date;
+    minIntervalMs: number;
+    freelistThresholdBytes: number;
+  },
+): SqliteMaintenanceInspection {
   ensureSqliteMaintenanceStateTable(database);
   database.exec('PRAGMA optimize');
 
   const freelistBytes =
     sqlitePragmaNumber(database, 'freelist_count') * sqlitePragmaNumber(database, 'page_size');
-  if (freelistBytes < freelistThresholdBytes) {
+  if (freelistBytes < options.freelistThresholdBytes) {
     return { status: 'skipped', reason: 'freelist_below_threshold', freelistBytes };
   }
 
   const lastVacuumAt = readSqliteMaintenanceLastVacuumAt(database);
-  if (lastVacuumAt && Date.parse(lastVacuumAt) + minIntervalMs > now.getTime()) {
+  if (lastVacuumAt && Date.parse(lastVacuumAt) + options.minIntervalMs > options.now.getTime()) {
     return { status: 'skipped', reason: 'interval_not_due', freelistBytes, lastVacuumAt };
   }
 
-  database.exec('PRAGMA wal_checkpoint(TRUNCATE)');
-  database.exec('VACUUM');
-  writeSqliteMaintenanceLastVacuumAt(database, now.toISOString());
-  return { status: 'vacuumed', freelistBytes, lastVacuumAt };
+  return { status: 'due', freelistBytes, lastVacuumAt };
+}
+
+function isDatabaseBusyOrReplacingError(error: unknown) {
+  return (
+    error instanceof Error &&
+    (error.message === 'DATA_MANAGEMENT_DATABASE_REPLACING' ||
+      error.message === 'DATA_MANAGEMENT_DATABASE_BUSY')
+  );
 }
 
 async function safetyBackupPath() {

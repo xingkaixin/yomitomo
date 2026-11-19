@@ -1,6 +1,7 @@
 import { performance } from 'node:perf_hooks';
 import { Effect } from 'effect';
 import type { WeReadBook, WeReadBookDetail, WeReadSyncResult } from '@yomitomo/shared';
+import { readDatabaseLifecycle, withDatabaseLease } from '../store/store-db';
 
 const WEREAD_SYNC_DETAIL_CONCURRENCY = 3;
 
@@ -26,6 +27,7 @@ type WeReadSyncPersistence = {
 type WeReadSyncInput = {
   persistence: WeReadSyncPersistence;
   reason: string;
+  signal?: AbortSignal;
 } & WeReadSyncLogger;
 
 let syncQueue: Promise<void> = Promise.resolve();
@@ -40,7 +42,12 @@ function enqueueWeReadSync<T>(sync: () => Promise<T>) {
 }
 
 export function syncWeReadLibrary(input: WeReadSyncInput) {
-  return enqueueWeReadSync(() => Effect.runPromise(runWeReadLibrarySyncEffect(input)));
+  return enqueueWeReadSync(() => {
+    if (input.signal?.aborted) {
+      return Promise.reject(new DOMException('WeRead sync aborted', 'AbortError'));
+    }
+    return Effect.runPromise(runWeReadLibrarySyncEffect(input), { signal: input.signal });
+  });
 }
 
 export async function syncWeReadBook(
@@ -51,13 +58,22 @@ export async function syncWeReadBook(
   >,
   logInfo: WeReadSyncLogger['logInfo'],
 ) {
-  const apiKeyRef = persistence.readWeReadApiKeyRef();
-  const apiKey = await persistence.readStoredWeReadApiKey();
+  const { apiKeyRef, apiKey, databaseGeneration } = await withDatabaseLease(async () => {
+    const generation = readDatabaseLifecycle().generation;
+    const ref = persistence.readWeReadApiKeyRef();
+    const key = await persistence.readStoredWeReadApiKey();
+    return { apiKeyRef: ref, apiKey: key, databaseGeneration: generation };
+  });
   if (!apiKey) throw new Error('WEREAD_API_KEY_REQUIRED');
   return enqueueWeReadSync(async () => {
     const { fetchWeReadBookDetail } = await import('./weread-client');
     const detail = await fetchWeReadBookDetail(apiKey, bookId);
-    return persistence.saveWeReadBookDetail(detail, apiKeyRef, logInfo);
+    return withDatabaseLease(async () => {
+      if (readDatabaseLifecycle().generation !== databaseGeneration) {
+        throw new Error('DATA_MANAGEMENT_DATABASE_REPLACING');
+      }
+      return persistence.saveWeReadBookDetail(detail, apiKeyRef, logInfo);
+    });
   });
 }
 
@@ -67,12 +83,14 @@ const runWeReadLibrarySyncEffect = Effect.fn('WeRead.syncLibrary')(function* (
   const startedAt = performance.now();
   // Read the ref before the key: if the key is replaced in between, the save is rejected
   // rather than storing the old account's library under the new ref.
-  const apiKeyRef = yield* Effect.try({
-    try: () => input.persistence.readWeReadApiKeyRef(),
-    catch: (error) => error,
-  });
-  const apiKey = yield* Effect.tryPromise({
-    try: () => input.persistence.readStoredWeReadApiKey(),
+  const { apiKeyRef, apiKey, databaseGeneration } = yield* Effect.tryPromise({
+    try: () =>
+      withDatabaseLease(async () => {
+        const generation = readDatabaseLifecycle().generation;
+        const ref = input.persistence.readWeReadApiKeyRef();
+        const key = await input.persistence.readStoredWeReadApiKey();
+        return { apiKeyRef: ref, apiKey: key, databaseGeneration: generation };
+      }),
     catch: (error) => error,
   });
   if (!apiKey) return yield* Effect.fail(new Error('WEREAD_API_KEY_REQUIRED'));
@@ -101,10 +119,15 @@ const runWeReadLibrarySyncEffect = Effect.fn('WeRead.syncLibrary')(function* (
     });
     const result = yield* Effect.tryPromise({
       try: () =>
-        input.persistence.saveWeReadLibrarySnapshot(
-          { details, authoritativeBookIds: books.map((book) => book.bookId), apiKeyRef },
-          input.logInfo,
-        ),
+        withDatabaseLease(async () => {
+          if (readDatabaseLifecycle().generation !== databaseGeneration) {
+            throw new Error('DATA_MANAGEMENT_DATABASE_REPLACING');
+          }
+          return input.persistence.saveWeReadLibrarySnapshot(
+            { details, authoritativeBookIds: books.map((book) => book.bookId), apiKeyRef },
+            input.logInfo,
+          );
+        }),
       catch: (error) => error,
     });
     input.logInfo('weread.sync.complete', {

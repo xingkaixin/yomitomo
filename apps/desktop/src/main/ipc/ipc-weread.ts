@@ -1,5 +1,6 @@
 import type { DesktopMainIpcContext } from './ipc';
 import { handleDesktopIpc } from './ipc';
+import { readDatabaseLifecycle, withDatabaseLease } from '../store/store-db';
 import { buildWeReadOpenUrl, getWeReadStatsPeriodStart } from '../weread/weread-protocol';
 import { syncWeReadBook, syncWeReadLibrary } from '../weread/weread-sync';
 import {
@@ -59,16 +60,25 @@ export function registerWeReadIpc(context: WeReadIpcContext) {
   });
   handleDesktopIpc('weread:test', async (_event, apiKey) => {
     const { weReadRepository: weReadPersistence } = await context.getPersistenceModules();
-    const key = apiKey?.trim() || (await weReadPersistence.readStoredWeReadApiKey());
+    const { key, generation } = await withDatabaseLease(async () => ({
+      key: apiKey?.trim() || (await weReadPersistence.readStoredWeReadApiKey()),
+      generation: readDatabaseLifecycle().generation,
+    }));
     if (!key) return { ok: false, message: 'WEREAD_API_KEY_REQUIRED' };
     try {
       const { testWeReadConnection } = await import('../weread/weread-client');
       const result = await testWeReadConnection(key);
-      await weReadPersistence.saveWeReadTestResult(true, result.message);
+      await withDatabaseLease(
+        () => weReadPersistence.saveWeReadTestResult(true, result.message),
+        generation,
+      );
       return result;
     } catch {
       const message = 'WEREAD_CONNECTION_FAILED';
-      await weReadPersistence.saveWeReadTestResult(false, message);
+      await withDatabaseLease(
+        () => weReadPersistence.saveWeReadTestResult(false, message),
+        generation,
+      );
       return { ok: false, message };
     }
   });
@@ -112,20 +122,27 @@ export function registerWeReadIpc(context: WeReadIpcContext) {
   });
   handleDesktopIpc('weread:query-reading-stats', async (_event, input) => {
     const { weReadRepository: weReadPersistence } = await context.getPersistenceModules();
-    const apiKey = await weReadPersistence.readStoredWeReadApiKey();
+    const { apiKey, generation } = await withDatabaseLease(async () => ({
+      apiKey: await weReadPersistence.readStoredWeReadApiKey(),
+      generation: readDatabaseLifecycle().generation,
+    }));
     if (!apiKey) throw new Error('WEREAD_API_KEY_REQUIRED');
     const { fetchWeReadReadingStats } = await import('../weread/weread-client');
     const sourceBaseTime =
       input.mode === 'overall' ? undefined : Math.floor((input.baseTime ?? Date.now()) / 1000);
     const periodStart = getWeReadStatsPeriodStart(input.mode, sourceBaseTime);
     const data = await fetchWeReadReadingStats(apiKey, input.mode, sourceBaseTime);
-    return weReadPersistence.saveWeReadReadingStatsSnapshot({
-      id: `${input.mode}:${periodStart}`,
-      mode: input.mode,
-      periodStart,
-      sourceBaseTime,
-      data,
-      fetchedAt: new Date().toISOString(),
-    });
+    return withDatabaseLease(
+      async () =>
+        weReadPersistence.saveWeReadReadingStatsSnapshot({
+          id: `${input.mode}:${periodStart}`,
+          mode: input.mode,
+          periodStart,
+          sourceBaseTime,
+          data,
+          fetchedAt: new Date().toISOString(),
+        }),
+      generation,
+    );
   });
 }

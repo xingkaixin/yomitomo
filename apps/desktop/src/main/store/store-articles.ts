@@ -57,7 +57,7 @@ import type {
   ArticleTranslationInitializeInput,
   ArticleTranslationSegmentUpdateInput,
 } from '../articles/article-translation-repository';
-import { getDatabase } from './store-db';
+import { getDatabase, readDatabaseLifecycle, withDatabaseLease } from './store-db';
 import { ArticleSourcePayloadError } from './store-normalizers';
 import { migrateProviderApiKeys } from './store-provider-key-migration';
 import {
@@ -143,14 +143,19 @@ export async function readArticleCover(id: string): Promise<string> {
 
 // 返回本地化的 data URI favicon；存量文章首次访问时按需回填（一次性、非热路径），之后永久命中。
 export async function ensureArticleSiteIcon(id: string): Promise<string> {
-  const database = getDatabase();
-  const raw = readArticleSiteIconRawRows(database, id);
+  const { raw, generation } = await withDatabaseLease(async () => ({
+    raw: readArticleSiteIconRawRows(getDatabase(), id),
+    generation: readDatabaseLifecycle().generation,
+  }));
   if (raw.startsWith('data:image/')) return raw;
   if (!/^https?:\/\//i.test(raw)) return '';
 
   const { fetchFaviconDataUrl } = await import('../articles/article-favicon');
   const dataUrl = await fetchFaviconDataUrl(raw);
-  updateArticleSiteIconRows(database, id, dataUrl);
+  await withDatabaseLease(
+    async () => updateArticleSiteIconRows(getDatabase(), id, dataUrl),
+    generation,
+  );
   return dataUrl;
 }
 

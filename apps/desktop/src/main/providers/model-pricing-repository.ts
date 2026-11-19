@@ -69,17 +69,40 @@ export function estimateAssistantRunCostMicros(
   return price ? calculateCostMicros(usage, price) : null;
 }
 
-export async function refreshModelsDevPrices(database: StoreDatabase) {
-  return Effect.runPromise(refreshModelsDevPricesEffect(database));
+export type ModelPricingDatabaseRunner = <T>(
+  operation: (database: StoreDatabase) => T,
+) => Promise<T>;
+
+export async function refreshModelsDevPrices(
+  database: StoreDatabase,
+  options?: { signal?: AbortSignal },
+) {
+  return refreshModelsDevPricesWithDatabase(async (operation) => operation(database), options);
 }
 
-function refreshModelsDevPricesEffect(database: StoreDatabase) {
+export async function refreshModelsDevPricesWithDatabase(
+  withDatabase: ModelPricingDatabaseRunner,
+  options?: { signal?: AbortSignal },
+) {
+  return Effect.runPromise(refreshModelsDevPricesEffect(withDatabase), {
+    signal: options?.signal,
+  });
+}
+
+function refreshModelsDevPricesEffect(withDatabase: ModelPricingDatabaseRunner) {
   return Effect.gen(function* () {
-    const shouldRefresh = yield* Effect.sync(() => shouldRefreshModelPrices(database));
+    const shouldRefresh = yield* Effect.tryPromise({
+      try: () =>
+        withDatabase((database) => {
+          if (!shouldRefreshModelPrices(database)) {
+            database.transaction((tx) => backfillAssistantExecutionRunCosts(tx));
+            return false;
+          }
+          return true;
+        }),
+      catch: (error) => error,
+    });
     if (!shouldRefresh) {
-      yield* Effect.sync(() =>
-        database.transaction((tx) => backfillAssistantExecutionRunCosts(tx)),
-      );
       return { refreshed: false, recordCount: 0, reason: 'fresh_cache' as const };
     }
 
@@ -88,11 +111,13 @@ function refreshModelsDevPricesEffect(database: StoreDatabase) {
       yield* fetchModelsDevCatalogueEffect(),
       fetchedAt,
     );
-    yield* Effect.try({
+    yield* Effect.tryPromise({
       try: () =>
-        database.transaction((tx) => {
-          for (const record of records) upsertModelPriceRecord(tx, record);
-          backfillAssistantExecutionRunCosts(tx);
+        withDatabase((database) => {
+          database.transaction((tx) => {
+            for (const record of records) upsertModelPriceRecord(tx, record);
+            backfillAssistantExecutionRunCosts(tx);
+          });
         }),
       catch: (error) => error,
     });

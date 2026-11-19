@@ -20,6 +20,7 @@ import {
   getDataDirectoryPath,
   getDatabasePath,
   replaceDatabaseFile,
+  withDatabaseLease,
 } from './store/store-db';
 import { createFullBackup, restoreFullBackup } from './full-backup';
 import { getLogPath } from './app/logger';
@@ -54,7 +55,7 @@ export async function backupDatabaseWithDialog(
   const result = await showSaveDatabaseDialog(parentWindow);
   if (result.canceled || !result.filePath) return { canceled: true };
 
-  const filePath = await backupDatabaseFile(result.filePath);
+  const filePath = await withDatabaseLease(() => backupDatabaseFile(result.filePath));
   return { canceled: false, filePath };
 }
 

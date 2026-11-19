@@ -14,6 +14,7 @@ import { resolveArticleReplyLinks } from '../assistant-sessions/assistant-reply-
 import type { DesktopMainIpcContext } from './ipc';
 import { handleDesktopIpc } from './ipc';
 import { sendDesktopIpcRendererEvent } from './ipc-events';
+import { withDatabaseLease } from '../store/store-db';
 
 type ArticlePersistence = Pick<
   typeof import('../store/store-articles'),
@@ -154,7 +155,9 @@ export function registerArticleIpc(context: ArticleIpcContext) {
         await import('../articles/article-source-import');
       const { articleRecordFromUrl, isArticleImportCanceledError, isArticleImportChallengeRecord } =
         await import('../articles/article-import');
-      const importSettings = articlePersistence.readImportSettings();
+      const importSettings = await withDatabaseLease(async () =>
+        articlePersistence.readImportSettings(),
+      );
       const record = await canceledArticleSourceImport(
         articleRecordFromUrl(input.url, {
           inlineImages: importSettings.saveArticleImages,
@@ -164,16 +167,18 @@ export function registerArticleIpc(context: ArticleIpcContext) {
       );
       if (!record) return { status: 'canceled' };
 
-      const result = await importArticleSource({
-        record,
-        repository: articleImportRepository(articlePersistence),
-        isDuplicate: (article) => Boolean(article && !isArticleImportChallengeRecord(article)),
-        mergeExistingArticle: (next, existing) => ({
-          ...next,
-          id: existing.id,
-          createdAt: existing.createdAt,
+      const result = await withDatabaseLease(() =>
+        importArticleSource({
+          record,
+          repository: articleImportRepository(articlePersistence),
+          isDuplicate: (article) => Boolean(article && !isArticleImportChallengeRecord(article)),
+          mergeExistingArticle: (next, existing) => ({
+            ...next,
+            id: existing.id,
+            createdAt: existing.createdAt,
+          }),
         }),
-      });
+      );
       if (result.status === 'imported') context.sendArticlePatched(event, result.patch);
       return result;
     }),
@@ -192,14 +197,16 @@ export function registerArticleIpc(context: ArticleIpcContext) {
       const imported = await importEbookInWorker(input, {
         performanceLogger: context.logInfo,
       });
-      const repository = articleImportRepository(articlePersistence);
-      const record = await resolveEbookImportRecord(imported, repository);
-      const result = await importArticleSource({
-        record,
-        repository,
-        stageSourceAssets: (articleId) =>
-          stageEbookSourceFile(articleId, input.data, record.ebook?.metadata.format),
-        logError: context.logError,
+      const result = await withDatabaseLease(async () => {
+        const repository = articleImportRepository(articlePersistence);
+        const record = await resolveEbookImportRecord(imported, repository);
+        return importArticleSource({
+          record,
+          repository,
+          stageSourceAssets: (articleId) =>
+            stageEbookSourceFile(articleId, input.data, record.ebook?.metadata.format),
+          logError: context.logError,
+        });
       });
       if (result.status === 'imported') context.sendArticlePatched(event, result.patch);
       return result;
@@ -217,12 +224,14 @@ export function registerArticleIpc(context: ArticleIpcContext) {
       const { articleRecordFromPdfFile } = await import('../pdf/pdf-import');
       const { stagePdfSourceAssets } = await import('../pdf/pdf-source-assets');
       const { article: record, thumbnail } = await articleRecordFromPdfFile(input);
-      const result = await importArticleSource({
-        record,
-        repository: articleImportRepository(articlePersistence),
-        stageSourceAssets: (articleId) => stagePdfSourceAssets(articleId, input.data, thumbnail),
-        logError: context.logError,
-      });
+      const result = await withDatabaseLease(() =>
+        importArticleSource({
+          record,
+          repository: articleImportRepository(articlePersistence),
+          stageSourceAssets: (articleId) => stagePdfSourceAssets(articleId, input.data, thumbnail),
+          logError: context.logError,
+        }),
+      );
       if (result.status === 'imported') context.sendArticlePatched(event, result.patch);
       return result;
     }),

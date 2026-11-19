@@ -11,6 +11,7 @@ import type {
 import { hashText } from '@yomitomo/shared';
 import { taskProvider } from '../agents/agent-runtime-routing';
 import type { DesktopAiModule } from '../ipc/ipc';
+import { readDatabaseLifecycle, withDatabaseLease } from '../store/store-db';
 import {
   articleTranslationIdentityKey,
   resolveArticleTranslationIdentity,
@@ -71,6 +72,10 @@ export function createArticleTranslationRuntime(context: ArticleTranslationRunti
 
 type ArticleTranslationSessions = ReturnType<typeof createArticleTranslationSessions>;
 
+function translationSessionKey(identity: ArticleTranslationIdentity, generation: number) {
+  return `${generation}:${articleTranslationIdentityKey(identity)}`;
+}
+
 async function readCurrentArticleTranslation(
   context: ArticleTranslationRuntimeContext,
   sessions: ArticleTranslationSessions,
@@ -89,7 +94,7 @@ async function readCurrentArticleTranslation(
     settings: store.settings,
     promptVersion: aiModule.bilingualTranslationPromptVersion,
   });
-  const sessionKey = articleTranslationIdentityKey(identity);
+  const sessionKey = translationSessionKey(identity, readDatabaseLifecycle().generation);
   if (sessions.has(sessionKey)) return articlePersistence.readCurrentArticleTranslation(identity);
   return articlePersistence.recoverInterruptedArticleTranslation(identity);
 }
@@ -103,9 +108,16 @@ async function translateArticle(
   const { storeAgents: agentRuntimePersistence, storeArticles: articlePersistence } =
     await context.getPersistenceModules();
   const aiModule = await context.getAiModule();
-  const article = await articlePersistence.readArticle(input.articleId);
-  if (!article) throw new Error('ARTICLE_NOT_FOUND');
-  const store = await agentRuntimePersistence.readAgentRuntimeContext();
+  const { article, store, generation } = await withDatabaseLease(async () => {
+    const loadedArticle = await articlePersistence.readArticle(input.articleId);
+    if (!loadedArticle) throw new Error('ARTICLE_NOT_FOUND');
+    const runtimeStore = await agentRuntimePersistence.readAgentRuntimeContext();
+    return {
+      article: loadedArticle,
+      store: runtimeStore,
+      generation: readDatabaseLifecycle().generation,
+    };
+  });
   const identity = resolveArticleTranslationIdentity({
     article,
     requestedSourceId: input.sourceId,
@@ -115,9 +127,10 @@ async function translateArticle(
   });
   const source = await articleTranslationSource(article, input, identity.sourceId);
 
-  return sessions.run(articleTranslationIdentityKey(identity), (signal) =>
+  return sessions.run(translationSessionKey(identity, generation), (signal) =>
     runTranslationSession({
       aiModule,
+      generation,
       articlePersistence,
       input,
       key: identity,
@@ -132,6 +145,7 @@ async function translateArticle(
 }
 
 type TranslationSessionInput = {
+  generation: number;
   aiModule: Awaited<ReturnType<ArticleTranslationRuntimeContext['getAiModule']>>;
   articlePersistence: ArticlePersistence;
   input: ArticleTranslationRequest;
@@ -147,8 +161,12 @@ async function runTranslationSession(
   session: TranslationSessionInput,
 ): Promise<ArticleTranslation> {
   const { articlePersistence, input, key, onUpdate, signal, source } = session;
+  const withSessionLease = <T>(operation: () => Promise<T>) =>
+    withDatabaseLease(operation, session.generation);
   signal.throwIfAborted();
-  const current = articlePersistence.recoverInterruptedArticleTranslation(key);
+  const current = await withSessionLease(async () =>
+    articlePersistence.recoverInterruptedArticleTranslation(key),
+  );
   if (!input.force && !input.sourceBlockIds?.length && current?.status === 'ready') return current;
 
   const blocks = source.blocks;
@@ -163,21 +181,25 @@ async function runTranslationSession(
   );
   const provider = await session.provider();
   signal.throwIfAborted();
-  let latest = await articlePersistence.initializeArticleTranslation({
-    ...key,
-    providerId: provider.id,
-    providerName: provider.name,
-    modelName: provider.modelName,
-    updatedAt: new Date().toISOString(),
-    segments: blocks.map((block) => ({
-      sourceBlockId: block.id,
-      sourceText: block.text,
-      sourceTextHash: block.textHash,
-      order: block.order,
-      retranslate:
-        Boolean(input.force) || !translatedBlockIds.has(block.id) || selectedBlockIds.has(block.id),
-    })),
-  });
+  let latest = await withSessionLease(() =>
+    articlePersistence.initializeArticleTranslation({
+      ...key,
+      providerId: provider.id,
+      providerName: provider.name,
+      modelName: provider.modelName,
+      updatedAt: new Date().toISOString(),
+      segments: blocks.map((block) => ({
+        sourceBlockId: block.id,
+        sourceText: block.text,
+        sourceTextHash: block.textHash,
+        order: block.order,
+        retranslate:
+          Boolean(input.force) ||
+          !translatedBlockIds.has(block.id) ||
+          selectedBlockIds.has(block.id),
+      })),
+    }),
+  );
   if (signal.aborted) return latest;
   onUpdate({ type: 'snapshot', translation: latest });
 
@@ -199,11 +221,13 @@ async function runTranslationSession(
             // Deletion shares the session queue and must wait for an already-started write.
             const segment = yield* Effect.tryPromise({
               try: () =>
-                articlePersistence.updateArticleTranslationSegment({
-                  translationId: latest.id,
-                  sourceBlockId: block.id,
-                  ...update,
-                }),
+                withSessionLease(() =>
+                  articlePersistence.updateArticleTranslationSegment({
+                    translationId: latest.id,
+                    sourceBlockId: block.id,
+                    ...update,
+                  }),
+                ),
               catch: (error) => error,
             }).pipe(Effect.uninterruptible);
             if (!segment) return;
@@ -228,10 +252,12 @@ async function runTranslationSession(
   }
   if (signal.aborted) return latest;
 
-  const finalized = await articlePersistence.finalizeArticleTranslation({
-    translationId: latest.id,
-    updatedAt: new Date().toISOString(),
-  });
+  const finalized = await withSessionLease(() =>
+    articlePersistence.finalizeArticleTranslation({
+      translationId: latest.id,
+      updatedAt: new Date().toISOString(),
+    }),
+  );
   if (finalized) latest = finalized;
   onUpdate({ type: 'snapshot', translation: latest });
   return latest;
@@ -313,7 +339,7 @@ async function deleteCurrentArticleTranslation(
     promptVersion: aiModule.bilingualTranslationPromptVersion,
   });
 
-  const sessionKey = articleTranslationIdentityKey(identity);
+  const sessionKey = translationSessionKey(identity, readDatabaseLifecycle().generation);
   sessions.cancel(sessionKey);
   return sessions.run(sessionKey, () =>
     articlePersistence.deleteCurrentArticleTranslation(identity),

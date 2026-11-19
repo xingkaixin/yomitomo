@@ -1,6 +1,7 @@
 import { Effect } from 'effect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WeReadBook, WeReadBookDetail } from '@yomitomo/shared';
+import { readDatabaseLifecycle, withDatabaseMaintenance } from '../store/store-db';
 import { syncWeReadBook, syncWeReadLibrary } from './weread-sync';
 import {
   fetchWeReadBookDetail,
@@ -8,6 +9,11 @@ import {
   hasValidWeReadBookDetailContent,
   mergeWeReadNotebookBook,
 } from './weread-client';
+
+vi.mock('../app/logger', () => ({
+  logInfo: vi.fn(),
+  logError: vi.fn(),
+}));
 
 vi.mock('./weread-client', () => ({
   fetchWeReadBookDetailEffect: (apiKey: string, bookId: string) =>
@@ -65,6 +71,31 @@ describe('syncWeReadLibrary', () => {
 
     expect(apiKeyReadsBeforeCompletion).toBe(1);
     expect(snapshots).toEqual([['book_old'], ['book_old', 'book_new']]);
+  });
+
+  it('does not block database maintenance while WeRead network fetches are in flight', async () => {
+    let releaseNotebooks!: (books: WeReadBook[]) => void;
+    const notebooks = new Promise<WeReadBook[]>((resolve) => {
+      releaseNotebooks = resolve;
+    });
+    vi.mocked(fetchWeReadNotebooks).mockReturnValueOnce(notebooks);
+    const persistence = {
+      readWeReadApiKeyRef: () => 'weread-key-ref',
+      readStoredWeReadApiKey: vi.fn(async () => 'weread-key'),
+      saveWeReadLibrarySnapshot: vi.fn(async () => syncResult()),
+    };
+
+    const sync = syncWeReadLibrary({ persistence, reason: 'manual', ...testLogger() });
+    await vi.waitFor(() => expect(fetchWeReadNotebooks).toHaveBeenCalledOnce());
+
+    expect(readDatabaseLifecycle().leases).toBe(0);
+    await expect(withDatabaseMaintenance(async () => 'maintenance-ok')).resolves.toBe(
+      'maintenance-ok',
+    );
+
+    releaseNotebooks([]);
+    await sync;
+    expect(persistence.saveWeReadLibrarySnapshot).toHaveBeenCalledOnce();
   });
 
   it('keeps a new note when a single-book refresh overlaps an older full sync', async () => {

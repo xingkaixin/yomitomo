@@ -69,7 +69,13 @@ import {
   type ReadingReviewRuntime,
 } from './reading-memory/reading-review-runtime';
 import { createReadingReviewQueue } from './reading-memory/reading-review-queue';
-import { getSqliteExecutor, readDatabaseLifecycle, withDatabaseLease } from './store/store-db';
+import {
+  closeDatabase,
+  getSqliteExecutor,
+  readDatabaseLifecycle,
+  scheduleBackgroundSqliteMaintenance,
+  withDatabaseLease,
+} from './store/store-db';
 import { secureRendererWebPreferences } from './windows/renderer-window-security';
 import { openDiscussionTransitionOverlay } from './windows/discussion-window-transition';
 import { installRendererNavigationGuard } from './windows/renderer-navigation';
@@ -90,6 +96,7 @@ let aiLoggerConfigured = false;
 let appUpdaterModulePromise: Promise<typeof import('./app/app-updater')> | null = null;
 let persistenceModulesPromise: Promise<DesktopPersistenceModules> | null = null;
 let mainProcessRuntime: MainProcessRuntime | null = null;
+let cancelBackgroundSqliteMaintenance: (() => void) | null = null;
 let readingRelationsRuntime: ReadingRelationsRuntime | null = null;
 let readingLibraryRuntime: ReadingLibraryRuntime | null = null;
 let readingReviewRuntime: ReadingReviewRuntime | null = null;
@@ -373,6 +380,8 @@ void app.whenReady().then(async () => {
   recordStartupTiming('updater.deferred');
   await runStartupChromiumCacheCleanup();
   await createWindow();
+  cancelBackgroundSqliteMaintenance?.();
+  cancelBackgroundSqliteMaintenance = scheduleBackgroundSqliteMaintenance({ logInfo, logError });
   void resumePendingAssistantRuns().catch((error: unknown) =>
     logError('assistant_session.resume_failed', error),
   );
@@ -385,15 +394,24 @@ app.on('window-all-closed', () => {
 
 const beforeQuit = createBeforeQuitHandler({
   dispose: async () => {
+    cancelBackgroundSqliteMaintenance?.();
+    cancelBackgroundSqliteMaintenance = null;
     readingRelationsRuntime?.cancelAll();
     readingRelationsRuntime = null;
     readingLibraryRuntime?.cancelAll();
     readingLibraryRuntime = null;
     readingReviewRuntime?.cancelAll();
     readingReviewRuntime = null;
-    await mainProcessRuntime?.dispose();
+    const runtime = mainProcessRuntime;
     mainProcessRuntime = null;
-    await disposeAssistantSessions();
+    const results = await Promise.allSettled([runtime?.dispose(), disposeAssistantSessions()]);
+    const failure = results.find(
+      (result): result is PromiseRejectedResult => result.status === 'rejected',
+    );
+    if (failure) throw failure.reason;
+  },
+  finalize: () => {
+    closeDatabase();
   },
   quit: () => app.quit(),
   logError,

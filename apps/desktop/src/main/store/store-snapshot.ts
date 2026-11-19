@@ -11,6 +11,8 @@ import * as schema from '../db/schema';
 import {
   configureStoreDatabaseSeeder,
   getDatabase,
+  readDatabaseWriteVersion,
+  type DatabaseWriteVersion,
   type StoreDatabase,
   type StoreReadProfileEntry,
 } from './store-db';
@@ -31,6 +33,11 @@ import {
 } from './store-normalizers';
 
 configureStoreDatabaseSeeder(ensureDefaultStoreRows);
+
+let cachedShellStore: {
+  version: DatabaseWriteVersion;
+  store: DesktopStore;
+} | null = null;
 
 export async function readStore(): Promise<DesktopStore> {
   return readStoreInternal();
@@ -69,9 +76,33 @@ async function readStoreInternal(
     migrateProviderApiKeys(database),
   );
   backfillAnnotationMemoryOnce(database, profile);
-  return measureStoreRead(profile, 'read_store_rows', () =>
-    readStoreRows(database, profile, { includeArticles: options.includeArticles !== false }),
+  const includeArticles = options.includeArticles !== false;
+  if (!includeArticles && !profile) {
+    const cached = readCachedShellStore();
+    if (cached) return cached;
+  }
+  const store = measureStoreRead(profile, 'read_store_rows', () =>
+    readStoreRows(database, profile, { includeArticles }),
   );
+  if (!includeArticles) {
+    const version = readDatabaseWriteVersion();
+    cachedShellStore = version ? { version, store: structuredClone(store) } : null;
+  }
+  return store;
+}
+
+function readCachedShellStore(): DesktopStore | null {
+  if (!cachedShellStore) return null;
+  const currentVersion = readDatabaseWriteVersion();
+  if (
+    !currentVersion ||
+    currentVersion.generation !== cachedShellStore.version.generation ||
+    currentVersion.totalChanges !== cachedShellStore.version.totalChanges
+  ) {
+    cachedShellStore = null;
+    return null;
+  }
+  return structuredClone(cachedShellStore.store);
 }
 
 function ensureDefaultStoreRows(database: StoreDatabase) {

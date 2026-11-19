@@ -217,23 +217,6 @@ export const articles = sqliteTable(
       table.title,
       table.id,
     ),
-    index('articles_summary_cover_idx').on(
-      table.updatedAt,
-      table.id,
-      table.url,
-      table.canonicalUrl,
-      table.sourceType,
-      table.title,
-      table.byline,
-      table.excerpt,
-      table.siteName,
-      table.themeColor,
-      table.contentHash,
-      table.ebookMetadata,
-      table.pdfMetadata,
-      table.readingProgress,
-      table.createdAt,
-    ),
   ],
 );
 
