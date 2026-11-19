@@ -2,7 +2,7 @@ import { ipcRenderer } from 'electron';
 import type {
   AgentDistillationReviewPayload,
   ArticleStorePatch,
-  ArticleTranslation,
+  ArticleTranslationUpdateEvent,
   AssistantPassageRevealRequest,
   AssistantRunEvent,
   CollectionStorePatch,
@@ -94,7 +94,7 @@ export function createYomitomoDesktopApi(input: DesktopPreloadApiInput) {
         onDesktopIpcRendererEvent('article:patched', callback),
       translation: {
         ...invokeApi.article.translation,
-        onUpdated: (callback: (translation: ArticleTranslation) => void) =>
+        onUpdated: (callback: (event: ArticleTranslationUpdateEvent) => void) =>
           onDesktopIpcRendererEvent('article-translation:updated', callback),
       },
     },

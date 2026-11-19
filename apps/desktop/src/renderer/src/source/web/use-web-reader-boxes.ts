@@ -1,4 +1,4 @@
-import { createElement, useCallback, useReducer, useRef, type RefObject } from 'react';
+import { createElement, useCallback, useMemo, useReducer, useRef, type RefObject } from 'react';
 import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import type { Annotation, ArticleRecord, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { resolveTextAnchor } from '@yomitomo/shared';
@@ -75,11 +75,14 @@ export function useWebReaderBoxes({
     onMeasured,
     userProfile,
   }));
-  const annotationLayoutKey = `annotations\n${article.title}\n${webReaderAnnotationBoxesSignature(
-    annotations,
-    userProfile,
-    annotationAgents,
-  )}`;
+  const contentKey = useMemo(
+    () => webReaderContentKey(article.id, article.contentHash, contentHtml),
+    [article.contentHash, article.id, contentHtml],
+  );
+  const annotationLayoutKey = useMemo(
+    () => webReaderAnnotationLayoutKey(article.title, annotations, userProfile, annotationAgents),
+    [annotationAgents, annotations, article.title, userProfile],
+  );
 
   const publish = useCallback((next: WebReaderBoxesResult, outlineChanged: boolean) => {
     dispatch({ type: 'measured', ...next });
@@ -197,7 +200,7 @@ export function useWebReaderBoxes({
     boxes: result.boxes,
     // Rendered after the reader surface so the article and canvas exist when the markers mount.
     markers: [
-      createElement('span', { hidden: true, key: contentHtml, ref: attachContent }),
+      createElement('span', { hidden: true, key: contentKey, ref: attachContent }),
       createElement('span', { hidden: true, key: annotationLayoutKey, ref: remeasure }),
     ],
     text: result.text,
@@ -240,37 +243,70 @@ function roundedBoxValue(value: number) {
   return Math.round(value * 100) / 100;
 }
 
-function webReaderAnnotationBoxesSignature(
+type DualHash = {
+  h1: number;
+  h2: number;
+};
+
+function createDualHash(): DualHash {
+  return { h1: 0x811c9dc5, h2: 5381 };
+}
+
+function hashStringInto(acc: DualHash, value: string) {
+  let { h1, h2 } = acc;
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    h1 = Math.imul(h1 ^ code, 0x01000193);
+    h2 = (Math.imul(h2, 33) ^ code) | 0;
+  }
+  h1 = Math.imul(h1 ^ 0x1f, 0x01000193);
+  h2 = (Math.imul(h2, 33) ^ 0x1f) | 0;
+  acc.h1 = h1;
+  acc.h2 = h2;
+}
+
+function hashNumberInto(acc: DualHash, value: number | undefined) {
+  hashStringInto(acc, value === undefined ? '' : String(value));
+}
+
+function formatDualHash(acc: DualHash) {
+  return `${(acc.h1 >>> 0).toString(36)}:${(acc.h2 >>> 0).toString(36)}`;
+}
+
+export function webReaderContentKey(articleId: string, contentHash: string, contentHtml: string) {
+  const acc = createDualHash();
+  hashStringInto(acc, contentHtml);
+  return `content:${articleId}:${contentHash}:${contentHtml.length}:${formatDualHash(acc)}`;
+}
+
+export function webReaderAnnotationLayoutKey(
+  articleTitle: string,
   annotations: Annotation[],
   userProfile: UserProfile,
   annotationAgents: PublicAgent[],
 ) {
-  return JSON.stringify(
-    annotations.map((annotation) => [
-      annotation.id,
-      webReaderAnchorSignature(annotation.anchor),
-      webReaderAnnotationContributorId(annotation),
-      annotationColor(annotation, userProfile, annotationAgents),
-    ]),
-  );
-}
-
-function webReaderAnchorSignature(anchor: Annotation['anchor']) {
-  return [
-    anchor.exact,
-    anchor.prefix,
-    anchor.suffix,
-    anchor.start,
-    anchor.end,
-    anchor.paragraphId ?? '',
-    anchor.chapterId ?? '',
-    anchor.segmentId ?? '',
-    anchor.textStartInParagraph ?? null,
-    anchor.textEndInParagraph ?? null,
-    anchor.textStartInBook ?? null,
-    anchor.textEndInBook ?? null,
-    anchor.quoteHash ?? '',
-  ];
+  const acc = createDualHash();
+  hashStringInto(acc, articleTitle);
+  for (const annotation of annotations) {
+    const { anchor } = annotation;
+    hashStringInto(acc, annotation.id);
+    hashStringInto(acc, anchor.exact);
+    hashStringInto(acc, anchor.prefix);
+    hashStringInto(acc, anchor.suffix);
+    hashNumberInto(acc, anchor.start);
+    hashNumberInto(acc, anchor.end);
+    hashStringInto(acc, anchor.paragraphId ?? '');
+    hashStringInto(acc, anchor.chapterId ?? '');
+    hashStringInto(acc, anchor.segmentId ?? '');
+    hashNumberInto(acc, anchor.textStartInParagraph);
+    hashNumberInto(acc, anchor.textEndInParagraph);
+    hashNumberInto(acc, anchor.textStartInBook);
+    hashNumberInto(acc, anchor.textEndInBook);
+    hashStringInto(acc, anchor.quoteHash ?? '');
+    hashStringInto(acc, webReaderAnnotationContributorId(annotation));
+    hashStringInto(acc, annotationColor(annotation, userProfile, annotationAgents));
+  }
+  return `annotations:${annotations.length}:${formatDualHash(acc)}`;
 }
 
 function webReaderAnnotationContributorId(annotation: Annotation) {

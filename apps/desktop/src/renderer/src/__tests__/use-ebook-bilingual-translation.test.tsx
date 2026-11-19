@@ -3,7 +3,11 @@
 import React from 'react';
 import { act, cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ArticleTranslation, ArticleTranslationRequest } from '@yomitomo/shared';
+import type {
+  ArticleTranslation,
+  ArticleTranslationRequest,
+  ArticleTranslationUpdateEvent,
+} from '@yomitomo/shared';
 import { extractBilingualTranslationBlocks } from '@yomitomo/core';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import type { EbookArticleRecord } from '../source/bookcase/app-source-bookcase';
@@ -133,11 +137,13 @@ function installDesktopApi(
   current: ArticleTranslation | null,
   requestedTranslation = translationFor(document, '请求生成的章节译文。'),
 ) {
-  const callbacks: Array<(translation: ArticleTranslation) => void> = [];
+  const callbacks: Array<(update: ArticleTranslationUpdateEvent) => void> = [];
   const deleteCurrentArticleTranslation = vi.fn(async () => null);
   const getCurrentArticleTranslation = vi.fn(async () => current);
   const translateArticle = vi.fn(async (_input: ArticleTranslationRequest) => {
-    callbacks.forEach((callback) => callback(requestedTranslation));
+    callbacks.forEach((callback) =>
+      callback({ type: 'snapshot', translation: requestedTranslation }),
+    );
     return requestedTranslation;
   });
   Object.defineProperty(window, 'yomitomoDesktop', {
@@ -147,7 +153,7 @@ function installDesktopApi(
         translation: {
           deleteCurrent: deleteCurrentArticleTranslation,
           getCurrent: getCurrentArticleTranslation,
-          onUpdated: (callback: (translation: ArticleTranslation) => void) => {
+          onUpdated: (callback: (update: ArticleTranslationUpdateEvent) => void) => {
             callbacks.push(callback);
             return () => callbacks.splice(callbacks.indexOf(callback), 1);
           },
@@ -208,7 +214,9 @@ describe('useEbookBilingualTranslation', () => {
     await waitFor(() =>
       expect(doc.querySelector('[data-reader-translation]')?.textContent).toBe('English chapter'),
     );
-    act(() => api.callbacks.forEach((receive) => receive(cached)));
+    act(() =>
+      api.callbacks.forEach((receive) => receive({ type: 'snapshot', translation: cached })),
+    );
     expect(doc.querySelector('[data-reader-translation]')?.textContent).toBe('English chapter');
   });
 

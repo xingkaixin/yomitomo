@@ -490,16 +490,21 @@ function chapterFromHtmlSection(
   href: string,
   fallbackTitle: string,
 ): ImportedKindleChapter[] {
-  const document = new JSDOM(html).window.document;
-  const blocks = leafTextBlocks(document.body || document.documentElement);
-  if (blocks.length === 0) return [];
-  const title =
-    cleanString(blocks.find((block) => isHeadingElement(block))?.textContent) ||
-    cleanString(blocks[0]?.textContent) ||
-    fallbackTitle ||
-    'Untitled';
-  const chapter = importedChapter(id, title, href, blocks);
-  return chapter ? [chapter] : [];
+  const dom = new JSDOM(html);
+  try {
+    const document = dom.window.document;
+    const blocks = leafTextBlocks(document.body || document.documentElement);
+    if (blocks.length === 0) return [];
+    const title =
+      cleanString(blocks.find((block) => isHeadingElement(block))?.textContent) ||
+      cleanString(blocks[0]?.textContent) ||
+      fallbackTitle ||
+      'Untitled';
+    const chapter = importedChapter(id, title, href, blocks);
+    return chapter ? [chapter] : [];
+  } finally {
+    dom.window.close();
+  }
 }
 
 function pushChapter(chapters: ImportedKindleChapter[], title: string, blocks: Element[]) {

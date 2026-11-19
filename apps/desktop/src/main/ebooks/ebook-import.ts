@@ -735,8 +735,16 @@ function zipFile(zip: JSZip, path: string) {
 function resolveZipPath(baseDir: string, href: string) {
   const path = href.split('#')[0] || href;
   if (/^[a-z][a-z0-9+.-]*:/i.test(path)) return path;
-  const decoded = decodeURIComponent(path);
+  const decoded = decodeZipPathComponent(path);
   return normalizeZipPath(baseDir ? `${baseDir}/${decoded}` : decoded);
+}
+
+function decodeZipPathComponent(path: string) {
+  try {
+    return decodeURIComponent(path.replace(/%(?![\da-f]{2})/gi, '%25'));
+  } catch {
+    return path;
+  }
 }
 
 function normalizeZipPath(path: string) {

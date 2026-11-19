@@ -52,6 +52,8 @@ async function postArticleImportWorkerResult(input: unknown, port: ArticleImport
 
 async function extractArticleRecord(input: unknown) {
   const data = articleImportWorkerData(input);
+  // Reserve time for serializing the article before the main process terminates the worker at 60s.
+  const imageBudget = AbortSignal.timeout(45_000);
   const dom = new JSDOM(data.html, { url: data.url });
 
   try {
@@ -61,7 +63,7 @@ async function extractArticleRecord(input: unknown) {
         imageUrl,
         article.url,
         data.userAgent,
-        signal,
+        signal ? AbortSignal.any([signal, imageBudget]) : imageBudget,
         // favicon 最先提交，慢响应会挡住全部正文图的提交。
         imageUrl === article.siteIconUrl ? ARTICLE_FAVICON_TIMEOUT_MS : ARTICLE_IMAGE_TIMEOUT_MS,
       );

@@ -304,6 +304,54 @@ describe('articleRecordFromEpubFile', () => {
     ]);
     expect(ebookChaptersHtml(article)).not.toContain('隐藏文本');
   });
+
+  it('imports epub chapters whose href contains unescaped percent characters', async () => {
+    const zip = new JSZip();
+    zip.file(
+      'META-INF/container.xml',
+      `<?xml version="1.0"?>
+      <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+        <rootfiles>
+          <rootfile full-path="OPS/package.opf" media-type="application/oebps-package+xml"/>
+        </rootfiles>
+      </container>`,
+    );
+    zip.file(
+      'OPS/package.opf',
+      `<?xml version="1.0"?>
+      <package xmlns="http://www.idpf.org/2007/opf" unique-identifier="bookid" version="3.0">
+        <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+          <dc:title>百分比文件名电子书</dc:title>
+        </metadata>
+        <manifest>
+          <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+          <item id="c1" href="Chapter%20100%.xhtml" media-type="application/xhtml+xml"/>
+        </manifest>
+        <spine>
+          <itemref idref="c1"/>
+        </spine>
+      </package>`,
+    );
+    zip.file(
+      'OPS/nav.xhtml',
+      `<html><body><nav epub:type="toc"><ol><li><a href="Chapter%20100%.xhtml">百分百章节</a></li></ol></nav></body></html>`,
+    );
+    zip.file(
+      'OPS/Chapter 100%.xhtml',
+      '<html><body><p>包含裸百分号路径的章节正文。</p></body></html>',
+    );
+
+    const buffer = await zip.generateAsync({ type: 'nodebuffer' });
+    const article = await articleRecordFromEpubFile({
+      fileName: 'percent.epub',
+      mimeType: 'application/epub+zip',
+      data: arrayBufferFromBuffer(buffer),
+    });
+
+    expect(article.ebook?.chapters).toHaveLength(1);
+    expect(article.ebook?.chapters[0]?.title).toBe('百分百章节');
+    expect(ebookChaptersHtml(article)).toContain('包含裸百分号路径的章节正文');
+  });
 });
 
 function minimalEpubZip(input: { chapter: string }) {
