@@ -39,6 +39,34 @@ export function resolveReplyLinks(
   return replyLinkResolver(snapshot, findDiscussion, visibleRanges)(text);
 }
 
+export async function resolveReplyLinksAsync(
+  text: string,
+  snapshot: ArticleTextSnapshot | undefined,
+  findDiscussion: (
+    id: string,
+  ) => ReplyDiscussion | undefined | Promise<ReplyDiscussion | undefined>,
+  visibleRanges?: ReadingContextTextRange[] | null,
+) {
+  const discussionIds = new Set<string>();
+  for (const match of text.matchAll(CITATION)) {
+    const [, label, linkId, bracketId, bareId] = match;
+    const rawId = linkId ?? bracketId ?? bareId;
+    if (!rawId) continue;
+    const savedReference = linkId ? parseAssistantReference(`#${linkId}`) : undefined;
+    if (visibleRanges == null && savedReference && label && !ID_IN_LABEL.test(label)) continue;
+    const reference = parseAssistantReference(`#${rawId}`);
+    if (reference?.kind === 'passage') continue;
+    const id = reference?.kind === 'discussion' ? reference.annotationId : rawId;
+    if (/^b(\d+)(?:\s*[-–—]\s*b?(\d+))?$/i.test(id)) continue;
+    discussionIds.add(id);
+  }
+  const discussions = new Map<string, ReplyDiscussion | undefined>();
+  for (const id of discussionIds) {
+    discussions.set(id, await findDiscussion(id));
+  }
+  return resolveReplyLinks(text, snapshot, (id) => discussions.get(id), visibleRanges);
+}
+
 export function resolveArticleReplyLinks(article: ArticleRecord, snapshot: ArticleTextSnapshot) {
   const findDiscussion = (id: string) => {
     const annotation = article.annotations.find(

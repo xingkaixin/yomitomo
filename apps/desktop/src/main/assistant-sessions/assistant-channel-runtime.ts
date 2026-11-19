@@ -43,7 +43,7 @@ import { formatDelivery, formatRetraction } from './assistant-channel-delivery';
 import type { ChannelReply, ChannelSnapshot } from './assistant-channel-sources';
 import { visibleRanges } from './assistant-readable-ranges';
 import { RunContextDoc } from './assistant-reading-extension';
-import { resolveReplyLinks, type ReplyDiscussion } from './assistant-reply-links';
+import { resolveReplyLinksAsync, type ReplyDiscussion } from './assistant-reply-links';
 import { joinRunText, messageText, readRunTranscript } from './assistant-run-transcript';
 import type { AssistantSessionStore } from './assistant-session-store';
 
@@ -68,17 +68,26 @@ type ArticleMeta = {
   readingProgress?: ArticleReadingProgress;
 };
 
+type MaybePromise<T> = T | Promise<T>;
+
 export type AssistantChannelPorts = {
   store: AssistantSessionStore;
   articleText: (articleId: string) => Promise<ArticleTextSnapshot | undefined>;
   models: ReturnType<typeof createModels>;
   resolveAgent: (agentId: string, allowDisabled: boolean) => Promise<ResolvedChannelAgent>;
   resolveAgentIdentity: (agentId: string) => Promise<ChannelAgentIdentity>;
-  readChannel: (articleId: string, channel: AssistantChannel) => ChannelSnapshot | undefined;
-  publishReply: (articleId: string, channel: AssistantChannel, reply: ChannelReply) => boolean;
-  existingMessageIds: (articleId: string, ids: string[]) => Set<string>;
-  findDiscussion: (articleId: string, id: string) => ReplyDiscussion | undefined;
-  articleMeta: (articleId: string) => ArticleMeta | undefined;
+  readChannel: (
+    articleId: string,
+    channel: AssistantChannel,
+  ) => MaybePromise<ChannelSnapshot | undefined>;
+  publishReply: (
+    articleId: string,
+    channel: AssistantChannel,
+    reply: ChannelReply,
+  ) => MaybePromise<boolean>;
+  existingMessageIds: (articleId: string, ids: string[]) => MaybePromise<Set<string>>;
+  findDiscussion: (articleId: string, id: string) => MaybePromise<ReplyDiscussion | undefined>;
+  articleMeta: (articleId: string) => MaybePromise<ArticleMeta | undefined>;
   publishRun: (event: AssistantRunEvent) => void;
   markPending: (articleId: string, pending: boolean) => Promise<void>;
   logError: (event: string, error: unknown, data?: Record<string, unknown>) => void;
@@ -149,7 +158,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     text: ArticleTextSnapshot | undefined,
   ): Promise<{ runKey: string; shouldTrack: boolean } | undefined> {
     await reconcileRetractions(harness, request.articleId);
-    const snapshot = ports.readChannel(request.articleId, request.channel);
+    const snapshot = await ports.readChannel(request.articleId, request.channel);
     if (!snapshot) throw new Error('ASSISTANT_CHANNEL_NOT_FOUND');
     const { anchor, messages, quote } = snapshot;
     const cursor = cursorKey(request.agentId, request.channel);
@@ -216,7 +225,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     const main = await harness.conversation(state.mainId as ConversationId, context);
     if (!main) throw new Error('ASSISTANT_SESSION_MISSING_AGENT');
     const latest = (await main.entries({}, 1, undefined, context)).items[0];
-    const meta = ports.articleMeta(request.articleId);
+    const meta = await ports.articleMeta(request.articleId);
     const options = {
       ownership: { kind: 'ownerless' as const },
       agent: agentChange(resolved),
@@ -359,7 +368,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     }
 
     const runContext = await harness.snapshot(RunContextDoc, forkId as ConversationId, context);
-    const content = resolveReplyLinks(
+    const content = await resolveReplyLinksAsync(
       text,
       await ports.articleText(articleId),
       (id) => ports.findDiscussion(articleId, id),
@@ -368,7 +377,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     const identity = await ports.resolveAgentIdentity(first.agentId).catch(() => undefined);
     const hash = createHash('sha256').update(`${articleId}:${forkId}:${answerId}`).digest('hex');
     const commentId = `${first.channel.kind === 'chat' ? 'reader_chat_message' : 'comment'}_${hash.slice(0, 24)}`;
-    const saved = ports.publishReply(articleId, first.channel, {
+    const saved = await ports.publishReply(articleId, first.channel, {
       id: commentId,
       author: identity
         ? annotationAgentAuthorRef(resolveAgentPublicIdentity(identity.agent, identity.uiLanguage))
@@ -542,7 +551,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     const cursors = (await harness.snapshot(ChannelCursorsDoc, context))?.delivered ?? {};
     const deliveredIds = [...new Set(Object.values(cursors).flat())];
     if (deliveredIds.length === 0) return;
-    const existing = ports.existingMessageIds(articleId, deliveredIds);
+    const existing = await ports.existingMessageIds(articleId, deliveredIds);
     const removedByAgent = new Map<string, string[]>();
     for (const [key, ids] of Object.entries(cursors)) {
       const removed = ids.filter((id) => !existing.has(id));

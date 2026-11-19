@@ -10,7 +10,10 @@ import type {
 } from '@yomitomo/shared';
 import { normalizeUiLanguage } from '@yomitomo/shared';
 import { logError } from '../app/logger';
-import { readArticleAnnotations } from '../articles/article-annotation-hydration';
+import {
+  readArticleAnnotation,
+  readArticleAnnotations,
+} from '../articles/article-annotation-hydration';
 import {
   agentNotFoundError,
   findCommentAgent,
@@ -21,12 +24,16 @@ import {
 import * as schema from '../db/schema';
 import { searchReadingMemoryEntries } from '../reading-memory/reading-memory-store';
 import { readAgentRuntimeContext } from '../store/store-agents';
-import { getDatabase } from '../store/store-db';
+import type { StoreDatabase } from '../store/store-db';
 import { createAssistantChannelRuntime } from './assistant-channel-runtime';
-import { createAssistantChannelSources } from './assistant-channel-sources';
+import {
+  createAssistantChannelSources,
+  createPinnedDatabaseRunner,
+  type PinnedDatabaseRunner,
+} from './assistant-channel-sources';
 import { createDistillationReview } from './assistant-distillation-review';
 import { assistantArticleTexts, sessionDirectory } from './assistant-session-lifecycle';
-import { pendingMarkerPath } from './assistant-session-files';
+import { pendingMarkerPath, removeArticleFiles } from './assistant-session-files';
 import { createAssistantReadingExtension } from './assistant-reading-extension';
 import { createAssistantSessionStore } from './assistant-session-store';
 
@@ -50,33 +57,56 @@ export function assistantSessions(host: AssistantSessionHost) {
   return sessions;
 }
 
+export function activeRunsIfLoaded(articleId: string) {
+  return sessions ? sessions.runtime.activeRuns(articleId) : [];
+}
+
+export async function removeArticleSessionIfLoaded(directory: string, articleId: string) {
+  if (sessions) return sessions.store.remove(articleId);
+  await removeArticleFiles(directory, articleId);
+}
+
+export async function removeAllSessionsIfLoaded(directory: string) {
+  if (sessions) return sessions.store.removeAll();
+  await rm(directory, { recursive: true, force: true });
+}
+
 export async function disposeAssistantSessions() {
   const current = sessions;
   sessions = undefined;
-  await current?.store.dispose();
+  await current?.dispose();
 }
 
 function createAssistantSessions(host: AssistantSessionHost) {
+  let disposed = false;
+  const withPinnedDatabase = createPinnedDatabaseRunner(() => disposed);
+
   const models = createModels();
   const registry = createRegistry();
   const reading = createAssistantReadingExtension({
     articleText: (articleId) => assistantArticleTexts.load(articleId),
     searchMemory: (input) =>
-      searchReadingMemoryEntries({
-        ...input,
-        visibleRanges: input.visibleRanges,
-        visibility: ['default'],
-        fallbackToSubstring: true,
+      withPinnedDatabase(() =>
+        searchReadingMemoryEntries({
+          ...input,
+          visibleRanges: input.visibleRanges,
+          visibility: ['default'],
+          fallbackToSubstring: true,
+        }),
+      ),
+    annotations: (articleId) =>
+      withPinnedDatabase((database) => readArticleAnnotations(database, articleId)),
+    annotation: (articleId, annotationId) =>
+      withPinnedDatabase((database) => readArticleAnnotation(database, articleId, annotationId)),
+    agentName: (agentId) =>
+      withPinnedDatabase((database) => {
+        const row = database
+          .select({ nickname: schema.agents.nickname, username: schema.agents.username })
+          .from(schema.agents)
+          .where(eq(schema.agents.id, agentId))
+          .get();
+        return row ? row.nickname || row.username : undefined;
       }),
-    annotations: (articleId) => readArticleAnnotations(getDatabase(), articleId),
-    agentName: (agentId) => {
-      const row = getDatabase()
-        .select({ nickname: schema.agents.nickname, username: schema.agents.username })
-        .from(schema.agents)
-        .where(eq(schema.agents.id, agentId))
-        .get();
-      return row ? row.nickname || row.username : undefined;
-    },
   });
   registry.install(reading);
   const store = createAssistantSessionStore({
@@ -92,15 +122,20 @@ function createAssistantSessions(host: AssistantSessionHost) {
     onOpen: (articleId, harness) => runtime.resume(articleId, harness),
     logError,
   });
-  const channelSources = createAssistantChannelSources(host.publishArticlePatch);
+  const channelSources = createAssistantChannelSources(host.publishArticlePatch, {
+    withDatabase: withPinnedDatabase,
+  });
+  const articleMeta = (articleId: string) =>
+    withPinnedDatabase((database) => runtimeArticleMeta(database, articleId));
   const runtime = createAssistantChannelRuntime({
     store,
     models,
     articleText: (articleId) => assistantArticleTexts.load(articleId),
-    resolveAgent,
-    resolveAgentIdentity,
+    resolveAgent: (agentId, allowDisabled) =>
+      resolveAgent(withPinnedDatabase, agentId, allowDisabled),
+    resolveAgentIdentity: (agentId) => resolveAgentIdentity(withPinnedDatabase, agentId),
     ...channelSources,
-    articleMeta: runtimeArticleMeta,
+    articleMeta,
     publishRun: host.publishRun,
     markPending: async (articleId, pending) => {
       const path = pendingMarkerPath(sessionDirectory(), articleId);
@@ -111,16 +146,23 @@ function createAssistantSessions(host: AssistantSessionHost) {
   const distillationReview = createDistillationReview({
     store,
     articleText: (articleId) => assistantArticleTexts.load(articleId),
-    articleMeta: runtimeArticleMeta,
+    articleMeta,
     registerProvider: runtime.registerProvider,
     findDiscussion: channelSources.findDiscussion,
   });
   registry.install(distillationReview.extension);
-  return { models, registry, store, runtime, distillationReview };
+
+  async function dispose() {
+    disposed = true;
+    runtime.dispose();
+    await store.dispose();
+  }
+
+  return { models, registry, store, runtime, distillationReview, dispose };
 }
 
-function runtimeArticleMeta(articleId: string) {
-  const row = getDatabase()
+function runtimeArticleMeta(database: StoreDatabase, articleId: string) {
+  const row = database
     .select({
       title: schema.articles.title,
       readingProgress: schema.articles.readingProgress,
@@ -139,15 +181,27 @@ function runtimeArticleMeta(articleId: string) {
     : undefined;
 }
 
-async function readChannelAgent(agentId: string, allowDisabled: boolean) {
-  const { agents, providers, settings: appSettings } = await readAgentRuntimeContext();
+async function readChannelAgent(
+  withPinnedDatabase: PinnedDatabaseRunner,
+  agentId: string,
+  allowDisabled: boolean,
+) {
+  const {
+    agents,
+    providers,
+    settings: appSettings,
+  } = await withPinnedDatabase(() => readAgentRuntimeContext());
   const agent = findCommentAgent(agents, agentId, '', allowDisabled);
   if (!agent) throw agentNotFoundError(agentId);
   return { agent, providers, appSettings, task: providerTaskForAgent(agent) };
 }
 
-async function resolveAgentIdentity(agentId: string) {
-  const { agent, providers, appSettings, task } = await readChannelAgent(agentId, true);
+async function resolveAgentIdentity(withPinnedDatabase: PinnedDatabaseRunner, agentId: string) {
+  const { agent, providers, appSettings, task } = await readChannelAgent(
+    withPinnedDatabase,
+    agentId,
+    true,
+  );
   return {
     agent,
     provider: taskProviderRoute(providers, appSettings, task),
@@ -155,8 +209,16 @@ async function resolveAgentIdentity(agentId: string) {
   };
 }
 
-async function resolveAgent(agentId: string, allowDisabled: boolean) {
-  const { agent, providers, appSettings, task } = await readChannelAgent(agentId, allowDisabled);
+async function resolveAgent(
+  withPinnedDatabase: PinnedDatabaseRunner,
+  agentId: string,
+  allowDisabled: boolean,
+) {
+  const { agent, providers, appSettings, task } = await readChannelAgent(
+    withPinnedDatabase,
+    agentId,
+    allowDisabled,
+  );
   const route = taskProviderRoute(providers, appSettings, task);
   const fake = process.env.YOMITOMO_E2E === '1' && route?.baseUrl === E2E_FAKE_PROVIDER_BASE_URL;
   const provider =

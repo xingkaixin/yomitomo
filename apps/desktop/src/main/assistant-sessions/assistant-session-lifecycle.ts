@@ -37,7 +37,7 @@ export async function resumePendingAssistantRuns() {
 
 export async function activeAssistantRuns(articleId: string) {
   if (!loaded) return [];
-  return (await loadAssistantSessions()).runtime.activeRuns(articleId);
+  return (await loaded).activeRunsIfLoaded(articleId);
 }
 
 export async function runDistillationReview(request: DistillationReviewRequest) {
@@ -46,13 +46,13 @@ export async function runDistillationReview(request: DistillationReviewRequest) 
 
 export async function removeArticleAssistantSession(articleId: string) {
   assistantArticleTexts.forget(articleId);
-  if (loaded) return (await loadAssistantSessions()).store.remove(articleId);
+  if (loaded) return (await loaded).removeArticleSessionIfLoaded(sessionDirectory(), articleId);
   await removeArticleFiles(sessionDirectory(), articleId);
 }
 
 export async function removeAllAssistantSessions() {
   assistantArticleTexts.clear();
-  if (loaded) return (await loadAssistantSessions()).store.removeAll();
+  if (loaded) return (await loaded).removeAllSessionsIfLoaded(sessionDirectory());
   await rm(sessionDirectory(), { recursive: true, force: true });
 }
 

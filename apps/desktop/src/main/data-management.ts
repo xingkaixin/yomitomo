@@ -60,15 +60,17 @@ export async function backupDatabaseWithDialog(
 
 export async function restoreDatabaseWithDialog(
   parentWindow: BrowserWindow | null,
-  onDatabaseRestored: () => void,
+  onDatabaseRestored: () => Promise<void> | void,
+  beforeDatabaseRestore?: () => Promise<void> | void,
 ): Promise<DatabaseRestoreResult> {
   const result = await showOpenDatabaseDialog(parentWindow);
   const filePath = result.filePaths[0];
   if (result.canceled || !filePath) return { canceled: true };
 
   validateDatabaseBackupFile(filePath);
+  await beforeDatabaseRestore?.();
   const backupPath = await replaceDatabaseFile(filePath);
-  onDatabaseRestored();
+  await onDatabaseRestored();
   return {
     canceled: false,
     backupPath,
@@ -90,7 +92,8 @@ export async function backupFullDataWithDialog(
 
 export async function restoreFullDataWithDialog(
   parentWindow: BrowserWindow | null,
-  onDatabaseRestored: () => void,
+  onDatabaseRestored: () => Promise<void> | void,
+  beforeDatabaseRestore?: () => Promise<void> | void,
 ): Promise<DatabaseRestoreResult> {
   const result = await showBackupDirectoryDialog(
     parentWindow,
@@ -98,8 +101,8 @@ export async function restoreFullDataWithDialog(
   );
   const directory = result.filePaths[0];
   if (result.canceled || !directory) return { canceled: true };
-  const backupPath = await restoreFullBackup(directory);
-  onDatabaseRestored();
+  const backupPath = await restoreFullBackup(directory, beforeDatabaseRestore);
+  await onDatabaseRestored();
   return { canceled: false, backupPath, store: await readStore() };
 }
 

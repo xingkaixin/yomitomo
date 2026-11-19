@@ -55,7 +55,10 @@ export async function createFullBackup(parentDirectory: string) {
   return withDatabaseMaintenance(() => writeFullBackup(target));
 }
 
-export async function restoreFullBackup(sourceDirectory: string) {
+export async function restoreFullBackup(
+  sourceDirectory: string,
+  beforeReplace?: () => Promise<void> | void,
+) {
   const dataRoot = getDataDirectoryPath();
   const backupRoot = join(dataRoot, 'backups');
   await mkdir(backupRoot, { recursive: true });
@@ -65,6 +68,7 @@ export async function restoreFullBackup(sourceDirectory: string) {
   try {
     await stageVerifiedBackup(resolve(sourceDirectory), staged);
     sanitizePortableDatabase(join(staged, databaseName));
+    await beforeReplace?.();
     await replaceDatabaseFile(join(staged, databaseName), {
       install: async () => {
         await writeFullBackup(safetyBackup);

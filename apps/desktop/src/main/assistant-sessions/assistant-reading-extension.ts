@@ -51,6 +51,8 @@ export const RunContextDoc = defineDoc<AssistantRunContext>({
   checkpointWhen: () => false,
 });
 
+type MaybePromise<T> = T | Promise<T>;
+
 export type AssistantReadingPorts = {
   articleText: (articleId: string) => Promise<ArticleTextSnapshot | undefined>;
   searchMemory: (input: {
@@ -61,9 +63,10 @@ export type AssistantReadingPorts = {
     agentId?: string;
     excludeAgentId?: string;
     requireAgentId?: boolean;
-  }) => ReadingMemoryEntry[];
-  annotations: (articleId: string) => Annotation[];
-  agentName: (agentId: string) => string | undefined;
+  }) => MaybePromise<ReadingMemoryEntry[]>;
+  annotations: (articleId: string) => MaybePromise<Annotation[]>;
+  annotation?: (articleId: string, annotationId: string) => MaybePromise<Annotation | undefined>;
+  agentName: (agentId: string) => MaybePromise<string | undefined>;
 };
 
 export function createAssistantReadingExtension(ports: AssistantReadingPorts) {
@@ -171,8 +174,8 @@ export function createAssistantReadingExtension(ports: AssistantReadingPorts) {
       { open: true },
     ),
     run: async (args, run) => {
-      const entries = ports
-        .searchMemory({
+      const entries = (
+        await ports.searchMemory({
           articleId: run.articleId,
           query: args.query,
           limit: args.limit ?? DEFAULT_LIMIT,
@@ -182,14 +185,16 @@ export function createAssistantReadingExtension(ports: AssistantReadingPorts) {
             ? { excludeAgentId: run.agentId, requireAgentId: true }
             : {}),
         })
-        .filter((entry) =>
-          isTextRangeWithinVisibleRanges(
-            entry.textRange ?? (entry.anchor ? anchorTextRange(entry.anchor) : undefined),
-            run.visibleRanges,
-          ),
-        );
+      ).filter((entry) =>
+        isTextRangeWithinVisibleRanges(
+          entry.textRange ?? (entry.anchor ? anchorTextRange(entry.anchor) : undefined),
+          run.visibleRanges,
+        ),
+      );
       if (entries.length === 0) return `没有找到与「${args.query}」相关的阅读记忆。`;
-      return entries.map((entry) => formatMemoryEntry(entry, run, ports)).join('\n');
+      return (await Promise.all(entries.map((entry) => formatMemoryEntry(entry, run, ports)))).join(
+        '\n',
+      );
     },
   });
 
@@ -205,9 +210,9 @@ export function createAssistantReadingExtension(ports: AssistantReadingPorts) {
       { open: true },
     ),
     run: async (args, run) => {
-      const annotation = ports
-        .annotations(run.articleId)
-        .find((item) => item.id === args.annotationId);
+      const annotation = ports.annotation
+        ? await ports.annotation(run.articleId, args.annotationId)
+        : (await ports.annotations(run.articleId)).find((item) => item.id === args.annotationId);
       if (
         !annotation ||
         !isTextRangeWithinVisibleRanges(anchorTextRange(annotation.anchor), run.visibleRanges)
@@ -288,7 +293,7 @@ function formatRead(blocks: ArticleTextBlock[], nextBlockId?: string) {
   return nextBlockId ? `${text}\n\n（未读完，继续读取请用 fromBlockId=${nextBlockId}）` : text;
 }
 
-function formatMemoryEntry(
+async function formatMemoryEntry(
   entry: ReadingMemoryEntry,
   run: AssistantRunContext,
   ports: AssistantReadingPorts,
@@ -297,7 +302,7 @@ function formatMemoryEntry(
     ? '读者'
     : entry.agentId === run.agentId
       ? '你自己'
-      : (ports.agentName(entry.agentId) ?? '其他助手');
+      : ((await ports.agentName(entry.agentId)) ?? '其他助手');
   const refs = [
     entry.sourceAnnotationId ? `批注 ${entry.sourceAnnotationId}` : '',
     entry.sourceCommentId ? `评论 ${entry.sourceCommentId}` : '',

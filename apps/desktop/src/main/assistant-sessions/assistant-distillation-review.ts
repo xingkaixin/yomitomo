@@ -29,7 +29,7 @@ import {
 } from './assistant-channel-runtime';
 import { visibleRanges } from './assistant-readable-ranges';
 import { RunContextDoc } from './assistant-reading-extension';
-import { resolveReplyLinks } from './assistant-reply-links';
+import { resolveReplyLinksAsync } from './assistant-reply-links';
 
 const context = BACKGROUND_CONTEXT;
 
@@ -41,7 +41,7 @@ export type DistillationReviewRequest = {
   signal?: AbortSignal;
 };
 
-type ItemListener = (value: unknown) => string | undefined;
+type ItemListener = (value: unknown) => Promise<string | undefined>;
 
 // Each review runs in a fork of the reviewer's own conversation in the article, so it shares what
 // the reviewer already discussed there; items arrive one tool call at a time.
@@ -61,7 +61,7 @@ export function createDistillationReview(
         parameters: distillationReviewItemParameters,
         replay: 'safe',
         execute: async (args, api) => {
-          const error = listeners.get(api.conversationId)?.(args) ?? undefined;
+          const error = (await listeners.get(api.conversationId)?.(args)) ?? undefined;
           return {
             output: [{ type: 'text', text: error ?? '已记录。' }],
             isError: Boolean(error),
@@ -78,11 +78,11 @@ export function createDistillationReview(
       const fork = await openReview(harness, request, text);
       const items: AnnotationDistillationReviewItem[] = [];
       const resolveLinks = (content: string) =>
-        resolveReplyLinks(content, text, (id) => ports.findDiscussion(request.articleId, id));
-      listeners.set(fork.id, (value) => {
+        resolveReplyLinksAsync(content, text, (id) => ports.findDiscussion(request.articleId, id));
+      listeners.set(fork.id, async (value) => {
         const parsed = parseDistillationReviewItem(value);
         if ('error' in parsed) return parsed.error;
-        const item = resolveReviewItemLinks(parsed.item, resolveLinks);
+        const item = await resolveReviewItemLinks(parsed.item, resolveLinks);
         items.push(item);
         request.onItem(item);
         return undefined;
@@ -134,7 +134,7 @@ export function createDistillationReview(
     const main = await harness.conversation(mainId as ConversationId, context);
     const latest = main && (await main.entries({}, 1, undefined, context)).items[0];
     const anchor = request.payload.annotation.anchor;
-    const meta = ports.articleMeta(request.articleId);
+    const meta = await ports.articleMeta(request.articleId);
     const options = {
       ownership: { kind: 'ownerless' as const },
       agent: {
@@ -164,13 +164,17 @@ export function createDistillationReview(
   return { extension, run };
 }
 
-function resolveReviewItemLinks(
+async function resolveReviewItemLinks(
   item: AnnotationDistillationReviewItem,
-  resolve: (text: string) => string,
-): AnnotationDistillationReviewItem {
-  if (item.type === 'overview') return { ...item, content: resolve(item.content) };
+  resolve: (text: string) => Promise<string>,
+): Promise<AnnotationDistillationReviewItem> {
+  if (item.type === 'overview') return { ...item, content: await resolve(item.content) };
   if (item.type === 'finding') {
-    return { ...item, title: resolve(item.title), content: resolve(item.content) };
+    return {
+      ...item,
+      title: await resolve(item.title),
+      content: await resolve(item.content),
+    };
   }
   // Anchor text must match the user's draft verbatim; resolve only generated prose.
   const proposal = item.proposal;
@@ -178,10 +182,12 @@ function resolveReviewItemLinks(
     ...item,
     proposal: {
       ...proposal,
-      title: resolve(proposal.title),
-      rationale: proposal.rationale ? resolve(proposal.rationale) : undefined,
-      content: proposal.content ? resolve(proposal.content) : undefined,
-      replacementText: proposal.replacementText ? resolve(proposal.replacementText) : undefined,
+      title: await resolve(proposal.title),
+      rationale: proposal.rationale ? await resolve(proposal.rationale) : undefined,
+      content: proposal.content ? await resolve(proposal.content) : undefined,
+      replacementText: proposal.replacementText
+        ? await resolve(proposal.replacementText)
+        : undefined,
     },
   };
 }

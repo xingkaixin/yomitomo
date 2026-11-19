@@ -1,8 +1,25 @@
-import { inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import type { Annotation, Comment } from '@yomitomo/shared';
 import * as schema from '../db/schema';
 import type { StoreExecutor } from '../store/store-db';
 import { rowToAnnotation, rowToComment, sortByCreatedAt } from '../store/store-normalizers';
+
+export function readArticleAnnotation(
+  database: StoreExecutor,
+  articleId: string,
+  annotationId: string,
+): Annotation | undefined {
+  const row = database
+    .select()
+    .from(schema.annotations)
+    .where(
+      and(eq(schema.annotations.id, annotationId), eq(schema.annotations.articleId, articleId)),
+    )
+    .get();
+  if (!row) return undefined;
+  const commentRows = readCommentRowsForAnnotations(database, [annotationId]);
+  return rowToAnnotation(row, sortByCreatedAt(commentRows.map(rowToComment)));
+}
 
 export function readArticleAnnotations(database: StoreExecutor, articleId: string) {
   const annotationRows = readAnnotationRowsForArticles(database, [articleId]);

@@ -14,7 +14,8 @@ type StoreDataIpcContext = Pick<
   DesktopMainIpcContext,
   'getMainWindow' | 'logError' | 'sendFullStoreUpdated' | 'storeLoadErrorInfo'
 > & {
-  onDatabaseRestored: () => void;
+  beforeDatabaseRestore?: () => Promise<void> | void;
+  onDatabaseRestored: () => Promise<void> | void;
   startupStoreInitialization: StartupStoreInitializationResult;
   getAppUpdaterModule: () => Promise<
     Pick<
@@ -70,6 +71,7 @@ export function registerStoreDataIpc(context: StoreDataIpcContext) {
     const result = await restoreFullDataWithDialog(
       context.getMainWindow(),
       context.onDatabaseRestored,
+      context.beforeDatabaseRestore,
     );
     if (!result.canceled) context.sendFullStoreUpdated(event, result.store);
     return result;
@@ -83,6 +85,7 @@ export function registerStoreDataIpc(context: StoreDataIpcContext) {
     const result = await restoreDatabaseWithDialog(
       context.getMainWindow(),
       context.onDatabaseRestored,
+      context.beforeDatabaseRestore,
     );
     if (!result.canceled) {
       context.sendFullStoreUpdated(event, result.store);
