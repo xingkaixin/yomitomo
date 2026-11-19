@@ -91,8 +91,8 @@ export function registerArticleIpc(context: ArticleIpcContext) {
     return translationRuntime.readCurrent(input);
   });
   handleDesktopIpc('article-translation:translate', async (_event, input) => {
-    return translationRuntime.translate(input, (translation) => {
-      sendDesktopIpcRendererEvent(_event.sender, 'article-translation:updated', translation);
+    return translationRuntime.translate(input, (update) => {
+      sendDesktopIpcRendererEvent(_event.sender, 'article-translation:updated', update);
     });
   });
   handleDesktopIpc('article-translation:delete-current', async (_event, input) => {

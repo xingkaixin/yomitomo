@@ -138,6 +138,22 @@ export type ArticleTranslation = {
   updatedAt: string;
 };
 
+export type ArticleTranslationUpdateEvent =
+  | {
+      type: 'snapshot';
+      translation: ArticleTranslation;
+    }
+  | {
+      type: 'segment';
+      translationId: string;
+      articleId: string;
+      sourceId: string;
+      targetLanguage: string;
+      status: ArticleTranslationStatus;
+      updatedAt: string;
+      segment: ArticleTranslationSegment;
+    };
+
 export type ArticleTranslationSourceBlockInput = {
   id: string;
   text: string;

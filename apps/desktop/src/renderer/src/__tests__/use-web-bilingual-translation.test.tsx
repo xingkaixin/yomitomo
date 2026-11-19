@@ -3,7 +3,12 @@
 import React from 'react';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Annotation, ArticleRecord, ArticleTranslation } from '@yomitomo/shared';
+import type {
+  Annotation,
+  ArticleRecord,
+  ArticleTranslation,
+  ArticleTranslationUpdateEvent,
+} from '@yomitomo/shared';
 import { extractWebArticleTranslationBlocks } from '@yomitomo/core';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { useWebBilingualTranslation } from '../source/web/use-web-bilingual-translation';
@@ -82,7 +87,7 @@ function translationFor(translatedText = '你好世界，这一段应该被翻�
 }
 
 function installDesktopApi(current: ArticleTranslation | null) {
-  const callbacks: Array<(translation: ArticleTranslation) => void> = [];
+  const callbacks: Array<(update: ArticleTranslationUpdateEvent) => void> = [];
   const deleteCurrentArticleTranslation = vi.fn(async () => null);
   const getCurrentArticleTranslation = vi.fn(async () => current);
   const translateArticle = vi.fn(async () => translationFor('请求生成的文章译文。'));
@@ -93,7 +98,7 @@ function installDesktopApi(current: ArticleTranslation | null) {
         translation: {
           deleteCurrent: deleteCurrentArticleTranslation,
           getCurrent: getCurrentArticleTranslation,
-          onUpdated: (callback: (translation: ArticleTranslation) => void) => {
+          onUpdated: (callback: (update: ArticleTranslationUpdateEvent) => void) => {
             callbacks.push(callback);
             return () => callbacks.splice(callbacks.indexOf(callback), 1);
           },
@@ -168,7 +173,9 @@ describe('useWebBilingualTranslation', () => {
       const deleteAnnotation = vi.fn(async () => {});
       api.translateArticle.mockImplementationOnce(async () => {
         if (failurePoint === 'after') {
-          api.callbacks.forEach((receive) => receive({ ...cached, status: 'translating' }));
+          api.callbacks.forEach((receive) =>
+            receive({ type: 'snapshot', translation: { ...cached, status: 'translating' } }),
+          );
         }
         throw new Error('TRANSLATION_FAILED');
       });
@@ -208,13 +215,20 @@ describe('useWebBilingualTranslation', () => {
       await waitFor(() =>
         expect(renderedTranslationText(result.current.renderedHtml)).toBe('Current translation'),
       );
-      act(() => api.callbacks.forEach((receive) => receive(translationFor('迟到的中文译文'))));
+      act(() =>
+        api.callbacks.forEach((receive) =>
+          receive({ type: 'snapshot', translation: translationFor('迟到的中文译文') }),
+        ),
+      );
       expect(renderedTranslationText(result.current.renderedHtml)).toBe('Current translation');
       act(() =>
         api.callbacks.forEach((receive) =>
           receive({
-            ...translationFor('Updated current translation'),
-            targetLanguage: canonicalLanguage,
+            type: 'snapshot',
+            translation: {
+              ...translationFor('Updated current translation'),
+              targetLanguage: canonicalLanguage,
+            },
           }),
         ),
       );
@@ -223,4 +237,50 @@ describe('useWebBilingualTranslation', () => {
       );
     },
   );
+
+  it('merges incremental segment broadcast patches into active translation state', async () => {
+    const initial = translationFor('');
+    const pendingSnapshot: ArticleTranslation = {
+      ...initial,
+      status: 'translating',
+      segments: initial.segments.map((segment) => ({
+        ...segment,
+        status: 'translating',
+        translatedText: undefined,
+      })),
+    };
+    const api = installDesktopApi(null);
+    const { result } = renderTranslationHook();
+    await waitFor(() => expect(api.getCurrentArticleTranslation).toHaveBeenCalledOnce());
+
+    act(() => {
+      api.callbacks.forEach((receive) =>
+        receive({ type: 'snapshot', translation: pendingSnapshot }),
+      );
+    });
+    expect(renderedTranslationText(result.current.renderedHtml)).toBe('');
+
+    const completedSegment = {
+      ...initial.segments[0],
+      status: 'ready' as const,
+      translatedText: '增量推送的译文。',
+      updatedAt: '2026-07-18T12:01:00.000Z',
+    };
+    act(() => {
+      api.callbacks.forEach((receive) =>
+        receive({
+          type: 'segment',
+          translationId: pendingSnapshot.id,
+          articleId: pendingSnapshot.articleId,
+          sourceId: pendingSnapshot.sourceId,
+          targetLanguage: pendingSnapshot.targetLanguage,
+          status: 'translating',
+          updatedAt: completedSegment.updatedAt,
+          segment: completedSegment,
+        }),
+      );
+    });
+
+    expect(renderedTranslationText(result.current.renderedHtml)).toBe('增量推送的译文。');
+  });
 });

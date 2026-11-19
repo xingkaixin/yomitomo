@@ -2,7 +2,12 @@ import { Effect } from 'effect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SQLiteDatabase from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
-import type { ResolvedAppSettings, ArticleRecord, ArticleTranslation } from '@yomitomo/shared';
+import type {
+  ResolvedAppSettings,
+  ArticleRecord,
+  ArticleTranslation,
+  ArticleTranslationUpdateEvent,
+} from '@yomitomo/shared';
 import * as schema from '../db/schema';
 import { migrations } from '../db/migrations';
 import {
@@ -184,6 +189,29 @@ describe('article translation runtime', () => {
     expect(harness.translateBlocks).toHaveBeenCalledTimes(2);
     expect(harness.calls.initialize).toBe(2);
     expect(harness.countTranslations()).toBe(2);
+  });
+
+  it('emits incremental segment patches between initial and final snapshots', async () => {
+    const harness = translationHarness(3);
+    const updates: ArticleTranslationUpdateEvent[] = [];
+
+    const completed = await harness.runtime.translate(translateRequest(3), (update) => {
+      updates.push(update);
+    });
+
+    expect(updates).toHaveLength(5);
+    expect(updates[0]).toMatchObject({
+      type: 'snapshot',
+      translation: { id: completed.id, status: 'translating' },
+    });
+    const segmentUpdates = updates.slice(1, 4);
+    expect(segmentUpdates.every((event) => event.type === 'segment')).toBe(true);
+    expect(
+      segmentUpdates
+        .map((event) => (event.type === 'segment' ? event.segment.sourceBlockId : ''))
+        .toSorted(),
+    ).toEqual(['block-0', 'block-1', 'block-2']);
+    expect(updates[4]).toEqual({ type: 'snapshot', translation: completed });
   });
 });
 

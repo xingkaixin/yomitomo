@@ -6,6 +6,7 @@ import type {
   ArticleTranslationDeleteRequest,
   ArticleTranslationRequest,
   ArticleTranslationSegment,
+  ArticleTranslationUpdateEvent,
 } from '@yomitomo/shared';
 import { hashText } from '@yomitomo/shared';
 import { taskProvider } from '../agents/agent-runtime-routing';
@@ -63,7 +64,7 @@ export function createArticleTranslationRuntime(context: ArticleTranslationRunti
       readCurrentArticleTranslation(context, sessions, input),
     translate: (
       input: ArticleTranslationRequest,
-      onUpdate: (translation: ArticleTranslation) => void,
+      onUpdate: (update: ArticleTranslationUpdateEvent) => void,
     ) => translateArticle(context, sessions, input, onUpdate),
   };
 }
@@ -97,7 +98,7 @@ async function translateArticle(
   context: ArticleTranslationRuntimeContext,
   sessions: ArticleTranslationSessions,
   input: ArticleTranslationRequest,
-  onUpdate: (translation: ArticleTranslation) => void,
+  onUpdate: (update: ArticleTranslationUpdateEvent) => void,
 ): Promise<ArticleTranslation> {
   const { storeAgents: agentRuntimePersistence, storeArticles: articlePersistence } =
     await context.getPersistenceModules();
@@ -135,7 +136,7 @@ type TranslationSessionInput = {
   articlePersistence: ArticlePersistence;
   input: ArticleTranslationRequest;
   key: ArticleTranslationIdentity;
-  onUpdate: (translation: ArticleTranslation) => void;
+  onUpdate: (update: ArticleTranslationUpdateEvent) => void;
   settings: ArticleTranslationSettings;
   signal: ArticleTranslationSessionSignal;
   source: ArticleTranslationSource;
@@ -178,7 +179,7 @@ async function runTranslationSession(
     })),
   });
   if (signal.aborted) return latest;
-  onUpdate(latest);
+  onUpdate({ type: 'snapshot', translation: latest });
 
   const segmentIndexByBlockId = new Map(
     latest.segments.map((segment, index) => [segment.sourceBlockId, index]),
@@ -207,7 +208,16 @@ async function runTranslationSession(
             }).pipe(Effect.uninterruptible);
             if (!segment) return;
             latest = replaceTranslationSegment(latest, segmentIndexByBlockId, segment);
-            onUpdate(latest);
+            onUpdate({
+              type: 'segment',
+              translationId: latest.id,
+              articleId: latest.articleId,
+              sourceId: latest.sourceId,
+              targetLanguage: latest.targetLanguage,
+              status: latest.status,
+              updatedAt: segment.updatedAt,
+              segment,
+            });
           }),
         { concurrency: TRANSLATION_CONCURRENCY, discard: true },
       ),
@@ -223,7 +233,7 @@ async function runTranslationSession(
     updatedAt: new Date().toISOString(),
   });
   if (finalized) latest = finalized;
-  onUpdate(latest);
+  onUpdate({ type: 'snapshot', translation: latest });
   return latest;
 }
 
@@ -395,5 +405,9 @@ function translationBlockContext(order: number, blocks: ArticleTranslationBlock[
 async function extractArticleTranslationBlocks(article: ArticleRecord) {
   const { JSDOM } = await import('jsdom');
   const dom = new JSDOM('<!doctype html><html><body></body></html>');
-  return extractWebArticleTranslationBlocks(dom.window.document, article.contentHtml || '');
+  try {
+    return extractWebArticleTranslationBlocks(dom.window.document, article.contentHtml || '');
+  } finally {
+    dom.window.close();
+  }
 }

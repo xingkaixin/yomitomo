@@ -3,7 +3,7 @@ import type {
   AnnotationDistillationReviewItem,
   AnnotationDistillationReviewMessage,
   ArticleStorePatch,
-  ArticleTranslation,
+  ArticleTranslationUpdateEvent,
   AssistantPassageRevealRequest,
   AssistantRunEvent,
   AssistantRuntimeProgressEvent,
@@ -104,7 +104,7 @@ export type DesktopIpcToRendererEventMap = {
   'annotation-window:closing': undefined;
   'updates:status': AppUpdateState;
   'article:patched': ArticleStorePatch;
-  'article-translation:updated': ArticleTranslation;
+  'article-translation:updated': ArticleTranslationUpdateEvent;
   'assistant:run': AssistantRunEvent;
   'assistant:reveal-passage': AssistantPassageRevealRequest;
   'collection:patched': CollectionStorePatch;

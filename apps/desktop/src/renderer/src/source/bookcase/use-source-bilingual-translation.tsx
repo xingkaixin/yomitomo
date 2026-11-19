@@ -1,7 +1,11 @@
 import { useCallback, useMemo, useSyncExternalStore } from 'react';
 import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { useTranslation } from 'react-i18next';
-import type { ArticleTranslation, ArticleTranslationSourceBlockInput } from '@yomitomo/shared';
+import type {
+  ArticleTranslation,
+  ArticleTranslationSourceBlockInput,
+  ArticleTranslationUpdateEvent,
+} from '@yomitomo/shared';
 import { normalizeArticleTranslationTargetLanguage } from '@yomitomo/shared';
 import { assistantRuntimeErrorMessage } from '../../shell/app-assistant-runtime-progress';
 import { getDesktopApi, getOptionalDesktopApi } from '../../shell/app-desktop-api';
@@ -122,6 +126,21 @@ export function useSourceBilingualTranslation<ApplyResult>({
     },
   );
 
+  const receiveTranslationUpdate = useStableCallback(
+    (session: TranslationSession, update: ArticleTranslationUpdateEvent) => {
+      const { scope } = session;
+      if (
+        !scope ||
+        !translationUpdateMatches(update, scope.articleId, scope.sourceId, scope.targetLanguage)
+      ) {
+        return;
+      }
+      const nextTranslation = applyArticleTranslationUpdate(session.getState().translation, update);
+      if (!nextTranslation) return;
+      receiveTranslation(session, nextTranslation);
+    },
+  );
+
   // Each article, chapter, and target language gets a fresh session, like a remount would.
   const translationSession = useMemo(
     () =>
@@ -144,7 +163,7 @@ export function useSourceBilingualTranslation<ApplyResult>({
   );
 
   useDesktopEvent(getOptionalDesktopApi()?.article?.translation?.onUpdated, (update) =>
-    receiveTranslation(translationSession, update),
+    receiveTranslationUpdate(translationSession, update),
   );
 
   const requestTranslation = useStableCallback(async (options: TranslationRequestOptions = {}) => {
@@ -183,7 +202,9 @@ export function useSourceBilingualTranslation<ApplyResult>({
       // Main emits the first update only after it resets the replaced segments, so failures
       // before that point, such as a missing provider or API key, keep the annotations.
       stopWatchingStart = getOptionalDesktopApi()?.article?.translation?.onUpdated((update) => {
-        if (translationMatches(update, scope.articleId, requestedSourceId, scope.targetLanguage)) {
+        if (
+          translationUpdateMatches(update, scope.articleId, requestedSourceId, scope.targetLanguage)
+        ) {
           removeReplacedAnnotations().catch(() => {});
         }
       });
@@ -371,8 +392,38 @@ function currentTranslationBlockIds(translation: ArticleTranslation | null) {
   return new Set((translation?.segments || []).map((segment) => segment.sourceBlockId));
 }
 
+export function applyArticleTranslationUpdate(
+  current: ArticleTranslation | null,
+  update: ArticleTranslationUpdateEvent,
+): ArticleTranslation | null {
+  if (update.type === 'snapshot') return update.translation;
+  if (!current || current.id !== update.translationId) return null;
+  const index = current.segments.findIndex(
+    (segment) => segment.sourceBlockId === update.segment.sourceBlockId,
+  );
+  const segments = current.segments.slice();
+  if (index >= 0) segments[index] = update.segment;
+  else segments.push(update.segment);
+  return {
+    ...current,
+    status: update.status,
+    updatedAt: update.updatedAt,
+    segments,
+  };
+}
+
+function translationUpdateMatches(
+  update: ArticleTranslationUpdateEvent,
+  articleId: string,
+  sourceId: string | undefined,
+  targetLanguage: string | undefined,
+) {
+  const target = update.type === 'snapshot' ? update.translation : update;
+  return translationMatches(target, articleId, sourceId, targetLanguage);
+}
+
 function translationMatches(
-  translation: ArticleTranslation,
+  translation: Pick<ArticleTranslation, 'articleId' | 'sourceId' | 'targetLanguage'>,
   articleId: string,
   sourceId: string | undefined,
   targetLanguage: string | undefined,

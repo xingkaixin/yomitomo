@@ -78,6 +78,7 @@ export type {
   ArticleTranslationSegment,
   ArticleTranslationSourceBlockInput,
   ArticleTranslationStatus,
+  ArticleTranslationUpdateEvent,
   ArticleUpsertPatch,
   ArticleTextBudgetProfile,
   BilingualTranslationStyle,
