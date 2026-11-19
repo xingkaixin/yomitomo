@@ -370,7 +370,7 @@ describe('article import', () => {
       { ok: true, article: renderedArticle },
     ];
     browserWindowMocks.nextRenderedPage = {
-      html: '<html><body><div id="root"><article><p>Rendered SPA article content.</p></article></div></body></html>',
+      html: '<html><body><div id="root"></div><script src="/app.js"></script><article><p>Rendered SPA article content.</p></article></body></html>',
       htmlByteLength: 106,
       text: 'Rendered SPA article content.',
       title: 'SPA Article',
@@ -387,6 +387,24 @@ describe('article import', () => {
     await expect(articleRecordFromUrl('https://example.com/spa')).resolves.toEqual(renderedArticle);
     expect(browserWindowMocks.instances).toHaveLength(1);
     expect(workerMocks.instances).toHaveLength(2);
+  });
+
+  it('rejects a rendered article containing only empty markup', async () => {
+    vi.useFakeTimers();
+    workerMocks.MockWorker.nextMessage = {
+      ok: true,
+      article: { ...articleRecord(), contentHtml: '<article></article>' },
+    };
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('<html>cf-browser-verification</html>'),
+    );
+    const assertion = expect(
+      articleRecordFromUrl('https://example.com/empty'),
+    ).rejects.toMatchObject({
+      importCode: 'ARTICLE_IMPORT_RENDER_EMPTY',
+    });
+    await vi.advanceTimersByTimeAsync(2_000);
+    await assertion;
   });
 
   it('does not trigger rendered fallback for short static articles without a SPA shell', async () => {

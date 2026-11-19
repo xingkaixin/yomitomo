@@ -85,7 +85,7 @@ function articleRecordFromUrlEffect(input: string, options: ArticleImportOptions
     yield* throwIfArticleImportCanceledEffect(controller.signal);
     const page = yield* fetchArticleHtmlEffect(url, controller.signal);
     yield* throwIfArticleImportCanceledEffect(controller.signal);
-    const extracted = yield* extractArticleRecordInWorkerEffect({
+    let extracted = yield* extractArticleRecordInWorkerEffect({
       html: page.html,
       inlineImages: options.inlineImages === true,
       signal: controller.signal,
@@ -100,19 +100,18 @@ function articleRecordFromUrlEffect(input: string, options: ArticleImportOptions
         controller.signal,
       );
       yield* throwIfArticleImportCanceledEffect(controller.signal);
-      const renderedArticle = yield* extractArticleRecordInWorkerEffect({
+      extracted = yield* extractArticleRecordInWorkerEffect({
         html: renderedPage.html,
         inlineImages: options.inlineImages === true,
         signal: controller.signal,
         url: renderedPage.url,
         userAgent: importUserAgent(renderedPage.url),
       });
-      if (!renderedArticle.contentHtml?.trim()) {
-        return yield* Effect.fail(new SourceImportError('ARTICLE_IMPORT_RENDER_EMPTY'));
-      }
-      return renderedArticle;
+    } else if (!page.rendered) {
+      return extracted;
     }
-    if (page.rendered && !extracted.contentHtml?.trim()) {
+    const content = extracted.contentHtml || '';
+    if (!extractedHtmlTextLength(content) && !/<(?:img|video|audio|svg)\b/i.test(content)) {
       return yield* Effect.fail(new SourceImportError('ARTICLE_IMPORT_RENDER_EMPTY'));
     }
     return extracted;
@@ -444,7 +443,13 @@ async function waitForRenderedPage(
       if (renderedPageTooLarge(lastPage)) {
         throw new SourceImportError('ARTICLE_IMPORT_RESPONSE_TOO_LARGE');
       }
-      if (!isChallengePage(lastPage) && !isSpaShellHtml(stringField(lastPage.html)))
+      if (isChallengePage(lastPage)) continue;
+      const html = stringField(lastPage.html);
+      if (
+        !isSpaShellHtml(html) ||
+        stringField(lastPage.text).trim() ||
+        /<(?:img|video|audio|svg)\b/i.test(html)
+      )
         return lastPage;
     }
   } catch (error) {
