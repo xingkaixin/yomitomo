@@ -1,5 +1,6 @@
+import { Buffer } from 'node:buffer';
 import { constants } from 'node:fs';
-import { appendFile, copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { appendFile, copyFile, mkdir, open, readFile, stat, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { app } from 'electron';
 import { isRecord, recordField } from '@yomitomo/shared';
@@ -9,9 +10,16 @@ const LEGACY_LOG_FILE_NAME = 'reader-agent.log';
 const MAX_LOG_DEPTH = 8;
 const MAX_LOG_ITEMS = 100;
 const MAX_LOG_STRING_LENGTH = 10_000;
+export const MAX_LOG_FILE_BYTES = 10 * 1024 * 1024;
+export const RETAINED_LOG_FILE_BYTES = 5 * 1024 * 1024;
 
 let preparedLogPath: string | undefined;
+let trackedLogBytes = 0;
 let logWriteTail = Promise.resolve();
+let activeLogSizeLimits = {
+  maxBytes: MAX_LOG_FILE_BYTES,
+  retainedBytes: RETAINED_LOG_FILE_BYTES,
+};
 
 export function logInfo(event: string, data?: Record<string, unknown>) {
   dispatchLog('info', event, data);
@@ -32,24 +40,36 @@ export async function readLogFile() {
 
 export function clearLogFile() {
   return enqueueLogWrite(async () => {
+    const logPath = getLogPath();
     await ensureLogFile();
-    await writeFile(getLogPath(), '', 'utf8');
+    await writeFile(logPath, '', 'utf8');
+    preparedLogPath = logPath;
+    trackedLogBytes = 0;
   });
 }
 
 export function pruneLogFile(retentionDays?: number) {
   if (!retentionDays) return Promise.resolve();
   return enqueueLogWrite(async () => {
+    const logPath = getLogPath();
     await ensureLogFile();
+    const size = await fileByteSize(logPath);
+    const text =
+      size > activeLogSizeLimits.maxBytes
+        ? await readLogTailText(logPath, size, activeLogSizeLimits.retainedBytes)
+        : await readFile(logPath, 'utf8');
     const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
-    const lines = (await readFile(getLogPath(), 'utf8')).split('\n');
+    const lines = text.split('\n');
     const retained = lines.filter((line) => {
       if (!line.trim()) return false;
 
       const time = logLineTime(line);
       return time === null || time >= cutoff;
     });
-    await writeFile(getLogPath(), retained.length > 0 ? `${retained.join('\n')}\n` : '', 'utf8');
+    const nextContent = retained.length > 0 ? `${retained.join('\n')}\n` : '';
+    await writeFile(logPath, nextContent, 'utf8');
+    preparedLogPath = logPath;
+    trackedLogBytes = Buffer.byteLength(nextContent, 'utf8');
   });
 }
 
@@ -57,6 +77,7 @@ function enqueueLogWrite(operation: () => Promise<void>) {
   const write = logWriteTail.then(operation);
   logWriteTail = write.catch(() => {
     preparedLogPath = undefined;
+    trackedLogBytes = 0;
   });
   return write;
 }
@@ -95,9 +116,27 @@ async function writeLog(
     const logPath = getLogPath();
     if (preparedLogPath !== logPath) {
       await ensureLogFile();
+      trackedLogBytes = await fileByteSize(logPath);
       preparedLogPath = logPath;
     }
-    await appendFile(logPath, `${line}\n`, 'utf8');
+    const entry = `${line}\n`;
+    const entryBytes = Buffer.byteLength(entry, 'utf8');
+    if (trackedLogBytes + entryBytes > activeLogSizeLimits.maxBytes) {
+      const actualSize = await fileByteSize(logPath);
+      if (actualSize + entryBytes > activeLogSizeLimits.maxBytes) {
+        const retainedBudget = Math.max(0, activeLogSizeLimits.retainedBytes - entryBytes);
+        const tail =
+          retainedBudget > 0 ? await readLogTailText(logPath, actualSize, retainedBudget) : '';
+        const prefix = tail && !tail.endsWith('\n') ? `${tail}\n` : tail;
+        const nextContent = `${prefix}${entry}`;
+        await writeFile(logPath, nextContent, 'utf8');
+        trackedLogBytes = Buffer.byteLength(nextContent, 'utf8');
+        return;
+      }
+      trackedLogBytes = actualSize;
+    }
+    await appendFile(logPath, entry, 'utf8');
+    trackedLogBytes += entryBytes;
   });
 }
 
@@ -192,3 +231,49 @@ function logLineTime(line: string) {
     return null;
   }
 }
+
+async function fileByteSize(filePath: string) {
+  const info = await stat(filePath).catch(() => null);
+  return info?.size ?? 0;
+}
+
+async function readLogTailText(filePath: string, fileSize: number, maxTailBytes: number) {
+  if (fileSize <= 0 || maxTailBytes <= 0) return '';
+  const bytesToRead = Math.min(fileSize, maxTailBytes);
+  const offset = fileSize - bytesToRead;
+  const handle = await open(filePath, 'r');
+  try {
+    const buffer = Buffer.allocUnsafe(bytesToRead);
+    let totalRead = 0;
+    while (totalRead < bytesToRead) {
+      const { bytesRead } = await handle.read(
+        buffer,
+        totalRead,
+        bytesToRead - totalRead,
+        offset + totalRead,
+      );
+      if (bytesRead <= 0) break;
+      totalRead += bytesRead;
+    }
+    const slice = buffer.subarray(0, totalRead);
+    if (offset === 0) return slice.toString('utf8');
+    // 0x0a never occurs inside a multi-byte UTF-8 sequence, so advancing past it avoids split chars and partial JSON lines.
+    const firstNewline = slice.indexOf(0x0a);
+    if (firstNewline === -1) return '';
+    return slice.subarray(firstNewline + 1).toString('utf8');
+  } finally {
+    await handle.close();
+  }
+}
+
+export const loggerTestApi = {
+  flush: () => logWriteTail,
+  setSizeLimits: (limits?: { maxBytes: number; retainedBytes: number }) => {
+    activeLogSizeLimits = limits ?? {
+      maxBytes: MAX_LOG_FILE_BYTES,
+      retainedBytes: RETAINED_LOG_FILE_BYTES,
+    };
+    preparedLogPath = undefined;
+    trackedLogBytes = 0;
+  },
+};
