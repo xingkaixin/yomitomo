@@ -148,6 +148,7 @@ describe('markdown export formatting', () => {
       article: {
         ...article,
         sourceType: 'pdf',
+        pdf: { metadata: { format: 'pdf', fileName: 'notes.pdf', fileSize: 1024, pageCount: 2 } },
         annotations: article.annotations.map((annotation, index) =>
           Object.assign({}, annotation, {
             anchor: createPdfTextAnchor({
