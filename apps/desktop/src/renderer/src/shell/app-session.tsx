@@ -1,7 +1,7 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import { createStore, useStore, type StoreApi } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
-import type { ArticleSummaryRecord } from '@yomitomo/shared';
+import type { ArticleSummaryRecord, AssistantPassageRevealRequest } from '@yomitomo/shared';
 import type { AppMenuCommand } from '../../../app-menu-types';
 import type { AppUpdateState } from '../../../app-update-types';
 import type { WeReadState } from '../../../ipc-contract';
@@ -35,8 +35,14 @@ export type AppSurfaceKey = 'agents' | 'reading-memory' | 'library' | 'settings'
 export type LibraryImportDialogKind = 'article' | 'ebook' | 'pdf' | 'text';
 
 export type LibraryView = {
+  isReadingArticle: (articleId: string) => boolean;
+  openArticle: (articleId: string) => void;
   showHome: () => void;
   receiveWeReadState: (state: WeReadState) => void;
+};
+
+export type PendingPassageReveal = AssistantPassageRevealRequest & {
+  token: number;
 };
 
 type AppNavigationState =
@@ -112,6 +118,7 @@ export type AppSessionActions = {
   closeLibraryImport: () => void;
   closeProfileDialog: () => void;
   completeOnboarding: () => void;
+  consumePendingRevealPassage: (token: number) => void;
   dispatchLibraryQuery: (event: LibraryQuerySessionEvent) => void;
   dispatchUpdateDialog: (event: UpdateDialogEvent) => void;
   openAgents: () => void;
@@ -127,6 +134,7 @@ export type AppSessionActions = {
   registerLibraryView: (view: LibraryView) => () => void;
   requestUpdateDialog: (updateState: AppUpdateState | null) => void;
   resetForLock: () => void;
+  revealPassage: (request: AssistantPassageRevealRequest) => void;
   runMenuCommand: (command: AppMenuCommand) => void;
   setLibraryImportBusy: (busy: boolean) => void;
   setPendingArticleOpened: () => void;
@@ -138,6 +146,7 @@ export type AppSessionActions = {
 export type AppSessionState = {
   libraryQuery: LibraryQuerySessionState;
   navigation: AppNavigationState;
+  pendingRevealPassage: PendingPassageReveal | null;
   requestedSettingsSection: SettingsSectionKey;
   onboardingForced: boolean;
   onboardingFlowKey: number;
@@ -160,6 +169,7 @@ export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSession
   return createStore<AppSessionState>()((set, get) => {
     let libraryImportBusy = false;
     let libraryView: LibraryView | null = null;
+    let nextRevealPassageToken = 0;
     const navigate = (event: AppNavigationEvent) =>
       set((state) => ({ navigation: appNavigationReducer(state.navigation, event) }));
     const dispatchUpdateDialog = (event: UpdateDialogEvent) =>
@@ -277,6 +287,7 @@ export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSession
         selectedTypes: new Set(),
       }),
       navigation: initialNavigation,
+      pendingRevealPassage: null,
       requestedSettingsSection: 'collection',
       onboardingForced: false,
       onboardingFlowKey: 0,
@@ -293,6 +304,10 @@ export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSession
         },
         closeProfileDialog: () => set({ profileDialogOpen: false }),
         completeOnboarding: () => set({ onboardingForced: false }),
+        consumePendingRevealPassage: (token) =>
+          set((state) =>
+            state.pendingRevealPassage?.token === token ? { pendingRevealPassage: null } : state,
+          ),
         dispatchLibraryQuery: (event) =>
           set((state) => {
             const libraryQuery = libraryQuerySessionReducer(state.libraryQuery, event);
@@ -339,12 +354,27 @@ export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSession
         resetForLock: () => {
           navigate({ type: 'reset-transients' });
           set({
+            pendingRevealPassage: null,
             profileDialogOpen: false,
             profileDialogSourceRect: undefined,
             statsArticles: null,
             statsNavigationStartedAt: undefined,
           });
           dispatchUpdateDialog({ type: 'closed' });
+        },
+        revealPassage: (request) => {
+          nextRevealPassageToken += 1;
+          set({ pendingRevealPassage: { ...request, token: nextRevealPassageToken } });
+          if (get().navigation.surface === 'library' && libraryView) {
+            if (!libraryView.isReadingArticle(request.articleId)) {
+              libraryView.openArticle(request.articleId);
+            }
+            return;
+          }
+          navigate({
+            type: 'open-article',
+            target: { articleId: request.articleId, view: 'source' },
+          });
         },
         runMenuCommand,
         setLibraryImportBusy: (busy) => {
@@ -373,6 +403,10 @@ export function AppSessionStoreProvider({
   children: ReactNode;
 }) {
   return <AppSessionStoreContext value={store}>{children}</AppSessionStoreContext>;
+}
+
+export function useOptionalAppSessionStoreApi() {
+  return useContext(AppSessionStoreContext);
 }
 
 export function useAppSessionStoreApi() {

@@ -298,6 +298,17 @@ export const composerTooltipHighlightResponsiveStyles = `.reader-composer textar
 .reader-highlight.is-temporary::after,.reader-highlight.is-temporary .reader-highlight-dots {
   display:none
 }
+.reader-highlight.is-passage-flash {
+  border-radius:3px;
+  background:var(--app-reader-primary-a24);
+  box-shadow:0 0 0 1px var(--app-reader-primary-a32);
+  mix-blend-mode:normal;
+  pointer-events:none;
+  animation:reader-passage-flash 1.6s cubic-bezier(.22,1,.36,1) both
+}
+.reader-highlight.is-passage-flash::before,.reader-highlight.is-passage-flash::after {
+  display:none
+}
 .reader-highlight.is-search {
   border-radius:3px;
   background:var(--reader-search-highlight);
@@ -364,6 +375,20 @@ export const composerTooltipHighlightResponsiveStyles = `.reader-composer textar
     transform:scale(1)
   }
 }
+@keyframes reader-passage-flash {
+  0% {
+    opacity:0
+  }
+  18% {
+    opacity:1
+  }
+  65% {
+    opacity:1
+  }
+  100% {
+    opacity:0
+  }
+}
 @media(prefers-reduced-motion:reduce) {
   .t-dropdown,.t-dropdown[data-closed],.t-dropdown[data-ending-style] {
     transform:none!important;
@@ -380,8 +405,12 @@ export const composerTooltipHighlightResponsiveStyles = `.reader-composer textar
   }
   .reader-pending-agent-avatar::after,
 .reader-highlight.is-new::after,
-.reader-highlight.is-new .reader-highlight-dots {
+.reader-highlight.is-new .reader-highlight-dots,
+.reader-highlight.is-passage-flash {
     animation:none!important
+  }
+  .reader-highlight.is-passage-flash {
+    opacity:.72
   }
   .reader-pending-agent-avatar::after {
     opacity:1;

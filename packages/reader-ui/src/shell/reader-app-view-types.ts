@@ -119,6 +119,7 @@ export type ReaderAnnotationModel = {
   } | null;
   filteredAnnotations: Annotation[];
   newAnnotationIds?: ReadonlySet<string>;
+  passageFlashBoxes?: HighlightBox[];
   searchBoxes?: HighlightBox[];
   showEmptyNotes?: boolean;
   temporaryBoxes: HighlightBox[];
@@ -375,6 +376,7 @@ export type ReaderSelectionActions = {
   onClearSelection: () => void;
   onCloseHighlightChoice: () => void;
   onCopySelection: (action: SelectionAction) => void | Promise<void>;
+  onHighlightSelection?: (action: SelectionAction) => void | Promise<void>;
   onMouseUp: (event: React.MouseEvent<HTMLElement>) => void;
   onAskSelection?: (action: SelectionAction) => void;
   onFindRelated?: (action: SelectionAction) => void;

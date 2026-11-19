@@ -75,11 +75,50 @@ describe('app session store', () => {
 
     expect(sessionStore.getState()).toMatchObject({
       navigation: { pendingOpenArticle: null, readerOpen: false, surface: 'library' },
+      pendingRevealPassage: null,
       profileDialogOpen: false,
       statsArticles: null,
       statsNavigationStartedAt: undefined,
     });
     expect(queryClient.getQueryCache().getAll()).toHaveLength(0);
+  });
+
+  it('opens the target article when revealing a passage from another view or article', () => {
+    const { sessionStore } = startMainWindow();
+    const { actions } = sessionStore.getState();
+
+    actions.openSettings();
+    actions.revealPassage({ articleId: 'article_2', start: 10, end: 40 });
+    expect(sessionStore.getState().navigation).toEqual({
+      importDialog: null,
+      pendingOpenArticle: { articleId: 'article_2', view: 'source' },
+      readerOpen: false,
+      surface: 'library',
+    });
+    const firstToken = sessionStore.getState().pendingRevealPassage?.token;
+    expect(firstToken).toBeTypeOf('number');
+
+    const openArticle = vi.fn();
+    let currentArticleId: string | null = 'article_1';
+    const unregister = actions.registerLibraryView({
+      isReadingArticle: (articleId) => currentArticleId === articleId,
+      openArticle,
+      receiveWeReadState: vi.fn(),
+      showHome: vi.fn(),
+    });
+
+    actions.revealPassage({ articleId: 'article_2', start: 20, end: 50 });
+    expect(openArticle).toHaveBeenCalledWith('article_2');
+
+    openArticle.mockClear();
+    currentArticleId = 'article_2';
+    actions.revealPassage({ articleId: 'article_2', start: 30, end: 60 });
+    expect(openArticle).not.toHaveBeenCalled();
+
+    const latestToken = sessionStore.getState().pendingRevealPassage?.token ?? 0;
+    actions.consumePendingRevealPassage(latestToken);
+    expect(sessionStore.getState().pendingRevealPassage).toBeNull();
+    unregister();
   });
 });
 

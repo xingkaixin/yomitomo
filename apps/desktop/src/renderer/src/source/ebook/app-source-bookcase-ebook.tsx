@@ -8,7 +8,6 @@ import type { Annotation, ReaderQuestionContext } from '@yomitomo/shared';
 import {
   activeTocIndexForOffset,
   annotationIdsAtHighlightPoint,
-  createEpubTextAnchor,
   type TocItem,
 } from '@yomitomo/core';
 import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
@@ -21,6 +20,7 @@ import {
 } from './ebook-annotation-layout';
 import { ebookHasStableSectionChapterMapping, ebookTocItemsForReader } from './ebook-content';
 import {
+  currentFoliateContents,
   formatEbookPageLabel,
   isEbookPageNavigationReady,
   isEbookPaginationReady,
@@ -331,10 +331,11 @@ function EbookReader({
     scheduleEbookBoxUpdate,
     viewRef,
   });
-  useAssistantPassageReveal(article.id, (start, end) => {
-    if (!ebook.index) return;
-    const anchor = createEpubTextAnchor(ebook.index, ebookText, start, end);
-    void ebookNavigation.goToEbookAnchor('reader-chat-context', anchor);
+  const passageReveal = useAssistantPassageReveal({
+    articleId: article.id,
+    ready: openSettled,
+    reveal: (start, end) =>
+      ebook.index ? ebookNavigation.revealSearchMatch({ id: 'passage-flash', start, end }) : [],
   });
   const readerTocItems = useMemo(
     () => ebookTocItemsForReader(tocItems, { ebook }),
@@ -492,9 +493,18 @@ function EbookReader({
     return annotations.filter((annotation) => visibleIds.has(annotation.id));
   }, [annotations, boxes]);
   const supportsAnnotationNavigation = ebookHasStableSectionChapterMapping(article);
+  function clearFoliateSelection() {
+    for (const { doc } of currentFoliateContents(viewRef.current)) {
+      doc?.getSelection()?.removeAllRanges();
+    }
+  }
+
   const { viewProps: readerAppViewProps } = useSourceReaderAppView({
     app: sourceReaderApp,
     adapter: {
+      lifecycle: {
+        onClearSelection: clearFoliateSelection,
+      },
       navigation: {
         onNavigateAnnotation: supportsAnnotationNavigation
           ? ebookNavigation.navigateAnnotation
@@ -526,6 +536,7 @@ function EbookReader({
       distillationAnimation,
       filteredAnnotations: annotations,
       newAnnotationIds,
+      passageFlashBoxes: passageReveal.flashBoxes,
       railLayoutOverride: spreadLayout.columns === 2 ? spreadLayout.railLayout : undefined,
       showEmptyNotes: annotations.length === 0,
       temporaryBoxes,
@@ -653,6 +664,7 @@ function EbookReader({
       {ebookTranslation.marker}
       <span hidden key={articleAnnotationSignature} ref={applyAnnotationSignature} />
       {ebookNavigation.focusMarker}
+      {passageReveal.marker}
       {ebookTranslation.dialog}
     </>
   );

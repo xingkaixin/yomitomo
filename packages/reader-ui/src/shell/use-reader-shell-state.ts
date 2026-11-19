@@ -97,6 +97,7 @@ export type UseReaderShellStateOptions = {
   onNavigateAnnotation?: (annotationId: string, direction: AnnotationNavigationDirection) => void;
   onOpenReaderChat?: (source: ReaderChatActivationSource) => void;
   onOpenComposer: (action: SelectionAction) => void;
+  onOpenSearch?: () => void;
   onResolveAnnotationNavigation?: (
     request: AnnotationNavigationRequest,
   ) => AnnotationNavigationState;
@@ -132,6 +133,7 @@ export function useReaderShellState({
   onNavigateAnnotation,
   onOpenReaderChat,
   onOpenComposer,
+  onOpenSearch,
   onResolveAnnotationNavigation,
   onToggleSettings,
   readerChatOpen,
@@ -236,6 +238,7 @@ export function useReaderShellState({
     onCopySelection: requestSelectionCopy,
     onOpenReaderChat,
     onOpenComposer,
+    onOpenSearch,
     onToggleSettings,
     readerChatOpen,
     shouldPreserveActiveAnnotationOnPointerDown,

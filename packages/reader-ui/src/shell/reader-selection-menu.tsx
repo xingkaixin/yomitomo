@@ -1,6 +1,7 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   Copy01Icon,
+  HighlighterIcon,
   MessageAdd01Icon,
   MessageQuestionIcon,
   Search01Icon,
@@ -17,25 +18,37 @@ import { useMountEffect } from '../hooks/use-mount-effect';
 
 type SelectionMenuLabels = Pick<
   ReaderUiLabels,
-  'askSelection' | 'copySelection' | 'recordThought' | 'findRelated'
+  'askSelection' | 'copySelection' | 'recordThought' | 'findRelated' | 'submitHighlight'
 >;
 
 export type SelectionMenuHandle = {
   copy: () => Promise<void>;
 };
 
-type CopyState = 'idle' | 'copying' | 'copied';
+type MenuActionState = {
+  copyState: 'idle' | 'copying' | 'copied';
+  highlighting: boolean;
+};
 
-type CopyEvent = { type: 'copyFailed' } | { type: 'copyStarted' } | { type: 'copySucceeded' };
+type MenuActionEvent =
+  | { type: 'copyFailed' }
+  | { type: 'copyStarted' }
+  | { type: 'copySucceeded' }
+  | { type: 'highlightFinished' }
+  | { type: 'highlightStarted' };
 
-function copyStateReducer(_state: CopyState, event: CopyEvent): CopyState {
+function menuActionReducer(state: MenuActionState, event: MenuActionEvent): MenuActionState {
   switch (event.type) {
     case 'copyFailed':
-      return 'idle';
+      return { ...state, copyState: 'idle' };
     case 'copyStarted':
-      return 'copying';
+      return { ...state, copyState: 'copying' };
     case 'copySucceeded':
-      return 'copied';
+      return { ...state, copyState: 'copied' };
+    case 'highlightStarted':
+      return { ...state, highlighting: true };
+    case 'highlightFinished':
+      return { ...state, highlighting: false };
   }
 }
 
@@ -48,6 +61,7 @@ export function SelectionMenu({
   onFindRelated,
   onCopy,
   onCopySettled,
+  onHighlight,
   ref,
 }: {
   action: SelectionMenuAction;
@@ -59,9 +73,13 @@ export function SelectionMenu({
   onFindRelated?: () => void;
   onCopy: () => void | Promise<void>;
   onCopySettled?: () => void;
+  onHighlight?: () => void | Promise<void>;
 }) {
   const shortcutKeys = normalizeSelectionActionShortcuts(shortcuts);
-  const [copyState, dispatch] = useReducer(copyStateReducer, 'idle');
+  const [{ copyState, highlighting }, dispatch] = useReducer(menuActionReducer, {
+    copyState: 'idle',
+    highlighting: false,
+  });
   const closeTimerRef = useRef<number | null>(null);
 
   useMountEffect(() => () => {
@@ -77,6 +95,16 @@ export function SelectionMenu({
       closeTimerRef.current = window.setTimeout(() => onCopySettled?.(), 520);
     } catch {
       dispatch({ type: 'copyFailed' });
+    }
+  }
+
+  async function highlight() {
+    if (!onHighlight || highlighting) return;
+    dispatch({ type: 'highlightStarted' });
+    try {
+      await onHighlight();
+    } finally {
+      dispatch({ type: 'highlightFinished' });
     }
   }
 
@@ -113,6 +141,17 @@ export function SelectionMenu({
         <span>{labels.copySelection}</span>
         <Kbd className="reader-kbd">{shortcutKeys.copy}</Kbd>
       </button>
+      {onHighlight ? (
+        <button
+          className="reader-selection-primary"
+          disabled={highlighting}
+          type="button"
+          onClick={() => void highlight()}
+        >
+          <HugeiconsIcon icon={HighlighterIcon} size={15} strokeWidth={2.2} />
+          {labels.submitHighlight}
+        </button>
+      ) : null}
       <button className="reader-selection-primary" type="button" onClick={onAnnotate}>
         <HugeiconsIcon icon={MessageAdd01Icon} size={15} strokeWidth={2.2} />
         {labels.recordThought}

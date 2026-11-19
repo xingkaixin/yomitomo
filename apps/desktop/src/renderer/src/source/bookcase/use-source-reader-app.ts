@@ -205,6 +205,7 @@ export function useSourceReaderApp({
     settings,
   );
   const submittedComposerRef = useRef<typeof workspace.selection.composer>(null);
+  const submittedQuickHighlightRef = useRef<typeof workspace.selection.selectionAction>(null);
 
   function isCurrentArticle(articleId: string) {
     return session.isCurrentArticle(articleId);
@@ -228,6 +229,27 @@ export function useSourceReaderApp({
     }
     if (!isCurrentArticle(sessionInput.article.id)) return;
     workspace.selection.cancelComposer();
+    markAnnotationCreated(annotation.id);
+    openAnnotation(annotation.id);
+  }
+
+  async function quickHighlightSelection(
+    action: Parameters<NonNullable<ReaderSelectionActions['onHighlightSelection']>>[0],
+  ) {
+    if (submittedQuickHighlightRef.current === action) return;
+    submittedQuickHighlightRef.current = action;
+    const annotation = createUserAnnotation(action.anchor, sessionInput.userProfile, '');
+    try {
+      await session.saveAnnotation(annotation);
+    } catch (error) {
+      if (submittedQuickHighlightRef.current === action) {
+        submittedQuickHighlightRef.current = null;
+      }
+      throw error;
+    }
+    if (!isCurrentArticle(sessionInput.article.id)) return;
+    workspace.selection.clearSelection();
+    window.getSelection()?.removeAllRanges();
     markAnnotationCreated(annotation.id);
     openAnnotation(annotation.id);
   }
@@ -334,6 +356,13 @@ export function useSourceReaderApp({
         },
         onCloseHighlightChoice: () => workspace.selection.setHighlightChoice(null),
         onCopySelection: workspace.selection.copySelection,
+        onHighlightSelection: async (action) => {
+          await runReaderPersistenceAction('create-annotation', async () => {
+            adapter.lifecycle?.onBeforeCreateAnnotation?.('', action.anchor);
+            await quickHighlightSelection(action);
+            adapter.lifecycle?.onClearSelection?.();
+          });
+        },
         onMouseUp: adapter.selection?.onMouseUp ?? (() => undefined),
         onOpenComposer: (action) => {
           adapter.lifecycle?.onOpenComposer?.(action);
