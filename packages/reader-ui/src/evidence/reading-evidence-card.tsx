@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import './reading-evidence-card.css';
 
 type ReadingEvidenceCardProps = {
@@ -20,6 +21,7 @@ type ReadingEvidenceCardProps = {
   };
   onOpenSource: () => void;
   onOpenDiscussion?: () => void;
+  extraActions?: ReactNode;
   className?: string;
 };
 
@@ -28,6 +30,7 @@ export function ReadingEvidenceCard({
   labels,
   onOpenSource,
   onOpenDiscussion,
+  extraActions,
   className,
 }: ReadingEvidenceCardProps) {
   return (
@@ -71,6 +74,7 @@ export function ReadingEvidenceCard({
               {labels.openDiscussion}
             </button>
           ) : null}
+          {extraActions}
         </div>
       </footer>
     </article>

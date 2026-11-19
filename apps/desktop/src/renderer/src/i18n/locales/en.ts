@@ -21,6 +21,21 @@ export const enResources = {
       articleReadingStatsLine:
         '{{annotations}} highlights · {{comments}} thoughts · {{aiContributions}} assistant contributions',
     },
+    markdownExport: {
+      aiTag: 'AI',
+      author: 'Author',
+      copied: 'Markdown copied',
+      copyAction: 'Copy Markdown',
+      copyFailed: 'Failed to copy Markdown',
+      distillation: 'Distillation',
+      menuAria: 'Export or copy Markdown',
+      otherNotes: 'Other notes',
+      saveAction: 'Export Markdown (.md)',
+      saved: 'Markdown file saved',
+      saveFailed: 'Failed to export Markdown file',
+      shortAction: 'Export Markdown',
+      source: 'Source',
+    },
     storeLoadError: {
       databaseTooNewKicker: 'Database version is newer',
       keepDataKicker: 'Keep your data files',

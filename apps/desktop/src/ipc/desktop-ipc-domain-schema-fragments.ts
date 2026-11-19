@@ -503,6 +503,12 @@ export const appDomainIpcInvokeSchemas = {
       height: z.number().int().positive().max(16_384),
     }),
   ]),
+  'app:save-markdown-file': z.tuple([
+    z.object({
+      defaultFileName: z.string().trim().min(1).max(255),
+      content: z.string().max(10_000_000),
+    }),
+  ]),
   'performance:timing': z.tuple([
     z.object({
       event: z.string().min(1).max(256),

@@ -1,5 +1,8 @@
+import { writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { BrowserWindow } from 'electron';
+import { app, BrowserWindow, dialog, type SaveDialogOptions } from 'electron';
+import { sanitizeMarkdownFileName } from '@yomitomo/core';
 import type { DesktopMainIpcContext } from './ipc';
 import { handleDesktopIpc } from './ipc';
 import { onDesktopIpcMainEvent } from './ipc-events';
@@ -25,6 +28,21 @@ export function registerAppIpc(context: AppIpcContext) {
     };
   });
   handleDesktopIpc('app:pdfium-wasm-url', () => pathToFileURL(pdfiumWasmPath()).href);
+  handleDesktopIpc('app:save-markdown-file', async (event, input) => {
+    const parentWindow = BrowserWindow.fromWebContents(event.sender);
+    const fileName = sanitizeMarkdownFileName(input.defaultFileName);
+    const options: SaveDialogOptions = {
+      defaultPath: join(app.getPath('documents'), fileName),
+      filters: [{ name: 'Markdown', extensions: ['md'] }],
+    };
+    const result =
+      parentWindow && !parentWindow.isDestroyed()
+        ? await dialog.showSaveDialog(parentWindow, options)
+        : await dialog.showSaveDialog(options);
+    if (result.canceled || !result.filePath) return { canceled: true as const };
+    await writeFile(result.filePath, input.content, 'utf8');
+    return { canceled: false as const, filePath: result.filePath };
+  });
   onDesktopIpcMainEvent('app:renderer-ready', (event) => {
     const browserWindow = BrowserWindow.fromWebContents(event.sender);
     if (browserWindow && !browserWindow.isDestroyed()) {

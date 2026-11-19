@@ -27,6 +27,8 @@ export type AppInfo = {
   desktopVersion: string;
 };
 
+export type MarkdownExportResult = { canceled: true } | { canceled: false; filePath: string };
+
 /** Raw BGRA pixels at device scale. */
 export type CapturedRegion = {
   width: number;

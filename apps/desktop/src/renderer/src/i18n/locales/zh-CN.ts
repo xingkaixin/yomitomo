@@ -19,6 +19,21 @@ export const zhCNResources = {
       articleReadingStatsLine:
         '{{annotations}} 划线 · {{comments}} 想法 · {{aiContributions}} 助手参与',
     },
+    markdownExport: {
+      aiTag: 'AI',
+      author: '作者',
+      copied: '已复制 Markdown',
+      copyAction: '复制 Markdown',
+      copyFailed: '复制 Markdown 失败',
+      distillation: '沉淀',
+      menuAria: '导出或复制 Markdown',
+      otherNotes: '其他想法',
+      saveAction: '导出 Markdown (.md)',
+      saved: '已导出 Markdown 文件',
+      saveFailed: '导出 Markdown 文件失败',
+      shortAction: '导出 Markdown',
+      source: '来源',
+    },
     storeLoadError: {
       databaseTooNewKicker: '数据库版本较新',
       keepDataKicker: '请先保留数据文件',

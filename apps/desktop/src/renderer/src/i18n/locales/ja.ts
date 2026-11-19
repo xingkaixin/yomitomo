@@ -21,6 +21,21 @@ export const jaResources = {
       articleReadingStatsLine:
         '{{annotations}} 件のハイライト · {{comments}} 件の意見 · {{aiContributions}} 件のアシスタント投稿',
     },
+    markdownExport: {
+      aiTag: 'AI',
+      author: '著者',
+      copied: 'Markdownをコピーしました',
+      copyAction: 'Markdownをコピー',
+      copyFailed: 'Markdownのコピーに失敗しました',
+      distillation: '蒸留',
+      menuAria: 'Markdownのエクスポートまたはコピー',
+      otherNotes: 'その他のメモ',
+      saveAction: 'Markdown (.md) をエクスポート',
+      saved: 'Markdownファイルを保存しました',
+      saveFailed: 'Markdownファイルのエクスポートに失敗しました',
+      shortAction: 'Markdown出力',
+      source: '出典',
+    },
     storeLoadError: {
       databaseTooNewKicker: 'データベースのバージョンが新しいです',
       keepDataKicker: 'データ ファイルを保管してください',

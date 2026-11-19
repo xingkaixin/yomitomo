@@ -47,6 +47,7 @@ import type {
   TextImportPrepareResult,
   TextImportCommitResult,
   LibraryCatalogListResult,
+  MarkdownExportResult,
   ProviderTestResult,
   ProviderStorePatch,
   UserStorePatch,
@@ -180,6 +181,15 @@ export const appIpcInvokeDescriptors = {
     route: ['app', 'readPdfiumWasmUrl'],
     roles: mainOnly,
     validation: { exempt: 'no-args' },
+    databaseIndependent: true,
+  }),
+  'app:save-markdown-file': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'app:save-markdown-file'>,
+    MarkdownExportResult
+  >()({
+    route: ['app', 'saveMarkdownFile'],
+    roles: annotationAndMain,
+    validation: 'schema',
     databaseIndependent: true,
   }),
   'performance:timing': desktopIpcInvoke<DesktopIpcSchemaArgs<'performance:timing'>, void>()({
