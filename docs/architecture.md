@@ -5,14 +5,14 @@
 
 ## 运行单元
 
-| 单元 | 职责 |
-| --- | --- |
-| desktop main | SQLite、文件、系统 keyring、IPC handler、LLM 调用、导入、微信读书同步、阅读记忆后台任务、更新 |
-| desktop preload | 通过 `contextBridge` 暴露唯一的 `yomitomoDesktop` API，所有窗口共用 |
-| desktop renderer | 界面和临时状态，不直接访问 Node、文件或密钥 |
-| `apps/web` | Astro 官网、帮助文档、changelog 和更新说明 JSON |
-| `apps/download` | 代理 GitHub Release 安装包、更新 manifest 和 Sparkle feed |
-| `apps/telemetry` | 接收匿名 heartbeat 和阅读记忆计数，写入 Analytics Engine |
+| 单元             | 职责                                                                                          |
+| ---------------- | --------------------------------------------------------------------------------------------- |
+| desktop main     | SQLite、文件、系统 keyring、IPC handler、LLM 调用、导入、微信读书同步、阅读记忆后台任务、更新 |
+| desktop preload  | 通过 `contextBridge` 暴露唯一的 `yomitomoDesktop` API，所有窗口共用                           |
+| desktop renderer | 界面和临时状态，不直接访问 Node、文件或密钥                                                   |
+| `apps/web`       | Astro 官网、帮助文档、changelog 和更新说明 JSON                                               |
+| `apps/download`  | 代理 GitHub Release 安装包、更新 manifest 和 Sparkle feed                                     |
+| `apps/telemetry` | 接收匿名 heartbeat 和阅读记忆计数，写入 Analytics Engine                                      |
 
 ## 包依赖方向
 
@@ -48,7 +48,7 @@ telemetry → shared
   阅读库记住它属于哪本书和全屏或小窗形态，回到同一本书时原样恢复；用户关闭阅读器、主窗口重新加载或应用锁定时关闭。它使用持久 partition `persist:weread-reader` 保存网页登录态，不挂 preload，拒绝权限请求，
   只在全屏显示时放行网页版写阅读进度的 `POST /web/book/read`，小窗和隐藏时拦截，
   顶层导航只允许 `https://weread.qq.com`，其他链接交给系统浏览器。原生视图总在 renderer 内容之上，
-  与它重叠的 renderer 弹层会被盖住。
+  主窗口打开顶层模态弹窗（如用户资料、更新说明、模型设置）时通过 `weread:set-reader-bounds(null)` 临时隐藏视图而不关闭，弹窗关闭后自动恢复显示。
 - 每个 invoke channel 由一个 descriptor 声明路由、允许的窗口角色和参数校验方式，见
   `apps/desktop/src/ipc/desktop-ipc-descriptor.ts`。参数在 main 侧用 Zod 校验
   （`apps/desktop/src/ipc-schemas.ts`）；角色表按类型穷尽，新 channel 不声明角色无法编译
@@ -192,6 +192,7 @@ telemetry → shared
   ```bash
   pnpm --filter @yomitomo/desktop exec vitest run --config e2e/performance/vitest.config.ts
   ```
+
 - **批注卡片不做虚拟化。** EPUB 只挂载当前页有高亮的批注，PDF 只挂载已渲染页面上的批注，
   Web 全部挂载。单篇几百条批注很少见；上限测量（完全不渲染卡片）中，100 条批注的打开时间
   只从 338 ms 降到 214 ms。批注栏自上而下级联排布，未渲染的卡片只能用估算高度，首次渲染换成

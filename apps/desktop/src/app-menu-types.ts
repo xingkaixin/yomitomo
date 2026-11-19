@@ -5,6 +5,7 @@ export type AppMenuCommand =
   | 'import-pdf'
   | 'import-web'
   | 'open-about'
+  | 'open-model-settings'
   | 'open-release-notes'
   | 'open-settings'
   | 'open-help-docs'

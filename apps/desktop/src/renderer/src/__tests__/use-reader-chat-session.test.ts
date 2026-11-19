@@ -174,7 +174,9 @@ describe('useReaderChatSession', () => {
 
       expect(session().model.sending).toBe(false);
       expect(session().model.error).toBe(
-        failure === 'delivery' ? 'network failed' : '问答请求失败，请稍后重试',
+        failure === 'delivery'
+          ? '网络连接失败或请求超时，请检查网络后重试。'
+          : '问答请求失败，请稍后重试',
       );
       expect(session().model.state?.sessions[0].messages).toEqual([
         expect.objectContaining({ role: 'user', content: '会失败吗？' }),
@@ -225,6 +227,133 @@ describe('useReaderChatSession', () => {
     expect(session().model.error).toBe('');
     expect(session().model.sending).toBe(false);
   });
+
+  it('cancels an active chat run, preserves messages, and retries without duplicating the user message', async () => {
+    const desktop = mockDesktop();
+    const { session, updateArticle } = renderReaderChatSession();
+
+    let submit: Promise<void> | undefined;
+    act(() => {
+      submit = session().actions.onSubmit('第一轮问题');
+    });
+    await waitFor(() => expect(desktop.deliver).toHaveBeenCalledTimes(1));
+    const firstRequest = desktop.deliver.mock.calls[0][0];
+
+    act(() => desktop.emit(runEvent(firstRequest, { status: 'running', text: '正在输出' })));
+    expect(session().model.sending).toBe(true);
+
+    await act(async () => {
+      expect(session().actions.onStop).toBeDefined();
+      await session().actions.onStop?.();
+    });
+    expect(desktop.cancel).toHaveBeenCalledWith({
+      articleId: 'article_1',
+      channel: firstRequest.channel,
+      runKey: runKeyFor(firstRequest),
+    });
+
+    await act(async () => {
+      desktop.emit(runEvent(firstRequest, { status: 'failed', error: 'aborted' }));
+      await submit;
+    });
+
+    expect(session().model.sending).toBe(false);
+    expect(session().model.error).toBe('已停止生成。');
+    expect(session().model.errorCanRetry).toBe(true);
+    expect(session().model.state?.sessions[0].messages).toHaveLength(1);
+
+    let retryPromise: Promise<void> | undefined;
+    act(() => {
+      retryPromise = session().actions.onRetry();
+    });
+    await waitFor(() => expect(desktop.deliver).toHaveBeenCalledTimes(2));
+    const retryRequest = desktop.deliver.mock.calls[1][0];
+    expect(retryRequest.channel).toEqual(firstRequest.channel);
+    expect(retryRequest.triggerId).not.toBe(firstRequest.triggerId);
+    expect(session().model.state?.sessions[0].messages).toHaveLength(1);
+
+    const saved = session().model.state!;
+    const replyId = 'reader_chat_message_retried';
+    act(() => {
+      updateArticle((current) => ({
+        ...current,
+        readerChatState: {
+          ...saved,
+          sessions: [
+            {
+              ...saved.sessions[0],
+              messages: [
+                ...saved.sessions[0].messages,
+                {
+                  id: replyId,
+                  role: 'assistant',
+                  content: '重试后的回答',
+                  assistantId: 'agent_1',
+                  createdAt: now,
+                },
+              ],
+            },
+          ],
+        },
+      }));
+      desktop.emit(
+        runEvent(retryRequest, { status: 'done', text: '重试后的回答', commentId: replyId }),
+      );
+    });
+    await act(async () => {
+      await retryPromise;
+    });
+
+    expect(session().model.error).toBe('');
+    expect(session().model.state?.sessions[0].messages).toHaveLength(2);
+  });
+
+  it('creates, switches, and clears chat sessions while preserving other sessions', async () => {
+    const desktop = mockDesktop();
+    const { session } = renderReaderChatSession();
+
+    let submit: Promise<void> | undefined;
+    act(() => {
+      submit = session().actions.onSubmit('会话一的问题');
+    });
+    await waitFor(() => expect(desktop.deliver).toHaveBeenCalledOnce());
+    const request = desktop.deliver.mock.calls[0][0];
+    await act(async () => {
+      desktop.emit(
+        runEvent(request, {
+          status: 'failed',
+          error: 'model_error',
+          errorDetail: '429 rate_limit',
+        }),
+      );
+      await submit;
+    });
+    expect(session().model.error).toContain('429');
+
+    const firstSessionId = session().model.state!.activeSessionId;
+
+    await act(async () => {
+      await session().actions.onNewSession();
+    });
+    const secondSessionId = session().model.state!.activeSessionId;
+    expect(secondSessionId).not.toBe(firstSessionId);
+    expect(session().model.state?.sessions).toHaveLength(2);
+    expect(session().model.error).toBe('');
+
+    await act(async () => {
+      await session().actions.onSelectSession(firstSessionId);
+    });
+    expect(session().model.state?.activeSessionId).toBe(firstSessionId);
+    expect(session().model.state?.sessions[0].messages).toHaveLength(1);
+
+    await act(async () => {
+      await session().actions.onClearSession();
+    });
+    expect(session().model.state?.sessions.find((s) => s.id === firstSessionId)?.messages).toEqual(
+      [],
+    );
+    expect(session().model.state?.sessions).toHaveLength(2);
+  });
 });
 
 function deferred<T>() {
@@ -248,6 +377,7 @@ function mockDesktop(
       ...(await deliver(request)),
       deliveryId: request.triggerId,
     })),
+    cancel: vi.fn(async () => true),
     emit: (event: AssistantRunEvent) => {
       for (const listener of listeners) listener(event);
     },
@@ -256,6 +386,7 @@ function mockDesktop(
     configurable: true,
     value: {
       assistant: {
+        cancel: desktop.cancel,
         deliver: desktop.deliver,
         runs: async () => [],
         onRun: (listener: (event: AssistantRunEvent) => void) => {

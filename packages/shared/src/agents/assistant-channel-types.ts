@@ -15,6 +15,12 @@ export type AssistantDeliveryRequest = {
   allowDisabledAgentForRule?: boolean;
 };
 
+export type AssistantCancelRequest = {
+  articleId: string;
+  channel: AssistantChannel;
+  runKey?: string;
+};
+
 export type AssistantRunEvent = {
   runKey: string;
   articleId: string;
@@ -26,6 +32,7 @@ export type AssistantRunEvent = {
   steps?: AssistantRuntimeProgressStep[];
   commentId?: string;
   error?: string;
+  errorDetail?: string;
 };
 
 export type AssistantPassageRevealRequest = {

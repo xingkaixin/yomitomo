@@ -1,11 +1,18 @@
 import { HugeiconsIcon } from '@hugeicons/react';
-import { LockKeyIcon, Settings02Icon } from '@hugeicons/core-free-icons';
+import { Cancel01Icon, LockKeyIcon, Settings02Icon } from '@hugeicons/core-free-icons';
 import { lazy, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { AppSettingsPatch, DesktopStore } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
 import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 
+import {
+  Dialog,
+  DialogPortal,
+  DialogOverlay,
+  DialogContent,
+  DialogClose,
+} from './components/ui/dialog';
 import { AppLockGate } from './app-lock/app-lock-gate';
 import { AvatarImage } from './shell/app-ui';
 import { useAppAgentActions } from './shell/app-agent-actions';
@@ -274,6 +281,7 @@ function ReadyApp({
                   selectionActionShortcuts={store.settings.selectionActionShortcuts}
                   openArticleTarget={session.pendingOpenArticle}
                   userProfile={store.user}
+                  weReadObscured={session.topLevelModalOpen || lockOverlayVisible}
                   onAddCollectionMembers={addCollectionMembers}
                   onCreateCollection={createCollection}
                   onDeleteCollection={deleteCollection}
@@ -357,6 +365,37 @@ function ReadyApp({
           </section>
           {/* Stays after the masthead: a later drag region overrides an earlier no-drag one. */}
           <AppSidebarToggle collapsed={sidebar.collapsed} onToggle={sidebar.toggle} />
+          {session.modelSettingsDialogOpen ? (
+            <Dialog
+              open
+              onOpenChange={(open) => {
+                if (!open) session.actions.closeModelSettingsDialog();
+              }}
+            >
+              <DialogPortal>
+                <DialogOverlay className="provider-editor-dialog-overlay">
+                  <DialogContent
+                    aria-label={t('settings.sections.models')}
+                    className="provider-editor-dialog"
+                  >
+                    <DialogClose
+                      className="provider-editor-close"
+                      aria-label={t('discussion.close')}
+                    >
+                      <HugeiconsIcon icon={Cancel01Icon} size={16} />
+                    </DialogClose>
+                    <Suspense fallback={null}>
+                      <surfaces.ProviderSettings
+                        providerDraft={settingsDrafts.provider}
+                        routesDraft={settingsDrafts.routes}
+                        providers={store.providers}
+                      />
+                    </Suspense>
+                  </DialogContent>
+                </DialogOverlay>
+              </DialogPortal>
+            </Dialog>
+          ) : null}
           {session.profileDialogOpen ? (
             <Suspense fallback={null}>
               <surfaces.UserProfileSettingsDialog

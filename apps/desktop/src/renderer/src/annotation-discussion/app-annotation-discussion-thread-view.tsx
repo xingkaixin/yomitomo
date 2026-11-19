@@ -1,5 +1,11 @@
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowDown01Icon, BubbleChatIcon, SentIcon } from '@hugeicons/core-free-icons';
+import {
+  ArrowDown01Icon,
+  BubbleChatIcon,
+  Refresh01Icon,
+  SentIcon,
+  Settings02Icon,
+} from '@hugeicons/core-free-icons';
 import { useCallback, useMemo, useReducer, useRef, type RefObject } from 'react';
 import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { useTranslation } from 'react-i18next';
@@ -21,6 +27,7 @@ import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
 import { useCompositionSubmit } from '@yomitomo/reader-ui/use-composition-submit';
 import type { AnnotationMessageLayoutMode } from './app-annotation-layout-control';
 import { openAssistantReferenceFromClick } from '../shell/app-assistant-references';
+import type { AssistantFailureInfo } from '../shell/assistant-error-classification';
 import {
   discussionReplyPlaceholder,
   insertMentionAtSelection,
@@ -40,13 +47,14 @@ export function DiscussionThreadView({
   messageSendShortcut,
   onDelete,
   onEdit,
+  onOpenModelSettings,
   onReplyCaretChange,
   onReplyDraftChange,
   onSubmitReply,
   personaAgents,
   replyCaretIndex,
   replyDraft,
-  sendError,
+  sendFailures,
   sendingReply,
   thread,
   userProfile,
@@ -58,13 +66,14 @@ export function DiscussionThreadView({
   messageSendShortcut?: MessageSendShortcut;
   onDelete: (commentId: string) => void;
   onEdit: (commentId: string, content: string) => Promise<void>;
+  onOpenModelSettings?: () => void;
   onReplyCaretChange: (value: number) => void;
   onReplyDraftChange: (value: string) => void;
   onSubmitReply: () => void;
   personaAgents: PublicAgent[];
   replyCaretIndex: number;
   replyDraft: string;
-  sendError: string;
+  sendFailures: { agent?: PublicAgent; failure: AssistantFailureInfo; retry?: () => void }[];
   sendingReply: boolean;
   thread: DiscussionThread;
   userProfile: UserProfile;
@@ -99,7 +108,36 @@ export function DiscussionThreadView({
       : 0;
   const shortcutModifier = getShortcutModifier();
   const sendShortcut = normalizeMessageSendShortcut(messageSendShortcut);
-  const composerStatus = sendError || (sendingReply ? t('discussion.sending') : '');
+  const composerStatus = sendFailures.length
+    ? sendFailures.map(({ agent, failure: sendFailure, retry }) => (
+        <div
+          key={agent?.id ?? 'reply'}
+          className="annotation-discussion-composer-error"
+          role="alert"
+        >
+          <span>
+            {agent ? '@' + agent.username + ' ' : ''}
+            {sendFailure.message}
+          </span>
+          <div className="annotation-discussion-composer-error-actions">
+            {sendFailure.openSettings && onOpenModelSettings ? (
+              <button type="button" onClick={onOpenModelSettings}>
+                <HugeiconsIcon icon={Settings02Icon} size={12} />
+                <span>{t('assistantErrors.openModelSettings')}</span>
+              </button>
+            ) : null}
+            {sendFailure.canRetry && retry ? (
+              <button type="button" disabled={sendingReply} onClick={retry}>
+                <HugeiconsIcon icon={Refresh01Icon} size={12} />
+                <span>{t('discussion.retry')}</span>
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ))
+    : sendingReply
+      ? t('discussion.sending')
+      : undefined;
   const replyPlaceholder = discussionReplyPlaceholder(thread.root, annotationAgents);
   const className = [
     'annotation-discussion-bubbles',
@@ -333,7 +371,7 @@ export function DiscussionThreadView({
               ) : null
             }
             mentionAgents={annotationAgents}
-            status={composerStatus || undefined}
+            status={composerStatus}
             submitDisabled={
               !replyDraft.trim() || sendingReply || deletingCommentId === thread.root.id
             }

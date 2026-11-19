@@ -4,6 +4,7 @@ import type {
   ArticleRecord,
   PublicAgent,
   ReaderChatMessage,
+  ReaderChatSession,
   ReaderChatState,
   ReaderQuestionContext,
 } from '@yomitomo/shared';
@@ -11,13 +12,20 @@ import { makeId } from '@yomitomo/shared';
 import { createReaderChatState } from '../../../../reader-chat-state';
 import type { ArticleReaderChatStateSaveInput } from '../../../../ipc-contract';
 import i18next from 'i18next';
-import { assistantRuntimeErrorMessage } from '../../shell/app-assistant-runtime-progress';
+import { getOptionalDesktopApi } from '../../shell/app-desktop-api';
+import {
+  classifyAssistantError,
+  classifyAssistantRunFailure,
+  type AssistantFailureInfo,
+} from '../../shell/assistant-error-classification';
 import {
   type AssistantRunView,
   assistantRunScope,
   deliverAssistantMessage,
   useAssistantRuns,
 } from '../../shell/app-assistant-runs';
+
+const SESSION_TITLE_MAX_CHARS = 48;
 
 type UseReaderChatSessionInput = {
   agents: PublicAgent[];
@@ -35,13 +43,22 @@ type ArticleChatScope = {
   base: ReaderChatState | undefined;
 };
 
+type ChatRetryTarget = {
+  articleId: string;
+  assistantId: string;
+  sessionId: string;
+};
+
 type ReaderChatSessionState = {
   articleId: string;
   draftContext: ReaderQuestionContext | undefined;
   error: string;
+  errorCanRetry: boolean;
+  errorOpenSettings: boolean;
   open: boolean;
   // A local chat state stays visible until the article's saved chat state changes.
   override: (ArticleChatScope & { value: ReaderChatState | undefined }) | null;
+  retryTarget: ChatRetryTarget | null;
   submittingArticleId: string | undefined;
 };
 
@@ -50,9 +67,15 @@ type ReaderChatSessionEvent =
   | { type: 'closed' }
   | { type: 'draftContextCleared' }
   | { type: 'errorCleared' }
-  | { type: 'failed'; articleId: string; message: string }
+  | {
+      type: 'failed';
+      articleId: string;
+      failure: AssistantFailureInfo;
+      retryTarget: ChatRetryTarget | null;
+    }
   | { type: 'opened' }
   | { type: 'questionSubmitted'; articleId: string }
+  | { type: 'retryStarted'; articleId: string }
   | {
       type: 'saveFailed';
       attempted: ReaderChatState;
@@ -70,15 +93,37 @@ function readerChatSessionReducer(
 ): ReaderChatSessionState {
   switch (event.type) {
     case 'articleOpened':
-      return { ...state, articleId: event.articleId, draftContext: undefined, error: '' };
+      return {
+        ...state,
+        articleId: event.articleId,
+        draftContext: undefined,
+        error: '',
+        errorCanRetry: false,
+        errorOpenSettings: false,
+        retryTarget: null,
+      };
     case 'closed':
       return { ...state, open: false };
     case 'draftContextCleared':
       return { ...state, draftContext: undefined };
     case 'errorCleared':
-      return { ...state, error: '' };
+      return {
+        ...state,
+        error: '',
+        errorCanRetry: false,
+        errorOpenSettings: false,
+        retryTarget: null,
+      };
     case 'failed':
-      return event.articleId === state.articleId ? { ...state, error: event.message } : state;
+      return event.articleId === state.articleId
+        ? {
+            ...state,
+            error: event.failure.message,
+            errorCanRetry: event.failure.canRetry && event.retryTarget !== null,
+            errorOpenSettings: event.failure.openSettings,
+            retryTarget: event.retryTarget,
+          }
+        : state;
     case 'opened':
       return { ...state, open: true };
     case 'questionSubmitted':
@@ -86,6 +131,18 @@ function readerChatSessionReducer(
         ...state,
         draftContext: undefined,
         error: '',
+        errorCanRetry: false,
+        errorOpenSettings: false,
+        retryTarget: null,
+        submittingArticleId: event.articleId,
+      };
+    case 'retryStarted':
+      return {
+        ...state,
+        error: '',
+        errorCanRetry: false,
+        errorOpenSettings: false,
+        retryTarget: null,
         submittingArticleId: event.articleId,
       };
     case 'saveFailed':
@@ -93,6 +150,9 @@ function readerChatSessionReducer(
       return {
         ...state,
         error: event.message,
+        errorCanRetry: false,
+        errorOpenSettings: false,
+        retryTarget: null,
         // A later local change wins over the rollback of an earlier save.
         override:
           state.override?.value === event.attempted
@@ -106,7 +166,15 @@ function readerChatSessionReducer(
         override: { articleId: event.scope.articleId, base: event.scope.base, value: event.value },
       };
     case 'selectionAsked':
-      return { ...state, draftContext: event.context, error: '', open: true };
+      return {
+        ...state,
+        draftContext: event.context,
+        error: '',
+        errorCanRetry: false,
+        errorOpenSettings: false,
+        open: true,
+        retryTarget: null,
+      };
     case 'submissionSettled':
       return state.submittingArticleId === event.articleId
         ? { ...state, submittingArticleId: undefined }
@@ -116,18 +184,22 @@ function readerChatSessionReducer(
 
 function updateActiveSession(
   current: ReaderChatState,
-  update: (messages: ReaderChatMessage[]) => ReaderChatMessage[],
+  update: (session: ReaderChatSession, now: string) => ReaderChatSession,
 ) {
   const now = new Date().toISOString();
   return {
     ...current,
     updatedAt: now,
     sessions: current.sessions.map((session) =>
-      session.id === current.activeSessionId
-        ? { ...session, messages: update(session.messages), updatedAt: now }
-        : session,
+      session.id === current.activeSessionId ? update(session, now) : session,
     ),
   };
+}
+
+function deriveSessionTitle(question: string) {
+  const singleLine = question.replace(/\s+/g, ' ').trim();
+  if (singleLine.length <= SESSION_TITLE_MAX_CHARS) return singleLine;
+  return `${singleLine.slice(0, SESSION_TITLE_MAX_CHARS - 1)}…`;
 }
 
 export function useReaderChatSession({
@@ -139,13 +211,17 @@ export function useReaderChatSession({
     articleId: article.id,
     draftContext: undefined,
     error: '',
+    errorCanRetry: false,
+    errorOpenSettings: false,
     open: false,
     override: null,
+    retryTarget: null,
     submittingArticleId: undefined,
   });
   // Ebook and PDF readers stay mounted across articles, so the draft resets while rendering.
   if (session.articleId !== article.id) dispatch({ type: 'articleOpened', articleId: article.id });
-  const { draftContext, error, open, override } = session;
+  const { draftContext, error, errorCanRetry, errorOpenSettings, open, override, retryTarget } =
+    session;
   const state =
     override?.articleId === article.id && override.base === article.readerChatState
       ? override.value
@@ -207,12 +283,122 @@ export function useReaderChatSession({
   async function selectAssistant(assistantId: string) {
     const chat = readChat();
     const nextState = { ...ensureState(chat, assistantId), selectedAssistantId: assistantId };
-    dispatch({ type: 'errorCleared' });
     await persistState(chat, nextState, {
       articleId: chat.articleId,
       initialSessionId: nextState.activeSessionId,
       selectedAssistantId: assistantId,
     });
+  }
+
+  async function createSession() {
+    if (sending || submittingRef.current) return;
+    const chat = readChat();
+    const assistantId = selectedAssistantId || agents[0]?.id || '';
+    const current = ensureState(chat, assistantId);
+    const active = current.sessions.find((item) => item.id === current.activeSessionId);
+    if (!active || active.messages.length === 0) return;
+
+    const now = new Date().toISOString();
+    const nextSession: ReaderChatSession = {
+      id: makeId('reader_chat_session'),
+      articleId: chat.articleId,
+      createdAt: now,
+      updatedAt: now,
+      messages: [],
+    };
+    const nextState: ReaderChatState = {
+      ...current,
+      activeSessionId: nextSession.id,
+      updatedAt: now,
+      sessions: [...current.sessions, nextSession],
+    };
+    dispatch({ type: 'errorCleared' });
+    dispatch({ type: 'draftContextCleared' });
+    await persistState(chat, nextState, {
+      articleId: chat.articleId,
+      readerChatState: nextState,
+    });
+  }
+
+  async function selectSession(sessionId: string) {
+    if (sending || submittingRef.current) return;
+    const chat = readChat();
+    const current = chat.state;
+    if (!current || current.activeSessionId === sessionId) return;
+    if (!current.sessions.some((item) => item.id === sessionId)) return;
+
+    const nextState: ReaderChatState = {
+      ...current,
+      activeSessionId: sessionId,
+      updatedAt: new Date().toISOString(),
+    };
+    dispatch({ type: 'errorCleared' });
+    await persistState(chat, nextState, {
+      articleId: chat.articleId,
+      readerChatState: nextState,
+    });
+  }
+
+  async function clearSession() {
+    if (sending || submittingRef.current) return;
+    const chat = readChat();
+    const current = chat.state;
+    if (!current) return;
+    const active = current.sessions.find((item) => item.id === current.activeSessionId);
+    if (!active || active.messages.length === 0) return;
+
+    const nextState = updateActiveSession(current, (item, now) => ({
+      ...item,
+      messages: [],
+      title: undefined,
+      updatedAt: now,
+    }));
+    dispatch({ type: 'errorCleared' });
+    await persistState(chat, nextState, {
+      articleId: chat.articleId,
+      readerChatState: nextState,
+    });
+  }
+
+  async function stop() {
+    const chat = readChat();
+    const sessionId = chat.state?.activeSessionId;
+    if (!sessionId || !sending) return;
+    await getOptionalDesktopApi()
+      ?.assistant?.cancel?.({
+        articleId: chat.articleId,
+        channel: { kind: 'chat', sessionId },
+        runKey: pendingRuns[0]?.runKey,
+      })
+      .catch(() => false);
+  }
+
+  async function deliverChatQuestion(target: ChatRetryTarget, triggerId: string) {
+    const showFailure = (failure: AssistantFailureInfo) =>
+      dispatch({
+        type: 'failed',
+        articleId: target.articleId,
+        failure,
+        retryTarget: target,
+      });
+    try {
+      const delivery = await deliverAssistantMessage({
+        articleId: target.articleId,
+        channel: { kind: 'chat', sessionId: target.sessionId },
+        agentId: target.assistantId,
+        triggerId,
+      });
+      const settled = await delivery?.settled;
+      if (settled?.status !== 'done' || !settled.commentId) {
+        console.warn('[reader-chat] assistant run failed', settled?.error ?? 'not_started');
+        showFailure(classifyAssistantRunFailure(settled, 'source.readerChatFailed'));
+      }
+    } catch (requestError) {
+      showFailure(classifyAssistantError(requestError, 'source.readerChatFailed'));
+    } finally {
+      submittingRef.current = undefined;
+      dispatch({ type: 'submissionSettled', articleId: target.articleId });
+    }
   }
 
   async function submit(content: string) {
@@ -228,54 +414,67 @@ export function useReaderChatSession({
       context: draftContext,
       createdAt: new Date().toISOString(),
     };
-    const nextState = updateActiveSession(ensureState(chat, assistant.id), (messages) => [
-      ...messages,
-      userMessage,
-    ]);
+    const nextState = updateActiveSession(ensureState(chat, assistant.id), (item, now) => ({
+      ...item,
+      title: item.title || deriveSessionTitle(question),
+      messages: [...item.messages, userMessage],
+      updatedAt: now,
+    }));
 
     submittingRef.current = chat.articleId;
     dispatch({ type: 'questionSubmitted', articleId: chat.articleId });
-    const showError = (message: string) =>
-      dispatch({ type: 'failed', articleId: chat.articleId, message });
-    try {
-      if (
-        !(await persistState(chat, nextState, {
-          articleId: chat.articleId,
-          readerChatState: nextState,
-        }))
-      )
-        return;
-      const delivery = await deliverAssistantMessage({
+    if (
+      !(await persistState(chat, nextState, {
         articleId: chat.articleId,
-        channel: { kind: 'chat', sessionId: nextState.activeSessionId },
-        agentId: assistant.id,
-        triggerId: userMessage.id,
-      });
-      const settled = await delivery?.settled;
-      if (settled?.status !== 'done' || !settled.commentId) {
-        console.warn('[reader-chat] assistant run failed', settled?.error ?? 'not_started');
-        showError(i18next.t('source.readerChatFailed'));
-      }
-    } catch (requestError) {
-      showError(assistantRuntimeErrorMessage(requestError, 'source.readerChatFailed'));
-    } finally {
+        readerChatState: nextState,
+      }))
+    ) {
       submittingRef.current = undefined;
       dispatch({ type: 'submissionSettled', articleId: chat.articleId });
+      return;
     }
+    await deliverChatQuestion(
+      {
+        articleId: chat.articleId,
+        assistantId: assistant.id,
+        sessionId: nextState.activeSessionId,
+      },
+      userMessage.id,
+    );
+  }
+
+  async function retry() {
+    if (!retryTarget || sending || submittingRef.current) return;
+    if (retryTarget.articleId !== article.id) return;
+    const assistantId = selectedAssistantId || retryTarget.assistantId;
+    const target: ChatRetryTarget = {
+      ...retryTarget,
+      assistantId,
+    };
+    submittingRef.current = target.articleId;
+    dispatch({ type: 'retryStarted', articleId: target.articleId });
+    await deliverChatQuestion(target, makeId('retry'));
   }
 
   return {
     actions: {
       onClearDraftContext: () => dispatch({ type: 'draftContextCleared' }),
+      onClearSession: clearSession,
       onClose: () => dispatch({ type: 'closed' }),
+      onNewSession: createSession,
       onOpen: () => dispatch({ type: 'opened' }),
+      onRetry: retry,
       onSelectAssistant: selectAssistant,
+      onSelectSession: selectSession,
+      onStop: pendingRuns.some((run) => run.status === 'running') ? stop : undefined,
       onSubmit: submit,
     },
     askSelection,
     model: {
       draftContext,
       error,
+      errorCanRetry,
+      errorOpenSettings,
       open,
       selectedAssistantId,
       sending,

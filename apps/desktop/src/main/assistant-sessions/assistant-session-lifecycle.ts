@@ -1,5 +1,6 @@
 import { readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
+import type { AssistantCancelRequest } from '@yomitomo/shared';
 import { app } from 'electron';
 import { createArticleTextStore } from './assistant-article-text';
 import type { DistillationReviewRequest } from './assistant-distillation-review';
@@ -41,6 +42,11 @@ export async function resumePendingAssistantRuns() {
 export async function activeAssistantRuns(articleId: string) {
   if (!loaded) return [];
   return (await loaded).activeRunsIfLoaded(articleId);
+}
+
+export async function cancelAssistantRun(request: AssistantCancelRequest) {
+  if (!loaded) return false;
+  return (await loadAssistantSessions()).runtime.cancel(request);
 }
 
 export async function runDistillationReview(request: DistillationReviewRequest) {

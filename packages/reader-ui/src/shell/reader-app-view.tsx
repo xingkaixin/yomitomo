@@ -319,6 +319,8 @@ function ReaderAppViewComponent(
             agents={agents}
             draftContext={chat.draftContext}
             error={chat.error}
+            errorCanRetry={chat.errorCanRetry}
+            errorOpenSettings={chat.errorOpenSettings}
             labels={labels}
             messageSendShortcut={messageSendShortcut}
             open={chat.open}
@@ -327,11 +329,17 @@ function ReaderAppViewComponent(
             shortcutModifier={shortcutModifier}
             state={chat.state}
             onClearDraftContext={chatActions.onClearDraftContext}
+            onClearSession={chatActions.onClearSession}
             onClose={closeReaderChat}
+            onNewSession={chatActions.onNewSession}
             onOpen={openReaderChat}
             onOpenReference={chatActions.onOpenReference}
+            onOpenSettings={chatActions.onOpenSettings}
+            onRetry={chatActions.onRetry}
             onRevealContext={chatActions.onRevealContext}
             onSelectAssistant={chatActions.onSelectAssistant}
+            onSelectSession={chatActions.onSelectSession}
+            onStop={chatActions.onStop}
             onSubmit={chatActions.onSubmit}
           />
         ) : null}

@@ -301,3 +301,59 @@
   box-shadow: var(--app-well-shadow);
   color: hsl(var(--muted-foreground));
 }
+
+.annotation-discussion-composer-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-radius: 10px;
+  background: var(--app-danger-surface);
+  border: 1px solid var(--app-danger-line);
+  color: hsl(var(--destructive));
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 7px 10px;
+}
+
+.annotation-discussion-composer-error > span {
+  min-width: 0;
+  flex: 1 1 180px;
+}
+
+.annotation-discussion-composer-error-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.annotation-discussion-composer-error-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--app-danger-line);
+  border-radius: 999px;
+  background: var(--app-raised);
+  color: hsl(var(--foreground));
+  font: inherit;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1;
+  padding: 5px 9px;
+  transition:
+    background 0.14s ease,
+    border-color 0.14s ease;
+}
+
+.annotation-discussion-composer-error-actions button:hover:not(:disabled) {
+  border-color: var(--app-interactive-hover-border);
+  background: var(--app-interactive-hover-bg);
+}
+
+.annotation-discussion-composer-error-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

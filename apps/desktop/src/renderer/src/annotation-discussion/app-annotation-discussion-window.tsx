@@ -48,6 +48,11 @@ import {
   type AnnotationMessageLayoutMode,
 } from './app-annotation-layout-control';
 import { assistantRuntimeErrorMessage } from '../shell/app-assistant-runtime-progress';
+import {
+  classifyAssistantError,
+  classifyAssistantRunFailure,
+  type AssistantFailureInfo,
+} from '../shell/assistant-error-classification';
 import { deliverAssistantMessage } from '../shell/app-assistant-runs';
 import {
   elementWindowSourceRect,
@@ -208,6 +213,19 @@ function useDiscussionArticleProjection(annotationId: string, article: ArticleRe
   return { annotationRemoved, applyAnnotations, latestArticle, replaceArticle: articleChanged };
 }
 
+type FailedReplyDelivery = {
+  agent: PublicAgent;
+  channel: AssistantChannel;
+  sourceCommentId: string;
+  targetAgents: PublicAgent[];
+  allowDisabledAgentForRule?: boolean;
+};
+
+type DiscussionReplyError = {
+  failure: AssistantFailureInfo;
+  threadId: string | null;
+};
+
 type DiscussionShellState = {
   addThoughtAgentRuns: AddThoughtAgentRun[];
   addThoughtCelebrating: boolean;
@@ -224,8 +242,13 @@ type DiscussionShellState = {
   pinnedThoughtIds: Set<string>;
   replyCaretIndex: number;
   replyDraft: string;
+  replyError: DiscussionReplyError | null;
+  deliveryErrors: {
+    threadId: string;
+    delivery: FailedReplyDelivery;
+    failure: AssistantFailureInfo;
+  }[];
   selectedThoughtId: string | null;
-  sendError: string;
   sendingReply: boolean;
   submittingThought: boolean;
 };
@@ -239,7 +262,13 @@ type DiscussionShellEvent =
   | { type: 'commentDeleteFailed'; error: string }
   | { type: 'commentDeleteStarted'; commentId: string }
   | { type: 'commentDeleted'; commentId: string; selectedThoughtId: string | null }
-  | { type: 'errorShown'; error: string }
+  | {
+      type: 'replyDeliveryFailed';
+      delivery: FailedReplyDelivery;
+      failure: AssistantFailureInfo;
+      threadId: string;
+    }
+  | { type: 'replyRetryStarted' | 'replyDeliverySucceeded'; threadId: string; agentId: string }
   | { type: 'ideasSidebarToggled' }
   | { type: 'ideasSlideEnded' }
   | { type: 'layoutModeChanged'; layoutMode: DiscussionLayoutMode }
@@ -251,7 +280,12 @@ type DiscussionShellEvent =
   | { type: 'newThoughtOpened' }
   | { type: 'replyCaretMoved'; caretIndex: number }
   | { type: 'replyDraftChanged'; draft: string }
-  | { type: 'replyFailed'; error: string; restoredDraft: string | null }
+  | {
+      type: 'replyFailed';
+      failure: AssistantFailureInfo;
+      restoredDraft: string | null;
+      threadId: string | null;
+    }
   | { type: 'replySettled' }
   | { type: 'replySubmitted' }
   | { type: 'selfThoughtSaved'; commentId: string }
@@ -278,8 +312,9 @@ function initialDiscussionShellState(annotation: Annotation): DiscussionShellSta
     pinnedThoughtIds: new Set(),
     replyCaretIndex: 0,
     replyDraft: '',
+    replyError: null,
+    deliveryErrors: [],
     selectedThoughtId: discussionThreads(annotation, new Set())[0]?.root.id ?? null,
-    sendError: '',
     sendingReply: false,
     submittingThought: false,
   };
@@ -331,9 +366,16 @@ function discussionShellReducer(
     case 'assistantThoughtsCelebrated':
       return { ...state, addThoughtCelebrating: true };
     case 'commentDeleteFailed':
-      return { ...state, deletingCommentId: null, sendError: event.error };
+      return {
+        ...state,
+        deletingCommentId: null,
+        replyError: {
+          failure: { kind: 'unknown', message: event.error, canRetry: false, openSettings: false },
+          threadId: null,
+        },
+      };
     case 'commentDeleteStarted':
-      return { ...state, deletingCommentId: event.commentId, sendError: '' };
+      return { ...state, deletingCommentId: event.commentId, replyError: null };
     case 'commentDeleted': {
       const pinnedThoughtIds = new Set(state.pinnedThoughtIds);
       pinnedThoughtIds.delete(event.commentId);
@@ -346,8 +388,27 @@ function discussionShellReducer(
         selectedThoughtId: event.selectedThoughtId,
       };
     }
-    case 'errorShown':
-      return { ...state, sendError: event.error };
+    case 'replyDeliveryFailed':
+      return {
+        ...state,
+        deliveryErrors: [
+          ...state.deliveryErrors.filter(
+            (item) =>
+              item.threadId !== event.threadId ||
+              item.delivery.agent.id !== event.delivery.agent.id,
+          ),
+          { threadId: event.threadId, delivery: event.delivery, failure: event.failure },
+        ],
+      };
+    case 'replyDeliverySucceeded':
+    case 'replyRetryStarted':
+      return {
+        ...state,
+        deliveryErrors: state.deliveryErrors.filter(
+          (item) => item.threadId !== event.threadId || item.delivery.agent.id !== event.agentId,
+        ),
+        sendingReply: event.type === 'replyRetryStarted' || state.sendingReply,
+      };
     case 'ideasSidebarToggled':
       return state.ideasAutoCollapsed
         ? { ...state, ideasOverlayOpen: !state.ideasOverlayOpen }
@@ -397,19 +458,30 @@ function discussionShellReducer(
       return { ...state, replyCaretIndex: event.caretIndex };
     case 'replyDraftChanged':
       return { ...state, replyDraft: event.draft };
-    case 'replyFailed':
+    case 'replyFailed': {
+      const nextError: DiscussionReplyError = {
+        failure: event.failure,
+        threadId: event.threadId,
+      };
       return event.restoredDraft === null
-        ? { ...state, sendError: event.error }
+        ? { ...state, replyError: nextError }
         : {
             ...state,
             replyCaretIndex: event.restoredDraft.length,
             replyDraft: event.restoredDraft,
-            sendError: event.error,
+            replyError: nextError,
           };
+    }
     case 'replySettled':
       return { ...state, sendingReply: false };
     case 'replySubmitted':
-      return { ...state, replyCaretIndex: 0, replyDraft: '', sendError: '', sendingReply: true };
+      return {
+        ...state,
+        replyCaretIndex: 0,
+        replyDraft: '',
+        replyError: null,
+        sendingReply: true,
+      };
     case 'selfThoughtSaved':
       return { ...state, selectedThoughtId: event.commentId };
     case 'thoughtDraftReceived':
@@ -478,8 +550,8 @@ function AnnotationDiscussionShell({
     pinnedThoughtIds,
     replyCaretIndex,
     replyDraft,
+    replyError,
     selectedThoughtId,
-    sendError,
     sendingReply,
     submittingThought,
   } = state;
@@ -702,20 +774,19 @@ function AnnotationDiscussionShell({
         mentionedAgents.length > 0
           ? mentionedAgents
           : replyTargetAgents(trimmed, selectedRoot, replyRuleAgents);
-      const instruction = agentInstructionFromNote(trimmed, targetAgents) || undefined;
       const channel: AssistantChannel = {
         kind: 'thread',
         annotationId: annotation.id,
         threadId: selectedRoot.id,
       };
-      await Promise.all(
-        targetAgents.map((agent) =>
-          requestAgentReply(agent, channel, userComment.id, {
-            instruction,
-            allowDisabledAgentForRule: mentionedAgents.length === 0,
-          }),
-        ),
-      );
+      const pendingDeliveries = targetAgents.map((agent) => ({
+        agent,
+        channel,
+        sourceCommentId: userComment.id,
+        targetAgents,
+        allowDisabledAgentForRule: mentionedAgents.length === 0,
+      }));
+      await deliverReplyTargets(pendingDeliveries, userComment.id, selectedRoot.id);
     } catch (error) {
       console.warn('[annotation-discussion] reply submission failed', {
         articleId: article.id,
@@ -724,12 +795,54 @@ function AnnotationDiscussionShell({
       });
       dispatch({
         type: 'replyFailed',
-        error: assistantRuntimeErrorMessage(error, 'discussion.replyFailed'),
+        failure: classifyAssistantError(error, 'discussion.replyFailed'),
         restoredDraft: userCommentSaved ? null : draft,
+        threadId: selectedRoot.id,
       });
     } finally {
       dispatch({ type: 'replySettled' });
     }
+  }
+
+  async function retryFailedReply(item: DiscussionShellState['deliveryErrors'][number]) {
+    if (sendingReply || !item.failure.canRetry) return;
+    dispatch({
+      type: 'replyRetryStarted',
+      threadId: item.threadId,
+      agentId: item.delivery.agent.id,
+    });
+    try {
+      await deliverReplyTargets([item.delivery], makeId('retry'), item.threadId);
+    } finally {
+      dispatch({ type: 'replySettled' });
+    }
+  }
+
+  async function deliverReplyTargets(
+    deliveries: FailedReplyDelivery[],
+    triggerId: string,
+    threadId: string,
+  ) {
+    await Promise.all(
+      deliveries.map(async (target) => {
+        try {
+          await requestAgentReply(target, triggerId, threadId);
+        } catch (error) {
+          console.warn('[annotation-discussion] assistant reply delivery failed', {
+            articleId: article.id,
+            annotationId: annotation.id,
+            agentId: target.agent.id,
+            error,
+          });
+          dispatch({
+            type: 'replyDeliveryFailed',
+            delivery: target,
+            failure: classifyAssistantError(error, 'discussion.replyFailed'),
+            threadId,
+          });
+        }
+      }),
+    );
   }
 
   async function submitNewThought() {
@@ -744,17 +857,20 @@ function AnnotationDiscussionShell({
         await saveComment(annotation.id, userComment, userComment.createdAt);
         dispatch({ type: 'selfThoughtSaved', commentId: userComment.id });
 
-        const mentionedAgents = findMentionedAgents(trimmed, annotationAgents);
-        const instruction = agentInstructionFromNote(trimmed, mentionedAgents) || undefined;
         const channel: AssistantChannel = {
           kind: 'thread',
           annotationId: annotation.id,
           threadId: userComment.id,
         };
-        await Promise.all(
-          mentionedAgents.map((agent) =>
-            requestAgentReply(agent, channel, userComment.id, { instruction }),
-          ),
+        await deliverReplyTargets(
+          mentionedThoughtAgents.map((agent) => ({
+            agent,
+            channel,
+            sourceCommentId: userComment.id,
+            targetAgents: mentionedThoughtAgents,
+          })),
+          userComment.id,
+          userComment.id,
         );
       } else {
         const instruction = agentInstructionFromNote(trimmed, mentionedThoughtAgents) || trimmed;
@@ -851,18 +967,32 @@ function AnnotationDiscussionShell({
   }
 
   async function requestAgentReply(
-    agent: PublicAgent,
-    channel: AssistantChannel,
+    target: FailedReplyDelivery,
     triggerId: string,
-    options: Pick<AssistantDeliveryRequest, 'allowDisabledAgentForRule' | 'instruction'> = {},
+    threadId: string,
   ) {
+    const { agent, channel, sourceCommentId, allowDisabledAgentForRule } = target;
+    const comment = latestArticle()
+      .annotations.find((item) => item.id === annotation.id)
+      ?.comments.find((item) => item.id === sourceCommentId);
+    if (!comment) return;
+    const instruction = agentInstructionFromNote(comment.content, target.targetAgents) || undefined;
     const delivery = await deliverAssistantMessage(
-      assistantRequest(agent, channel, triggerId, options),
+      assistantRequest(agent, channel, triggerId, { instruction, allowDisabledAgentForRule }),
     );
     void delivery?.settled.then((event) => {
+      if (event.status === 'done') {
+        dispatch({ type: 'replyDeliverySucceeded', threadId, agentId: agent.id });
+        return;
+      }
       if (event.status !== 'failed') return;
       console.warn('[annotation-discussion] assistant reply failed', event);
-      dispatch({ type: 'errorShown', error: t('discussion.replyFailed') });
+      dispatch({
+        type: 'replyDeliveryFailed',
+        delivery: target,
+        failure: classifyAssistantRunFailure(event, 'discussion.replyFailed'),
+        threadId,
+      });
     });
   }
 
@@ -875,7 +1005,9 @@ function AnnotationDiscussionShell({
     const event = await delivery?.settled;
     if (event?.status === 'done') return event;
     console.warn('[annotation-discussion] assistant thought failed', event);
-    throw new Error(t('discussion.addThought.assistantFailed'));
+    throw new Error(
+      classifyAssistantRunFailure(event, 'discussion.addThought.assistantFailed').message,
+    );
   }
 
   function openNewThoughtDialog() {
@@ -1040,6 +1172,7 @@ function AnnotationDiscussionShell({
               userProfile={userProfile}
               onDelete={(commentId) => void deleteComment(commentId)}
               onEdit={editComment}
+              onOpenModelSettings={() => void getDesktopApi().assistant.openModelSettings()}
               onReplyCaretChange={(caretIndex) => dispatch({ type: 'replyCaretMoved', caretIndex })}
               onReplyDraftChange={(draft) => dispatch({ type: 'replyDraftChanged', draft })}
               onSubmitReply={() => void submitReply()}
@@ -1048,7 +1181,19 @@ function AnnotationDiscussionShell({
               annotationAgents={annotationAgents}
               personaAgents={personaAgents}
               sendingReply={sendingReply}
-              sendError={sendError}
+              sendFailures={[
+                ...(replyError &&
+                (!replyError.threadId || replyError.threadId === selectedThread.root.id)
+                  ? [{ failure: replyError.failure }]
+                  : []),
+                ...state.deliveryErrors
+                  .filter((item) => item.threadId === selectedThread.root.id)
+                  .map((item) => ({
+                    agent: item.delivery.agent,
+                    failure: item.failure,
+                    retry: () => void retryFailedReply(item),
+                  })),
+              ]}
             />
           ) : replyDraft ? (
             <label className="annotation-discussion-thread-placeholder px-4">

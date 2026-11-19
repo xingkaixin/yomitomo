@@ -479,6 +479,12 @@ export const assistantIpcInvokeDescriptors = {
     roles: annotationAndMain,
     validation: 'schema',
   }),
+  'assistant:cancel': desktopIpcInvoke<DesktopIpcSchemaArgs<'assistant:cancel'>, boolean>()({
+    route: ['assistant', 'cancel'],
+    roles: annotationAndMain,
+    validation: 'schema',
+    databaseIndependent: true,
+  }),
   'assistant:runs': desktopIpcInvoke<DesktopIpcSchemaArgs<'assistant:runs'>, AssistantRunEvent[]>()(
     {
       route: ['assistant', 'runs'],
@@ -494,6 +500,12 @@ export const assistantIpcInvokeDescriptors = {
     route: ['assistant', 'revealPassage'],
     roles: annotationAndMain,
     validation: 'schema',
+    databaseIndependent: true,
+  }),
+  'assistant:open-model-settings': desktopIpcInvoke<[], void>()({
+    route: ['assistant', 'openModelSettings'],
+    roles: annotationAndMain,
+    validation: { exempt: 'no-args' },
     databaseIndependent: true,
   }),
 } as const;

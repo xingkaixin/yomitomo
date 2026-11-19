@@ -141,6 +141,8 @@ export type ReaderSelectionModel = {
 export type ReaderChatModel = {
   draftContext?: ReaderQuestionContext;
   error?: string;
+  errorCanRetry?: boolean;
+  errorOpenSettings?: boolean;
   open: boolean;
   selectedAssistantId?: string;
   sending?: boolean;
@@ -237,12 +239,23 @@ export type ReaderUiLabels = {
   readerChat: string;
   readerChatAria: string;
   readerChatAssistantPicker: string;
+  readerChatClearConfirmAction: string;
+  readerChatClearConfirmDescription: string;
+  readerChatClearConfirmTitle: string;
   readerChatClearQuote: string;
+  readerChatClearSession: string;
   readerChatContent: string;
   readerChatContextSelection: string;
+  readerChatCopyAnswer: string;
   readerChatEmpty: string;
+  readerChatNewSession: string;
+  readerChatOpenSettings: string;
   readerChatPlaceholder: string;
+  readerChatRetry: string;
   readerChatSelectionPlaceholder: string;
+  readerChatStop: string;
+  readerChatSwitchSession: string;
+  readerChatUntitledSession: string;
   readerControls: string;
   readingProgress: string;
   relativeTimeLabel?: (parts: RelativeTimeParts) => string;
@@ -327,12 +340,23 @@ export const defaultReaderUiLabels: ReaderUiLabels = {
   readerChat: '阅读问答',
   readerChatAria: '阅读问答',
   readerChatAssistantPicker: '选择回答助手',
+  readerChatClearConfirmAction: '清空会话',
+  readerChatClearConfirmDescription: '会清空当前会话中的全部问答记录，无法恢复。',
+  readerChatClearConfirmTitle: '清空当前会话？',
   readerChatClearQuote: '清除引用',
+  readerChatClearSession: '清空当前会话',
   readerChatContent: '阅读问答内容',
   readerChatContextSelection: '当前选区',
+  readerChatCopyAnswer: '复制回答',
   readerChatEmpty: '问一个和当前文章有关的问题',
+  readerChatNewSession: '新建会话',
+  readerChatOpenSettings: '前往模型设置',
   readerChatPlaceholder: '输入你的问题',
+  readerChatRetry: '重试',
   readerChatSelectionPlaceholder: '围绕这段文字提问',
+  readerChatStop: '停止生成',
+  readerChatSwitchSession: '切换会话',
+  readerChatUntitledSession: '新会话',
   readerControls: '阅读控制',
   readingProgress: '阅读进度',
   readerLibrary: '阅读库',
@@ -400,11 +424,17 @@ export type ReaderSelectionActions = {
 
 export type ReaderChatActions = {
   onClearDraftContext?: () => void;
+  onClearSession?: () => void | Promise<void>;
   onClose: () => void;
+  onNewSession?: () => void | Promise<void>;
   onOpen: () => void;
   onOpenReference?: (href: string) => boolean;
+  onOpenSettings?: () => void;
+  onRetry?: () => void | Promise<void>;
   onRevealContext?: (context: ReaderQuestionContext) => void | Promise<void>;
   onSelectAssistant?: (assistantId: string) => void;
+  onSelectSession?: (sessionId: string) => void | Promise<void>;
+  onStop?: () => void | Promise<void>;
   onSubmit: (content: string) => void | Promise<void>;
 };
 

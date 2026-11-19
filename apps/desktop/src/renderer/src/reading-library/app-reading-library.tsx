@@ -73,6 +73,7 @@ export function ReadingLibrary({
   selectionActionShortcuts,
   openArticleTarget,
   userProfile,
+  weReadObscured = false,
   onArticleOpened,
   onAddCollectionMembers,
   onCreateCollection,
@@ -96,6 +97,7 @@ export function ReadingLibrary({
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
   openArticleTarget?: ReadingEvidenceSourceTarget | null;
   userProfile: UserProfile;
+  weReadObscured?: boolean;
   onArticleOpened?: (articleId: string) => void;
   onAddCollectionMembers: (collectionId: string, members: ContentRef[]) => Promise<void>;
   onCreateCollection: (name: string) => Promise<Collection>;
@@ -470,6 +472,7 @@ export function ReadingLibrary({
                 readerMode={
                   weReadReader?.bookId === selectedWeReadBook.book.bookId ? weReadReader.mode : null
                 }
+                readerObscured={weReadObscured}
                 readerShown={
                   weReadReader?.bookId === selectedWeReadBook.book.bookId && weReadReader.shown
                 }

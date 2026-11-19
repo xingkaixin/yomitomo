@@ -22,6 +22,7 @@ import type {
   Agent,
   ArticleReadingProgress,
   ArticleTextSnapshot,
+  AssistantCancelRequest,
   AssistantChannel,
   AssistantDeliveryRequest,
   AssistantRunEvent,
@@ -320,34 +321,37 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
               );
             }
           } else {
+            const detail = await readRunFailureDetail(harness, run.forkId, settled.detail);
             await serialize(channelLockKey(articleId, run.agentId, run.channel), () =>
-              dropRun(harness, articleId, requestId, run, settled.reason ?? 'unanswered'),
+              dropRun(harness, articleId, requestId, run, settled.reason ?? 'unanswered', detail),
             );
           }
         } catch (error) {
           ports.logError('assistant_channel.run_failed', error, { articleId, requestId });
+          const detail = error instanceof Error ? error.message : String(error);
           // Clean up stuck ChannelRunsDoc/.pending when the harness is still live; when closing
           // (quit, delete, or DB restore), dropRun rejects or is skipped so restart state stays intact.
           if (tracking && !closed) {
             const run = tracking;
             const dropped = await serialize(
               channelLockKey(articleId, run.agentId, run.channel),
-              () => dropRun(harness, articleId, requestId, run, 'run_failed'),
+              () => dropRun(harness, articleId, requestId, run, 'run_failed', detail),
             ).then(
               () => true,
               () => false,
             );
-            if (!dropped) publishFailed(articleId, requestId, run, 'run_failed');
+            if (!dropped) publishFailed(articleId, requestId, run, 'run_failed', false, detail);
           } else if (tracking) {
-            publishFailed(articleId, requestId, tracking, 'run_failed');
+            publishFailed(articleId, requestId, tracking, 'run_failed', false, detail);
           }
         }
       });
     } catch (error) {
       ports.logError('assistant_channel.run_failed', error, { articleId, requestId });
+      const detail = error instanceof Error ? error.message : String(error);
       // Windows keep a run's placeholder and block chat until a final event, including when
       // removing the session closes the harness under the run.
-      if (tracking) publishFailed(articleId, requestId, tracking, 'run_failed');
+      if (tracking) publishFailed(articleId, requestId, tracking, 'run_failed', false, detail);
     } finally {
       tracked.delete(trackKey);
     }
@@ -485,6 +489,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     requestId: string,
     run: AssistantRunRecord,
     reason: string,
+    detail?: string,
   ) {
     const { remainingOnFork } = await harness.commit(async (tx) => {
       const cursors = await tx.doc(ChannelCursorsDoc);
@@ -499,7 +504,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
       };
     }, context);
     await syncSettledMarker(harness, articleId);
-    publishFailed(articleId, requestId, run, reason, remainingOnFork > 0);
+    publishFailed(articleId, requestId, run, reason, remainingOnFork > 0, detail);
   }
 
   function publishFailed(
@@ -508,6 +513,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     run: AssistantRunRecord,
     reason: string,
     remainingOnFork = false,
+    detail?: string,
   ) {
     const runKey = runKeyFor(articleId, run.forkId);
     if (!remainingOnFork) stopProgress(runKey);
@@ -521,8 +527,18 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
       text: active.get(runKey)?.text ?? '',
       steps: active.get(runKey)?.steps ?? [],
       error: reason,
+      ...(detail ? { errorDetail: detail } : {}),
     });
     if (remainingOnFork) watchers.get(runKey)?.emit();
+  }
+
+  async function readRunFailureDetail(harness: Harness, forkId: number, detail: unknown) {
+    if (typeof detail === 'string' && detail.trim()) return detail.trim();
+    const live = await harness
+      .snapshot(LiveDoc, forkId as ConversationId, context)
+      .catch(() => null);
+    const runDetail = live?.runFailure?.detail;
+    return typeof runDetail === 'string' && runDetail.trim() ? runDetail.trim() : undefined;
   }
 
   async function watchProgress(harness: Harness, articleId: string, run: AssistantRunRecord) {
@@ -668,7 +684,27 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     await main.compact(undefined, context);
   }
 
+  async function cancel(request: AssistantCancelRequest) {
+    const targetChannel = channelKey(request.channel);
+    return ports.store.use(request.articleId, async (harness) => {
+      const runs = (await harness.snapshot(ChannelRunsDoc, context))?.runs ?? {};
+      const forkIds = new Set<number>();
+      for (const run of Object.values(runs)) {
+        if (channelKey(run.channel) !== targetChannel) continue;
+        if (request.runKey && runKeyFor(request.articleId, run.forkId) !== request.runKey) continue;
+        forkIds.add(run.forkId);
+      }
+      if (forkIds.size === 0) return false;
+      for (const forkId of forkIds) {
+        const fork = await harness.conversation(forkId as ConversationId, context);
+        if (fork) await fork.abort(context);
+      }
+      return true;
+    });
+  }
+
   return {
+    cancel,
     deliver,
     resume,
     registerProvider,

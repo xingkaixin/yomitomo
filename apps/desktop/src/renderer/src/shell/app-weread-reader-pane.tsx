@@ -52,21 +52,23 @@ export function closeWeReadReader() {
   void getDesktopApi().weRead.closeReader();
 }
 
-export function WeReadReaderFull() {
-  const trackBounds = useReaderBounds(false);
+export function WeReadReaderFull({ obscured = false }: { obscured?: boolean }) {
+  const trackBounds = useReaderBounds(false, obscured);
   return <div className="weread-reader-full" ref={trackBounds} />;
 }
 
 export function WeReadReaderCompact({
+  obscured = false,
   onClose,
   onExpand,
 }: {
+  obscured?: boolean;
   onClose: () => void;
   onExpand: () => void;
 }) {
   const { t } = useTranslation();
-  const trackBounds = useReaderBounds(true);
-  useEventListener(window, 'keydown', turnReaderPageFromKey);
+  const trackBounds = useReaderBounds(true, obscured);
+  useEventListener(obscured ? null : window, 'keydown', turnReaderPageFromKey);
   return (
     <div
       className="weread-reader-compact"
@@ -172,16 +174,21 @@ function sendReaderBounds(element: HTMLElement, compact: boolean) {
 }
 
 // 微信读书页面是主进程挂在窗口上的原生视图，不在 DOM 里；这里把占位区域的位置同步给它。
-function useReaderBounds(compact: boolean) {
+// 顶层模态弹窗打开时（obscured=true）临时上报 null 隐藏原生视图但不关闭，关闭弹窗后恢复。
+function useReaderBounds(compact: boolean, obscured: boolean) {
   return useMemo(
     () => (element: HTMLElement | null) => {
-      if (!element) return;
+      if (!element || obscured) {
+        void getDesktopApi().weRead.setReaderBounds(null);
+        return;
+      }
       const send = () => sendReaderBounds(element, compact);
       const observer = new ResizeObserver(send);
       let detached = false;
       // 原生视图盖在打开书页的过渡层之上，过渡结束前不上报位置，视图保持隐藏。
       void readerTransitionIdle().then(() => {
         if (detached) return;
+        send();
         observer.observe(element);
         window.addEventListener('resize', send);
         // 进入书页时外层有滑入动画；位置变了但尺寸不变，ResizeObserver 不会触发，动画结束后要再同步一次。
@@ -197,6 +204,6 @@ function useReaderBounds(compact: boolean) {
         void getDesktopApi().weRead.setReaderBounds(null);
       };
     },
-    [compact],
+    [compact, obscured],
   );
 }

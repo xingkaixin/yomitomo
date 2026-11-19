@@ -1,10 +1,18 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
+  Add01Icon,
+  Alert01Icon,
+  ArrowDown01Icon,
   Cancel01Icon,
+  Copy01Icon,
+  Delete02Icon,
   Loading03Icon,
   MessageQuestionIcon,
   MinusSignIcon,
+  Refresh01Icon,
   SentIcon,
+  Settings02Icon,
+  StopIcon,
   Tick01Icon,
 } from '@hugeicons/core-free-icons';
 import React, { useCallback, useMemo, useReducer, useRef, useSyncExternalStore } from 'react';
@@ -13,9 +21,24 @@ import type {
   MessageSendShortcut,
   PublicAgent,
   ReaderChatMessage,
+  ReaderChatSession,
   ReaderChatState,
   ReaderQuestionContext,
 } from '@yomitomo/shared';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogOverlay,
+  DialogPortal,
+  DialogTitle,
+} from '../components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
 import {
   AgentAvatarStack,
   AvatarBadge,
@@ -36,6 +59,7 @@ const CHAT_DEFAULT_SIZE = { width: 410, height: 640 };
 const CHAT_MIN_SIZE = { width: 320, height: 360 };
 const CHAT_PANEL_EXIT_MS = 150;
 const CHAT_VIEWPORT_GUTTER = { width: 32, height: 112 };
+const COPY_FEEDBACK_MS = 1600;
 
 type ReaderChatPanelMode = 'default' | 'custom';
 type ReaderChatPanelSize = {
@@ -68,6 +92,7 @@ type ReaderChatViewport = {
 
 type ReaderChatPanelState = {
   activationSource: ReaderChatActivationSource;
+  clearConfirmOpen: boolean;
   draft: string;
   layout: ReaderChatPanelLayout;
   open: boolean;
@@ -79,6 +104,8 @@ type ReaderChatPanelState = {
 
 type ReaderChatPanelEvent =
   | { type: 'chatToggled'; open: boolean; source: ReaderChatActivationSource }
+  | { type: 'clearDismissed' }
+  | { type: 'clearRequested' }
   | { type: 'closeFinished' }
   | { type: 'draftChanged'; draft: string }
   | { type: 'draftSubmitted' }
@@ -95,13 +122,22 @@ function readerChatPanelReducer(
 ): ReaderChatPanelState {
   switch (event.type) {
     case 'chatToggled': {
-      const next = { ...state, activationSource: event.source, open: event.open };
+      const next = {
+        ...state,
+        activationSource: event.source,
+        clearConfirmOpen: event.open ? state.clearConfirmOpen : false,
+        open: event.open,
+      };
       if (event.source === 'keyboard') {
         return { ...next, panelPhase: event.open ? 'open' : 'closing', panelVisible: event.open };
       }
       if (event.open) return { ...next, panelPhase: 'opening', panelVisible: true };
       return state.panelVisible ? { ...next, panelPhase: 'closing' } : next;
     }
+    case 'clearDismissed':
+      return state.clearConfirmOpen ? { ...state, clearConfirmOpen: false } : state;
+    case 'clearRequested':
+      return { ...state, clearConfirmOpen: true };
     case 'closeFinished':
       return state.panelPhase === 'closing' ? { ...state, panelVisible: false } : state;
     case 'draftChanged':
@@ -133,6 +169,7 @@ function initialReaderChatPanelState({
   return readerChatPanelReducer(
     {
       activationSource,
+      clearConfirmOpen: false,
       draft: '',
       layout: { mode: 'default' },
       open,
@@ -150,25 +187,38 @@ type ReaderChatMessageLabels = Pick<
   | 'assistant'
   | 'assistantAnswering'
   | 'assistantToolStep'
+  | 'copiedSelection'
   | 'dateLocale'
   | 'me'
+  | 'readerChatCopyAnswer'
   | 'relativeTimeLabel'
 >;
 
 type ReaderChatPanelLabels = ReaderChatMessageLabels &
   Pick<
     ReaderUiLabels,
+    | 'cancel'
     | 'collapseReaderChat'
     | 'currentSelection'
     | 'openReaderChat'
     | 'readerChat'
     | 'readerChatAria'
     | 'readerChatAssistantPicker'
+    | 'readerChatClearConfirmAction'
+    | 'readerChatClearConfirmDescription'
+    | 'readerChatClearConfirmTitle'
     | 'readerChatClearQuote'
+    | 'readerChatClearSession'
     | 'readerChatContent'
     | 'readerChatEmpty'
+    | 'readerChatNewSession'
+    | 'readerChatOpenSettings'
     | 'readerChatPlaceholder'
+    | 'readerChatRetry'
     | 'readerChatSelectionPlaceholder'
+    | 'readerChatStop'
+    | 'readerChatSwitchSession'
+    | 'readerChatUntitledSession'
     | 'send'
     | 'sending'
   >;
@@ -178,6 +228,8 @@ export type ReaderChatPanelProps = {
   agents: PublicAgent[];
   draftContext?: ReaderQuestionContext;
   error?: string;
+  errorCanRetry?: boolean;
+  errorOpenSettings?: boolean;
   labels?: ReaderChatPanelLabels;
   messageSendShortcut: MessageSendShortcut;
   open: boolean;
@@ -186,11 +238,17 @@ export type ReaderChatPanelProps = {
   shortcutModifier: string;
   state?: ReaderChatState;
   onClearDraftContext?: () => void;
+  onClearSession?: () => void | Promise<void>;
   onClose: (source: ReaderChatActivationSource) => void;
+  onNewSession?: () => void | Promise<void>;
   onOpen: (source: ReaderChatActivationSource) => void;
   onOpenReference?: (href: string) => boolean;
+  onOpenSettings?: () => void;
+  onRetry?: () => void | Promise<void>;
   onRevealContext?: (context: ReaderQuestionContext) => void | Promise<void>;
   onSelectAssistant?: (assistantId: string) => void;
+  onSelectSession?: (sessionId: string) => void | Promise<void>;
+  onStop?: () => void | Promise<void>;
   onSubmit: (content: string) => void | Promise<void>;
 };
 
@@ -199,6 +257,8 @@ export function ReaderChatPanel({
   agents,
   draftContext,
   error,
+  errorCanRetry = false,
+  errorOpenSettings = false,
   labels = defaultReaderUiLabels,
   messageSendShortcut,
   open,
@@ -207,11 +267,17 @@ export function ReaderChatPanel({
   shortcutModifier,
   state,
   onClearDraftContext,
+  onClearSession,
   onClose,
+  onNewSession,
   onOpen,
   onOpenReference,
+  onOpenSettings,
+  onRetry,
   onRevealContext,
   onSelectAssistant,
+  onSelectSession,
+  onStop,
   onSubmit,
 }: ReaderChatPanelProps) {
   const [chatState, dispatch] = useReducer(
@@ -222,15 +288,20 @@ export function ReaderChatPanel({
   if (chatState.open !== open || chatState.activationSource !== activationSource) {
     dispatch({ type: 'chatToggled', open, source: activationSource });
   }
-  const { draft, layout, panelPhase, panelVisible, resizeFeedback, resizing } = chatState;
+  const { clearConfirmOpen, draft, layout, panelPhase, panelVisible, resizeFeedback, resizing } =
+    chatState;
   const renderPanel = open || (activationSource === 'pointer' && panelVisible);
   const viewport = useReaderChatViewport(renderPanel);
   const resizeCleanupRef = useRef<(() => void) | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const sessions = state?.sessions ?? [];
   const activeSession = useMemo(
-    () => state?.sessions.find((session) => session.id === state.activeSessionId),
-    [state],
+    () => sessions.find((session) => session.id === state?.activeSessionId),
+    [sessions, state?.activeSessionId],
   );
+  const orderedSessions = useMemo(() => sessions.toReversed(), [sessions]);
+  const hasMessages = Boolean(activeSession?.messages.length);
+  const showSessionSwitcher = sessions.length > 1 && Boolean(onSelectSession);
   const selectedAssistant =
     agents.find((agent) => agent.id === selectedAssistantId) || agents[0] || null;
   const panelSize = readerChatPanelSize(layout, viewport);
@@ -400,6 +471,10 @@ export function ReaderChatPanel({
   ]
     .filter(Boolean)
     .join(' ');
+  const activeSessionTitle = activeSession
+    ? sessionDisplayTitle(activeSession, labels.readerChatUntitledSession)
+    : labels.readerChat;
+  const canStop = sending && Boolean(onStop);
 
   return (
     <>
@@ -429,10 +504,65 @@ export function ReaderChatPanel({
           onPointerDown={(event) => startResize(event, { left: true })}
         />
         <header className="reader-chat-header">
-          <div>
-            <strong>{labels.readerChat}</strong>
+          <div className="reader-chat-header-title">
+            {showSessionSwitcher ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="reader-chat-session-trigger"
+                    type="button"
+                    disabled={sending}
+                    aria-label={labels.readerChatSwitchSession}
+                  >
+                    <span>{activeSessionTitle}</span>
+                    <HugeiconsIcon icon={ArrowDown01Icon} size={14} />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="reader-chat-session-menu">
+                  {orderedSessions.map((item) => {
+                    const isActive = item.id === activeSession?.id;
+                    return (
+                      <DropdownMenuItem
+                        key={item.id}
+                        className={`reader-chat-session-option${isActive ? ' is-active' : ''}`}
+                        onClick={() => void onSelectSession?.(item.id)}
+                      >
+                        <span>{sessionDisplayTitle(item, labels.readerChatUntitledSession)}</span>
+                        {isActive ? <HugeiconsIcon icon={Tick01Icon} size={13} /> : null}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <strong>{labels.readerChat}</strong>
+            )}
           </div>
           <div className="reader-chat-header-actions">
+            {onNewSession ? (
+              <ReaderTooltip content={labels.readerChatNewSession} side="bottom">
+                <button
+                  type="button"
+                  disabled={sending || !hasMessages}
+                  aria-label={labels.readerChatNewSession}
+                  onClick={() => void onNewSession()}
+                >
+                  <HugeiconsIcon icon={Add01Icon} size={15} />
+                </button>
+              </ReaderTooltip>
+            ) : null}
+            {onClearSession && hasMessages ? (
+              <ReaderTooltip content={labels.readerChatClearSession} side="bottom">
+                <button
+                  type="button"
+                  disabled={sending}
+                  aria-label={labels.readerChatClearSession}
+                  onClick={() => dispatch({ type: 'clearRequested' })}
+                >
+                  <HugeiconsIcon icon={Delete02Icon} size={15} />
+                </button>
+              </ReaderTooltip>
+            ) : null}
             <ReaderTooltip
               content={<ShortcutTooltipContent keys={['Q']} label={labels.collapseReaderChat} />}
               side="left"
@@ -464,12 +594,32 @@ export function ReaderChatPanel({
           ) : (
             <div className="reader-chat-empty">{labels.readerChatEmpty}</div>
           )}
-          {error ? <div className="reader-chat-error">{error}</div> : null}
+          {error ? (
+            <div className="reader-chat-error" role="alert">
+              <span>{error}</span>
+              {(errorOpenSettings && onOpenSettings) || (errorCanRetry && onRetry) ? (
+                <div className="reader-chat-error-actions">
+                  {errorOpenSettings && onOpenSettings ? (
+                    <button type="button" onClick={onOpenSettings}>
+                      <HugeiconsIcon icon={Settings02Icon} size={12} />
+                      <span>{labels.readerChatOpenSettings}</span>
+                    </button>
+                  ) : null}
+                  {errorCanRetry && onRetry ? (
+                    <button type="button" disabled={sending} onClick={() => void onRetry()}>
+                      <HugeiconsIcon icon={Refresh01Icon} size={12} />
+                      <span>{labels.readerChatRetry}</span>
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         <FloatingComposer
           ref={attachTextarea}
-          className="reader-chat-composer"
+          className={`reader-chat-composer${canStop ? ' is-stopping-available' : ''}`}
           accessory={
             agents.length > 0 ? (
               <div className="reader-chat-agent-tray" aria-label={labels.readerChatAssistantPicker}>
@@ -503,15 +653,25 @@ export function ReaderChatPanel({
               </div>
             ) : null
           }
-          submitDisabled={!draft.trim() || sending || !selectedAssistant}
-          submitIcon={<HugeiconsIcon icon={SentIcon} size={15} />}
-          submitLabel={sending ? labels.sending : labels.send}
+          submitDisabled={canStop ? false : !draft.trim() || sending || !selectedAssistant}
+          submitIcon={
+            canStop ? (
+              <HugeiconsIcon icon={StopIcon} size={14} />
+            ) : (
+              <HugeiconsIcon icon={SentIcon} size={15} />
+            )
+          }
+          submitLabel={canStop ? labels.readerChatStop : sending ? labels.sending : labels.send}
           submitTooltip={
-            <SubmitShortcutTooltipContent
-              label={labels.send}
-              shortcut={messageSendShortcut}
-              shortcutModifier={shortcutModifier}
-            />
+            canStop ? (
+              labels.readerChatStop
+            ) : (
+              <SubmitShortcutTooltipContent
+                label={labels.send}
+                shortcut={messageSendShortcut}
+                shortcutModifier={shortcutModifier}
+              />
+            )
           }
           textarea={{
             'aria-label': labels.readerChatContent,
@@ -523,11 +683,60 @@ export function ReaderChatPanel({
             onChange: handleDraftChange,
             onKeyDown: handleKeyDown,
           }}
-          onSubmit={submit}
+          onSubmit={canStop ? () => void onStop?.() : submit}
         />
+
+        {clearConfirmOpen ? (
+          <Dialog
+            open={clearConfirmOpen}
+            onOpenChange={(nextOpen) => !nextOpen && dispatch({ type: 'clearDismissed' })}
+          >
+            <DialogPortal>
+              <DialogOverlay className="reader-confirm-overlay" />
+              <DialogContent className="reader-confirm-dialog">
+                <header>
+                  <span className="reader-confirm-icon" aria-hidden="true">
+                    <HugeiconsIcon icon={Alert01Icon} size={20} />
+                  </span>
+                  <div>
+                    <DialogTitle>{labels.readerChatClearConfirmTitle}</DialogTitle>
+                    <DialogDescription>
+                      {labels.readerChatClearConfirmDescription}
+                    </DialogDescription>
+                  </div>
+                </header>
+                <footer>
+                  <button
+                    className="reader-confirm-cancel"
+                    type="button"
+                    onClick={() => dispatch({ type: 'clearDismissed' })}
+                  >
+                    {labels.cancel}
+                  </button>
+                  <button
+                    className="reader-confirm-delete"
+                    type="button"
+                    onClick={() => {
+                      dispatch({ type: 'clearDismissed' });
+                      void onClearSession?.();
+                    }}
+                  >
+                    {labels.readerChatClearConfirmAction}
+                  </button>
+                </footer>
+              </DialogContent>
+            </DialogPortal>
+          </Dialog>
+        ) : null}
       </section>
     </>
   );
+}
+
+type CopyStateEvent = { type: 'copied' } | { type: 'reset' };
+
+function copyStateReducer(_state: boolean, event: CopyStateEvent) {
+  return event.type === 'copied';
 }
 
 function ReaderChatMessageView({
@@ -545,6 +754,9 @@ function ReaderChatMessageView({
   onOpenReference?: (href: string) => boolean;
   onRevealContext?: (context: ReaderQuestionContext) => void | Promise<void>;
 }) {
+  const [copied, dispatchCopy] = useReducer(copyStateReducer, false);
+  useInterval(() => dispatchCopy({ type: 'reset' }), copied ? COPY_FEEDBACK_MS : null);
+
   const isAssistant = message.role === 'assistant';
   const assistant = isAssistant
     ? agents.find((agent) => agent.id === message.assistantId) || null
@@ -552,10 +764,19 @@ function ReaderChatMessageView({
   const nickname = isAssistant ? assistant?.nickname || labels.assistant : labels.me;
   const avatar = isAssistant ? assistant?.avatar : undefined;
   const fallback = nickname.slice(0, 1) || (isAssistant ? labels.assistant.slice(0, 1) : labels.me);
+  const canCopy = isAssistant && !streaming && Boolean(message.content.trim());
   const html = useMemo(
     () => (isAssistant ? renderSafeMarkdown(message.content || labels.assistantAnswering) : ''),
     [isAssistant, labels.assistantAnswering, message.content],
   );
+
+  function copyAnswer() {
+    if (!canCopy) return;
+    void navigator.clipboard
+      ?.writeText(message.content)
+      .then(() => dispatchCopy({ type: 'copied' }))
+      .catch(() => undefined);
+  }
 
   return (
     <article className={`reader-chat-message is-${message.role}`}>
@@ -563,11 +784,27 @@ function ReaderChatMessageView({
       <div className="reader-chat-message-bubble">
         <header>
           {isAssistant ? <strong>{nickname}</strong> : <span aria-hidden="true" />}
-          <ReaderTooltip content={formatTime(message.createdAt, labels)}>
-            <time dateTime={message.createdAt} tabIndex={0}>
-              {formatRelativeTime(message.createdAt, labels)}
-            </time>
-          </ReaderTooltip>
+          <div className="reader-chat-message-meta">
+            <ReaderTooltip content={formatTime(message.createdAt, labels)}>
+              <time dateTime={message.createdAt} tabIndex={0}>
+                {formatRelativeTime(message.createdAt, labels)}
+              </time>
+            </ReaderTooltip>
+            {canCopy ? (
+              <ReaderTooltip
+                content={copied ? labels.copiedSelection : labels.readerChatCopyAnswer}
+              >
+                <button
+                  className={`reader-chat-message-copy${copied ? ' is-copied' : ''}`}
+                  type="button"
+                  aria-label={copied ? labels.copiedSelection : labels.readerChatCopyAnswer}
+                  onClick={copyAnswer}
+                >
+                  <HugeiconsIcon icon={copied ? Tick01Icon : Copy01Icon} size={12} />
+                </button>
+              </ReaderTooltip>
+            ) : null}
+          </div>
         </header>
         {!isAssistant && message.context ? (
           <button
@@ -617,6 +854,16 @@ function ReaderChatMessageView({
       </div>
     </article>
   );
+}
+
+function sessionDisplayTitle(session: ReaderChatSession, fallback: string) {
+  const raw =
+    session.title?.trim() ||
+    session.messages
+      .find((item) => item.role === 'user')
+      ?.content.replace(/\s+/g, ' ')
+      .trim();
+  return raw || fallback;
 }
 
 function resizeTextarea(textarea: HTMLTextAreaElement | null) {
