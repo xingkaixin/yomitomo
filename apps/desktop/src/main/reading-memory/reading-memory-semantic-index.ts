@@ -74,10 +74,7 @@ export function createReadingMemorySemanticIndex(
   options: SemanticIndexOptions,
 ): ReadingMemorySemanticIndex {
   const createEmbedding = options.createEmbedding ?? createReadingMemoryEmbeddingService;
-  const slots: Record<ReadingMemoryEmbeddingPurpose, EmbeddingSlot | null> = {
-    query: null,
-    document: null,
-  };
+  const embeddingServices = new Map<string, EmbeddingSlot>();
   const queries = new Set<AbortController>();
   const fiberScope = Scope.makeUnsafe();
   let mode: 'running' | 'suspended' | 'disposed' = 'running';
@@ -144,17 +141,28 @@ export function createReadingMemorySemanticIndex(
     signal: AbortSignal,
   ) => {
     signal.throwIfAborted();
-    const current = slots[purpose];
-    if (
-      current &&
-      (current.installation.internalId !== installation.internalId ||
-        current.installation.directory !== installation.directory)
-    ) {
-      await current.service.dispose();
-      if (slots[purpose] === current) slots[purpose] = null;
+    const key = embeddingSlotKey(installation);
+    const activeKeys = new Set<string>([key]);
+    const target = installedModel(options.modelLifecycle);
+    const previous = installedModel(options.previousModelLifecycle);
+    if (target) activeKeys.add(embeddingSlotKey(target));
+    if (previous) activeKeys.add(embeddingSlotKey(previous));
+    const stale: EmbeddingSlot[] = [];
+    for (const [slotKey, slot] of embeddingServices) {
+      if (!activeKeys.has(slotKey)) {
+        embeddingServices.delete(slotKey);
+        stale.push(slot);
+      }
+    }
+    if (stale.length > 0) {
+      await Promise.all(stale.map((slot) => slot.service.dispose()));
     }
     signal.throwIfAborted();
-    const slot = (slots[purpose] ??= { installation, service: createEmbedding(installation) });
+    let slot = embeddingServices.get(key);
+    if (!slot) {
+      slot = { installation, service: createEmbedding(installation) };
+      embeddingServices.set(key, slot);
+    }
     return slot.service.embed({ purpose, texts: texts.map(embeddingText) }, { signal });
   };
 
@@ -162,10 +170,15 @@ export function createReadingMemorySemanticIndex(
     const target = installedModel(options.modelLifecycle);
     const previous = installedModel(options.previousModelLifecycle);
     if (!target || !previous || target.internalId === previous.internalId) return;
-    const oldQuery = slots.query;
-    if (oldQuery?.installation.internalId === previous.internalId) {
-      slots.query = null;
-      await oldQuery.service.dispose();
+    const retired: EmbeddingSlot[] = [];
+    for (const [slotKey, slot] of embeddingServices) {
+      if (slot.installation.internalId === previous.internalId) {
+        embeddingServices.delete(slotKey);
+        retired.push(slot);
+      }
+    }
+    if (retired.length > 0) {
+      await Promise.all(retired.map((slot) => slot.service.dispose()));
     }
     signal.throwIfAborted();
     const deleted = await options.withDatabase((executor, currentGeneration) => {
@@ -306,12 +319,9 @@ export function createReadingMemorySemanticIndex(
   };
 
   const releaseInference = async () => {
-    const services = [slots.query, slots.document];
-    slots.query = null;
-    slots.document = null;
-    await Promise.all(
-      services.filter((slot) => slot !== null).map((slot) => slot.service.dispose()),
-    );
+    const services = [...embeddingServices.values()];
+    embeddingServices.clear();
+    await Promise.all(services.map((slot) => slot.service.dispose()));
   };
 
   const maintain = (operation: () => Promise<void>): Promise<void> => {
@@ -428,6 +438,10 @@ export function createReadingMemorySemanticIndex(
       return disposePromise;
     },
   };
+}
+
+function embeddingSlotKey(installation: ReadingMemoryModelInstallation) {
+  return `${installation.internalId}\0${installation.directory}`;
 }
 
 function installedModel(
