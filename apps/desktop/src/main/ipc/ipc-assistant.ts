@@ -1,6 +1,7 @@
 import {
   activeAssistantRuns,
   assistantArticleTexts,
+  cancelAssistantRun,
   loadAssistantSessions,
 } from '../assistant-sessions/assistant-session-lifecycle';
 import { handleDesktopIpc, type DesktopMainIpcContext } from './ipc';
@@ -18,14 +19,26 @@ export function registerAssistantIpc(context: Pick<DesktopMainIpcContext, 'getMa
     const { runKey, deliveryId } = await runtime.deliver(request);
     return { runKey: runKey ?? null, deliveryId };
   });
+  handleDesktopIpc('assistant:cancel', (_event, request) => cancelAssistantRun(request));
   handleDesktopIpc('assistant:runs', (_event, articleId) => activeAssistantRuns(articleId));
   // Discussion windows have no reader, so passage links jump in the main window's reader.
   handleDesktopIpc('assistant:reveal-passage', (_event, request) => {
-    const mainWindow = context.getMainWindow();
-    if (!mainWindow || mainWindow.isDestroyed()) return;
-    if (mainWindow.isMinimized()) mainWindow.restore();
-    if (!mainWindow.isVisible()) mainWindow.show();
-    mainWindow.focus();
+    const mainWindow = focusMainWindow(context);
+    if (!mainWindow) return;
     sendDesktopIpcRendererEvent(mainWindow.webContents, 'assistant:reveal-passage', request);
   });
+  handleDesktopIpc('assistant:open-model-settings', () => {
+    const mainWindow = focusMainWindow(context);
+    if (!mainWindow) return;
+    sendDesktopIpcRendererEvent(mainWindow.webContents, 'app-menu:command', 'open-model-settings');
+  });
+}
+
+function focusMainWindow(context: Pick<DesktopMainIpcContext, 'getMainWindow'>) {
+  const mainWindow = context.getMainWindow();
+  if (!mainWindow || mainWindow.isDestroyed()) return null;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  if (!mainWindow.isVisible()) mainWindow.show();
+  mainWindow.focus();
+  return mainWindow;
 }

@@ -20,6 +20,7 @@ import type { ReaderArticleActions } from '../../shell/app-article-store-actions
 import type { ReadingEvidenceSourceTarget } from '../../shell/app-reading-types';
 import { ReadingRelationsPanel } from '../../reading-memory/reading-relations-panel';
 import { useReadingRelations } from '../../reading-memory/use-reading-relations';
+import { useOptionalAppSessionStoreApi } from '../../shell/app-session';
 import { appToast } from '../../shell/app-toast';
 import { MarkdownExportMenu, markdownExportLabels } from '../../shell/app-markdown-export';
 import {
@@ -172,6 +173,7 @@ export function useSourceReaderApp({
   session: sessionInput,
 }: UseSourceReaderAppInput) {
   const surface = useSourceReaderSurface();
+  const appSessionStore = useOptionalAppSessionStoreApi();
   const relations = useReadingRelations(sessionInput.article.id);
   const [panels, dispatchPanels] = useReducer(
     sourceReaderPanelsReducer,
@@ -351,6 +353,12 @@ export function useSourceReaderApp({
       chat: {
         ...workspace.readerChat.actions,
         onOpenReference: (href) => openAssistantReference(sessionInput.article.id, href),
+        ...(appSessionStore
+          ? {
+              onOpenSettings: () =>
+                appSessionStore.getState().actions.runMenuCommand('open-model-settings'),
+            }
+          : {}),
         ...(adapter.onRevealReaderChatContext
           ? { onRevealContext: adapter.onRevealReaderChatContext }
           : {}),

@@ -59,7 +59,7 @@ export async function openWeReadReader(
   const request = ++locateRequest;
   const contents = (reader?.window === window ? reader : createReader(window, openExternalUrl)).view
     .webContents;
-  contents.focus();
+  if (readerBounds) contents.focus();
   const loaded = await loadReaderUrl(contents, url);
   if (!loaded) return;
   const labels = readerLabels();
@@ -147,7 +147,7 @@ function createReader(window: BrowserWindow, openExternalUrl: OpenExternalUrl): 
 
 function applyReaderBounds(view: WebContentsView) {
   const bounds = readerBounds;
-  if (!bounds) {
+  if (!bounds || bounds.width <= 0 || bounds.height <= 0) {
     view.setVisible(false);
     return;
   }

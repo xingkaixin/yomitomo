@@ -8,6 +8,7 @@ import {
   type Agent,
   type Annotation,
   type AppSettingsPatch,
+  type AssistantCancelRequest,
   type AssistantDeliveryRequest,
   type Comment,
   type LlmProvider,
@@ -421,6 +422,15 @@ export const assistantDomainIpcInvokeSchemas = {
         instruction: z.string().max(8_192).optional(),
         reviewTargetCommentId: idSchema.optional(),
         allowDisabledAgentForRule: z.boolean().optional(),
+      }),
+    ),
+  ]),
+  'assistant:cancel': z.tuple([
+    checkedSchema<AssistantCancelRequest>(
+      z.object({
+        articleId: idSchema,
+        channel: assistantChannelSchema,
+        runKey: idSchema.optional(),
       }),
     ),
   ]),

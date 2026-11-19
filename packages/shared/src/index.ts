@@ -31,6 +31,7 @@ export type {
   AgentPersonalityPresentation,
   AgentReadingIntent,
   ArticleTextSection,
+  AssistantCancelRequest,
   AssistantChannel,
   AssistantDeliveryRequest,
   AssistantPassageRevealRequest,

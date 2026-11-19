@@ -158,6 +158,73 @@ export const chatAgentStyles = `.reader-chat-fab {
   font-weight:930;
   line-height:1.15
 }
+.reader-chat-header .reader-chat-session-trigger {
+  display:inline-flex;
+  width:auto;
+  max-width:100%;
+  height:30px;
+  align-items:center;
+  gap:5px;
+  justify-self:start;
+  border-radius:9px;
+  color:hsl(var(--foreground));
+  font:inherit;
+  font-size:13px;
+  font-weight:820;
+  padding:0 8px
+}
+.reader-chat-header .reader-chat-session-trigger span {
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+.reader-chat-header .reader-chat-session-trigger svg {
+  flex:0 0 auto;
+  color:hsl(var(--muted-foreground))
+}
+.reader-chat-session-menu {
+  display:grid;
+  gap:2px;
+  min-width:200px;
+  max-width:280px;
+  max-height:260px;
+  overflow:auto;
+  padding:5px
+}
+.reader-chat-session-option {
+  display:flex;
+  min-width:0;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  border:0;
+  border-radius:8px;
+  background:transparent;
+  color:hsl(var(--foreground));
+  cursor:pointer;
+  font:inherit;
+  font-size:12px;
+  font-weight:600;
+  padding:7px 9px;
+  text-align:left
+}
+.reader-chat-session-option span {
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+.reader-chat-session-option svg {
+  flex:0 0 auto;
+  color:hsl(var(--foreground))
+}
+.reader-chat-session-option:hover,.reader-chat-session-option[data-highlighted] {
+  background:var(--app-interactive-hover-bg)
+}
+.reader-chat-session-option.is-active {
+  font-weight:760
+}
 .reader-chat-header-actions {
   display:inline-flex;
   align-items:center;
@@ -175,11 +242,15 @@ export const chatAgentStyles = `.reader-chat-fab {
   padding:0;
   transition:background .14s ease,color .14s ease,transform .14s ease
 }
-.reader-chat-header button:hover {
+.reader-chat-header button:hover:not(:disabled) {
   background:var(--app-interactive-hover-bg);
   color:hsl(var(--foreground))
 }
-.reader-chat-header button:active {
+.reader-chat-header button:disabled {
+  opacity:.4;
+  cursor:not-allowed
+}
+.reader-chat-header button:active:not(:disabled) {
   transform:scale(.96)
 }
 .reader-chat-context {
@@ -326,6 +397,12 @@ export const chatAgentStyles = `.reader-chat-fab {
   text-overflow:ellipsis;
   white-space:nowrap
 }
+.reader-chat-message-meta {
+  display:inline-flex;
+  flex:0 0 auto;
+  align-items:center;
+  gap:4px
+}
 .reader-chat-message-bubble time {
   flex:0 0 auto;
   color:inherit;
@@ -333,6 +410,23 @@ export const chatAgentStyles = `.reader-chat-fab {
   font-weight:760;
   font-variant-numeric:tabular-nums;
   opacity:.58
+}
+.reader-chat-message-copy {
+  display:grid;
+  width:22px;
+  height:22px;
+  place-items:center;
+  border:0;
+  border-radius:6px;
+  background:transparent;
+  color:inherit;
+  opacity:.55;
+  padding:0;
+  transition:opacity .14s ease,background .14s ease
+}
+.reader-chat-message-copy:hover,.reader-chat-message-copy:focus-visible,.reader-chat-message-copy.is-copied {
+  background:var(--app-interactive-hover-bg);
+  opacity:1
 }
 .reader-chat-message-context {
   display:block;
@@ -438,6 +532,11 @@ export const chatAgentStyles = `.reader-chat-fab {
   font-size:13px
 }
 .reader-chat-error {
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
   border-radius:12px;
   background:var(--app-reader-danger-a12);
   color:var(--reader-red);
@@ -445,6 +544,39 @@ export const chatAgentStyles = `.reader-chat-fab {
   font-weight:760;
   line-height:1.45;
   padding:9px 10px
+}
+.reader-chat-error>span {
+  min-width:0;
+  flex:1 1 160px
+}
+.reader-chat-error-actions {
+  display:inline-flex;
+  flex:0 0 auto;
+  align-items:center;
+  gap:6px
+}
+.reader-chat-error-actions button {
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  border:1px solid var(--app-edge);
+  border-radius:999px;
+  background:var(--app-raised);
+  color:hsl(var(--foreground));
+  font:inherit;
+  font-size:11px;
+  font-weight:700;
+  line-height:1;
+  padding:5px 9px;
+  transition:background .14s ease,border-color .14s ease
+}
+.reader-chat-error-actions button:hover:not(:disabled) {
+  border-color:var(--app-interactive-hover-border);
+  background:var(--app-interactive-hover-bg)
+}
+.reader-chat-error-actions button:disabled {
+  opacity:.5;
+  cursor:not-allowed
 }
 .reader-chat-composer {
   position:relative;

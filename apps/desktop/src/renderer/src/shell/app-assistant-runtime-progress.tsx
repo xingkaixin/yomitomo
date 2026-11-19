@@ -4,9 +4,8 @@ import type {
   AssistantRuntimeProgressEvent,
   AssistantRuntimeProgressSummary,
 } from '@yomitomo/shared';
-import { desktopIpcErrorCodes, isDesktopIpcErrorLike } from '../../../ipc-errors';
-import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
+import { classifyAssistantError } from './assistant-error-classification';
 
 export function applyAssistantRuntimeProgress(
   current: AssistantRuntimeProgressSummary | undefined,
@@ -55,36 +54,7 @@ export function AssistantRuntimeProgressList({
 }
 
 export function assistantRuntimeErrorMessage(error: unknown, fallbackKey: string) {
-  const ipcMessage = assistantRuntimeIpcErrorMessage(error);
-  if (ipcMessage) return ipcMessage;
-  if (isDesktopIpcErrorLike(error)) return i18next.t(fallbackKey);
-  const message = error instanceof Error ? error.message : '';
-  return message || i18next.t(fallbackKey);
-}
-
-function assistantRuntimeIpcErrorMessage(error: unknown) {
-  if (!isDesktopIpcErrorLike(error)) return '';
-  const username = typeof error.detail?.username === 'string' ? error.detail.username : '';
-  const name = username ? `@${username}` : '';
-  if (error.code === desktopIpcErrorCodes.agentNotFound) {
-    return i18next.t('assistantErrors.agentNotFound', { name });
-  }
-  if (error.code === desktopIpcErrorCodes.reviewAgentNotFound) {
-    return i18next.t('assistantErrors.reviewAgentNotFound', { name });
-  }
-  if (error.code === desktopIpcErrorCodes.providerRouteRequired) {
-    const task = typeof error.detail?.task === 'string' ? error.detail.task : '';
-    if (task === 'readingAssistant')
-      return i18next.t('settings.models.readingProviderRouteRequired');
-    if (task === 'reviewAssistant') return i18next.t('settings.models.reviewProviderRouteRequired');
-    if (task === 'bilingualTranslation') {
-      return i18next.t('settings.models.translationProviderRouteRequired');
-    }
-  }
-  if (error.code === desktopIpcErrorCodes.providerApiKeyRequired) {
-    return i18next.t('settings.models.providerApiKeyRequired');
-  }
-  return '';
+  return classifyAssistantError(error, fallbackKey).message;
 }
 
 function assistantRuntimeStepLabel(

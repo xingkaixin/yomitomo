@@ -116,6 +116,7 @@ const libraryImportMenuCommands: Partial<Record<AppMenuCommand, LibraryImportDia
 export type AppSessionActions = {
   changeSettingsSection: (section: SettingsSectionKey) => void;
   closeLibraryImport: () => void;
+  closeModelSettingsDialog: () => void;
   closeProfileDialog: () => void;
   completeOnboarding: () => void;
   consumePendingRevealPassage: (token: number) => void;
@@ -152,6 +153,7 @@ export type AppSessionState = {
   onboardingFlowKey: number;
   statsArticles: ArticleSummaryRecord[] | null;
   statsNavigationStartedAt: number | undefined;
+  modelSettingsDialogOpen: boolean;
   profileDialogOpen: boolean;
   profileDialogSourceRect: DialogSourceRect | undefined;
   updateDialog: UpdateDialogState;
@@ -244,6 +246,7 @@ export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSession
 
     function runMenuCommand(command: AppMenuCommand) {
       if (command === 'open-settings') return openSettings();
+      if (command === 'open-model-settings') return set({ modelSettingsDialogOpen: true });
       if (command === 'open-about') return openSettingsSection('about');
       if (command === 'backup-database') {
         void getDesktopApi()
@@ -293,6 +296,7 @@ export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSession
       onboardingFlowKey: 0,
       statsArticles: null,
       statsNavigationStartedAt: undefined,
+      modelSettingsDialogOpen: false,
       profileDialogOpen: false,
       profileDialogSourceRect: undefined,
       updateDialog: initialUpdateDialogState,
@@ -302,6 +306,7 @@ export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSession
         closeLibraryImport: () => {
           if (!libraryImportBusy) navigate({ type: 'import-dialog-closed' });
         },
+        closeModelSettingsDialog: () => set({ modelSettingsDialogOpen: false }),
         closeProfileDialog: () => set({ profileDialogOpen: false }),
         completeOnboarding: () => set({ onboardingForced: false }),
         consumePendingRevealPassage: (token) =>
@@ -355,6 +360,7 @@ export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSession
           navigate({ type: 'reset-transients' });
           set({
             pendingRevealPassage: null,
+            modelSettingsDialogOpen: false,
             profileDialogOpen: false,
             profileDialogSourceRect: undefined,
             statsArticles: null,
@@ -405,14 +411,26 @@ export function AppSessionStoreProvider({
   return <AppSessionStoreContext value={store}>{children}</AppSessionStoreContext>;
 }
 
-export function useOptionalAppSessionStoreApi() {
-  return useContext(AppSessionStoreContext);
-}
-
 export function useAppSessionStoreApi() {
   const store = useContext(AppSessionStoreContext);
   if (!store) throw new Error('AppSessionStoreProvider is missing');
   return store;
+}
+
+export function useOptionalAppSessionStoreApi() {
+  return useContext(AppSessionStoreContext);
+}
+
+export function hasTopLevelModalOpen(
+  state: Pick<AppSessionState, 'modelSettingsDialogOpen' | 'profileDialogOpen' | 'updateDialog'>,
+  lockOverlayVisible = false,
+) {
+  return (
+    lockOverlayVisible ||
+    state.modelSettingsDialogOpen ||
+    state.profileDialogOpen ||
+    state.updateDialog.dialog !== null
+  );
 }
 
 export function useAppSession(input: {
@@ -427,9 +445,12 @@ export function useAppSession(input: {
       ({
         actions: _actions,
         libraryQuery: _libraryQuery,
-        updateDialog: _updateDialog,
+        updateDialog,
         ...sessionState
-      }: AppSessionState) => sessionState,
+      }: AppSessionState) => ({
+        ...sessionState,
+        updateDialogOpen: updateDialog.dialog !== null,
+      }),
     ),
   );
   const { navigation } = state;
@@ -437,6 +458,7 @@ export function useAppSession(input: {
   return {
     onboardingFlowKey: state.onboardingFlowKey,
     pendingOpenArticle: navigation.surface === 'library' ? navigation.pendingOpenArticle : null,
+    modelSettingsDialogOpen: state.modelSettingsDialogOpen,
     profileDialogOpen: state.profileDialogOpen,
     profileDialogSourceRect: state.profileDialogSourceRect,
     readerOpen: navigation.surface === 'library' && navigation.readerOpen,
@@ -448,6 +470,11 @@ export function useAppSession(input: {
     statsArticles: state.statsArticles,
     statsNavigationStartedAt: state.statsNavigationStartedAt,
     surface: navigation.surface,
+    topLevelModalOpen:
+      input.appLocked ||
+      state.modelSettingsDialogOpen ||
+      state.profileDialogOpen ||
+      state.updateDialogOpen,
     actions: sessionStore.getState().actions,
   };
 }

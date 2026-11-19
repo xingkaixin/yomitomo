@@ -8,7 +8,7 @@ import { createReaderThemeStore } from '../theme/use-reader-theme-controller';
 import { bindMainWindowEvents } from './app-desktop-event-bindings';
 import { createDesktopStore } from './app-desktop-store';
 import { createAppQueryClient } from './app-query-client';
-import { createAppSessionStore } from './app-session';
+import { createAppSessionStore, hasTopLevelModalOpen } from './app-session';
 
 const desktopApi = vi.hoisted(() => ({
   backupDatabase: vi.fn(async () => undefined),
@@ -119,6 +119,26 @@ describe('app session store', () => {
     actions.consumePendingRevealPassage(latestToken);
     expect(sessionStore.getState().pendingRevealPassage).toBeNull();
     unregister();
+  });
+
+  it('tracks top-level modal visibility for profile and update dialogs', () => {
+    const { sessionStore } = startMainWindow();
+    const { actions } = sessionStore.getState();
+
+    expect(hasTopLevelModalOpen(sessionStore.getState())).toBe(false);
+
+    actions.openProfileDialog();
+    expect(hasTopLevelModalOpen(sessionStore.getState())).toBe(true);
+
+    actions.closeProfileDialog();
+    expect(hasTopLevelModalOpen(sessionStore.getState())).toBe(false);
+
+    actions.dispatchUpdateDialog({ type: 'afterUpdateOpened', version: '1.2.0', highlights: [] });
+    expect(hasTopLevelModalOpen(sessionStore.getState())).toBe(true);
+
+    actions.dispatchUpdateDialog({ type: 'closed' });
+    expect(hasTopLevelModalOpen(sessionStore.getState())).toBe(false);
+    expect(hasTopLevelModalOpen(sessionStore.getState(), true)).toBe(true);
   });
 });
 

@@ -35,6 +35,7 @@ export function WeReadBookcase({
   detail,
   inAppReader,
   readerMode,
+  readerObscured = false,
   readerShown,
   syncing,
   onClose,
@@ -46,6 +47,7 @@ export function WeReadBookcase({
   detail: WeReadBookDetail;
   inAppReader: boolean;
   readerMode: WeReadReaderMode | null;
+  readerObscured?: boolean;
   readerShown: boolean;
   syncing: boolean;
   onClose: () => void;
@@ -175,7 +177,7 @@ export function WeReadBookcase({
           <span style={{ width: `${readingProgressPercent}%` }} />
         </div>
       </header>
-      {reading && readerShown ? <WeReadReaderFull /> : null}
+      {reading && readerShown ? <WeReadReaderFull obscured={readerObscured} /> : null}
       <div className="weread-bookcase-body" hidden={reading}>
         <aside className="weread-toc" aria-label={t('wereadBook.tocLabel')}>
           {chapters.map((chapter) => (
@@ -234,6 +236,7 @@ export function WeReadBookcase({
       </div>
       {readerMode === 'compact' && readerShown ? (
         <WeReadReaderCompact
+          obscured={readerObscured}
           onClose={closeReader}
           onExpand={() => onReaderEvent({ type: 'readerExpanded' })}
         />

@@ -173,6 +173,7 @@ function isAppMenuCommand(value: unknown): value is AppMenuCommand {
     value === 'import-pdf' ||
     value === 'import-web' ||
     value === 'open-about' ||
+    value === 'open-model-settings' ||
     value === 'open-release-notes' ||
     value === 'open-settings' ||
     value === 'open-help-docs' ||
