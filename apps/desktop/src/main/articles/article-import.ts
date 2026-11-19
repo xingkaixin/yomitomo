@@ -327,6 +327,7 @@ async function loadRenderedArticleHtml(
     throwIfArticleImportCanceled(signal);
     await browserWindow.loadURL(url, userAgent ? { userAgent } : undefined);
     const page = await waitForRenderedPage(browserWindow.webContents, deadline, renderSignal);
+    throwIfArticleImportCanceled(signal);
     if (typeof page.html !== 'string' || !page.html.trim()) {
       throw new SourceImportError('ARTICLE_IMPORT_RENDER_EMPTY');
     }
@@ -443,13 +444,7 @@ async function waitForRenderedPage(
       if (renderedPageTooLarge(lastPage)) {
         throw new SourceImportError('ARTICLE_IMPORT_RESPONSE_TOO_LARGE');
       }
-      if (isChallengePage(lastPage)) continue;
-      const html = stringField(lastPage.html);
-      if (
-        !isSpaShellHtml(html) ||
-        stringField(lastPage.text).trim() ||
-        /<(?:img|video|audio|svg)\b/i.test(html)
-      )
+      if (!isChallengePage(lastPage) && !isSpaShellHtml(stringField(lastPage.html)))
         return lastPage;
     }
   } catch (error) {
@@ -459,7 +454,7 @@ async function waitForRenderedPage(
   if (isChallengePage(lastPage)) {
     throw new SourceImportError('ARTICLE_IMPORT_CHALLENGE_BLOCKED');
   }
-  throw new SourceImportError('ARTICLE_IMPORT_RENDER_EMPTY');
+  return lastPage;
 }
 
 function isChallengePage(page: { text?: unknown; title?: unknown }) {

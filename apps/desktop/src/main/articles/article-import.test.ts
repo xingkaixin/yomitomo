@@ -360,6 +360,7 @@ describe('article import', () => {
   });
 
   it('falls back once to rendered import for 200 OK empty SPA shells', async () => {
+    vi.useFakeTimers();
     const emptyShellArticle = { ...articleRecord(), contentHtml: '' };
     const renderedArticle = {
       ...articleRecord(),
@@ -384,7 +385,9 @@ describe('article import', () => {
       ),
     );
 
-    await expect(articleRecordFromUrl('https://example.com/spa')).resolves.toEqual(renderedArticle);
+    const pending = articleRecordFromUrl('https://example.com/spa');
+    await vi.advanceTimersByTimeAsync(20_000);
+    await expect(pending).resolves.toEqual(renderedArticle);
     expect(browserWindowMocks.instances).toHaveLength(1);
     expect(workerMocks.instances).toHaveLength(2);
   });
