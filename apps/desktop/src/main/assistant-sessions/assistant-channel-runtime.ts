@@ -84,20 +84,37 @@ export type AssistantChannelPorts = {
   logError: (event: string, error: unknown, data?: Record<string, unknown>) => void;
 };
 
+type ProgressWatcher = {
+  stop: () => void;
+  emit: () => void;
+};
+
 export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
   const locks = new Map<string, Promise<unknown>>();
   const active = new Map<string, AssistantRunEvent>();
-  const watchers = new Map<string, () => void>();
+  const watchers = new Map<string, ProgressWatcher>();
   const tracked = new Set<string>();
 
   function serialize<T>(key: string, run: () => Promise<T>) {
     const previous = locks.get(key) ?? Promise.resolve();
     const next = previous.catch(() => undefined).then(run);
     locks.set(key, next);
-    void next.finally(() => {
+    const cleanup = () => {
       if (locks.get(key) === next) locks.delete(key);
-    });
+    };
+    void next.then(cleanup, cleanup);
     return next;
+  }
+
+  function channelLockKey(articleId: string, agentId: string, channel: AssistantChannel | string) {
+    return `${articleId}|${cursorKey(agentId, channel)}`;
+  }
+
+  function syncPendingMarker(harness: Harness, articleId: string) {
+    return serialize(`${articleId}|pending`, async () => {
+      const runs = (await harness.snapshot(ChannelRunsDoc, context))?.runs ?? {};
+      await ports.markPending(articleId, Object.keys(runs).length > 0);
+    });
   }
 
   function publish(event: AssistantRunEvent) {
@@ -115,16 +132,13 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     const text = await ports.articleText(request.articleId);
     const key = channelKey(request.channel);
     const requestId = `deliver:${request.agentId}:${request.triggerId}`;
-    const runKey = await serialize(`${request.articleId}|${cursorKey(request.agentId, key)}`, () =>
+    const started = await serialize(channelLockKey(request.articleId, request.agentId, key), () =>
       ports.store.use(request.articleId, (harness) =>
         startDelivery(harness, request, resolved, requestId, text),
       ),
     );
-    if (runKey) {
-      await ports.markPending(request.articleId, true);
-      void track(request.articleId, requestId);
-    }
-    return { runKey };
+    if (started?.shouldTrack) void track(request.articleId, requestId);
+    return { runKey: started?.runKey };
   }
 
   async function startDelivery(
@@ -133,7 +147,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     resolved: ResolvedChannelAgent,
     requestId: string,
     text: ArticleTextSnapshot | undefined,
-  ) {
+  ): Promise<{ runKey: string; shouldTrack: boolean } | undefined> {
     await reconcileRetractions(harness, request.articleId);
     const snapshot = ports.readChannel(request.articleId, request.channel);
     if (!snapshot) throw new Error('ASSISTANT_CHANNEL_NOT_FOUND');
@@ -158,11 +172,14 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
       );
       return { mainId, fresh, existing: existing?.forkId, liveForkId: live?.forkId };
     }, context);
-    if (state.existing !== undefined) return runKeyFor(request.articleId, state.existing);
+    if (state.existing !== undefined) {
+      await syncPendingMarker(harness, request.articleId);
+      return { runKey: runKeyFor(request.articleId, state.existing), shouldTrack: true };
+    }
     if (state.fresh.length === 0 && !request.instruction && !request.reviewTargetCommentId) {
-      return state.liveForkId === undefined
-        ? undefined
-        : runKeyFor(request.articleId, state.liveForkId);
+      if (state.liveForkId === undefined) return undefined;
+      await syncPendingMarker(harness, request.articleId);
+      return { runKey: runKeyFor(request.articleId, state.liveForkId), shouldTrack: false };
     }
 
     const delivery = formatDelivery({
@@ -192,7 +209,8 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     const { liveForkId } = state;
     if (liveForkId !== undefined) {
       await harness.commit((tx) => recordDelivery(tx, liveForkId), context);
-      return runKeyFor(request.articleId, liveForkId);
+      await syncPendingMarker(harness, request.articleId);
+      return { runKey: runKeyFor(request.articleId, liveForkId), shouldTrack: true };
     }
 
     const main = await harness.conversation(state.mainId as ConversationId, context);
@@ -217,7 +235,8 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     const fork = latest
       ? await main.fork(latest.id, options, context)
       : await harness.createConversation(options, context);
-    return runKeyFor(request.articleId, fork.id);
+    await syncPendingMarker(harness, request.articleId);
+    return { runKey: runKeyFor(request.articleId, fork.id), shouldTrack: true };
   }
 
   async function track(articleId: string, requestId: string) {
@@ -227,23 +246,63 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     let tracking: AssistantRunRecord | undefined;
     try {
       await ports.store.use(articleId, async (harness) => {
-        const run = (await harness.snapshot(ChannelRunsDoc, context))?.runs[requestId];
-        if (!run) return;
-        tracking = run;
-        const fork = await harness.conversation(run.forkId as ConversationId, context);
-        if (!fork) return dropRun(harness, articleId, requestId, run, 'fork_missing');
-        await watchProgress(harness, articleId, run);
-        const submission = await fork.submit(
-          { type: 'input', content: run.delivery, whenBusy: 'steer', requestId },
-          context,
-        );
-        const settled = await submission.wait(context);
-        if (settled.status === 'done' && settled.type === 'input') {
-          await serialize(`${articleId}|fork:${run.forkId}`, () =>
-            finalizeAnswer(harness, articleId, run.forkId, settled.answer),
+        let closed = false;
+        void harness.closed.then(() => {
+          closed = true;
+        });
+        try {
+          const run = (await harness.snapshot(ChannelRunsDoc, context))?.runs[requestId];
+          if (!run) {
+            await syncPendingMarker(harness, articleId);
+            return;
+          }
+          tracking = run;
+          const fork = await harness.conversation(run.forkId as ConversationId, context);
+          if (!fork) {
+            await serialize(channelLockKey(articleId, run.agentId, run.channel), () =>
+              dropRun(harness, articleId, requestId, run, 'fork_missing'),
+            );
+            return;
+          }
+          await watchProgress(harness, articleId, run);
+          const submission = await fork.submit(
+            { type: 'input', content: run.delivery, whenBusy: 'steer', requestId },
+            context,
           );
-        } else {
-          await dropRun(harness, articleId, requestId, run, settled.reason ?? 'unanswered');
+          const settled = await submission.wait(context);
+          if (settled.status === 'done' && settled.type === 'input') {
+            const compact = await serialize(
+              channelLockKey(articleId, run.agentId, run.channel),
+              () => finalizeAnswer(harness, articleId, run.forkId, settled.answer),
+            );
+            // The run already settled above, so a compaction error must not reach track() and fail it.
+            if (compact) {
+              await compactWhenLarge(compact.main, compact.model).catch((error: unknown) =>
+                ports.logError('assistant_channel.compact_failed', error),
+              );
+            }
+          } else {
+            await serialize(channelLockKey(articleId, run.agentId, run.channel), () =>
+              dropRun(harness, articleId, requestId, run, settled.reason ?? 'unanswered'),
+            );
+          }
+        } catch (error) {
+          ports.logError('assistant_channel.run_failed', error, { articleId, requestId });
+          // Clean up stuck ChannelRunsDoc/.pending when the harness is still live; when closing
+          // (quit, delete, or DB restore), dropRun rejects or is skipped so restart state stays intact.
+          if (tracking && !closed) {
+            const run = tracking;
+            const dropped = await serialize(
+              channelLockKey(articleId, run.agentId, run.channel),
+              () => dropRun(harness, articleId, requestId, run, 'run_failed'),
+            ).then(
+              () => true,
+              () => false,
+            );
+            if (!dropped) publishFailed(articleId, run, 'run_failed');
+          } else if (tracking) {
+            publishFailed(articleId, tracking, 'run_failed');
+          }
         }
       });
     } catch (error) {
@@ -261,10 +320,16 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     articleId: string,
     forkId: number,
     answerId: EntryId,
-  ) {
+  ): Promise<
+    | {
+        main: NonNullable<Awaited<ReturnType<Harness['conversation']>>>;
+        model: PiModelRef;
+      }
+    | undefined
+  > {
     const fork = await harness.conversation(forkId as ConversationId, context);
     const runs = (await harness.snapshot(ChannelRunsDoc, context))?.runs ?? {};
-    if (!fork) return;
+    if (!fork) return undefined;
     const answered: Array<[string, AssistantRunRecord]> = [];
     for (const [requestId, run] of Object.entries(runs)) {
       if (run.forkId !== forkId) continue;
@@ -277,7 +342,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
       if (status.status === 'done' && status.answer === answerId) answered.push([requestId, run]);
     }
     const first = answered[0]?.[1];
-    if (!first) return;
+    if (!first) return undefined;
 
     const entry = (
       await fork.entries({ minEntryId: answerId, maxEntryId: answerId }, 1, undefined, context)
@@ -290,7 +355,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     if (!message || !text) {
       for (const [requestId, run] of answered)
         await dropRun(harness, articleId, requestId, run, 'empty_answer');
-      return;
+      return undefined;
     }
 
     const runContext = await harness.snapshot(RunContextDoc, forkId as ConversationId, context);
@@ -341,7 +406,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
       ).wait(context);
     }
 
-    const remaining = await harness.commit(async (tx) => {
+    const { remainingOnFork } = await harness.commit(async (tx) => {
       const cursors = await tx.doc(ChannelCursorsDoc);
       const cursor = cursorKey(first.agentId, first.channel);
       if (saved) {
@@ -352,10 +417,13 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
       }
       const state = await tx.doc(ChannelRunsDoc);
       for (const [requestId] of answered) delete state.runs[requestId];
-      return Object.keys(state.runs).length;
+      const remainingRuns = Object.values(state.runs);
+      return {
+        remainingOnFork: remainingRuns.filter((run) => run.forkId === forkId).length,
+      };
     }, context);
-    if (remaining === 0) await ports.markPending(articleId, false);
-    stopProgress(runKey);
+    await syncPendingMarker(harness, articleId);
+    if (remainingOnFork === 0) stopProgress(runKey);
     publish({
       runKey,
       articleId,
@@ -366,12 +434,10 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
       steps,
       ...(saved ? { commentId } : { error: 'channel_deleted' }),
     });
-    // The run already settled above, so a compaction error must not reach track() and fail it.
-    if (main && identity?.provider) {
-      await compactWhenLarge(main, piModelRef(identity.provider, identity.agent)).catch(
-        (error: unknown) => ports.logError('assistant_channel.compact_failed', error),
-      );
-    }
+    if (remainingOnFork > 0) watchers.get(runKey)?.emit();
+    return main && identity?.provider
+      ? { main, model: piModelRef(identity.provider, identity.agent) }
+      : undefined;
   }
 
   async function dropRun(
@@ -381,17 +447,20 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     run: AssistantRunRecord,
     reason: string,
   ) {
-    const remaining = await harness.commit(async (tx) => {
+    const { remainingOnFork } = await harness.commit(async (tx) => {
       const cursors = await tx.doc(ChannelCursorsDoc);
       const cursor = cursorKey(run.agentId, run.channel);
       const failed = new Set(run.deliveredIds);
       cursors.delivered[cursor] = (cursors.delivered[cursor] ?? []).filter((id) => !failed.has(id));
       const state = await tx.doc(ChannelRunsDoc);
       delete state.runs[requestId];
-      return Object.keys(state.runs).length;
+      const remainingRuns = Object.values(state.runs);
+      return {
+        remainingOnFork: remainingRuns.filter((item) => item.forkId === run.forkId).length,
+      };
     }, context);
-    if (remaining === 0) await ports.markPending(articleId, false);
-    publishFailed(articleId, run, reason);
+    await syncPendingMarker(harness, articleId);
+    if (remainingOnFork === 0) publishFailed(articleId, run, reason);
   }
 
   function publishFailed(articleId: string, run: AssistantRunRecord, reason: string) {
@@ -454,15 +523,18 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     watch?.start(async () => {
       timer ??= setTimeout(emit, PROGRESS_INTERVAL_MS);
     });
-    watchers.set(runKey, () => {
-      clearTimeout(timer);
-      void watch?.stop();
+    watchers.set(runKey, {
+      stop: () => {
+        clearTimeout(timer);
+        void watch?.stop();
+      },
+      emit,
     });
     emit();
   }
 
   function stopProgress(runKey: string) {
-    watchers.get(runKey)?.();
+    watchers.get(runKey)?.stop();
     watchers.delete(runKey);
   }
 
@@ -510,7 +582,12 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
 
   async function resume(articleId: string, harness: Harness) {
     const runs = (await harness.snapshot(ChannelRunsDoc, context))?.runs ?? {};
-    for (const [requestId, run] of Object.entries(runs)) {
+    const entries = Object.entries(runs);
+    if (entries.length === 0) {
+      await syncPendingMarker(harness, articleId);
+      return;
+    }
+    for (const [requestId, run] of entries) {
       const resolved = await ports.resolveAgent(run.agentId, true).catch((error: unknown) => {
         ports.logError('assistant_channel.resume_agent_failed', error, { articleId, requestId });
         return undefined;
@@ -518,6 +595,12 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
       if (resolved) await registerProvider(resolved);
       void track(articleId, requestId);
     }
+  }
+
+  function dispose() {
+    for (const watcher of watchers.values()) watcher.stop();
+    watchers.clear();
+    active.clear();
   }
 
   async function registerProvider(resolved: ResolvedChannelAgent) {
@@ -542,6 +625,7 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
     deliver,
     resume,
     registerProvider,
+    dispose,
     activeRuns: (articleId: string) =>
       [...active.values()].filter((event) => event.articleId === articleId),
   };
