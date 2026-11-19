@@ -7,11 +7,12 @@ import {
 } from '@hugeicons/core-free-icons';
 import type React from 'react';
 import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
-import { useCallback, useMemo, useReducer } from 'react';
+import { useCallback, useMemo, useReducer, useRef } from 'react';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
+import type { PluginRegistry } from '@embedpdf/core';
 import { EmbedPDF, useDocumentState } from '@embedpdf/core/react';
-import { DocumentContent } from '@embedpdf/plugin-document-manager/react';
+import { DocumentContent, DocumentManagerPlugin } from '@embedpdf/plugin-document-manager/react';
 import {
   GlobalPointerProvider,
   PagePointerProvider,
@@ -62,7 +63,11 @@ import {
   pageProgress,
   pdfPageProgressPercent,
 } from './app-source-bookcase-pdfium-reading-progress';
-import { pdfiumTocAnnotationStats, pdfReaderReadingSections } from './pdfium-text-document';
+import {
+  pdfiumTocAnnotationStats,
+  pdfReaderReadingSections,
+  type PdfTextDocument,
+} from './pdfium-text-document';
 import { EmbedPdfSelectionBridge } from './app-source-bookcase-pdfium-selection-bridge';
 import type { PdfOpenTrace } from './app-source-bookcase-pdfium-open-trace';
 import { usePdfiumPageMetrics } from './app-source-bookcase-pdfium-page-metrics';
@@ -93,9 +98,25 @@ type PdfTocEvent =
   | { type: 'tocToggled' }
   | { type: 'tocClosed' };
 
+function sameTocItems(left: TocItem[], right: TocItem[]) {
+  if (left.length !== right.length) return false;
+  return left.every((item, index) => {
+    const other = right[index];
+    return (
+      other !== undefined &&
+      item.index === other.index &&
+      item.text === other.text &&
+      item.depth === other.depth &&
+      item.start === other.start &&
+      item.end === other.end
+    );
+  });
+}
+
 function pdfTocReducer(state: PdfTocState, event: PdfTocEvent): PdfTocState {
   switch (event.type) {
     case 'bookmarksLoaded':
+      if (sameTocItems(state.items, event.items)) return state;
       return { ...state, items: event.items, version: state.version + 1 };
     case 'tocToggled':
       return { ...state, open: !state.open };
@@ -130,14 +151,54 @@ function PdfiumArticleReader({
   const { t } = useTranslation();
   const [toc, dispatchToc] = useReducer(pdfTocReducer, { items: [], open: false, version: 0 });
   const documentSource = usePdfiumDocumentSource(article, engineSource);
-  const { buffer, engine, engineError, isLoading, loadError, openTrace } = documentSource;
+  const {
+    engine,
+    engineError,
+    fileReady,
+    isLoading,
+    loadError,
+    openTrace,
+    readBuffer,
+    releaseBuffer,
+  } = documentSource;
   const documentId = `embedpdf-${article.id}`;
-  const plugins = usePdfiumPlugins({ article, buffer, documentId });
+  const plugins = usePdfiumPlugins();
+  const openInitialDocument = useStableCallback(async (registry: PluginRegistry) => {
+    const buffer = readBuffer();
+    if (!buffer) return;
+    const documentManager = registry
+      .getPlugin<DocumentManagerPlugin>(DocumentManagerPlugin.id)
+      ?.provides();
+    if (!documentManager) return;
+    documentManager
+      .openDocumentBuffer({
+        autoActivate: true,
+        buffer,
+        documentId,
+        name: article.pdf.metadata.title || article.title,
+        scale: 1,
+      })
+      .wait(
+        ({ task }) => {
+          task.wait(
+            () => {
+              if (!registry.isDestroyed()) releaseBuffer();
+            },
+            () => {
+              if (!registry.isDestroyed()) releaseBuffer();
+            },
+          );
+        },
+        () => {
+          if (!registry.isDestroyed()) releaseBuffer();
+        },
+      );
+  });
 
   const status =
     loadError ||
     (engineError ? engineError.message : '') ||
-    (isLoading || !engine || !buffer ? t('pdfReader.initializing') : '');
+    (isLoading || !engine || !fileReady ? t('pdfReader.initializing') : '');
 
   return (
     <section className="source-bookcase source-pdf-reader-shell source-pdfium-spike-shell">
@@ -153,8 +214,8 @@ function PdfiumArticleReader({
             <span>{status}</span>
           </div>
         ) : null}
-        {engine && buffer ? (
-          <EmbedPDF engine={engine} plugins={plugins}>
+        {engine && fileReady ? (
+          <EmbedPDF engine={engine} onInitialized={openInitialDocument} plugins={plugins}>
             {({ activeDocumentId }) =>
               activeDocumentId ? (
                 <DocumentContent documentId={activeDocumentId}>
@@ -831,12 +892,17 @@ function PdfiumDocument({ actions, document, source, toc, viewportOverlay }: Pdf
     },
     userProfile,
   });
+  const lastSyncedAssistantTextRef = useRef<{
+    textDocument: PdfTextDocument;
+    tocVersion: number;
+  } | null>(null);
   const readAssistantTextInput = useStableCallback(() => ({
     articleId: article.id,
     ensurePdfTextDocument,
     loadedDocument,
     pdfTextDocument,
     tocItems,
+    tocVersion,
   }));
   const saveAssistantText = useCallback((marker: HTMLElement | null) => {
     const input = readAssistantTextInput();
@@ -847,16 +913,27 @@ function PdfiumDocument({ actions, document, source, toc, viewportOverlay }: Pdf
       const hasArticleText = getOptionalDesktopApi()?.assistant?.hasArticleText;
       // Full-text extraction is slow on long PDFs, so it runs only until main has a copy.
       if (!hasArticleText) return;
-      if (!input.pdfTextDocument && (await hasArticleText(input.articleId).catch(() => true))) {
+      if (
+        !lastSyncedAssistantTextRef.current &&
+        (await hasArticleText(input.articleId).catch(() => true))
+      ) {
         return;
       }
       const textDocument = input.pdfTextDocument ?? (await input.ensurePdfTextDocument());
       if (cancelled) return;
-      saveAssistantArticleText(input.articleId, {
+      const latest = readAssistantTextInput();
+      if (
+        lastSyncedAssistantTextRef.current?.textDocument === textDocument &&
+        lastSyncedAssistantTextRef.current.tocVersion === latest.tocVersion
+      ) {
+        return;
+      }
+      lastSyncedAssistantTextRef.current = { textDocument, tocVersion: latest.tocVersion };
+      saveAssistantArticleText(latest.articleId, {
         text: textDocument.text,
         sections: pdfReaderReadingSections(
           textDocument,
-          input.tocItems,
+          latest.tocItems,
           textSourceDocument.pages.length,
         ),
       });

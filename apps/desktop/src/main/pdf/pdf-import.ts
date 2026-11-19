@@ -1,215 +1,277 @@
-import { createHash } from 'node:crypto';
-import { basename } from 'node:path';
-import { PdfEngine, PdfiumNative, type ImageDataConverter } from '@embedpdf/engines/pdfium';
-import { NoopLogger, type PdfDocumentObject } from '@embedpdf/models';
-import { init } from '@embedpdf/pdfium';
+import { Buffer } from 'node:buffer';
+import { basename, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { Worker, type WorkerOptions } from 'node:worker_threads';
 import { nativeImage } from 'electron';
 import type { ArticleRecord } from '@yomitomo/shared';
-import { MAX_PDF_IMPORT_BYTES } from '../../ipc-contract';
-import { SourceImportError } from '../../ipc/article-import-boundary';
-import { readPdfiumWasmBinary } from './pdfium-resource';
+import { isSourceImportErrorCode, SourceImportError } from '../../ipc/article-import-boundary';
+import {
+  PDF_THUMBNAIL_QUALITY,
+  pdfContentHash,
+  validatePdfImportInput,
+  type PdfImportFileInput,
+  type PdfThumbnailBitmap,
+  type PdfWorkerInitData,
+  type PdfWorkerRequest,
+  type PdfWorkerResponse,
+} from './pdf-import-engine';
+import { pdfiumWasmPath } from './pdfium-resource';
 
-// 封面缩略图：约 300px 宽的 JPEG，导入期一次性渲染并本地持久化。
-const PDF_THUMBNAIL_TARGET_WIDTH = 300;
-const PDF_THUMBNAIL_MAX_HEIGHT = 600;
-const PDF_THUMBNAIL_QUALITY = 0.72;
-
-export type PdfImportFileInput = {
-  fileName: string;
-  mimeType?: string;
-  data: ArrayBuffer;
-};
+export type { PdfImportFileInput };
 
 export type PdfImportResult = {
   article: ArticleRecord;
   thumbnail: Buffer | null;
 };
 
-let pdfEnginePromise: Promise<PdfEngine<Buffer>> | undefined;
+const DEFAULT_PDF_WORKER_IDLE_TIMEOUT_MS = 30_000;
+const DEFAULT_PDF_WORKER_REQUEST_TIMEOUT_MS = 2 * 60 * 1000;
 
-export async function articleRecordFromPdfFile(
-  input: PdfImportFileInput,
-): Promise<PdfImportResult> {
-  const fileName = input.fileName.trim() || 'Untitled.pdf';
-  const fileSize = input.data.byteLength;
-  if (!isPdfFile(fileName, input.mimeType)) {
-    throw new SourceImportError('PDF_IMPORT_INVALID_FILE');
+export type PdfWorkerLike = {
+  on(event: 'message', listener: (message: PdfWorkerResponse) => void): unknown;
+  on(event: 'error', listener: (error: Error) => void): unknown;
+  on(event: 'exit', listener: (code: number) => void): unknown;
+  postMessage(message: PdfWorkerRequest): void;
+  terminate(): Promise<number>;
+  removeAllListeners(): unknown;
+  ref?: () => void;
+  unref?: () => void;
+};
+
+export type PdfWorkerClientOptions = {
+  createWorker?: (url: URL, options: WorkerOptions) => PdfWorkerLike;
+  encodeThumbnail?: (bitmap: PdfThumbnailBitmap | null) => Buffer | null;
+  idleTimeoutMs?: number;
+  requestTimeoutMs?: number;
+  resolveWasmPath?: () => string;
+};
+
+type PendingWorkerRequest = {
+  resolve: (response: Extract<PdfWorkerResponse, { ok: true }>) => void;
+  reject: (error: Error) => void;
+  timeout: ReturnType<typeof setTimeout>;
+};
+
+export function createPdfWorkerClient(options: PdfWorkerClientOptions = {}) {
+  const createWorker =
+    options.createWorker ??
+    ((url: URL, workerOptions: WorkerOptions): PdfWorkerLike => new Worker(url, workerOptions));
+  const encodeThumbnail = options.encodeThumbnail ?? encodeThumbnailBitmap;
+  const idleTimeoutMs = options.idleTimeoutMs ?? DEFAULT_PDF_WORKER_IDLE_TIMEOUT_MS;
+  const requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_PDF_WORKER_REQUEST_TIMEOUT_MS;
+  const resolveWasmPath = options.resolveWasmPath ?? pdfiumWasmPath;
+
+  let activeWorker: PdfWorkerLike | null = null;
+  let idleTimer: ReturnType<typeof setTimeout> | null = null;
+  let nextRequestId = 0;
+  const pending = new Map<number, PendingWorkerRequest>();
+  const inFlightThumbnails = new Map<string, Promise<Buffer | null>>();
+
+  function clearIdleTimer() {
+    if (!idleTimer) return;
+    clearTimeout(idleTimer);
+    idleTimer = null;
   }
-  if (fileSize > MAX_PDF_IMPORT_BYTES) {
-    throw new SourceImportError('PDF_IMPORT_FILE_TOO_LARGE');
+
+  function scheduleIdleTermination(worker: PdfWorkerLike) {
+    clearIdleTimer();
+    worker.unref?.();
+    idleTimer = setTimeout(() => {
+      idleTimer = null;
+      if (activeWorker !== worker || pending.size > 0) return;
+      activeWorker = null;
+      worker.removeAllListeners();
+      void worker.terminate();
+    }, idleTimeoutMs);
+    idleTimer.unref?.();
   }
 
-  const bytes = new Uint8Array(input.data);
-  const contentHash = pdfContentHash(bytes);
-  const engine = await pdfImportEngine();
-  const document = await engine
-    .openDocumentBuffer({ id: pdfArticleId(contentHash), content: input.data.slice(0) })
-    .toPromise();
-  try {
-    const info = await engine.getMetadata(document).toPromise();
-    const id = pdfArticleId(contentHash);
-    const title = cleanPdfText(info.title) || fileTitle(fileName);
-    const author = cleanPdfText(info.author);
-    const subject = cleanPdfText(info.subject);
-    const now = new Date().toISOString();
-    // 复用同一已打开的文档顺手渲染首页缩略图，不重开文档。
-    const thumbnail = await renderFirstPageThumbnail(engine, document);
+  function teardownWorker(worker: PdfWorkerLike, reason?: Error) {
+    clearIdleTimer();
+    if (activeWorker === worker) activeWorker = null;
+    worker.removeAllListeners();
+    void worker.terminate();
 
+    if (reason && pending.size > 0) {
+      const inflight = [...pending.values()];
+      pending.clear();
+      for (const entry of inflight) {
+        clearTimeout(entry.timeout);
+        entry.reject(reason);
+      }
+    }
+  }
+
+  function ensureWorker(): PdfWorkerLike {
+    clearIdleTimer();
+    if (activeWorker) {
+      activeWorker.ref?.();
+      return activeWorker;
+    }
+
+    const initData: PdfWorkerInitData = { wasmPath: resolveWasmPath() };
+    const worker = createWorker(pdfImportWorkerUrl(), { workerData: initData });
+    activeWorker = worker;
+
+    worker.on('message', (message: PdfWorkerResponse) => {
+      if (activeWorker !== worker) return;
+      const entry = pending.get(message.id);
+      if (!entry) return;
+      pending.delete(message.id);
+      clearTimeout(entry.timeout);
+
+      if (message.ok) {
+        entry.resolve(message);
+      } else if (message.errorCode && isSourceImportErrorCode(message.errorCode)) {
+        entry.reject(new SourceImportError(message.errorCode));
+      } else {
+        entry.reject(new Error(message.message || 'PDF_WORKER_FAILED'));
+      }
+
+      if (pending.size === 0 && activeWorker === worker) {
+        scheduleIdleTermination(worker);
+      }
+    });
+
+    worker.on('error', (error: Error) => {
+      if (activeWorker !== worker) return;
+      teardownWorker(worker, error);
+    });
+
+    worker.on('exit', (code: number) => {
+      if (activeWorker !== worker) return;
+      teardownWorker(worker, new Error(`PDF_IMPORT_WORKER_EXITED (${code})`));
+    });
+
+    return worker;
+  }
+
+  function sendRequest(
+    buildRequest: (id: number) => PdfWorkerRequest,
+  ): Promise<Extract<PdfWorkerResponse, { ok: true }>> {
+    return new Promise((resolve, reject) => {
+      let worker: PdfWorkerLike;
+      try {
+        worker = ensureWorker();
+      } catch (error: unknown) {
+        reject(error instanceof Error ? error : new Error('PDF_WORKER_START_FAILED'));
+        return;
+      }
+
+      nextRequestId += 1;
+      const id = nextRequestId;
+      const timeout = setTimeout(() => {
+        if (!pending.has(id)) return;
+        teardownWorker(worker, new Error('PDF_IMPORT_TIMEOUT'));
+      }, requestTimeoutMs);
+      timeout.unref?.();
+
+      pending.set(id, { resolve, reject, timeout });
+      try {
+        // Keep the caller's ArrayBuffer attached: source-file staging persists input.data next.
+        // oxlint-disable-next-line unicorn/require-post-message-target-origin
+        worker.postMessage(buildRequest(id));
+      } catch (error: unknown) {
+        pending.delete(id);
+        clearTimeout(timeout);
+        const failure = error instanceof Error ? error : new Error('PDF_WORKER_POST_FAILED');
+        teardownWorker(worker, failure);
+        reject(failure);
+      }
+    });
+  }
+
+  async function importPdfFile(input: PdfImportFileInput): Promise<PdfImportResult> {
+    validatePdfImportInput(input);
+    const response = await sendRequest((id) => ({ id, kind: 'import', input }));
+    if (response.kind !== 'import') {
+      throw new Error('PDF_WORKER_PROTOCOL_MISMATCH');
+    }
     return {
-      thumbnail,
-      article: {
-        id,
-        url: `pdf:${id}`,
-        canonicalUrl: `pdf:${contentHash}`,
-        sourceType: 'pdf',
-        title,
-        byline: author,
-        excerpt: subject,
-        siteName: 'PDF',
-        contentHash,
-        pdf: {
-          metadata: {
-            format: 'pdf',
-            fileName,
-            fileSize,
-            pageCount: document.pageCount,
-            title,
-            author,
-            subject,
-            keywords: cleanPdfText(info.keywords),
-            creator: cleanPdfText(info.creator),
-            producer: cleanPdfText(info.producer),
-            creationDate: cleanPdfDate(info.creationDate),
-            modificationDate: cleanPdfDate(info.modificationDate),
-          },
-        },
-        readingProgress: {
-          kind: 'page',
-          pageIndex: 0,
-          pageCount: document.pageCount,
-          updatedAt: now,
-        },
-        annotations: [],
-        createdAt: now,
-        updatedAt: now,
-      },
+      article: response.article,
+      thumbnail: encodeThumbnail(response.thumbnailBitmap),
     };
-  } finally {
-    await engine.closeDocument(document).toPromise();
   }
+
+  async function renderPdfThumbnail(data: ArrayBuffer): Promise<Buffer | null> {
+    const contentHash = pdfContentHash(new Uint8Array(data));
+    const existing = inFlightThumbnails.get(contentHash);
+    if (existing) return existing;
+
+    const promise = sendRequest((id) => ({ id, kind: 'thumbnail', data }))
+      .then((response) => {
+        if (response.kind !== 'thumbnail') {
+          throw new Error('PDF_WORKER_PROTOCOL_MISMATCH');
+        }
+        return encodeThumbnail(response.thumbnailBitmap);
+      })
+      .finally(() => {
+        if (inFlightThumbnails.get(contentHash) === promise) {
+          inFlightThumbnails.delete(contentHash);
+        }
+      });
+
+    inFlightThumbnails.set(contentHash, promise);
+    return promise;
+  }
+
+  async function dispose() {
+    clearIdleTimer();
+    const worker = activeWorker;
+    if (!worker) return;
+    activeWorker = null;
+    worker.removeAllListeners();
+    if (pending.size > 0) {
+      const inflight = [...pending.values()];
+      pending.clear();
+      const error = new Error('PDF_WORKER_DISPOSED');
+      for (const entry of inflight) {
+        clearTimeout(entry.timeout);
+        entry.reject(error);
+      }
+    }
+    await worker.terminate();
+  }
+
+  return {
+    articleRecordFromPdfFile: importPdfFile,
+    renderPdfThumbnailFromBuffer: renderPdfThumbnail,
+    dispose,
+  };
+}
+
+const defaultPdfWorkerClient = createPdfWorkerClient();
+
+export function articleRecordFromPdfFile(input: PdfImportFileInput): Promise<PdfImportResult> {
+  return defaultPdfWorkerClient.articleRecordFromPdfFile(input);
 }
 
 // 存量 PDF 首次可见时的懒生成：从已存源文件重开一次文档渲染缩略图（一次性、非热路径）。
-export async function renderPdfThumbnailFromBuffer(data: ArrayBuffer): Promise<Buffer | null> {
-  const contentHash = pdfContentHash(new Uint8Array(data));
-  const engine = await pdfImportEngine();
-  const document = await engine
-    .openDocumentBuffer({ id: pdfArticleId(contentHash), content: data.slice(0) })
-    .toPromise();
-  try {
-    return await renderFirstPageThumbnail(engine, document);
-  } finally {
-    await engine.closeDocument(document).toPromise();
-  }
+export function renderPdfThumbnailFromBuffer(data: ArrayBuffer): Promise<Buffer | null> {
+  return defaultPdfWorkerClient.renderPdfThumbnailFromBuffer(data);
 }
 
-async function renderFirstPageThumbnail(
-  engine: PdfEngine<Buffer>,
-  document: PdfDocumentObject,
-): Promise<Buffer | null> {
-  const page = document.pages[0];
-  if (!page) return null;
-  const { width, height } = page.size;
-  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null;
-  const scaleFactor = Math.min(
-    PDF_THUMBNAIL_TARGET_WIDTH / width,
-    PDF_THUMBNAIL_MAX_HEIGHT / height,
-    2,
-  );
-  // The rendering engine clamps scales to 0.01, so smaller requested scales would not be honored.
-  if (scaleFactor < 0.01) return null;
+export function disposePdfWorker() {
+  return defaultPdfWorkerClient.dispose();
+}
+
+export function encodeThumbnailBitmap(raw: PdfThumbnailBitmap | null): Buffer | null {
+  if (!raw || raw.width <= 0 || raw.height <= 0 || raw.bitmap.byteLength === 0) return null;
   try {
-    return await engine
-      .renderPage(document, page, {
-        scaleFactor,
-        imageType: 'image/jpeg',
-        imageQuality: PDF_THUMBNAIL_QUALITY,
-      })
-      .toPromise();
+    const native = nativeImage.createFromBitmap(Buffer.from(raw.bitmap), {
+      width: raw.width,
+      height: raw.height,
+    });
+    return native.toJPEG(Math.round(PDF_THUMBNAIL_QUALITY * 100));
   } catch {
     return null;
   }
 }
 
-async function pdfImportEngine() {
-  pdfEnginePromise ??= createPdfImportEngine();
-  return pdfEnginePromise;
-}
-
-async function createPdfImportEngine() {
-  const logger = new NoopLogger();
-  const pdfiumModule = await init({ wasmBinary: await readPdfiumWasmBinary() });
-  const native = new PdfiumNative(pdfiumModule, { logger });
-  return new PdfEngine<Buffer>(native, { imageConverter: pdfImportImageConverter, logger });
-}
-
-// 主进程无图片编码库，借 Electron nativeImage 把 PDFium 的 RGBA 位图编码为 JPEG。
-const pdfImportImageConverter: ImageDataConverter<Buffer> = async (
-  getImageData,
-  _imageType,
-  imageQuality,
-) => {
-  const image = getImageData();
-  const bitmap = rgbaToBgra(image.data);
-  const native = nativeImage.createFromBitmap(bitmap, {
-    width: image.width,
-    height: image.height,
-  });
-  return native.toJPEG(Math.round((imageQuality ?? PDF_THUMBNAIL_QUALITY) * 100));
-};
-
-// nativeImage.createFromBitmap 需要平台原生的 BGRA 排布，PDFium 输出为 RGBA，交换 R/B 通道。
-function rgbaToBgra(data: Uint8ClampedArray): Buffer {
-  const bgra = Buffer.allocUnsafe(data.length);
-  for (let index = 0; index < data.length; index += 4) {
-    bgra[index] = data[index + 2];
-    bgra[index + 1] = data[index + 1];
-    bgra[index + 2] = data[index];
-    bgra[index + 3] = data[index + 3];
-  }
-  return bgra;
-}
-
-function isPdfFile(fileName: string, mimeType: string | undefined) {
-  const normalizedMime = mimeType?.toLowerCase();
-  return (
-    fileName.toLowerCase().endsWith('.pdf') ||
-    normalizedMime === 'application/pdf' ||
-    normalizedMime === 'application/x-pdf'
+function pdfImportWorkerUrl() {
+  const currentDir = dirname(fileURLToPath(import.meta.url));
+  return new URL(
+    basename(currentDir) === 'chunks' ? '../pdf-import-worker.js' : './pdf-import-worker.js',
+    import.meta.url,
   );
-}
-
-function pdfContentHash(bytes: Uint8Array) {
-  return createHash('sha256').update(bytes).digest('hex');
-}
-
-function pdfArticleId(contentHash: string) {
-  return `pdf_${contentHash.slice(0, 24)}`;
-}
-
-function fileTitle(fileName: string) {
-  return (
-    basename(fileName)
-      .replace(/\.pdf$/i, '')
-      .trim() || 'Untitled PDF'
-  );
-}
-
-function cleanPdfText(value: string | null | undefined) {
-  const text = value?.replace(/\s+/g, ' ').trim();
-  return text || undefined;
-}
-
-function cleanPdfDate(value: Date | null | undefined) {
-  return value?.toISOString();
 }

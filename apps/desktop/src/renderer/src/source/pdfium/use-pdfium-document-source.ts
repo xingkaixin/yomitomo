@@ -18,25 +18,36 @@ type PdfArticleRecord = ArticleRecord & { pdf: NonNullable<ArticleRecord['pdf']>
 
 export type PdfiumEngineSource = ReturnType<typeof usePdfiumEngineSource>;
 
-type PdfFileState = { buffer: ArrayBuffer | null; loadError: string };
+type PdfFileState = { fileReady: boolean; loadError: string };
 
 function pdfFileReducer(
   _state: PdfFileState,
-  event: { type: 'fileRead'; buffer: ArrayBuffer } | { type: 'fileReadFailed'; message: string },
+  event: { type: 'fileRead' } | { type: 'fileReadFailed'; message: string },
 ): PdfFileState {
   return event.type === 'fileRead'
-    ? { buffer: event.buffer, loadError: '' }
-    : { buffer: null, loadError: event.message };
+    ? { fileReady: true, loadError: '' }
+    : { fileReady: false, loadError: event.message };
 }
 
 // contextBridge wraps each returned promise anew, so `use` needs one renderer-side promise to
 // read a settled value on later renders instead of suspending them again.
 let pdfiumWasmUrlPromise: Promise<string> | null = null;
 
+export function readPdfiumWasmUrlOnce() {
+  if (!pdfiumWasmUrlPromise) {
+    const pending = getDesktopApi()
+      .app.readPdfiumWasmUrl()
+      .catch((error: unknown) => {
+        if (pdfiumWasmUrlPromise === pending) pdfiumWasmUrlPromise = null;
+        throw error;
+      });
+    pdfiumWasmUrlPromise = pending;
+  }
+  return pdfiumWasmUrlPromise;
+}
+
 export function usePdfiumEngineSource() {
-  const wasmUrl = import.meta.env.DEV
-    ? devPdfiumWasmUrl
-    : use((pdfiumWasmUrlPromise ??= getDesktopApi().app.readPdfiumWasmUrl()));
+  const wasmUrl = import.meta.env.DEV ? devPdfiumWasmUrl : use(readPdfiumWasmUrlOnce());
   return usePdfiumEngine({
     wasmUrl: new URL(wasmUrl, window.location.href).href,
     worker: true,
@@ -50,8 +61,10 @@ export function usePdfiumDocumentSource(
 ) {
   const openTrace = useMemo(() => pdfOpenTrace(article.id), []);
   const recordedOpenPhasesRef = useRef(new Set<string>());
-  const [{ buffer, loadError }, dispatch] = useReducer(pdfFileReducer, {
-    buffer: null,
+  // Keep the up-to-120MB PDF buffer outside React state so it can be dropped once EmbedPDF opens it.
+  const bufferRef = useRef<ArrayBuffer | null>(null);
+  const [{ fileReady, loadError }, dispatch] = useReducer(pdfFileReducer, {
+    fileReady: false,
     loadError: '',
   });
   const readEngineState = useStableCallback(() => ({ engine, engineError, isLoading }));
@@ -71,7 +84,8 @@ export function usePdfiumDocumentSource(
       .article.pdf.readFile(article.id)
       .then((data) => {
         if (!cancelled) {
-          dispatch({ type: 'fileRead', buffer: data });
+          bufferRef.current = data;
+          dispatch({ type: 'fileRead' });
           recordPdfOpenTiming(openTrace, 'file_read_done', {
             byteLength: data.byteLength,
             copyDurationMs: 0,
@@ -83,6 +97,7 @@ export function usePdfiumDocumentSource(
       })
       .catch((error) => {
         if (!cancelled) {
+          bufferRef.current = null;
           const message = pdfReadErrorMessage(error);
           dispatch({ type: 'fileReadFailed', message });
           recordPdfOpenTiming(openTrace, 'file_read_error', {
@@ -94,8 +109,14 @@ export function usePdfiumDocumentSource(
 
     return () => {
       cancelled = true;
+      bufferRef.current = null;
     };
   });
+
+  const readBuffer = useCallback(() => bufferRef.current, []);
+  const releaseBuffer = useCallback(() => {
+    bufferRef.current = null;
+  }, []);
 
   const recordEngineState = useCallback(
     (marker: HTMLElement | null) => {
@@ -114,13 +135,15 @@ export function usePdfiumDocumentSource(
   const engineStatus = engineError ? 'error' : engine && !isLoading ? 'ready' : 'loading';
 
   return {
-    buffer,
     engine,
     engineError,
+    fileReady,
     isLoading,
     loadError,
     marker: createElement('span', { hidden: true, key: engineStatus, ref: recordEngineState }),
     openTrace,
+    readBuffer,
+    releaseBuffer,
   };
 }
 
