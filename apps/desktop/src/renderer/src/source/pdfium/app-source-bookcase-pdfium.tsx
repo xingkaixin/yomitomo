@@ -660,21 +660,12 @@ function PdfiumDocument({ actions, document, source, toc, viewportOverlay }: Pdf
       const textDocument = pdfTextDocument ?? (await ensurePdfTextDocument());
       const page = textDocument.pages.find((item) => start < item.textEnd);
       if (!page) return [];
-      scroll?.scrollToPage({ pageNumber: page.pageIndex + 1, behavior: 'smooth' });
-      schedulePageMetricsUpdate();
 
       const pdfPage = loadedDocument.pages[page.pageIndex];
       if (!pdfPage) return [];
       const rangeStart = Math.max(0, start - page.bodyStart);
       const rangeEnd = Math.max(rangeStart, Math.min(end, page.bodyEnd) - page.bodyStart);
       if (rangeEnd <= rangeStart) return [];
-
-      let metric = pageMetricsRef.current[page.pageIndex];
-      for (let attempt = 0; !metric && attempt < 12; attempt += 1) {
-        await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
-        metric = pageMetricsRef.current[page.pageIndex];
-      }
-      if (!metric) return [];
 
       const geometry = await engine.getPageGeometry(loadedDocument, pdfPage).toPromise();
       const rects = pdfiumRectsForTextRange(
@@ -684,6 +675,18 @@ function PdfiumDocument({ actions, document, source, toc, viewportOverlay }: Pdf
         pdfPage.size.width,
         pdfPage.size.height,
       );
+      const first = rects[0];
+      if (!first || !scroll) return [];
+      scroll.scrollToPage({
+        pageNumber: page.pageIndex + 1,
+        pageCoordinates: { x: first.x * pdfPage.size.width, y: first.y * pdfPage.size.height },
+        alignY: 25,
+        behavior: 'instant',
+      });
+      await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+      pageMetricsSource.updatePageMetrics();
+      const metric = pageMetricsRef.current[page.pageIndex];
+      if (!metric) return [];
       return rects.map((rect, index) => ({
         id: `passage-flash-${index}`,
         top: metric.top + rect.y * metric.height,

@@ -169,7 +169,7 @@ function WebSourceReader({
   );
   const passageReveal = useAssistantPassageReveal({
     articleId: article.id,
-    ready: Boolean(readerBoxes.text),
+    ready: readingProgress.restored && Boolean(readerBoxes.text),
     reveal: (start, end) => {
       const articleElement = articleRef.current;
       const canvasElement = canvasRef.current;
@@ -191,7 +191,12 @@ function WebSourceReader({
 
       const rect = range.getClientRects()[0] || range.getBoundingClientRect();
       scrollReaderSurfaceToRect(scrollElement, rect, 82);
-      return rangeHighlightBoxes(range, canvasElement.getBoundingClientRect(), 'passage-flash');
+      return rangeHighlightBoxes(
+        range,
+        canvasElement.getBoundingClientRect(),
+        'passage-flash',
+        '[data-reader-translation]',
+      );
     },
   });
 

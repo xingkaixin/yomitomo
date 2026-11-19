@@ -400,7 +400,7 @@ export function ReaderSurfaceView({
             {passageFlashSegments.map((segment) => (
               <div
                 className="reader-highlight is-temporary is-passage-flash"
-                key={`passage-flash-${segment.id}`}
+                key={`${passageFlashBoxes[0]?.id}-${segment.id}`}
                 style={highlightSegmentStyle(segment, true) as React.CSSProperties}
               />
             ))}

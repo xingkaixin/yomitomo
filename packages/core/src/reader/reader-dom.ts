@@ -235,9 +235,11 @@ export function rangeHighlightBoxes(
   range: Range,
   canvasRect: DOMRect,
   idPrefix: string,
+  ignoredSelector?: string,
 ): HighlightBox[] {
   const rects: DOMRect[] = [];
   const collectNodeRects = (node: Text) => {
+    if (ignoredSelector && textNodeIgnored(node, ignoredSelector)) return;
     const nodeRange = document.createRange();
     nodeRange.setStart(node, node === range.startContainer ? range.startOffset : 0);
     nodeRange.setEnd(node, node === range.endContainer ? range.endOffset : node.data.length);
