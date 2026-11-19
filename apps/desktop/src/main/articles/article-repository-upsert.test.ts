@@ -654,6 +654,94 @@ describe('article repository local child row writes', () => {
         ?.comments,
     ).toEqual([expect.objectContaining({ id: 'comment_1', content: 'article one comment' })]);
   });
+
+  it('edits an existing user comment in place, bumps revision, syncs reading memory, and rejects cross-annotation overwrites', () => {
+    const { database, memory } = repositoryDatabase();
+    upsertAnnotationRows(
+      database,
+      {
+        articleId: 'article_1',
+        annotation: annotation({
+          id: 'annotation_1',
+          comments: [comment({ id: 'comment_1', content: 'initial user thought' })],
+        }),
+      },
+      memory,
+    );
+    const initialRevision = storedCommentRevision(database, 'comment_1');
+
+    const patch = upsertCommentRows(
+      database,
+      {
+        articleId: 'article_1',
+        annotationId: 'annotation_1',
+        comment: comment({ id: 'comment_1', content: 'edited user thought' }),
+        updatedAt: '2026-06-04T06:00:00.000Z',
+      },
+      memory,
+    );
+
+    expect(patch?.article.updatedAt).toBe('2026-06-04T06:00:00.000Z');
+    expect(storedCommentRevision(database, 'comment_1')).not.toBe(initialRevision);
+    expect(
+      readArticleRows(database, 'article_1')?.annotations.find((item) => item.id === 'annotation_1')
+        ?.comments,
+    ).toEqual([expect.objectContaining({ id: 'comment_1', content: 'edited user thought' })]);
+    const memoryEntry = readReadingMemoryEntries({ articleId: 'article_1', executor: memory }).find(
+      (entry) => entry.id === 'comment_memory_comment_1',
+    );
+    expect(memoryEntry?.sourceAnnotationId).toBe('annotation_1');
+    expect(JSON.stringify(memoryEntry?.payload)).toContain('edited user thought');
+
+    expect(() =>
+      upsertCommentRows(
+        database,
+        {
+          articleId: 'article_1',
+          annotationId: 'sibling_annotation',
+          comment: comment({ id: 'comment_1', content: 'hijacked comment' }),
+        },
+        memory,
+      ),
+    ).toThrow('INVALID_ARGS');
+  });
+
+  it('persists a single annotation custom color without restoring the author color snapshot', () => {
+    const { database, memory } = repositoryDatabase();
+    upsertAnnotationRows(
+      database,
+      {
+        articleId: 'article_1',
+        annotation: annotation({
+          id: 'annotation_1',
+          color: '#f4c95d',
+          author: { kind: 'user', username: 'reader', annotationColor: '#f4c95d' },
+        }),
+      },
+      memory,
+    );
+
+    upsertAnnotationRows(
+      database,
+      {
+        articleId: 'article_1',
+        annotation: annotation({
+          id: 'annotation_1',
+          color: '#6fa48f',
+          author: { kind: 'user', username: 'reader', annotationColor: undefined },
+          updatedAt: '2026-06-04T07:00:00.000Z',
+        }),
+        updatedAt: '2026-06-04T07:00:00.000Z',
+      },
+      memory,
+    );
+
+    const stored = readArticleRows(database, 'article_1')?.annotations.find(
+      (item) => item.id === 'annotation_1',
+    );
+    expect(stored?.color).toBe('#6fa48f');
+    expect(stored?.author.annotationColor).toBeUndefined();
+  });
 });
 
 type ArticleRow = typeof schema.articles.$inferSelect;

@@ -86,6 +86,9 @@ export function upsertCommentRows(
       .from(schema.comments)
       .where(eq(schema.comments.id, input.comment.id))
       .get();
+    if (previous && previous.annotationId !== input.annotationId) {
+      throw new DesktopIpcError(desktopIpcErrorCodes.invalidArgs);
+    }
     const row = commentToRow(input.annotationId, input.comment, previous);
     tx.insert(schema.comments)
       .values(row)

@@ -11,9 +11,12 @@ export {
   createUserAnnotation,
   createUserComment,
   deleteAnnotationComment,
+  editUserComment,
   findMentionedAgents,
   getMentionQuery,
+  isEditableUserComment,
   replaceMentionQuery,
+  setAnnotationColor,
   updateAnnotationComment,
 } from './reader/annotations';
 export type {

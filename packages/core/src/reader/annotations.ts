@@ -97,6 +97,44 @@ export function createUserAnnotation(
   };
 }
 
+export function isEditableUserComment(
+  comment: Comment,
+  userProfile: Pick<UserProfile, 'id' | 'username'>,
+): boolean {
+  if (comment.author.kind !== 'user' || comment.pending) return false;
+  if (comment.author.userId && userProfile.id) {
+    return comment.author.userId === userProfile.id;
+  }
+  return true;
+}
+
+export function editUserComment(comment: Comment, content: string): Comment | null {
+  if (comment.author.kind !== 'user' || comment.pending) return null;
+  const trimmed = content.trim();
+  if (!trimmed || trimmed === comment.content) return null;
+  return {
+    ...comment,
+    content: trimmed,
+  };
+}
+
+export function setAnnotationColor(
+  annotation: Annotation,
+  color: string,
+  now = new Date().toISOString(),
+): Annotation {
+  const trimmed = color.trim();
+  if (!trimmed) return annotation;
+  return {
+    ...annotation,
+    // Clearing the author color snapshot marks this highlight as explicitly colored so later
+    // changes to the reader's default highlight color do not overwrite it.
+    author: { ...annotation.author, annotationColor: undefined },
+    color: trimmed,
+    updatedAt: now,
+  };
+}
+
 export function annotationPrimaryComment(annotation: Annotation): Comment | null {
   const comment = annotation.comments[0];
   if (!comment) return null;
@@ -364,7 +402,15 @@ export function annotationColor(
   userProfile: UserProfile,
   agents: PublicAgent[],
 ) {
+  if (hasCustomAnnotationColor(annotation)) return annotation.color;
   return annotationPersona(annotation, userProfile, agents).color;
+}
+
+function hasCustomAnnotationColor(annotation: Annotation) {
+  return Boolean(
+    annotation.color &&
+    (!annotation.author.annotationColor || annotation.color !== annotation.author.annotationColor),
+  );
 }
 
 export function annotationAuthorName(author: AnnotationAuthorRef) {

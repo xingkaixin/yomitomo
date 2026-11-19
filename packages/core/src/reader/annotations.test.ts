@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { Comment, PublicAgent, UserProfile } from '@yomitomo/shared';
 import {
+  annotationColor,
   annotationCommentThreads,
   annotationUserAuthorRef,
   createUserAnnotation,
   deleteAnnotationComment,
+  editUserComment,
   findMentionedAgents,
+  isEditableUserComment,
+  setAnnotationColor,
 } from './annotations';
 
 const user: UserProfile = {
@@ -115,5 +119,45 @@ describe('annotation core', () => {
     ];
 
     expect(findMentionedAgents('请 @林知微 看看', agents)).toEqual(agents);
+  });
+
+  it('edits only non-pending user comments and ignores empty or unchanged text', () => {
+    const ownComment = comment('own');
+    const aiComment: Comment = {
+      id: 'ai-1',
+      author: { kind: 'agent', agentId: 'a1', username: 'reader', nickname: 'Reader' },
+      content: 'AI thought',
+      createdAt: '2026-01-01T00:00:00.000Z',
+    };
+    const pendingComment: Comment = { ...ownComment, pending: true };
+
+    expect(isEditableUserComment(ownComment, user)).toBe(true);
+    expect(isEditableUserComment(aiComment, user)).toBe(false);
+    expect(isEditableUserComment(pendingComment, user)).toBe(false);
+
+    expect(editUserComment(ownComment, '  updated note  ')).toEqual({
+      ...ownComment,
+      content: 'updated note',
+    });
+    expect(editUserComment(ownComment, 'note')).toBeNull();
+    expect(editUserComment(ownComment, '   ')).toBeNull();
+    expect(editUserComment(aiComment, 'rewritten')).toBeNull();
+  });
+
+  it('preserves per-annotation highlight color overrides across global color changes', () => {
+    const anchor = { exact: 'passage', prefix: '', suffix: '', start: 0, end: 7 };
+    const defaultHighlight = createUserAnnotation(anchor, user, 'thought');
+    const recolored = setAnnotationColor(defaultHighlight, '#6fa48f', '2026-01-02T00:00:00.000Z');
+    const updatedUser: UserProfile = { ...user, annotationColor: '#8ab6d6' };
+
+    expect(annotationColor(defaultHighlight, updatedUser, [])).toBe('#8ab6d6');
+    expect(annotationColor(recolored, updatedUser, [])).toBe('#6fa48f');
+
+    const recoloredBackToOriginal = setAnnotationColor(
+      defaultHighlight,
+      user.annotationColor,
+      '2026-01-02T00:01:00.000Z',
+    );
+    expect(annotationColor(recoloredBackToOriginal, updatedUser, [])).toBe('#f4c95d');
   });
 });
