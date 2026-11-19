@@ -683,9 +683,13 @@ function PdfiumDocument({ actions, document, source, toc, viewportOverlay }: Pdf
         alignY: 25,
         behavior: 'instant',
       });
-      await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
-      pageMetricsSource.updatePageMetrics();
-      const metric = pageMetricsRef.current[page.pageIndex];
+      // The virtual list mounts a distant page after the viewport applies the scroll.
+      let metric;
+      for (let frame = 0; frame < 12 && !metric; frame += 1) {
+        await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+        pageMetricsSource.updatePageMetrics();
+        metric = pageMetricsRef.current[page.pageIndex];
+      }
       if (!metric) return [];
       return rects.map((rect, index) => ({
         id: `passage-flash-${index}`,
