@@ -1,4 +1,4 @@
-import { createElement, useCallback, useMemo, useState, type RefObject } from 'react';
+import { createElement, useCallback, useMemo, useReducer, type RefObject } from 'react';
 import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import type { ArticleReadingProgress } from '@yomitomo/shared';
 import {
@@ -26,8 +26,10 @@ export function useWebReadingProgress({
     () => createReadingProgressSource(normalizeSavedProgress(initialProgress) ?? 0),
     [],
   );
-  const [restored, setRestored] = useState(
-    () => (normalizeSavedProgress(initialProgress) ?? 0) <= 0,
+  const [restored, markRestored] = useReducer(
+    () => true,
+    initialProgress,
+    (saved) => (normalizeSavedProgress(saved) ?? 0) <= 0,
   );
   const isRestored = useStableCallback(() => restored);
   const readInitialProgress = useStableCallback(() => initialProgress);
@@ -59,7 +61,7 @@ export function useWebReadingProgress({
           const maxScrollTop = webReaderMaxScrollTop(scrollElement);
           if (maxScrollTop > 0) scrollElement.scrollTo({ top: maxScrollTop * savedProgress });
           progress.set(savedProgress);
-          setRestored(true);
+          markRestored();
         };
         restoreFrame = window.requestAnimationFrame(() => {
           restoreFrame = window.requestAnimationFrame(restore);
