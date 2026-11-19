@@ -20,6 +20,7 @@ export type AssistantRunEvent = {
   articleId: string;
   agentId: string;
   channel: AssistantChannel;
+  settledDeliveryIds?: string[];
   status: 'running' | 'done' | 'failed';
   text: string;
   steps?: AssistantRuntimeProgressStep[];

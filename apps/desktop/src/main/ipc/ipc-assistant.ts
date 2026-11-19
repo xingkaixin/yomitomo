@@ -15,8 +15,8 @@ export function registerAssistantIpc(context: Pick<DesktopMainIpcContext, 'getMa
   );
   handleDesktopIpc('assistant:deliver', async (_event, request) => {
     const { runtime } = await loadAssistantSessions();
-    const { runKey } = await runtime.deliver(request);
-    return { runKey: runKey ?? null };
+    const { runKey, deliveryId } = await runtime.deliver(request);
+    return { runKey: runKey ?? null, deliveryId };
   });
   handleDesktopIpc('assistant:runs', (_event, articleId) => activeAssistantRuns(articleId));
   // Discussion windows have no reader, so passage links jump in the main window's reader.

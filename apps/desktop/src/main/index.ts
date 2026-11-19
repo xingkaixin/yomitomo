@@ -447,12 +447,18 @@ function registerIpc(startupStoreInitialization: StartupStoreInitializationResul
     configureWeReadAutoSync: (reason: string) =>
       mainProcessRuntime?.configureWeReadAutoSync(reason),
     onSettingsSaved: () => mainProcessRuntime?.checkTelemetrySettings(),
-    onDatabaseRestored: () => {
+    beforeDatabaseRestore: async () => {
+      readingRelationsRuntime?.cancelAll();
+      readingLibraryRuntime?.cancelAll();
+      readingReviewRuntime?.cancelAll();
+      await disposeAssistantSessions();
+    },
+    onDatabaseRestored: async () => {
       readingRelationsRuntime?.cancelAll();
       readingLibraryRuntime?.cancelAll();
       readingReviewRuntime?.cancelAll();
       mainProcessRuntime?.onDatabaseRestored();
-      void removeAllAssistantSessions().catch((error: unknown) =>
+      await removeAllAssistantSessions().catch((error: unknown) =>
         logError('assistant_session.restore_cleanup_failed', error),
       );
     },

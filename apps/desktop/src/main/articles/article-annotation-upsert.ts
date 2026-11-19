@@ -12,7 +12,7 @@ import {
   commentToRow,
   serializeAnnotationDistillationReviewSessions,
 } from './article-repository-child-rows';
-import { readArticleAnnotations } from './article-annotation-hydration';
+import { readArticleAnnotation } from './article-annotation-hydration';
 import { readArticleSummaryRows } from './article-row-queries';
 import { buildArticleUpsertPatch, insertCommentRows, touchArticleRows } from './article-row-writes';
 import {
@@ -202,9 +202,7 @@ function trySyncStoredAnnotationMemoryEntries(
   executor: ReadingMemorySqliteExecutor,
 ) {
   try {
-    const annotation = readArticleAnnotations(database, articleId).find(
-      (item) => item.id === annotationId,
-    );
+    const annotation = readArticleAnnotation(database, articleId, annotationId);
     if (annotation) {
       trySyncArticleAnnotationMemoryEntries({ id: articleId, annotations: [annotation] }, executor);
     }

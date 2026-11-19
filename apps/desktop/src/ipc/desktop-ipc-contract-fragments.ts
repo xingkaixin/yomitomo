@@ -455,7 +455,7 @@ export const assistantIpcInvokeDescriptors = {
   }),
   'assistant:deliver': desktopIpcInvoke<
     DesktopIpcSchemaArgs<'assistant:deliver'>,
-    { runKey: string | null }
+    { runKey: string | null; deliveryId?: string }
   >()({
     route: ['assistant', 'deliver'],
     roles: annotationAndMain,

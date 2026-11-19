@@ -13,6 +13,7 @@ export function sessionDirectory() {
 export const assistantArticleTexts = createArticleTextStore(sessionDirectory);
 
 let host: AssistantSessionHost | undefined;
+let restoring = false;
 let loaded: Promise<typeof import('./assistant-sessions')> | undefined;
 
 export function configureAssistantSessions(next: AssistantSessionHost) {
@@ -22,7 +23,9 @@ export function configureAssistantSessions(next: AssistantSessionHost) {
 export async function loadAssistantSessions() {
   if (!host) throw new Error('ASSISTANT_SESSIONS_NOT_CONFIGURED');
   loaded ??= import('./assistant-sessions');
-  return (await loaded).assistantSessions(host);
+  const module = await loaded;
+  if (restoring) throw new Error('DATA_MANAGEMENT_DATABASE_REPLACING');
+  return module.assistantSessions(host);
 }
 
 // Runs survive app restarts; a marker file names each article that still has one, so startup
@@ -37,7 +40,7 @@ export async function resumePendingAssistantRuns() {
 
 export async function activeAssistantRuns(articleId: string) {
   if (!loaded) return [];
-  return (await loadAssistantSessions()).runtime.activeRuns(articleId);
+  return (await loaded).activeRunsIfLoaded(articleId);
 }
 
 export async function runDistillationReview(request: DistillationReviewRequest) {
@@ -46,14 +49,24 @@ export async function runDistillationReview(request: DistillationReviewRequest) 
 
 export async function removeArticleAssistantSession(articleId: string) {
   assistantArticleTexts.forget(articleId);
-  if (loaded) return (await loadAssistantSessions()).store.remove(articleId);
+  if (loaded) return (await loaded).removeArticleSessionIfLoaded(sessionDirectory(), articleId);
   await removeArticleFiles(sessionDirectory(), articleId);
 }
 
 export async function removeAllAssistantSessions() {
   assistantArticleTexts.clear();
-  if (loaded) return (await loadAssistantSessions()).store.removeAll();
+  if (loaded) return (await loaded).removeAllSessionsIfLoaded(sessionDirectory());
   await rm(sessionDirectory(), { recursive: true, force: true });
+}
+
+export async function withAssistantSessionsPaused<T>(operation: () => Promise<T>) {
+  if (restoring) throw new Error('DATA_MANAGEMENT_DATABASE_REPLACING');
+  restoring = true;
+  try {
+    return await operation();
+  } finally {
+    restoring = false;
+  }
 }
 
 export async function disposeAssistantSessions() {

@@ -154,6 +154,52 @@ describe('database restore dialog', () => {
     }
     expect(onDatabaseRestored).toHaveBeenCalledOnce();
   });
+
+  it('awaits beforeDatabaseRestore before replacing the database and skips it on invalid backups', async () => {
+    const invalidPath = join(testState.userData, 'invalid.sqlite');
+    await writeFile(invalidPath, 'not a sqlite database');
+    testState.dialog.showOpenDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePaths: [invalidPath],
+    });
+    const beforeDatabaseRestore = vi.fn();
+    await expect(
+      restoreDatabaseWithDialog(null, onDatabaseRestored, beforeDatabaseRestore),
+    ).rejects.toThrow('DATA_MANAGEMENT_INVALID_SQLITE_DATABASE');
+    expect(beforeDatabaseRestore).not.toHaveBeenCalled();
+
+    const validPath = join(testState.userData, 'valid-order.sqlite');
+    createYomitomoBackupFile(validPath);
+    testState.dialog.showOpenDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePaths: [validPath],
+    });
+    const order: string[] = [];
+    const releaseBefore = deferred<void>();
+    beforeDatabaseRestore.mockImplementationOnce(async () => {
+      order.push('before:start');
+      await releaseBefore.promise;
+      order.push('before:done');
+    });
+    testState.store.replaceDatabaseFile.mockImplementationOnce(async () => {
+      order.push('replace');
+      return 'safety-backup.sqlite';
+    });
+    onDatabaseRestored.mockImplementationOnce(async () => {
+      order.push('after');
+    });
+    testState.store.readStore.mockResolvedValueOnce({ articles: [], providers: [] });
+
+    const restoring = restoreDatabaseWithDialog(null, onDatabaseRestored, beforeDatabaseRestore);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(order).toEqual(['before:start']);
+    expect(testState.store.replaceDatabaseFile).not.toHaveBeenCalled();
+
+    releaseBefore.resolve();
+    await restoring;
+    expect(order).toEqual(['before:start', 'before:done', 'replace', 'after']);
+  });
 });
 
 function deferred<T>() {

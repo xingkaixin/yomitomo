@@ -144,9 +144,11 @@ export function registerArticleIpc(context: ArticleIpcContext) {
     context.sendArticlePatched(event, { type: 'article-reading-progress', ...patch });
     return patch;
   });
-  handleDesktopIpc('article:reader-chat-state', async (_event, input) => {
+  handleDesktopIpc('article:reader-chat-state', async (event, input) => {
     const { storeArticles: articlePersistence } = await context.getPersistenceModules();
-    return articlePersistence.saveArticleReaderChatState(input);
+    const patch = await articlePersistence.saveArticleReaderChatState(input);
+    context.sendArticlePatched(event, patch);
+    return patch;
   });
   handleDesktopIpc('article:import-url', (event, input) =>
     withSourceImportIpcErrors(async () => {
