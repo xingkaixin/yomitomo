@@ -224,25 +224,64 @@ describe('article translation runtime', () => {
     ).toEqual(['block-0', 'block-1', 'block-2']);
     expect(updates[4]).toEqual({ type: 'snapshot', translation: completed });
   });
+
+  it('reuses cached PDF page translation and rejects scanned PDFs with no text layer', async () => {
+    const harness = translationHarness(1, undefined, pdfArticle());
+    const request = {
+      articleId: 'pdf-1',
+      sourceId: 'pdf-page-0',
+      sourceBlocks: [{ id: 'pdf-p0-b0-hash', text: 'First single-column paragraph.' }],
+    };
+
+    const first = await harness.runtime.translate(request, () => {});
+    const second = await harness.runtime.translate(request, () => {});
+
+    expect(first.status).toBe('ready');
+    expect(second.id).toBe(first.id);
+    expect(harness.translateBlocks).toHaveBeenCalledTimes(1);
+    expect(harness.calls.initialize).toBe(1);
+
+    await expect(
+      harness.runtime.translate(
+        {
+          articleId: 'pdf-1',
+          sourceId: 'pdf-page-1',
+          sourceBlocks: [],
+        },
+        () => {},
+      ),
+    ).rejects.toThrow('PDF_TRANSLATION_NO_TEXT_LAYER');
+    expect(harness.translateBlocks).toHaveBeenCalledTimes(1);
+    expect(harness.calls.initialize).toBe(1);
+  });
 });
 
 function translationHarness(
   blockCount: number,
   translateBlock: (blockId: string, signal: AbortSignal) => Promise<string> = async (blockId) =>
     `translated ${blockId}`,
+  initialArticle: ArticleRecord = ebookArticle(blockCount),
 ) {
   const sqlite = new SQLiteDatabase(':memory:');
   for (const migration of migrations) sqlite.exec(migration.sql);
-  sqlite.exec(`
-INSERT INTO articles (
-  id, url, canonical_url, source_type, title, content_hash, created_at, updated_at
-) VALUES (
-  'ebook-1', 'ebook:test', 'ebook:test', 'ebook', 'Test ebook', 'ebook-hash',
-  '2026-07-15T00:00:00.000Z', '2026-07-15T00:00:00.000Z'
-);
-`);
+  sqlite
+    .prepare(
+      `INSERT INTO articles (
+        id, url, canonical_url, source_type, title, content_hash, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      initialArticle.id,
+      initialArticle.url,
+      initialArticle.canonicalUrl,
+      initialArticle.sourceType,
+      initialArticle.title,
+      initialArticle.contentHash,
+      initialArticle.createdAt,
+      initialArticle.updatedAt,
+    );
   const database = drizzle(sqlite, { schema });
-  let article = ebookArticle(blockCount);
+  let article = initialArticle;
   const calls = { initialize: 0, updateSegment: 0, finalize: 0 };
 
   const translateBlocks = vi.fn(
@@ -390,6 +429,28 @@ function ebookArticle(blockCount: number): ArticleRecord {
           textLength: 23 * blockCount,
         },
       ],
+    },
+    createdAt: '2026-07-15T00:00:00.000Z',
+    updatedAt: '2026-07-15T00:00:00.000Z',
+  };
+}
+
+function pdfArticle(): ArticleRecord {
+  return {
+    id: 'pdf-1',
+    url: 'pdf://pdf-1',
+    canonicalUrl: 'pdf://pdf-1',
+    sourceType: 'pdf',
+    title: 'Test PDF',
+    contentHash: 'pdf-hash',
+    annotations: [],
+    pdf: {
+      metadata: {
+        format: 'pdf',
+        fileName: 'test.pdf',
+        fileSize: 2048,
+        pageCount: 3,
+      },
     },
     createdAt: '2026-07-15T00:00:00.000Z',
     updatedAt: '2026-07-15T00:00:00.000Z',

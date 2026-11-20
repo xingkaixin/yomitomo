@@ -1138,6 +1138,12 @@ export const jaResources = {
       jumpEbookProgress: '読書の進捗状況にジャンプします',
       jumpPdfPage: 'PDFページへジャンプします',
       pdfZoom: 'PDF ズーム',
+      pdfFitWidth: '幅に合わせる',
+      pdfFitPage: 'ページ全体',
+      pdfActualSize: '100%',
+      pdfEyeCare: 'ダーク保護フィルター',
+      pdfEyeCareOriginal: '元の色',
+      pdfEyeCareDark: 'ダーク保護',
     },
     readerTranslation: {
       article: {
@@ -1197,6 +1203,32 @@ export const jaResources = {
         translationNoText: 'この章には翻訳可能なテキストが見つかりませんでした。',
         translationFailed: '章の翻訳に失敗しました。後でもう一度試してください。',
         deleteTranslationFailed: '章の翻訳を削除できませんでした。後でもう一度試してください。',
+      },
+      pdfPage: {
+        translate: '現在のページを翻訳',
+        confirmTranslateTitle: 'この PDF ページを翻訳しますか?',
+        confirmTranslateDescription:
+          '対訳翻訳モデルを呼び出し、このページに訳文を重ねて表示します（キャッシュを再利用します）。初版は1段組みのテキスト PDF 向けであり、複数段組みやページをまたぐ段落は既知の制限です。',
+        confirmTranslate: '翻訳を開始',
+        confirmRetranslateTitle: 'この PDF ページを再翻訳しますか?',
+        confirmRetranslateDescription: 'このページと対象言語に保存済みの翻訳を上書きします。',
+        confirmRetranslate: '再翻訳',
+        confirmDeleteTranslationTitle: 'このページの翻訳を削除しますか?',
+        confirmDeleteTranslationDescription:
+          'このページと対象言語の翻訳キャッシュを削除します。元の PDF は変更されません。',
+        confirmDeleteTranslation: '翻訳を削除',
+        showTranslation: '翻訳を表示',
+        hideTranslation: '翻訳を非表示',
+        retranslate: 'このページを再翻訳',
+        deleteTranslation: 'このページの翻訳を削除',
+        translating: '現在のページを翻訳中…',
+        translationInProgressToastDescription:
+          '初版は1段組みのテキスト PDF 向けです。訳文は段落ごとにページ上に重なります。',
+        translationNoText:
+          'このページに選択可能なテキスト層が検出されませんでした（スキャン PDF の可能性があります）。対訳翻訳は利用できません。',
+        translationFailed: 'PDF ページの翻訳に失敗しました。後でもう一度お試しください。',
+        deleteTranslationFailed:
+          'PDF ページの翻訳を削除できませんでした。後でもう一度お試しください。',
       },
       common: {
         retryTranslationSegment: 'この段落を再試行してください',

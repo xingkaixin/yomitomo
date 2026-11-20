@@ -76,8 +76,19 @@ export function pdfiumAnnotationRailLayout(
   };
 }
 
-const PDF_AUTO_ZOOM_MAX_SCALE = 2;
-const PDF_AUTO_ZOOM_MIN_SCALE = 0.5;
+export const PDF_ZOOM_MAX_SCALE = 2;
+export const PDF_ZOOM_MIN_SCALE = 0.5;
+export const PDF_ZOOM_STEP = 0.1;
+
+export function clampPdfZoom(scale: number) {
+  if (!Number.isFinite(scale)) return 1;
+  return Math.round(Math.min(PDF_ZOOM_MAX_SCALE, Math.max(PDF_ZOOM_MIN_SCALE, scale)) * 100) / 100;
+}
+
+export function stepPdfZoom(currentScale: number, direction: 'in' | 'out') {
+  const delta = direction === 'in' ? PDF_ZOOM_STEP : -PDF_ZOOM_STEP;
+  return clampPdfZoom(currentScale + delta);
+}
 
 // 预留单侧批注栏空间后按宽度优先算初始缩放：页宽 = viewport 宽 − 单侧预留，随窗口放大/缩小。
 // 上限 2.0 仅兜底极端超宽屏（避免页面被放得过大）、下限 0.5 兜底极窄窗口。
@@ -95,7 +106,40 @@ export function computeAutoPdfZoom(input: {
     PDF_ANNOTATION_RAIL_EDGE_INSET +
     PDF_ANNOTATION_RAIL_STACK_OUTSET;
   const widthFirst = (viewportWidth - reservedSideSpace) / baseWidth;
-  return Math.min(PDF_AUTO_ZOOM_MAX_SCALE, Math.max(PDF_AUTO_ZOOM_MIN_SCALE, widthFirst));
+  return Math.min(PDF_ZOOM_MAX_SCALE, Math.max(PDF_ZOOM_MIN_SCALE, widthFirst));
+}
+
+export function computePdfFitWidthZoom(input: {
+  viewportWidth: number;
+  baseWidth: number;
+  horizontalPadding?: number;
+}): number | null {
+  const { viewportWidth, baseWidth, horizontalPadding = 48 } = input;
+  if (viewportWidth <= 0 || baseWidth <= 0) return null;
+  const availableWidth = Math.max(1, viewportWidth - horizontalPadding);
+  return clampPdfZoom(availableWidth / baseWidth);
+}
+
+export function computePdfFitPageZoom(input: {
+  viewportWidth: number;
+  viewportHeight: number;
+  baseWidth: number;
+  baseHeight: number;
+  horizontalPadding?: number;
+  verticalPadding?: number;
+}): number | null {
+  const {
+    viewportWidth,
+    viewportHeight,
+    baseWidth,
+    baseHeight,
+    horizontalPadding = 48,
+    verticalPadding = 32,
+  } = input;
+  if (viewportWidth <= 0 || viewportHeight <= 0 || baseWidth <= 0 || baseHeight <= 0) return null;
+  const widthScale = Math.max(1, viewportWidth - horizontalPadding) / baseWidth;
+  const heightScale = Math.max(1, viewportHeight - verticalPadding) / baseHeight;
+  return clampPdfZoom(Math.min(widthScale, heightScale));
 }
 
 export function pdfiumAnnotationBoxes(

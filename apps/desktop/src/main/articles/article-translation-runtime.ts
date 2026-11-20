@@ -360,9 +360,18 @@ async function articleTranslationSource(
     };
   }
 
+  if (article.sourceType === 'pdf') {
+    return {
+      blocks: suppliedTranslationBlocks(input.sourceBlocks, 'PDF_TRANSLATION_NO_TEXT_LAYER'),
+      sourceId,
+      summary: article.excerpt,
+      title: article.pdf.metadata.title || article.title,
+    };
+  }
+
   const chapter = ebookTranslationChapter(article, sourceId);
   return {
-    blocks: ebookTranslationBlocks(input.sourceBlocks),
+    blocks: suppliedTranslationBlocks(input.sourceBlocks, 'ARTICLE_TRANSLATION_NO_TEXT'),
     sourceId,
     summary: article.ebook?.metadata.description || article.excerpt,
     title: [article.title, chapter?.title].filter(Boolean).join(' — '),
@@ -377,10 +386,11 @@ function ebookTranslationChapter(article: ArticleRecord, sourceId: string) {
   );
 }
 
-function ebookTranslationBlocks(
+function suppliedTranslationBlocks(
   sourceBlocks: ArticleTranslationRequest['sourceBlocks'],
+  emptyErrorCode: string,
 ): ArticleTranslationBlock[] {
-  if (!sourceBlocks?.length) throw new Error('ARTICLE_TRANSLATION_NO_TEXT');
+  if (!sourceBlocks?.length) throw new Error(emptyErrorCode);
 
   const blockIds = new Set<string>();
   return sourceBlocks.map((sourceBlock, order) => {

@@ -21,7 +21,9 @@ import { useSourceTranslationProgressToast } from './use-source-translation-prog
 export type TranslationSurfaceAdapter<ApplyResult = unknown> = {
   sourceId?: string;
   applyTranslation: (translation: ArticleTranslation | null, visible: boolean) => ApplyResult;
-  extractBlocks: () => ArticleTranslationSourceBlockInput[];
+  extractBlocks: () =>
+    | ArticleTranslationSourceBlockInput[]
+    | Promise<ArticleTranslationSourceBlockInput[]>;
   scrollToBlock: (blockId: string) => void;
 };
 
@@ -30,7 +32,7 @@ type TranslationAnnotationsAdapter = {
   prepareRemoval: (blockIds: ReadonlySet<string>) => () => Promise<void>;
 };
 
-type TranslationContentKind = 'article' | 'chapter';
+type TranslationContentKind = 'article' | 'chapter' | 'pdfPage';
 
 type TranslationRequestOptions = {
   force?: boolean;
@@ -40,6 +42,7 @@ type TranslationRequestOptions = {
 type UseSourceBilingualTranslationInput<ApplyResult> = {
   articleId: string;
   contentKind: TranslationContentKind;
+  onTranslationDeleted?: (sourceId: string | undefined) => void;
   onTranslationReceived?: (
     translation: ArticleTranslation,
     previous: ArticleTranslation | null,
@@ -81,6 +84,7 @@ const idleTranslationSession: TranslationSessionState = {
 export function useSourceBilingualTranslation<ApplyResult>({
   articleId,
   contentKind,
+  onTranslationDeleted,
   onTranslationReceived,
   surface,
   targetLanguage,
@@ -182,7 +186,14 @@ export function useSourceBilingualTranslation<ApplyResult>({
       return;
     }
 
-    const blocks = activeSurface.extractBlocks();
+    let blocks: ArticleTranslationSourceBlockInput[];
+    try {
+      blocks = await activeSurface.extractBlocks();
+    } catch {
+      appToast.error(t(contentLabels.noTextKey));
+      return;
+    }
+    if (!isCurrentSession(session)) return;
     if (blocks.length === 0) {
       appToast.error(t(contentLabels.noTextKey));
       return;
@@ -250,6 +261,7 @@ export function useSourceBilingualTranslation<ApplyResult>({
       if (!isCurrentSession(session)) return;
       progressToast.dismiss();
       session.update({ menuOpen: false, translation: null, visible: false });
+      onTranslationDeleted?.(deletedSourceId);
     } catch (error) {
       if (isCurrentSession(session)) {
         appToast.error(assistantRuntimeErrorMessage(error, contentLabels.deleteFailureKey));
@@ -439,6 +451,31 @@ function translationContentLabels(
   contentKind: TranslationContentKind,
   t: ReturnType<typeof useTranslation>['t'],
 ) {
+  if (contentKind === 'pdfPage') {
+    return {
+      confirmDeleteTranslation: t('readerTranslation.pdfPage.confirmDeleteTranslation'),
+      confirmDeleteTranslationDescription: t(
+        'readerTranslation.pdfPage.confirmDeleteTranslationDescription',
+      ),
+      confirmDeleteTranslationTitle: t('readerTranslation.pdfPage.confirmDeleteTranslationTitle'),
+      confirmRetranslate: t('readerTranslation.pdfPage.confirmRetranslate'),
+      confirmRetranslateDescription: t('readerTranslation.pdfPage.confirmRetranslateDescription'),
+      confirmRetranslateTitle: t('readerTranslation.pdfPage.confirmRetranslateTitle'),
+      confirmTranslate: t('readerTranslation.pdfPage.confirmTranslate'),
+      confirmTranslateDescription: t('readerTranslation.pdfPage.confirmTranslateDescription'),
+      confirmTranslateTitle: t('readerTranslation.pdfPage.confirmTranslateTitle'),
+      deleteFailureKey: 'readerTranslation.pdfPage.deleteTranslationFailed',
+      deleteTranslation: t('readerTranslation.pdfPage.deleteTranslation'),
+      failureKey: 'readerTranslation.pdfPage.translationFailed',
+      hideTranslation: t('readerTranslation.pdfPage.hideTranslation'),
+      inProgressDescription: t('readerTranslation.pdfPage.translationInProgressToastDescription'),
+      noTextKey: 'readerTranslation.pdfPage.translationNoText',
+      retranslate: t('readerTranslation.pdfPage.retranslate'),
+      showTranslation: t('readerTranslation.pdfPage.showTranslation'),
+      translate: t('readerTranslation.pdfPage.translate'),
+      translating: t('readerTranslation.pdfPage.translating'),
+    };
+  }
   if (contentKind === 'chapter') {
     return {
       confirmDeleteTranslation: t('readerTranslation.chapter.confirmDeleteTranslation'),

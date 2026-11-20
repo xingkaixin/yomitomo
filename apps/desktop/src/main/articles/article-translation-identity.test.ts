@@ -42,6 +42,35 @@ describe('article translation identity', () => {
     expect(legacyNulKey(first)).toBe(legacyNulKey(second));
     expect(articleTranslationIdentityKey(first)).not.toBe(articleTranslationIdentityKey(second));
   });
+
+  it('resolves page-scoped PDF translation identities and rejects out-of-range pages', () => {
+    const pageZero = resolveArticleTranslationIdentity({
+      article: pdfArticle(),
+      requestedSourceId: 'pdf-page-0',
+      settings,
+      promptVersion: 1,
+    });
+    const pageOne = resolveArticleTranslationIdentity({
+      article: pdfArticle(),
+      requestedSourceId: 'pdf-page-1',
+      settings,
+      promptVersion: 1,
+    });
+
+    expect(pageZero.sourceId).toBe('pdf-page-0');
+    expect(pageOne.sourceId).toBe('pdf-page-1');
+    expect(articleTranslationIdentityKey(pageZero)).not.toBe(
+      articleTranslationIdentityKey(pageOne),
+    );
+    expect(() =>
+      resolveArticleTranslationIdentity({
+        article: pdfArticle(),
+        requestedSourceId: 'pdf-page-5',
+        settings,
+        promptVersion: 1,
+      }),
+    ).toThrow('PDF_TRANSLATION_PAGE_INVALID');
+  });
 });
 
 function legacyNulKey(identity: ArticleTranslationIdentity): string {
@@ -63,6 +92,28 @@ function webArticle(): ArticleRecord {
     title: 'Web article',
     contentHash: 'web-content-hash',
     annotations: [],
+    createdAt: '2026-07-31T00:00:00.000Z',
+    updatedAt: '2026-07-31T00:00:00.000Z',
+  };
+}
+
+function pdfArticle(): ArticleRecord {
+  return {
+    id: 'pdf-1',
+    url: 'pdf://pdf-1',
+    canonicalUrl: 'pdf://pdf-1',
+    sourceType: 'pdf',
+    title: 'Single-column PDF',
+    contentHash: 'pdf-content-hash',
+    annotations: [],
+    pdf: {
+      metadata: {
+        format: 'pdf',
+        fileName: 'paper.pdf',
+        fileSize: 4096,
+        pageCount: 3,
+      },
+    },
     createdAt: '2026-07-31T00:00:00.000Z',
     updatedAt: '2026-07-31T00:00:00.000Z',
   };

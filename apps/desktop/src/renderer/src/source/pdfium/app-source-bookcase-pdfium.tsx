@@ -53,12 +53,16 @@ import {
 } from '../../shell/use-reader-page-turn-keys';
 import { formatPdfHeaderAuthors } from '../../shell/app-article-book';
 import {
+  computePdfFitPageZoom,
+  computePdfFitWidthZoom,
   pdfiumAnnotationBoxes,
   pdfiumAnnotationNavigationState,
   pdfiumVisibleAnnotations,
   pdfiumPendingSelectionPresentation,
   pdfiumTemporaryBoxes,
+  stepPdfZoom,
 } from './pdfium-annotation-layout';
+import { usePdfEyeCareMode, usePdfZoomShortcuts } from './pdf-reader-controls';
 import { pdfiumRectsForTextRange } from './pdfium-geometry';
 import { PdfiumPageCanvas } from './pdfium-page-canvas';
 import {
@@ -89,6 +93,7 @@ import { suppressPdfiumContinuousTextSelectionEvent } from './app-source-bookcas
 import { debugPdfLayout } from './pdfium-layout-debug';
 import { usePdfiumReaderLayout } from './use-pdfium-reader-layout';
 import { usePdfiumOpenLifecycle } from './use-pdfium-open-lifecycle';
+import { usePdfiumBilingualTranslation } from './use-pdfium-bilingual-translation';
 
 type PdfArticleRecord = ArticleRecord & { pdf: NonNullable<ArticleRecord['pdf']> };
 type PdfiumBookcaseProps = SourceBookcaseProps<PdfArticleRecord>;
@@ -442,7 +447,17 @@ function PdfiumDocument({ actions, document, source, toc, viewportOverlay }: Pdf
     pdfTextDocument,
     pdfTextIndexPreparing,
   } = documentText;
+  const pdfTranslation = usePdfiumBilingualTranslation({
+    articleId: article.id,
+    currentPageIndex: currentPage - 1,
+    document: loadedDocument,
+    engine,
+    extractPageText: extractPdfiumPageText,
+    jumpToPage: jumpToPdfiumPage,
+    targetLanguage: settings?.bilingualTranslationTargetLanguage,
+  });
   const [readerSettings, updateReaderSettings] = useDesktopReaderSettings();
+  const [pdfEyeCareEnabled, setPdfEyeCareEnabled] = usePdfEyeCareMode();
   const annotationLine = useReaderAnnotationLine(userProfile);
   const sourceReaderApp = useSourceReaderApp({
     articleActions,
@@ -612,6 +627,54 @@ function PdfiumDocument({ actions, document, source, toc, viewportOverlay }: Pdf
   useReaderPageTurnKeys({
     enabled: Boolean(scroll && documentState?.document),
     onTurnPage: turnPdfPageFromKeyboard,
+  });
+
+  const applyManualPdfZoom = useCallback(
+    (scale: number) => {
+      disableAutoZoom();
+      zoomControls?.requestZoom(scale);
+    },
+    [disableAutoZoom, zoomControls],
+  );
+
+  const fitPdfWidth = useCallback(() => {
+    const pageSize = loadedDocument?.pages[currentPage - 1]?.size ?? loadedDocument?.pages[0]?.size;
+    const baseWidth = pageSize?.width || pdfBaseWidth;
+    const nextZoom = computePdfFitWidthZoom({
+      viewportWidth: annotationRailViewportWidth,
+      baseWidth,
+    });
+    if (nextZoom !== null) applyManualPdfZoom(nextZoom);
+  }, [annotationRailViewportWidth, applyManualPdfZoom, currentPage, loadedDocument, pdfBaseWidth]);
+
+  const fitPdfPage = useCallback(() => {
+    const pageSize = loadedDocument?.pages[currentPage - 1]?.size ?? loadedDocument?.pages[0]?.size;
+    if (!pageSize) return;
+    const nextZoom = computePdfFitPageZoom({
+      viewportWidth: annotationRailViewportWidth,
+      viewportHeight: annotationRailViewportHeight,
+      baseWidth: pageSize.width,
+      baseHeight: pageSize.height,
+    });
+    if (nextZoom === null) return;
+    applyManualPdfZoom(nextZoom);
+    requestAnimationFrame(() =>
+      scroll?.scrollToPage({ pageNumber: currentPage, behavior: 'instant', alignY: 0 }),
+    );
+  }, [
+    scroll,
+    annotationRailViewportHeight,
+    annotationRailViewportWidth,
+    applyManualPdfZoom,
+    currentPage,
+    loadedDocument,
+  ]);
+
+  usePdfZoomShortcuts({
+    enabled: Boolean(zoomControls && loadedDocument),
+    onZoomIn: () => applyManualPdfZoom(stepPdfZoom(zoom, 'in')),
+    onZoomOut: () => applyManualPdfZoom(stepPdfZoom(zoom, 'out')),
+    onZoomReset: () => applyManualPdfZoom(1),
   });
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLElement>) {
@@ -872,6 +935,7 @@ function PdfiumDocument({ actions, document, source, toc, viewportOverlay }: Pdf
                         pageIndex={pageIndex}
                         textStyle={{ background: 'rgb(77 155 114 / 0.18)' }}
                       />
+                      {pdfTranslation.renderPageOverlay(pageIndex, rotatedWidth)}
                     </PagePointerProvider>
                   </div>
                 )}
@@ -948,7 +1012,25 @@ function PdfiumDocument({ actions, document, source, toc, viewportOverlay }: Pdf
               </button>
             </ReaderTooltip>
           </div>
+          {pdfTranslation.toolbar}
           <ReaderToolbarSliderPopover
+            footer={
+              <div
+                className="pdfium-zoom-presets"
+                role="group"
+                aria-label={t('readerControls.pdfZoom')}
+              >
+                <button type="button" onClick={fitPdfWidth}>
+                  {t('readerControls.pdfFitWidth')}
+                </button>
+                <button type="button" onClick={fitPdfPage}>
+                  {t('readerControls.pdfFitPage')}
+                </button>
+                <button type="button" onClick={() => applyManualPdfZoom(1)}>
+                  {t('readerControls.pdfActualSize')}
+                </button>
+              </div>
+            }
             icon={<HugeiconsIcon icon={SearchAddIcon} size={16} />}
             label={t('readerControls.pdfZoom')}
             max={200}
@@ -956,13 +1038,39 @@ function PdfiumDocument({ actions, document, source, toc, viewportOverlay }: Pdf
             step={5}
             unit="%"
             value={Math.round(zoom * 100)}
-            onChange={(value) => {
-              disableAutoZoom();
-              zoomControls?.requestZoom(value / 100);
-            }}
+            onChange={(value) => applyManualPdfZoom(value / 100)}
           />
           <ReaderToolbarAppearancePopover
             annotationLine={annotationLine}
+            extraSections={
+              <div className="reader-appearance-section">
+                <span className="reader-appearance-label">{t('readerControls.pdfEyeCare')}</span>
+                <div
+                  className="pdfium-eye-care-toggle"
+                  role="radiogroup"
+                  aria-label={t('readerControls.pdfEyeCare')}
+                >
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={!pdfEyeCareEnabled}
+                    className={!pdfEyeCareEnabled ? 'is-active' : undefined}
+                    onClick={() => setPdfEyeCareEnabled(false)}
+                  >
+                    {t('readerControls.pdfEyeCareOriginal')}
+                  </button>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={pdfEyeCareEnabled}
+                    className={pdfEyeCareEnabled ? 'is-active' : undefined}
+                    onClick={() => setPdfEyeCareEnabled(true)}
+                  >
+                    {t('readerControls.pdfEyeCareDark')}
+                  </button>
+                </div>
+              </div>
+            }
             labels={{
               annotationColor: t('readerUi.annotationLineColor'),
               appearance: t('readerUi.readerAppearance'),
@@ -1065,6 +1173,7 @@ function PdfiumDocument({ actions, document, source, toc, viewportOverlay }: Pdf
       className={[
         'source-pdfium-spike-reader',
         restoringInitialPage ? 'is-restoring-initial-page' : '',
+        pdfEyeCareEnabled ? 'is-pdf-eye-care' : '',
       ]
         .filter(Boolean)
         .join(' ')}
@@ -1108,6 +1217,7 @@ function PdfiumDocument({ actions, document, source, toc, viewportOverlay }: Pdf
         />
       ) : null}
       {searchOpen && loadedDocument ? <span hidden ref={prepareSearchText} /> : null}
+      {pdfTranslation.dialog}
     </section>
   );
 }
