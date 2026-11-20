@@ -541,7 +541,7 @@ export function LibraryHome({
                 }
                 aria-label={t('library.statusFilter.label')}
               >
-                <SelectValue />
+                <SelectValue>{t(`library.statusFilter.${statusFilter}`)}</SelectValue>
               </SelectTrigger>
               <SelectContent className="theme-select-content">
                 <SelectGroup>
@@ -561,7 +561,7 @@ export function LibraryHome({
                 className="library-query-select-trigger"
                 aria-label={t('library.sort.label')}
               >
-                <SelectValue />
+                <SelectValue>{t(`library.sort.${sort}`)}</SelectValue>
               </SelectTrigger>
               <SelectContent className="theme-select-content">
                 <SelectGroup>
@@ -761,7 +761,9 @@ export function LibraryHome({
                 className="library-page-size-trigger"
                 aria-label={t('library.pagination.pageSize')}
               >
-                <SelectValue />
+                <SelectValue>
+                  {t('library.pagination.pageSizeOption', { count: pageSize })}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent className="theme-select-content">
                 <SelectGroup>
