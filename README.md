@@ -13,11 +13,11 @@ You can currently download macOS Apple Silicon and Windows x64 installers from [
 - Web article import: extract body text, title, author, site metadata, and images from URLs.
 - Ebook import and reading: import local EPUB, AZW3, and MOBI files, and persist chapters, covers, and the original book files.
 - PDF import and reading: import local PDF files with outline, selection, highlights, and notes.
-- Desktop reader: outline, font size, content width, highlights, full-text search, reader Q&A, floating toolbar, dual note sidebars, selection shortcuts, arrow-key paging, and annotation navigation; bilingual translation for web articles and chapter-level bilingual reading for ebooks.
-- Text annotations: highlights, annotation types, thought threads, discussion comments, distillation publishing, and `@assistant` triggers; discussion and distillation flows include motion and optional sound feedback (toggle in Settings).
+- Desktop reader: outline, font size, content width, highlights, full-text search, reader Q&A, floating toolbar, dual note sidebars, selection shortcuts, arrow-key paging, and annotation navigation; bilingual translation for web articles, chapter-level bilingual reading for ebooks, and page-level translation for single-column PDFs.
+- Text annotations: highlights, annotation types, thought threads, discussion comments, distillation publishing, and `@assistant` triggers; edit your own thoughts, recolor single highlights, and export notes or distillations as Markdown; discussion and distillation flows include motion and optional sound feedback (toggle in Settings).
 - Reading assistants: mention `@assistant` in a discussion, ask an assistant to add a thought under a highlight, or ask about the article in reader Q&A. Assistants read the surrounding text on demand, and their replies link to the passages they cite.
 - WeRead sync: sync book notes, thoughts, and reading statistics after configuring an API key; optionally open the WeRead web reader inside Yomitomo to revisit highlighted passages.
-- Reading library: manage web articles, ebooks, annotations, comments, and original-source links in one place.
+- Reading library: manage web articles, ebooks, annotations, comments, and original-source links in one place; import by dragging files in, and sort or filter by reading status.
 - Distillation library: gather every published distillation into one searchable, read-only list with source context and a jump back to the original annotation.
 - Reading memory: a local multilingual embedding model indexes highlights, thoughts, discussions, and published distillations for related reading, questions across the library, and revisiting past judgments. Every AI claim cites a saved record and jumps back to the source text.
 - UI and themes: Chinese, English, and Japanese interfaces, a bookshelf library with collection crates, and light, dark, or system appearance.

@@ -1,0 +1,41 @@
+{
+  "version": "0.18.1",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "讨论窗口收进阅读器",
+      "description": "最小化的讨论变成阅读器里的书签胶囊，点开即恢复原窗口和未发送的回复；胶囊可拖到四角，不遮挡正文。",
+      "audience": "reader"
+    },
+    {
+      "type": "new",
+      "title": "划线、修改和导出更顺手",
+      "description": "选区菜单一键划线，⌘F 直接搜索。想法可以编辑，划线可单独换色，笔记和沉淀可导出为 Markdown。",
+      "audience": "reader"
+    },
+    {
+      "type": "new",
+      "title": "更快地整理阅读库",
+      "description": "把文件拖进阅读库即可导入，可按进度或批注数排序、按阅读状态筛选；原文件丢失时可重新选择。",
+      "audience": "reader"
+    },
+    {
+      "type": "new",
+      "title": "PDF 双语翻译与护眼滤镜",
+      "description": "单栏文本型 PDF 可按页翻译，译文叠加在原页上；夜间可开深色护眼滤镜，并用快捷键快速缩放。",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "助手出错时知道怎么办",
+      "description": "失败时说明 Key、余额、限流或网络原因，可一键重试；阅读问答可停止和切换会话，新增 OpenRouter 等预置。",
+      "audience": "settings"
+    },
+    {
+      "type": "fixed",
+      "title": "备份、同步和退出更可靠",
+      "description": "同步或导入进行中也能备份与还原，退出不再卡住；PDF 导入不拖慢界面，切换助手不丢回复。",
+      "audience": "settings"
+    }
+  ]
+}

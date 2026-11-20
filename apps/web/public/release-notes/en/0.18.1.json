@@ -1,0 +1,41 @@
+{
+  "version": "0.18.1",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "Discussions tuck into the reader",
+      "description": "Minimized discussions become bookmark capsules in the reader. Open one to restore the window and unsent reply, or drag them to a corner.",
+      "audience": "reader"
+    },
+    {
+      "type": "new",
+      "title": "Highlight, revise, and export",
+      "description": "Highlight in one click and search with ⌘F. Edit your thoughts, recolor single highlights, and export notes or distillations as Markdown.",
+      "audience": "reader"
+    },
+    {
+      "type": "new",
+      "title": "Organize the library faster",
+      "description": "Drag files onto the library to import them, sort by progress or annotations, filter by reading status, and relink missing source files.",
+      "audience": "reader"
+    },
+    {
+      "type": "new",
+      "title": "Bilingual PDFs and a dark filter",
+      "description": "Translate single-column text PDFs page by page over the original. Use the dark eye-care filter at night and shortcuts to zoom.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "Clear assistant errors",
+      "description": "Failures name the key, balance, rate-limit, or network cause, with one-click retry. Reader Q&A can stop and switch sessions; OpenRouter and more are preset.",
+      "audience": "settings"
+    },
+    {
+      "type": "fixed",
+      "title": "Reliable backups, sync, and quitting",
+      "description": "Back up and restore while sync or imports run, and quit without hangs. PDF imports no longer slow the interface, and switching assistants keeps replies.",
+      "audience": "settings"
+    }
+  ]
+}

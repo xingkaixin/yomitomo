@@ -20,8 +20,10 @@ Built-in preset providers include:
 - Zhipu GLM
 - ByteDance Volcengine (Doubao)
 - Xiaomi MiMo
+- OpenRouter
+- Vercel AI Gateway
 
-After selecting a provider, enter a display name, API Base URL, and your API Key. Click **Fetch** to automatically retrieve available models from the remote endpoint; if network conditions prevent dynamic fetching, reliable preset fallbacks are readily available. You can add, edit, delete, or hide models as needed.
+After selecting a provider, enter a display name, API Base URL, and your API Key. Click **Fetch** to automatically retrieve available models from the remote endpoint; if network conditions prevent dynamic fetching, reliable preset fallbacks are readily available. You can add, edit, delete, or hide models as needed. Click **Duplicate config** to create a copy of an existing provider; its API key is copied into a separate keychain entry.
 
 API keys are safely managed by your operating system's native secure enclave—Keychain on macOS and Credential Manager on Windows. Yomitomo never stores raw plaintext secrets on disk.
 
@@ -77,6 +79,8 @@ Complete backups exclude API keys and do not transfer App Lock. After restoring,
 ## Reading Memory Data Scope
 
 Reading Memory searches your saved highlights and thoughts, discussions you participated in, and published distillations. It excludes full document text and unpublished distillation drafts. Library questions can search reading records from all sources, a collection, or selected sources. Semantic indexing and retrieval run locally; AI judgments send the selected evidence and question to your configured model endpoint.
+
+When the local model or a model provider is not ready, Reading Memory panels link to **Download local model** or provider setup and show model download and indexing progress. Library questions keep up to 20 entries of session history, and answers can be copied as Markdown with their citations.
 
 ## Non-Intrusive Updates
 
