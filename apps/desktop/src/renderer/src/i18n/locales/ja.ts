@@ -2231,6 +2231,8 @@ export const jaResources = {
           openai: 'OpenAI',
           anthropic: 'Anthropic',
           gemini: 'Gemini',
+          openrouter: 'OpenRouter',
+          vercel: 'Vercel AI Gateway',
         },
         providerName: '名前',
         model: 'モデル',

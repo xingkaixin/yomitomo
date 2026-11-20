@@ -2100,6 +2100,8 @@ export const zhCNResources = {
           openai: 'OpenAI',
           anthropic: 'Anthropic',
           gemini: 'Gemini',
+          openrouter: 'OpenRouter',
+          vercel: 'Vercel AI Gateway',
         },
         providerName: '名称',
         model: '模型',

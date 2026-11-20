@@ -58,6 +58,48 @@ describe('model pricing repository', () => {
     });
   });
 
+  it('resolves Vercel AI Gateway prices from base URL when presetId is absent', async () => {
+    const database = pricingDatabase();
+    database.rows.providers.push({
+      ...providerRow({ id: 'provider_vercel', presetId: '' }),
+      name: 'Gateway',
+      presetId: null,
+      baseUrl: 'https://ai-gateway.vercel.sh/v1',
+      modelName: 'anthropic/claude-sonnet-5.5',
+    });
+    database.rows.assistantRuns.push(
+      assistantRunRow({
+        id: 'run_vercel',
+        providerId: 'provider_vercel',
+        providerName: 'Gateway',
+        modelName: 'anthropic/claude-sonnet-5.5',
+        inputTokens: 1_000,
+        outputTokens: 500,
+      }),
+    );
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        vercel: {
+          models: {
+            'anthropic/claude-sonnet-5.5': {
+              cost: {
+                input: 3,
+                output: 15,
+              },
+            },
+          },
+        },
+      }),
+    );
+
+    await refreshModelsDevPrices(database.store);
+
+    expect(database.rows.assistantRuns[0]).toMatchObject({
+      estimatedCostMicros: 10_500,
+      currency: 'USD',
+    });
+  });
+
   it.each([
     {
       name: 'non-numeric cost',

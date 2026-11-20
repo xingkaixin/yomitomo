@@ -6,6 +6,8 @@ import minimaxLogo from '../assets/providers/minimax.png';
 import mimoLogo from '../assets/providers/mimo.svg';
 import moonshotLogo from '../assets/providers/moonshot.webp';
 import openaiLogo from '../assets/providers/openai.png';
+import openrouterLogo from '../assets/providers/openrouter.png';
+import vercelLogo from '../assets/providers/vercel.png';
 import volcengineLogo from '../assets/providers/volcengine.png';
 import zhipuLogo from '../assets/providers/zhipu.png';
 
@@ -18,6 +20,8 @@ export const providerLogoMap: Record<string, string> = {
   'mimo.svg': mimoLogo,
   'moonshot.webp': moonshotLogo,
   'openai.png': openaiLogo,
+  'openrouter.png': openrouterLogo,
+  'vercel.png': vercelLogo,
   'volcengine.png': volcengineLogo,
   'zhipu.png': zhipuLogo,
 };
