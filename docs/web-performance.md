@@ -4,7 +4,7 @@
 
 开发与部署使用 mise 全局安装并已登录的 `cf`，不在项目中安装 cf。根目录执行 `pnpm deploy:cf` 构建官网并发布到 Worker `yomitomo`，绑定 `yomitomo.app` 和 `www.yomitomo.app`。
 
-`cloudflare.config.ts` 保存 Worker 配置；`wrangler.config.ts` 仅保存 cf 委托构建所需的静态资源目录和类型生成选项。当前 cf 仍依赖 Wrangler 完成这类项目的构建，因此保留 Wrangler 构建依赖。静态 Astro 的自动构建尚不生成 cf Build Output，部署脚本先执行 `cf-wrangler build` 打包已构建的 `dist`，再通过 `cf deploy --prebuilt` 上传，避免 cf 再次运行 Astro 丢失 sitemap alias。配置直接导出对象，不依赖全局包的模块解析路径。下载与遥测分别通过 `pnpm deploy:download`、`pnpm deploy:telemetry` 发布。
+`cloudflare.config.ts` 保存 Worker 配置。官网是纯静态构建产物，部署脚本先运行 Astro 构建并生成 sitemap alias，再直接通过 `cf deploy ./dist` 打包并发布 `dist` 目录，无需 `cf-wrangler build`。`apps/web/wrangler.config.ts` 仅在本地用 `cf-wrangler dev` 验证 `_headers` 时使用；下载与遥测 Worker 仍通过 `cf` 委托 Wrangler 构建，分别通过 `pnpm deploy:download`、`pnpm deploy:telemetry` 发布。配置直接导出对象，不依赖全局包的模块解析路径。
 
 首次从 Pages 切换时，先部署并验证 Worker 的 workers.dev 地址，再解除 Pages 的两个自定义域名，将域名交给 Worker。原 Pages 部署暂留作回退；后续发布只使用 cf。关闭原 Pages 的 Web Analytics 注入，官网仅保留 Umami；下载和桌面遥测的 Analytics Engine 数据集保持原样。
 
