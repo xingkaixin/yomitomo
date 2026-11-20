@@ -195,6 +195,8 @@ const providerPresetIdSchema = z.enum([
   'openai',
   'anthropic',
   'gemini',
+  'openrouter',
+  'vercel',
 ]);
 const reasoningEffortSchema = z.enum([
   'default',

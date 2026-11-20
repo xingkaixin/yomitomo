@@ -9,7 +9,9 @@ export type ProviderPresetId =
   | 'mimo'
   | 'openai'
   | 'anthropic'
-  | 'gemini';
+  | 'gemini'
+  | 'openrouter'
+  | 'vercel';
 
 export type ReasoningEffort =
   | 'default'

@@ -391,6 +391,7 @@ function providerIdFromBaseUrl(baseUrl: string) {
   if (host === 'api.anthropic.com') return 'anthropic';
   if (host === 'generativelanguage.googleapis.com') return 'google';
   if (host === 'api.deepseek.com') return 'deepseek';
+  if (host === 'ai-gateway.vercel.sh') return 'vercel';
   return host.replace(/^api\./, '').split('.')[0] || '';
 }
 

@@ -39,7 +39,7 @@ export function insertAssistantExecutionRun(
   input: AssistantExecutionRunInput,
 ) {
   const usage = input.usage || {};
-  const estimatedCostMicros = estimateAssistantRunCostMicros(database, input.provider, usage);
+  const estimatedCostMicros = estimateAssistantRunCostMicros(database, input.provider, input.usage);
   database
     .insert(schema.assistantExecutionRuns)
     .values({

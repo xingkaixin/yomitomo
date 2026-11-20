@@ -14,6 +14,8 @@ import { DEEPSEEK_MODELS } from '@earendil-works/pi-ai/providers/deepseek.models
 import { GOOGLE_MODELS } from '@earendil-works/pi-ai/providers/google.models';
 import { MOONSHOTAI_CN_MODELS } from '@earendil-works/pi-ai/providers/moonshotai-cn.models';
 import { OPENAI_MODELS } from '@earendil-works/pi-ai/providers/openai.models';
+import { OPENROUTER_MODELS } from '@earendil-works/pi-ai/providers/openrouter.models';
+import { VERCEL_AI_GATEWAY_MODELS } from '@earendil-works/pi-ai/providers/vercel-ai-gateway.models';
 import { XIAOMI_MODELS } from '@earendil-works/pi-ai/providers/xiaomi.models';
 import { ZAI_MODELS } from '@earendil-works/pi-ai/providers/zai.models';
 import {
@@ -29,11 +31,46 @@ const MAX_OUTPUT_TOKENS = 4096;
 
 type ModelCatalog = Readonly<Record<string, Model<Api>>>;
 
+const lowToMaxThinking = { off: null, minimal: null, xhigh: 'xhigh', max: 'max' } as const;
+
+// Chat Completions capabilities published by the gateways for these models.
+// pi-ai's Vercel catalog describes Anthropic Messages, which uses different thinking controls.
+const gatewayChatCapabilities: Record<
+  string,
+  | { temperature: boolean; thinkingLevelMap: NonNullable<Model<Api>['thinkingLevelMap']> }
+  | undefined
+> = {
+  'anthropic/claude-sonnet-5.5': { temperature: false, thinkingLevelMap: lowToMaxThinking },
+  'anthropic/claude-opus-5.5': { temperature: false, thinkingLevelMap: lowToMaxThinking },
+  'anthropic/claude-haiku-5.5': {
+    temperature: false,
+    thinkingLevelMap: { off: 'none', minimal: null, xhigh: 'xhigh', max: 'max' },
+  },
+  'openai/gpt-6-astra': { temperature: false, thinkingLevelMap: lowToMaxThinking },
+  'google/gemini-3.8-flash': {
+    temperature: true,
+    thinkingLevelMap: { off: null, minimal: null },
+  },
+  'deepseek/deepseek-v4.1-flash-1017': {
+    temperature: true,
+    thinkingLevelMap: { off: 'none', minimal: null, medium: null, max: 'max' },
+  },
+};
+
+function gatewayCapabilities(provider: LlmProvider) {
+  if (provider.presetId === 'vercel') {
+    return gatewayChatCapabilities[provider.modelName.replace(/-(fast|batch)$/, '')];
+  }
+  if (provider.presetId === 'openrouter') return gatewayChatCapabilities[provider.modelName];
+}
+
 const PRESET_CATALOGS: Partial<Record<ProviderPresetId, ModelCatalog>> = {
   deepseek: DEEPSEEK_MODELS,
   moonshot: MOONSHOTAI_CN_MODELS,
   zhipu: ZAI_MODELS,
   mimo: XIAOMI_MODELS,
+  openrouter: OPENROUTER_MODELS,
+  vercel: VERCEL_AI_GATEWAY_MODELS,
 };
 
 export type PiModelRef = { provider: string; modelId: string };
@@ -49,10 +86,14 @@ export function piProviderFor(
   agent: Pick<Agent, 'id'> & { temperature?: number },
 ): Provider {
   const ref = piModelRef(provider, agent);
+  const supportsTemperature =
+    gatewayCapabilities(provider)?.temperature ?? provider.presetId !== 'vercel';
   const model = {
     ...piModel(provider, ref.provider),
     // Thinking models reject or ignore temperature, so it only applies when thinking is off.
-    samplingParamsByThinkingLevel: { off: { temperature: agent.temperature } },
+    samplingParamsByThinkingLevel: supportsTemperature
+      ? { off: { temperature: agent.temperature } }
+      : undefined,
   };
   return createProvider({
     id: ref.provider,
@@ -90,7 +131,12 @@ function piModel(provider: LlmProvider, providerId: string): Model<Api> {
   return {
     ...model,
     contextWindow,
-    maxTokens: Math.min(maxOutput, Math.floor(contextWindow / 2)),
+    maxTokens: Math.min(
+      maxOutput,
+      Math.floor(contextWindow / 2),
+      // OpenRouter checks the key's credit against the requested output limit.
+      provider.presetId === 'openrouter' ? MAX_OUTPUT_TOKENS : Infinity,
+    ),
   };
 }
 
@@ -104,7 +150,7 @@ function modelWithCapabilities(
   return {
     ...model,
     reasoning: known.reasoning,
-    thinkingLevelMap: known.thinkingLevelMap,
+    thinkingLevelMap: gatewayCapabilities(provider)?.thinkingLevelMap ?? known.thinkingLevelMap,
     ...(known.api === model.api && { compat: { ...model.compat, ...known.compat } }),
   };
 }
@@ -179,11 +225,12 @@ function fallbackModel(provider: LlmProvider, providerId: string): Model<Api> {
     };
   }
   const thinking = compatibleThinking(provider);
+  const effort = provider.reasoningEffort || 'none';
   return {
     ...base,
     api: 'openai-completions',
     baseUrl,
-    reasoning: thinking !== null,
+    reasoning: provider.presetId === 'openrouter' ? effort !== 'none' : thinking !== null,
     compat: {
       supportsDeveloperRole: false,
       supportsStore: false,
@@ -195,6 +242,10 @@ function fallbackModel(provider: LlmProvider, providerId: string): Model<Api> {
 
 function compatibleThinking(provider: LlmProvider): OpenAICompletionsCompat | null {
   const effort = provider.reasoningEffort || 'none';
+  if (provider.presetId === 'openrouter') return { thinkingFormat: 'openrouter' };
+  if (provider.presetId === 'vercel') {
+    return effort === 'none' ? null : { thinkingFormat: 'openai' };
+  }
   const model = provider.modelName.toLowerCase();
   if (provider.presetId === 'dashscope' && /(qwen|deepseek|glm|kimi)/.test(model)) {
     return { thinkingFormat: 'qwen', thinkingTokenBudgetField: 'thinking_budget' };
