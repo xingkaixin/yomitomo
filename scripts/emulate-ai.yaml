@@ -1,0 +1,147 @@
+# Local emulate AI seed for debugging Yomitomo desktop AI flows (`mise run ai:emulate`).
+# OpenAI Chat / Responses: http://127.0.0.1:4014/v1 | Anthropic: http://127.0.0.1:4014 | API key: any value
+# Inspector: http://localhost:4014/
+# Streamed fault replies use spaces because emulate splits SSE chunks on whitespace.
+
+ai:
+  strict: false
+  timing:
+    ttftMs: 120
+    chunkDelayMs: 20
+  models:
+    - emulate-debug
+    - gpt-5.4
+    - claude-sonnet-5
+  rules:
+    - id: connectivity-test
+      match:
+        textContains: 'Reply with OK only.'
+      timing:
+        ttftMs: 0
+        chunkDelayMs: 0
+      reply:
+        - type: text
+          text: 'OK'
+
+    - id: error-429
+      match:
+        textContains: '[429]'
+      error:
+        status: 429
+        type: rate_limit_error
+        message: 'Rate limit exceeded (simulated by emulate).'
+        headers:
+          retry-after: '1'
+
+    - id: error-500
+      match:
+        textContains: '[500]'
+      error:
+        status: 500
+        type: api_error
+        message: 'Upstream server error (simulated by emulate).'
+
+    - id: stream-disconnect
+      match:
+        textContains: '[disconnect]'
+        stream: true
+      timing:
+        ttftMs: 100
+        chunkDelayMs: 60
+      reply:
+        - type: text
+          text: '第一段内容 第二段内容 第三段内容 第四段内容 第五段内容 第六段内容：这段流式回复会在中途被服务端强行切断连接。'
+      fault:
+        kind: disconnect
+        afterChunks: 2
+
+    - id: stream-stall
+      match:
+        textContains: '[stall]'
+        stream: true
+      timing:
+        ttftMs: 100
+        chunkDelayMs: 50
+      reply:
+        - type: text
+          text: '第一段输出 第二段输出 第三段输出 第四段输出：开始输出后将会卡住 15 秒，适合测试取消生成或继续追问 steer。'
+      fault:
+        kind: stall
+        afterChunks: 2
+        stallMs: 15000
+
+    - id: stream-slow
+      match:
+        textContains: '[slow]'
+        stream: true
+      timing:
+        ttftMs: 400
+        chunkDelayMs: 120
+      reply:
+        - type: text
+          text: "第一段 用来观察 流式打字 与 滚动跟随；\n\n第二段 用来测试 生成中途 切换文章、最小化讨论窗口 或 直接追问打断 时的 状态同步。"
+
+    - id: thinking-reply
+      match:
+        textContains: '[think]'
+      timing:
+        ttftMs: 150
+        chunkDelayMs: 30
+      reply:
+        - type: reasoning
+          text: '先定位用户划线对应的段落，再核对上下文是否支持当前推断。'
+        - type: text
+          text: '这是一个带思考过程的模拟回复（仅 OpenAI Responses 和 Anthropic Messages 协议会下发思考文本）。'
+
+    - id: reading-tool-call
+      match:
+        textContains: '[tool]'
+        tool: read_article
+        hasToolResult: false
+      reply:
+        - type: tool_call
+          name: read_article
+          arguments:
+            fromBlockId: b1
+            maxChars: 1200
+
+    - id: reading-tool-followup
+      match:
+        tool: read_article
+        hasToolResult: true
+      reply:
+        - type: text
+          text: '我已经通过 `read_article` 读取了开头段落（见 b1），上下文与你的问题一致，链路验证通过。'
+
+    - id: distillation-review-call
+      match:
+        tool: add_review_item
+        hasToolResult: false
+      reply:
+        - type: tool_call
+          name: add_review_item
+          arguments:
+            type: overview
+            stance: mixed
+            content: '草稿核心方向清楚，但缺少与原文开头段落的直接对照（见 b1）。'
+        - type: tool_call
+          name: add_review_item
+          arguments:
+            type: proposal
+            kind: insert
+            title: '补充原文依据'
+            rationale: '把结论和原文证据分开写，方便之后回看复核。'
+            content: '补充依据：该判断对应原文 b1 的表述，尚需结合后文进一步限定适用范围。'
+
+    - id: distillation-review-done
+      match:
+        tool: add_review_item
+        hasToolResult: true
+      reply:
+        - type: text
+          text: '已提交全部沉淀审阅建议。'
+
+    - id: default-chat
+      reply:
+        - type: text
+          text: '收到（来自本地 emulate 仿真服务）。可以在消息中加入 [tool]、[think]、[slow]、[stall]、[disconnect]、[429] 或 [500] 触发对应调试场景。'

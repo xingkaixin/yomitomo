@@ -23,6 +23,16 @@ run = "pnpm test:app:e2e:from-dist"
 [tasks."build"]
 run = "pnpm build"
 
+[tasks."ai:emulate"]
+description = "Start a local emulate AI server for debugging"
+run = '''
+if ! command -v emulate >/dev/null 2>&1; then
+  echo "emulate CLI not found. Install it first (e.g. mise use -g npm:emulate)." >&2
+  exit 1
+fi
+exec emulate start --service ai --port "${EMULATE_AI_PORT:-4014}" --watch --seed scripts/emulate-ai.yaml "$@"
+'''
+
 [tasks."check:fast"]
 run = [
   { task = "lint" },
