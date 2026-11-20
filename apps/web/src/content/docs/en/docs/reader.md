@@ -18,16 +18,17 @@ The Reader seamlessly integrates full-text reading, precise text anchoring, disc
 The Reader displays the source on a paper surface. Footnote numbers connect underlined passages to their margin cards. The floating toolbar provides access to essential tools:
 
 - **Table of Contents (TOC)**: Expand the chapter hierarchy. The active section is highlighted and centered automatically, making it easy to track your reading progress.
-- **Full-Text Search**: Search keywords across the current document and jump directly to matches.
+- **Full-Text Search**: Press ⌘F (Ctrl+F on Windows) or use the toolbar button to search the current document and jump to matches.
 - **Highlight Navigation**: Cruise forward and backward between highlights without manual scrolling.
 - **Persistent Assistant Chat**: Ask questions about the entire document at any time with multi-turn context retention.
-- **Bilingual Translation**: Translate web articles paragraph by paragraph with visual status indicators on modified blocks.
+- **Bilingual Translation**: Translate web articles paragraph by paragraph with visual status indicators on modified blocks. PDFs can be translated page by page, with each paragraph overlaid on the original page. This first version targets single-column text PDFs; scanned pages without a text layer cannot be translated.
+- **Export Markdown**: Export the current document's highlights, thoughts, discussions, and published distillations to an `.md` file or copy them to the clipboard, verbatim.
 
 ### Typography and Visual Styling
 
 - **Web Articles and Ebooks**: Adjust **Font Size** and **Article Width** to match your reading preferences.
-- **PDFs**: Use **PDF Zoom** to achieve optimal readability.
-- **Theme and Reading Appearance**: Choose light, dark, or system appearance at the bottom of the sidebar. Adjust reading size and width in the reader toolbar. PDFs keep their original page colors in dark mode.
+- **PDFs**: Choose **Fit width**, **Fit page**, or **100%**, or zoom with ⌘/Ctrl + / − / 0.
+- **Theme and Reading Appearance**: Choose light, dark, or system appearance at the bottom of the sidebar. Adjust reading size and width in the reader toolbar. PDFs keep their original page colors in dark mode; turn on the **Dark eye-care filter** in the PDF toolbar when you need it.
 
 ## Create Highlights and Thoughts
 
@@ -36,7 +37,9 @@ The Reader displays the source on a paper surface. Footnote numbers connect unde
 3. Press the default shortcut `A` or click the annotation button on the floating menu.
 4. Record your immediate reaction, question, or analysis.
 
-Highlights use hand-drawn underlines in your chosen color. Footnote numbers match the margin cards, and each highlight remains anchored to its source. Highlight creation and text copying can provide tactile audio feedback (configurable in Settings > General).
+To mark a passage without writing a thought, click **Highlight** in the floating menu to save it directly.
+
+Highlights use hand-drawn underlines in your chosen color. Footnote numbers match the margin cards, and each highlight remains anchored to its source. Give a single highlight its own color from the annotation card menu or the discussion window header. Highlight creation and text copying can provide tactile audio feedback (configurable in Settings > General).
 
 ## Highlight Discussion Threads
 
@@ -45,6 +48,9 @@ Every highlight has its own discussion thread. Open an annotation card to see th
 - Add ongoing reflections or reply to earlier thoughts.
 - Type `@assistant_name` to bring specialized AI companions into the conversation. Responses are generated using document context, the highlighted snippet, and the full discussion thread.
 - Pin key thoughts, delete outdated notes, and switch seamlessly between split and left-aligned layouts.
+- Edit your own thoughts and replies after saving. Assistant replies and highlighted excerpts cannot be changed.
+
+Minimizing a discussion window turns it into a bookmark capsule in the reader; click it to restore the same window and any unsent reply. Drag the capsule group to any corner of the reader, or use the arrow keys when it has focus. Press Esc to cancel a drag.
 
 ## Distillation
 
@@ -52,10 +58,12 @@ When your reflections around a passage mature into a concrete takeaway, framewor
 
 ## Essential Shortcuts
 
-| Shortcut | Action                                |
-| -------- | ------------------------------------- |
-| `C`      | Copy selected text                    |
-| `A`      | Create a highlight from selected text |
-| `Q`      | Ask AI about selected text            |
+| Shortcut                   | Action                                 |
+| -------------------------- | -------------------------------------- |
+| `C`                        | Copy selected text                     |
+| `A`                        | Create a highlight from selected text  |
+| `Q`                        | Ask AI about selected text             |
+| `⌘F` / `Ctrl+F`            | Search the current document            |
+| `⌘/Ctrl` + `+` / `−` / `0` | Zoom a PDF in, out, or back to default |
 
-All shortcuts can be customized in **Settings > Shortcuts**.
+`C`, `A`, and `Q` can be customized in **Settings > Shortcuts**.

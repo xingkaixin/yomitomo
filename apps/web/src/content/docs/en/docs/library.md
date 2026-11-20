@@ -19,10 +19,11 @@ The newly created collection opens immediately. You can rename it anytime from i
 
 ### Add Items to a Collection
 
-A collection can hold web articles, ebooks, PDFs, plain text, and WeRead titles. You can add items in two ways:
+A collection can hold web articles, ebooks, PDFs, plain text, and WeRead titles. You can add items in three ways:
 
 - **Pick from Collection View**: Inside the collection, click "Add to this collection" and select existing items from your library. The selector supports type filtering and keyword search; click "+" on individual items or drag them into the "Pending" tray on the right.
 - **Drag and Drop**: From the main library grid, drag any reading item card directly onto a collection card.
+- **Card Menu**: Choose **Add to collection** from an item's card menu, then select collections or create a new one in the dialog.
 
 To remove an item, open its card menu inside the collection and choose "Remove from collection". This only removes the membership link—the original item remains intact in your library.
 
@@ -93,11 +94,19 @@ Text imports include an instant metadata review: Yomitomo detects character enco
 
 Markdown YAML Front Matter renders as a metadata banner at the top of the reader. Content is sanitized, and remote images are blocked from automatic background fetching. Text documents feature custom manuscript-themed covers and can be filtered or grouped into collections like any other item.
 
+## Drag Files to Import
+
+Drag EPUB, AZW3, MOBI, PDF, TXT, or Markdown files onto the library to import them, several at a time. Files already in the library and unsupported formats are reported separately in the result. You can also import text from **File > Import Text...** in the menu bar.
+
 ## Filter and Search
 
 Use “All” on the left of the search field to select Collections, Web, Ebooks, PDFs, Text, or WeRead. Selected types appear as removable chips. Search matches titles, authors, sources, and collection names.
 
-Filters, search terms, and the current collection persist across navigation. Pin frequently used items or collections; other items follow their added date. Use the footer to change pages and the number of items per page.
+Filters, search terms, and the current collection persist across navigation. Sort the library by recently updated, title, reading progress, or annotation count, and filter by unread, reading, finished, or annotated. Pin frequently used items or collections; other items follow the selected order. Use the footer to change pages and the number of items per page.
+
+## Edit Info and Relink Files
+
+Choose **Edit info** from an item's card menu to change its title and author; the change applies only to your local library. If the original file of a local PDF or ebook is missing, the reader shows a notice; click **Choose local file** to restore it.
 
 ## Local Storage and Offline Images
 

@@ -14,6 +14,8 @@ You can craft the draft manually or invite review assistants to synthesize discu
 - **Draft**: An editable workspace for drafting, reasoning, and iterative refinement.
 - **Published**: Once published, the distilled note replaces the raw highlight in the sidebar. Unpublishing restores the original highlight while preserving your distillation draft and review history.
 
+Export a distillation as a Markdown file or copy it to the clipboard from the distillation window or its card in the distillation library.
+
 ## Structured Review Workflow
 
 Select a specialized review assistant on the right panel and submit a review request. The assistant delivers actionable, structured evaluation rather than unorganized prose:

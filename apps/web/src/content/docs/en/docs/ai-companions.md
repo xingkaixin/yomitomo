@@ -35,6 +35,8 @@ For EPUB ebooks, a request started from a highlight lets the assistant read earl
 
 Passages and discussions cited in replies appear as links: a passage link moves the reader to the source text (for PDFs, to its page), and a discussion link opens that discussion. Discussions and Reader Q&A show steps such as reading the source text. Closing a window does not stop a reply in progress.
 
+When a reply fails, the assistant shows the cause, such as a missing model, an invalid API key, insufficient balance, rate limiting, or a network failure, with a retry button and a link to **Model settings**. Reader Q&A can stop generation, start, switch, or clear sessions, and copy individual answers.
+
 ## Reading Companions Matrix
 
 Reading companions focus on co-reading, concept clarification, deeper questioning, and structural analysis:
