@@ -280,6 +280,7 @@ export const enResources = {
         retryAnswer: 'Retry answer',
         receipt: 'What was sent',
         submittedQuestion: 'Submitted question',
+        historyLabel: 'Session questions',
         sourcePicker: {
           title: 'Choose sources',
           description:
@@ -303,6 +304,8 @@ export const enResources = {
           emptySection: 'The current evidence does not support a conclusion here.',
           citations: 'View {{count}} citations',
           saveThought: 'Save as thought',
+          copyMarkdown: 'Copy Markdown',
+          copiedMarkdown: 'Copied Markdown',
         },
         thought: {
           title: 'Save as thought',
@@ -317,6 +320,16 @@ export const enResources = {
             'A thought is already being edited or saved. This draft was not loaded. Finish it, then return to Ask Library and try again.',
           draftLoadFailed: 'The draft could not be loaded. Return to Ask Library and try again.',
         },
+      },
+      onboarding: {
+        downloadLocalModel: 'Download local model',
+        configureProvider: 'Configure provider',
+      },
+      progress: {
+        downloadingModel:
+          'Downloading local semantic model: {{downloaded}} / {{total}} ({{percent}}%)',
+        buildingSemantic: 'Building semantic index: {{count}} / {{total}} entries ({{percent}}%)',
+        buildingProjection: 'Indexing reading records: {{count}} / {{total}} items ({{percent}}%)',
       },
       scopeLibrary: 'Scope: saved reading assets across the library',
       coverage: 'Index coverage for this query',
@@ -2069,6 +2082,8 @@ export const enResources = {
         cancel: 'Cancel',
         editProvider: 'Edit provider',
         newProvider: 'New provider',
+        cloneProviderTitle: 'Clone provider',
+        cloneProviderName: '{{name}} (Copy)',
         editorKicker: 'Settings · Model service',
         editorDescription: 'Manage model providers, API keys, Base URL, and available models.',
         chooseProviderDescription:
@@ -2091,6 +2106,7 @@ export const enResources = {
         used: 'Used',
         openProviderMenu: 'Open {{name}} settings menu',
         edit: 'Edit',
+        cloneProvider: 'Duplicate config',
         deleteProvider: 'Delete',
         deleteProviderAria: 'Delete model provider: {{name}}',
         deleteProviderConfirmTitle: 'Delete provider “{{name}}”?',

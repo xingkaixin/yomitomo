@@ -1,0 +1,57 @@
+.reading-memory-progress-banner {
+  display: grid;
+  gap: 6px;
+  padding: 10px 14px;
+  border: 1px solid var(--app-edge);
+  border-radius: 12px;
+  background: var(--app-card-surface);
+  box-shadow: var(--app-card-shadow);
+  color: hsl(var(--foreground));
+  font-family: var(--font-ui);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.reading-memory-progress-banner-copy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.reading-memory-progress-banner-spinner {
+  flex: none;
+  color: var(--app-interactive-link);
+  animation: reading-memory-progress-spin 0.9s linear infinite;
+}
+
+.reading-memory-progress-banner progress {
+  display: block;
+  width: 100%;
+  height: 4px;
+  border: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--app-well);
+  accent-color: var(--app-interactive-link);
+}
+
+.reading-memory-progress-banner progress::-webkit-progress-bar {
+  background: var(--app-well);
+}
+
+.reading-memory-progress-banner progress::-webkit-progress-value {
+  background: var(--app-interactive-link);
+}
+
+@keyframes reading-memory-progress-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reading-memory-progress-banner-spinner {
+    animation: none;
+  }
+}

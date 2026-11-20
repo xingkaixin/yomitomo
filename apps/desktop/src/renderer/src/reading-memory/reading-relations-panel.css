@@ -134,8 +134,29 @@
   line-height: 1.7;
 }
 
+.reading-relations-progress {
+  margin-bottom: 16px;
+}
+
 .reading-relations-coverage p {
   margin: 0;
+}
+
+.reading-relations-coverage-row,
+.reading-relations-footer-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.reading-relations-inline-cta {
+  flex: none;
+  height: auto;
+  min-height: 28px;
+  padding: 4px 10px;
+  font-size: 12px;
 }
 
 .reading-relations-evidence {

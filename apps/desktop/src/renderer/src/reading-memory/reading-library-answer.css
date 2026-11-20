@@ -47,6 +47,11 @@
   }
 }
 
+.reading-library-answer-toolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .reading-library-answer-section {
   min-width: 0;
 }

@@ -223,7 +223,14 @@ const providerShapeSchema = z.object({
   updatedAt: timestampSchema,
 });
 
-const providerPatchSchema = checkedSchema<Partial<LlmProvider>>(providerShapeSchema.partial());
+const providerPatchSchema = checkedSchema<
+  Partial<LlmProvider> & { cloneApiKeyFromProviderId?: string; removeApiKey?: boolean }
+>(
+  providerShapeSchema.partial().extend({
+    cloneApiKeyFromProviderId: idSchema.optional(),
+    removeApiKey: z.boolean().optional(),
+  }),
+);
 const settingsSchema = checkedSchema<AppSettingsPatch>(
   z.object({
     uiLanguage: z.enum(['zh-CN', 'en', 'ja']).optional(),
@@ -617,11 +624,7 @@ export const providerDomainIpcInvokeSchemas = {
   'provider:delete': z.tuple([idSchema]),
   'provider:list-models': z.tuple([providerPatchSchema]),
   'provider:read-api-key': z.tuple([idSchema]),
-  'provider:save': z.tuple([
-    checkedSchema<Partial<LlmProvider> & { removeApiKey?: boolean }>(
-      providerShapeSchema.partial().extend({ removeApiKey: z.boolean().optional() }),
-    ),
-  ]),
+  'provider:save': z.tuple([providerPatchSchema]),
   'provider:test': z.tuple([providerPatchSchema]),
   'settings:save': z.tuple([settingsSchema]),
   'user:save': z.tuple([userPatchSchema]),

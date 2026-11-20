@@ -19,11 +19,22 @@ export type ReadingLibraryQuestionState =
       phase: 'ready';
       request: ReadingLibrarySearchInput;
       result: ReadingLibrarySession | ReadingLibraryAnswerResult;
-      remote: 'idle' | 'privacy' | 'answering' | 'failed' | 'canceled';
+      remote: 'idle' | 'privacy' | 'answering' | 'failed' | 'canceled' | 'history';
     };
+
+const MAX_HISTORY_ENTRIES = 20;
+
+export type ReadingLibraryHistoryEntry = {
+  id: string;
+  question: string;
+  askedAt: string;
+  request: ReadingLibrarySearchInput;
+  result: ReadingLibrarySession | ReadingLibraryAnswerResult;
+};
 
 type ReadingLibraryQuestionView = {
   contextState: ReadingLibraryContextState | null;
+  history: ReadingLibraryHistoryEntry[];
   state: ReadingLibraryQuestionState | null;
 };
 
@@ -38,21 +49,27 @@ export function useReadingLibraryQuestion(
     () => createReadingLibraryQuestionController(scope),
     [scopeKey, catalogRevision],
   );
-  const { contextState, state } = useSyncExternalStore(controller.subscribe, controller.getView);
+  const { contextState, history, state } = useSyncExternalStore(
+    controller.subscribe,
+    controller.getView,
+  );
   return {
     contextState,
+    history,
     state,
     ask: controller.ask,
     answer: controller.answer,
     dismissPrivacy: controller.dismissPrivacy,
     cancel: controller.cancel,
     reloadContext: controller.reloadContext,
+    selectHistory: controller.selectHistory,
   };
 }
 
 function createReadingLibraryQuestionController(scope: ReadingEvidenceScope | null) {
   let view: ReadingLibraryQuestionView = {
     contextState: scope ? { phase: 'loading' } : null,
+    history: [],
     state: null,
   };
   let activeRequest: ReadingLibrarySearchInput | null = null;
@@ -64,10 +81,32 @@ function createReadingLibraryQuestionController(scope: ReadingEvidenceScope | nu
     for (const listener of listeners) listener();
   }
 
-  function updateState(next: ReadingLibraryQuestionState | null) {
+  function recordHistory(
+    request: ReadingLibrarySearchInput,
+    result: ReadingLibrarySession | ReadingLibraryAnswerResult,
+  ): ReadingLibraryHistoryEntry[] {
+    const existing = view.history.find((entry) => entry.id === request.requestId);
+    const updated: ReadingLibraryHistoryEntry = {
+      id: request.requestId,
+      question: request.question,
+      askedAt: existing?.askedAt ?? new Date().toISOString(),
+      request,
+      result,
+    };
+    return [updated, ...view.history.filter((entry) => entry.id !== request.requestId)].slice(
+      0,
+      MAX_HISTORY_ENTRIES,
+    );
+  }
+
+  function updateState(
+    next: ReadingLibraryQuestionState | null,
+    nextHistory: ReadingLibraryHistoryEntry[] = view.history,
+  ) {
     publish({
       contextState:
         next?.phase === 'ready' ? { phase: 'ready', context: next.result } : view.contextState,
+      history: nextHistory,
       state: next,
     });
   }
@@ -90,10 +129,15 @@ function createReadingLibraryQuestionController(scope: ReadingEvidenceScope | nu
       .readingMemory.library.context({ scope })
       .then((context) => {
         if (contextLoad === load)
-          publish({ contextState: { phase: 'ready', context }, state: null });
+          publish({
+            contextState: { phase: 'ready', context },
+            history: view.history,
+            state: null,
+          });
       })
       .catch(() => {
-        if (contextLoad === load) publish({ contextState: { phase: 'failed' }, state: null });
+        if (contextLoad === load)
+          publish({ contextState: { phase: 'failed' }, history: view.history, state: null });
       });
   }
 
@@ -126,7 +170,10 @@ function createReadingLibraryQuestionController(scope: ReadingEvidenceScope | nu
       });
       if (isCurrent(request)) {
         recordReadingMemoryJudgment(answered.judgment);
-        updateState({ phase: 'ready', request, result: answered, remote: 'idle' });
+        updateState(
+          { phase: 'ready', request, result: answered, remote: 'idle' },
+          recordHistory(request, answered),
+        );
       }
     } catch {
       if (isCurrent(request)) {
@@ -152,7 +199,10 @@ function createReadingLibraryQuestionController(scope: ReadingEvidenceScope | nu
       const result = await getDesktopApi().readingMemory.library.search(request);
       if (!isCurrent(request)) return;
       recordReadingMemoryQuery(result);
-      updateState({ phase: 'ready', request, result, remote: 'idle' });
+      updateState(
+        { phase: 'ready', request, result, remote: 'idle' },
+        recordHistory(request, result),
+      );
       await generate(request, result, false);
     } catch {
       if (isCurrent(request)) updateState({ phase: 'search-failed', request });
@@ -179,8 +229,21 @@ function createReadingLibraryQuestionController(scope: ReadingEvidenceScope | nu
 
   function reloadContext() {
     endRequest();
-    if (scope) publish({ contextState: { phase: 'loading' }, state: null });
+    if (scope) publish({ contextState: { phase: 'loading' }, history: view.history, state: null });
     loadContext();
+  }
+
+  function selectHistory(id: string) {
+    const entry = view.history.find((item) => item.id === id);
+    if (!entry) return;
+    if (isCurrent(entry.request)) return;
+    endRequest();
+    updateState({
+      phase: 'ready',
+      request: entry.request,
+      result: entry.result,
+      remote: 'history',
+    });
   }
 
   return {
@@ -200,6 +263,7 @@ function createReadingLibraryQuestionController(scope: ReadingEvidenceScope | nu
     dismissPrivacy,
     cancel,
     reloadContext,
+    selectHistory,
   };
 }
 

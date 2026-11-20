@@ -1,5 +1,11 @@
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Add01Icon, Delete02Icon, PencilIcon, Settings02Icon } from '@hugeicons/core-free-icons';
+import {
+  Add01Icon,
+  Copy01Icon,
+  Delete02Icon,
+  PencilIcon,
+  Settings02Icon,
+} from '@hugeicons/core-free-icons';
 import { useReducer, type KeyboardEvent } from 'react';
 import type { LlmProvider } from '@yomitomo/shared';
 import { providerLogoMap } from './app-settings-provider-assets';
@@ -17,12 +23,14 @@ import { IconButton } from '../components/ui/icon-button';
 export function ProviderList({
   providers,
   usedProviderIds,
+  onClone,
   onCreate,
   onDelete,
   onEdit,
 }: {
   providers: LlmProvider[];
   usedProviderIds: ReadonlySet<string>;
+  onClone: (provider: LlmProvider) => void;
   onCreate: () => void;
   onDelete: (id: string) => void;
   onEdit: (provider: LlmProvider) => void;
@@ -36,6 +44,7 @@ export function ProviderList({
             key={provider.id}
             provider={provider}
             used={usedProviderIds.has(provider.id)}
+            onClone={onClone}
             onDelete={onDelete}
             onEdit={onEdit}
           />
@@ -82,11 +91,13 @@ function CreateProviderCard({ onCreate }: { onCreate: () => void }) {
 function ProviderCard({
   provider,
   used,
+  onClone,
   onDelete,
   onEdit,
 }: {
   provider: LlmProvider;
   used: boolean;
+  onClone: (provider: LlmProvider) => void;
   onDelete: (id: string) => void;
   onEdit: (provider: LlmProvider) => void;
 }) {
@@ -102,6 +113,11 @@ function ProviderCard({
   function editProvider() {
     dispatch({ type: 'menuOpenChanged', open: false });
     onEdit(provider);
+  }
+
+  function cloneProvider() {
+    dispatch({ type: 'menuOpenChanged', open: false });
+    onClone(provider);
   }
 
   function confirmDelete() {
@@ -138,6 +154,12 @@ function ProviderCard({
                 <button type="button" onClick={editProvider}>
                   <HugeiconsIcon icon={PencilIcon} size={14} />
                   {t('settings.models.edit')}
+                </button>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <button type="button" onClick={cloneProvider}>
+                  <HugeiconsIcon icon={Copy01Icon} size={14} />
+                  {t('settings.models.cloneProvider')}
                 </button>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>

@@ -21,7 +21,10 @@ import {
 } from '@yomitomo/shared';
 export type { AgentPersonality } from '@yomitomo/shared';
 
-export type ProviderDraft = Partial<LlmProvider> & { removeApiKey?: boolean };
+export type ProviderDraft = Partial<LlmProvider> & {
+  cloneApiKeyFromProviderId?: string;
+  removeApiKey?: boolean;
+};
 export type ProviderTestState = { status: 'idle' | 'testing' | 'success' | 'error' };
 export type AgentDraft = Partial<Agent> & { personalityId?: string };
 export type UserDraft = Partial<UserProfile>;
@@ -130,6 +133,7 @@ const providerDraftMetadataFields = [
   'hasApiKey',
   'createdAt',
   'updatedAt',
+  'cloneApiKeyFromProviderId',
   'removeApiKey',
 ] as const satisfies ReadonlyArray<keyof ProviderDraft>;
 

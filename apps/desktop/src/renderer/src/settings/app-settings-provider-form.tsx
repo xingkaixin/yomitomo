@@ -44,11 +44,13 @@ export function ProviderForm({
   draft,
   onChange,
   selectContentClassName = 'theme-select-content',
+  showNameField = true,
   showProviderIdentityFields = true,
 }: {
   draft: ProviderDraft;
   onChange: (draft: ProviderDraft) => void;
   selectContentClassName?: string;
+  showNameField?: boolean;
   showProviderIdentityFields?: boolean;
 }) {
   const { t } = useTranslation();
@@ -70,63 +72,68 @@ export function ProviderForm({
   }
 
   const selectedPreset = providerPresets.find((preset) => preset.id === draft.presetId);
+  const storedKeyProviderId = draft.id || draft.cloneApiKeyFromProviderId;
 
   return (
     <div className="settings-form-grid">
       {showProviderIdentityFields ? (
-        <>
-          <Field
-            id="provider-preset"
-            className="col-span-2"
-            label={t('settings.models.presetProvider')}
-          >
-            <Select value={draft.presetId || ''} onValueChange={applyPreset}>
-              <SelectTrigger
-                id="provider-preset"
-                aria-labelledby="provider-preset-label"
-                className="provider-select-trigger"
-              >
-                <SelectValue placeholder={t('settings.models.chooseProviderPreset')}>
-                  {selectedPreset ? (
+        <Field
+          id="provider-preset"
+          className="col-span-2"
+          label={t('settings.models.presetProvider')}
+        >
+          <Select value={draft.presetId || ''} onValueChange={applyPreset}>
+            <SelectTrigger
+              id="provider-preset"
+              aria-labelledby="provider-preset-label"
+              className="provider-select-trigger"
+            >
+              <SelectValue placeholder={t('settings.models.chooseProviderPreset')}>
+                {selectedPreset ? (
+                  <span className="provider-preset-item">
+                    <img
+                      className="provider-preset-logo"
+                      src={providerLogoMap[selectedPreset.logo]}
+                      alt=""
+                    />
+                    {providerPresetDisplayName(selectedPreset.id, selectedPreset.name)}
+                  </span>
+                ) : undefined}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent className={selectContentClassName}>
+              <SelectGroup>
+                {providerPresets.map((preset) => (
+                  <SelectItem key={preset.id} value={preset.id}>
                     <span className="provider-preset-item">
                       <img
                         className="provider-preset-logo"
-                        src={providerLogoMap[selectedPreset.logo]}
+                        src={providerLogoMap[preset.logo]}
                         alt=""
                       />
-                      {providerPresetDisplayName(selectedPreset.id, selectedPreset.name)}
+                      {providerPresetDisplayName(preset.id, preset.name)}
                     </span>
-                  ) : undefined}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent className={selectContentClassName}>
-                <SelectGroup>
-                  {providerPresets.map((preset) => (
-                    <SelectItem key={preset.id} value={preset.id}>
-                      <span className="provider-preset-item">
-                        <img
-                          className="provider-preset-logo"
-                          src={providerLogoMap[preset.logo]}
-                          alt=""
-                        />
-                        {providerPresetDisplayName(preset.id, preset.name)}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field id="provider-name" label={t('settings.models.providerName')}>
-            <Input
-              id="provider-name"
-              name="provider-name"
-              autoComplete="off"
-              value={draft.name || ''}
-              onChange={(event) => onChange({ ...draft, name: event.target.value })}
-            />
-          </Field>
-        </>
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
+      ) : null}
+      {showProviderIdentityFields || showNameField ? (
+        <Field
+          id="provider-name"
+          className={showProviderIdentityFields ? undefined : 'col-span-2'}
+          label={t('settings.models.providerName')}
+        >
+          <Input
+            id="provider-name"
+            name="provider-name"
+            autoComplete="off"
+            value={draft.name || ''}
+            onChange={(event) => onChange({ ...draft, name: event.target.value })}
+          />
+        </Field>
       ) : null}
       <Field id="provider-base-url" label="Base URL">
         <Input
@@ -151,14 +158,24 @@ export function ProviderForm({
       <Field id="provider-api-key" className="col-span-2" label="API Key">
         <SecretInput
           id="provider-api-key"
-          key={draft.id}
+          key={storedKeyProviderId || 'new'}
           hasStoredValue={Boolean(draft.hasApiKey)}
           value={draft.apiKey || ''}
           onChange={(apiKey) => onChange({ ...draft, apiKey, removeApiKey: false })}
           onRevealStoredValue={() =>
-            draft.id ? getDesktopApi().provider.readApiKey(draft.id) : Promise.resolve('')
+            storedKeyProviderId
+              ? getDesktopApi().provider.readApiKey(storedKeyProviderId)
+              : Promise.resolve('')
           }
-          onRemove={() => onChange({ ...draft, apiKey: '', hasApiKey: false, removeApiKey: true })}
+          onRemove={() =>
+            onChange({
+              ...draft,
+              apiKey: '',
+              cloneApiKeyFromProviderId: undefined,
+              hasApiKey: false,
+              removeApiKey: true,
+            })
+          }
         />
       </Field>
     </div>

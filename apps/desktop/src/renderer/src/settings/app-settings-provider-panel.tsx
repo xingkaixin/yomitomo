@@ -41,6 +41,7 @@ import { ReadingMemoryModelSettings } from './reading-memory-model-settings';
 import { readingMemoryEnabled } from '../../../reading-memory-release';
 
 type ProviderDraftController = SaveableDraft<ProviderDraft> & {
+  clone: (provider: LlmProvider) => void;
   create: () => void;
   deleteProvider: (id: string) => Promise<void> | void;
   select: (provider: LlmProvider) => void;
@@ -90,6 +91,11 @@ export function ProviderSettings({ providerDraft, routesDraft, providers }: Prov
   function selectProvider(provider: LlmProvider) {
     providerDraft.select(provider);
     dispatchEditor({ type: 'editStarted' });
+  }
+
+  function cloneProvider(provider: LlmProvider) {
+    providerDraft.clone(provider);
+    dispatchEditor({ type: 'cloneStarted' });
   }
 
   function createProvider() {
@@ -174,6 +180,7 @@ export function ProviderSettings({ providerDraft, routesDraft, providers }: Prov
           <ProviderList
             providers={providers}
             usedProviderIds={usedProviderIds}
+            onClone={cloneProvider}
             onCreate={createProvider}
             onDelete={deleteProvider}
             onEdit={selectProvider}
@@ -219,7 +226,7 @@ function ProviderEditorContent({
   testStatus: ProviderTestState['status'];
   titleId?: string;
   canSave: boolean;
-  editorMode: 'create' | 'edit';
+  editorMode: 'create' | 'edit' | 'clone';
   editorStep: 1 | 2;
   providerPresetPicked: boolean;
   onChange: (draft: ProviderDraft) => void;
@@ -232,8 +239,13 @@ function ProviderEditorContent({
   const { t } = useTranslation();
   const isCreate = editorMode === 'create';
   const activeStep = isCreate ? editorStep : 2;
-  const canOpenConnection = editorMode === 'edit' || providerPresetPicked;
-  const title = isCreate ? t('settings.models.newProvider') : t('settings.models.editProvider');
+  const canOpenConnection = editorMode !== 'create' || providerPresetPicked;
+  const title =
+    editorMode === 'clone'
+      ? t('settings.models.cloneProviderTitle')
+      : isCreate
+        ? t('settings.models.newProvider')
+        : t('settings.models.editProvider');
   const description =
     isCreate && activeStep === 1
       ? t('settings.models.chooseProviderDescription')
@@ -724,13 +736,14 @@ function ProviderRouteRow({
 }
 
 type ProviderEditorState = {
-  mode: 'create' | 'edit';
+  mode: 'create' | 'edit' | 'clone';
   open: boolean;
   presetPicked: boolean;
   step: 1 | 2;
 };
 
 type ProviderEditorEvent =
+  | { type: 'cloneStarted' }
   | { type: 'closed' }
   | { type: 'createStarted' }
   | { type: 'editStarted' }
@@ -743,6 +756,8 @@ function providerEditorReducer(
   event: ProviderEditorEvent,
 ): ProviderEditorState {
   switch (event.type) {
+    case 'cloneStarted':
+      return { mode: 'clone', open: true, presetPicked: true, step: 2 };
     case 'closed':
       return { ...state, open: false };
     case 'createStarted':
