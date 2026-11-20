@@ -5,6 +5,17 @@ sidebar:
   hidden: true
 ---
 
+## 0.18.1
+
+Released: 2026-11-20
+
+- Minimized discussion windows become bookmark capsules in the reader that dock to any corner.
+- Added one-click highlights, ⌘F search, thought editing, per-highlight colors, and Markdown export.
+- The library supports drag-and-drop import, sorting, and status filters; PDFs add page translation and a dark filter.
+- Failed assistant replies can be retried, OpenRouter and Vercel AI Gateway presets are added, and PDF and database work is faster.
+
+[View 0.18.1 release notes](/en/changelogs/v0-18-1/)
+
 ## 0.18.0
 
 Released: 2026-11-13
