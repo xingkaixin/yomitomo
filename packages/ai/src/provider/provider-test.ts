@@ -8,7 +8,8 @@ export async function testProvider(
     const { text } = await generateYomitomoText(provider, {
       system: 'You are a connectivity test assistant.',
       user: 'Reply with OK only.',
-      maxTokens: 128,
+      // Gateway models can spend the response budget on mandatory thinking before replying.
+      maxTokens: provider.presetId === 'openrouter' || provider.presetId === 'vercel' ? 2048 : 128,
     });
     return { ok: true, message: text };
   } catch (error) {

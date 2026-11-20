@@ -103,7 +103,9 @@ function completeOnce(
       messages: [{ role: 'user', content: payload.user, timestamp: Date.now() }],
     },
     {
-      ...(thinks ? { reasoning: level } : { temperature: payload.temperature }),
+      reasoning: thinks ? level : undefined,
+      // Chat Completions gets its supported sampling parameters from piProviderFor.
+      temperature: !thinks && model.api !== 'openai-completions' ? payload.temperature : undefined,
       maxTokens: payload.maxTokens,
       signal,
     },

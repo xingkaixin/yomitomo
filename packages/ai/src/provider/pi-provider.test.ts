@@ -113,7 +113,7 @@ describe('piProviderFor', () => {
     const claude = await requestPayload(
       compatible('openrouter', 'anthropic/claude-sonnet-5.5', 'none'),
     );
-    expect(claude).toMatchObject({ reasoning: { effort: 'low' } });
+    expect(claude).toMatchObject({ reasoning: { effort: 'low' }, max_tokens: 4096 });
     expect(claude).not.toHaveProperty('thinking');
     expect(claude).not.toHaveProperty('temperature');
 
@@ -124,13 +124,23 @@ describe('piProviderFor', () => {
     expect(unknownOff).not.toHaveProperty('reasoning');
   });
 
+  it.each([
+    ['anthropic/claude-sonnet-5.5', 'low'],
+    ['anthropic/claude-opus-5.5', 'low'],
+    ['anthropic/claude-haiku-5.5', 'none'],
+  ])('sends supported Vercel defaults for %s', async (model, effort) => {
+    const payload = await requestPayload(compatible('vercel', model, 'none'));
+    expect(payload).toHaveProperty('reasoning_effort', effort);
+    expect(payload).not.toHaveProperty('temperature');
+  });
+
   it('uses standard OpenAI reasoning_effort on Vercel AI Gateway without vendor-specific fields', async () => {
     const deepseekOff = await requestPayload(
       compatible('vercel', 'deepseek/deepseek-v4.1-flash-1017', 'none'),
     );
     expect(deepseekOff).toMatchObject({ temperature: 0.3 });
     expect(deepseekOff).not.toHaveProperty('thinking');
-    expect(deepseekOff).not.toHaveProperty('reasoning_effort');
+    expect(deepseekOff).toHaveProperty('reasoning_effort', 'none');
 
     const deepseekHigh = await requestPayload(
       compatible('vercel', 'deepseek/deepseek-v4.1-flash-1017', 'high'),
