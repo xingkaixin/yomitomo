@@ -14,6 +14,8 @@ import { DEEPSEEK_MODELS } from '@earendil-works/pi-ai/providers/deepseek.models
 import { GOOGLE_MODELS } from '@earendil-works/pi-ai/providers/google.models';
 import { MOONSHOTAI_CN_MODELS } from '@earendil-works/pi-ai/providers/moonshotai-cn.models';
 import { OPENAI_MODELS } from '@earendil-works/pi-ai/providers/openai.models';
+import { OPENROUTER_MODELS } from '@earendil-works/pi-ai/providers/openrouter.models';
+import { VERCEL_AI_GATEWAY_MODELS } from '@earendil-works/pi-ai/providers/vercel-ai-gateway.models';
 import { XIAOMI_MODELS } from '@earendil-works/pi-ai/providers/xiaomi.models';
 import { ZAI_MODELS } from '@earendil-works/pi-ai/providers/zai.models';
 import {
@@ -34,6 +36,8 @@ const PRESET_CATALOGS: Partial<Record<ProviderPresetId, ModelCatalog>> = {
   moonshot: MOONSHOTAI_CN_MODELS,
   zhipu: ZAI_MODELS,
   mimo: XIAOMI_MODELS,
+  openrouter: OPENROUTER_MODELS,
+  vercel: VERCEL_AI_GATEWAY_MODELS,
 };
 
 export type PiModelRef = { provider: string; modelId: string };
@@ -179,11 +183,12 @@ function fallbackModel(provider: LlmProvider, providerId: string): Model<Api> {
     };
   }
   const thinking = compatibleThinking(provider);
+  const effort = provider.reasoningEffort || 'none';
   return {
     ...base,
     api: 'openai-completions',
     baseUrl,
-    reasoning: thinking !== null,
+    reasoning: provider.presetId === 'openrouter' ? effort !== 'none' : thinking !== null,
     compat: {
       supportsDeveloperRole: false,
       supportsStore: false,
@@ -195,6 +200,10 @@ function fallbackModel(provider: LlmProvider, providerId: string): Model<Api> {
 
 function compatibleThinking(provider: LlmProvider): OpenAICompletionsCompat | null {
   const effort = provider.reasoningEffort || 'none';
+  if (provider.presetId === 'openrouter') return { thinkingFormat: 'openrouter' };
+  if (provider.presetId === 'vercel') {
+    return effort === 'none' ? null : { thinkingFormat: 'openai' };
+  }
   const model = provider.modelName.toLowerCase();
   if (provider.presetId === 'dashscope' && /(qwen|deepseek|glm|kimi)/.test(model)) {
     return { thinkingFormat: 'qwen', thinkingTokenBudgetField: 'thinking_budget' };

@@ -102,4 +102,41 @@ describe('piProviderFor', () => {
     expect(openai).toMatchObject({ reasoning_effort: 'low' });
     expect(openai).not.toHaveProperty('temperature');
   });
+
+  it('uses OpenRouter reasoning format without direct-vendor thinking fields', async () => {
+    const deepseekOff = await requestPayload(
+      compatible('openrouter', 'deepseek/deepseek-v4.1-flash-1017', 'none'),
+    );
+    expect(deepseekOff).toMatchObject({ reasoning: { effort: 'none' }, temperature: 0.3 });
+    expect(deepseekOff).not.toHaveProperty('thinking');
+
+    const claude = await requestPayload(
+      compatible('openrouter', 'anthropic/claude-sonnet-5.5', 'none'),
+    );
+    expect(claude).toMatchObject({ reasoning: { effort: 'low' } });
+    expect(claude).not.toHaveProperty('thinking');
+    expect(claude).not.toHaveProperty('temperature');
+
+    const unknownOff = await requestPayload(
+      compatible('openrouter', 'custom/unknown-model', 'none'),
+    );
+    expect(unknownOff).toMatchObject({ temperature: 0.3 });
+    expect(unknownOff).not.toHaveProperty('reasoning');
+  });
+
+  it('uses standard OpenAI reasoning_effort on Vercel AI Gateway without vendor-specific fields', async () => {
+    const deepseekOff = await requestPayload(
+      compatible('vercel', 'deepseek/deepseek-v4.1-flash-1017', 'none'),
+    );
+    expect(deepseekOff).toMatchObject({ temperature: 0.3 });
+    expect(deepseekOff).not.toHaveProperty('thinking');
+    expect(deepseekOff).not.toHaveProperty('reasoning_effort');
+
+    const deepseekHigh = await requestPayload(
+      compatible('vercel', 'deepseek/deepseek-v4.1-flash-1017', 'high'),
+    );
+    expect(deepseekHigh).toMatchObject({ reasoning_effort: 'high' });
+    expect(deepseekHigh).not.toHaveProperty('thinking');
+    expect(deepseekHigh).not.toHaveProperty('temperature');
+  });
 });
