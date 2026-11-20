@@ -1,6 +1,10 @@
 # Local emulate AI seed for debugging Yomitomo desktop AI flows (`mise run ai:emulate`).
-# OpenAI Chat / Responses: http://127.0.0.1:4014/v1 | Anthropic: http://127.0.0.1:4014 | API key: any value
+# Desktop base URLs: OpenAI Chat http://127.0.0.1:4014/v1 | Anthropic http://127.0.0.1:4014 | API key: any value
+# To test OpenAI Responses directly: curl http://127.0.0.1:4014/v1/responses --json '{"model":"emulate-debug","input":"Reply with OK only."}'
 # Inspector: http://localhost:4014/
+# Chat markers: [tool], [think], [slow], [stall], [disconnect], [429], [500].
+# Use a fresh conversation for each fault. In the same conversation, retrying can replay the failed input and its marker.
+# To exercise a successful [tool] read, use an article with readable text at block b1.
 # Streamed fault replies use spaces because emulate splits SSE chunks on whitespace.
 
 ai:
@@ -13,6 +17,35 @@ ai:
     - gpt-5.4
     - claude-sonnet-5
   rules:
+    # Review prompts include discussion history, which can contain chat markers.
+    - id: distillation-review-call
+      match:
+        tool: add_review_item
+        hasToolResult: false
+      reply:
+        - type: tool_call
+          name: add_review_item
+          arguments:
+            type: overview
+            stance: mixed
+            content: '草稿核心方向清楚，但缺少与原文开头段落的直接对照（见 b1）。'
+        - type: tool_call
+          name: add_review_item
+          arguments:
+            type: proposal
+            kind: insert
+            title: '补充原文依据'
+            rationale: '把结论和原文证据分开写，方便之后回看复核。'
+            content: '补充依据：该判断对应原文 b1 的表述，尚需结合后文进一步限定适用范围。'
+
+    - id: distillation-review-done
+      match:
+        tool: add_review_item
+        hasToolResult: true
+      reply:
+        - type: text
+          text: '已提交全部沉淀审阅建议。'
+
     - id: connectivity-test
       match:
         textContains: 'Reply with OK only.'
@@ -111,37 +144,9 @@ ai:
         hasToolResult: true
       reply:
         - type: text
-          text: '我已经通过 `read_article` 读取了开头段落（见 b1），上下文与你的问题一致，链路验证通过。'
-
-    - id: distillation-review-call
-      match:
-        tool: add_review_item
-        hasToolResult: false
-      reply:
-        - type: tool_call
-          name: add_review_item
-          arguments:
-            type: overview
-            stance: mixed
-            content: '草稿核心方向清楚，但缺少与原文开头段落的直接对照（见 b1）。'
-        - type: tool_call
-          name: add_review_item
-          arguments:
-            type: proposal
-            kind: insert
-            title: '补充原文依据'
-            rationale: '把结论和原文证据分开写，方便之后回看复核。'
-            content: '补充依据：该判断对应原文 b1 的表述，尚需结合后文进一步限定适用范围。'
-
-    - id: distillation-review-done
-      match:
-        tool: add_review_item
-        hasToolResult: true
-      reply:
-        - type: text
-          text: '已提交全部沉淀审阅建议。'
+          text: '已收到 `read_article` 的工具结果。请查看工具步骤确认读取是否成功。'
 
     - id: default-chat
       reply:
         - type: text
-          text: '收到（来自本地 emulate 仿真服务）。可以在消息中加入 [tool]、[think]、[slow]、[stall]、[disconnect]、[429] 或 [500] 触发对应调试场景。'
+          text: '收到（来自本地 emulate 仿真服务）。'
