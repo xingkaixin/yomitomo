@@ -11,6 +11,7 @@ type LibraryEmptyReasonInput =
   | {
       scope: 'collection';
       filteredCount: number;
+      hasFilter?: boolean;
       libraryHasItems: boolean;
       searchQuery: string;
     }
@@ -33,7 +34,7 @@ export function libraryEmptyReason(input: LibraryEmptyReasonInput): LibraryEmpty
 function collectionEmptyReason(
   input: Extract<LibraryEmptyReasonInput, { scope: 'collection' }>,
 ): LibraryEmptyReason {
-  if (input.filteredCount === 0 && input.searchQuery.trim()) {
+  if (input.filteredCount === 0 && (input.searchQuery.trim() || input.hasFilter)) {
     return { variant: 'message', messageKey: 'noMatch' };
   }
   return { variant: 'collection', libraryHasItems: input.libraryHasItems };

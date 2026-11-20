@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useStore } from 'zustand';
 import type { AppSettingsPatch } from '@yomitomo/shared';
+import type { LibraryCatalogSort, LibraryCatalogStatusFilter } from '../../../ipc-contract';
 import { useAppSessionStoreApi, type AppSessionState } from '../shell/app-session';
 import type { LibraryTypeFilter } from './library-filter-types';
 import {
@@ -34,7 +35,15 @@ export function useLibraryQuerySession({
   );
   const catalogInput = useMemo(
     () => libraryCatalogInput(state),
-    [selectedTypesKey, state.page, state.pageSize, state.scope, state.searchQuery],
+    [
+      selectedTypesKey,
+      state.page,
+      state.pageSize,
+      state.scope,
+      state.searchQuery,
+      state.sort,
+      state.statusFilter,
+    ],
   );
   const catalog = useLibraryCatalog(catalogInput, catalogRevision, catalogEnabled);
   const availableTypes = libraryCatalogTypes(useWeReadLibraryState());
@@ -50,6 +59,15 @@ export function useLibraryQuerySession({
 
   const updateSearchQuery = useCallback(
     (nextQuery: string) => dispatchLibraryQuery({ type: 'query-changed', query: nextQuery }),
+    [dispatchLibraryQuery],
+  );
+  const changeSort = useCallback(
+    (sort: LibraryCatalogSort) => dispatchLibraryQuery({ type: 'sort-changed', sort }),
+    [dispatchLibraryQuery],
+  );
+  const changeStatusFilter = useCallback(
+    (status: LibraryCatalogStatusFilter) =>
+      dispatchLibraryQuery({ type: 'status-changed', status }),
     [dispatchLibraryQuery],
   );
   const toggleType = useCallback(
@@ -92,6 +110,8 @@ export function useLibraryQuerySession({
     () => ({
       changePage,
       changePageSize,
+      changeSort,
+      changeStatusFilter,
       closeCollection,
       openCollection,
       resetTypes,
@@ -101,6 +121,8 @@ export function useLibraryQuerySession({
     [
       changePage,
       changePageSize,
+      changeSort,
+      changeStatusFilter,
       closeCollection,
       openCollection,
       resetTypes,

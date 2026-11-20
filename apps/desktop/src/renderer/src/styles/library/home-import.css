@@ -1,8 +1,55 @@
 .library-home {
+  position: relative;
   border: 0;
   border-radius: 0;
   box-shadow: none;
   overflow: hidden;
+}
+
+.library-file-drop-overlay {
+  position: absolute;
+  inset: 14px;
+  z-index: var(--app-z-modal);
+  display: grid;
+  place-items: center;
+  border: 2px dashed var(--app-interactive-badge-border);
+  border-radius: 18px;
+  background: var(--app-panel-top-a68);
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+}
+
+.library-file-drop-card {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  border: 1px solid var(--app-edge);
+  border-radius: 16px;
+  background: var(--app-card-surface);
+  box-shadow: var(--app-float-shadow);
+  color: hsl(var(--foreground));
+  padding: 24px 32px;
+  text-align: center;
+}
+
+.library-file-drop-icon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--app-interactive-badge-bg);
+  color: var(--app-interactive-badge-fg);
+}
+
+.library-file-drop-card strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.library-file-drop-card span {
+  color: hsl(var(--muted-foreground));
+  font-size: 12.5px;
 }
 
 .library-home-header {

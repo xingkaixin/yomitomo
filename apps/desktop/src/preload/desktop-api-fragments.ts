@@ -171,6 +171,7 @@ function isAppMenuCommand(value: unknown): value is AppMenuCommand {
     value === 'check-updates' ||
     value === 'import-ebook' ||
     value === 'import-pdf' ||
+    value === 'import-text' ||
     value === 'import-web' ||
     value === 'open-about' ||
     value === 'open-model-settings' ||

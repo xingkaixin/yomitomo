@@ -599,6 +599,14 @@ export const articleDomainIpcInvokeSchemas = {
       z.object({ articleId: idSchema, readerChatState: readerChatStateSchema.optional() }).strict(),
     ]),
   ]),
+  'article:update-metadata': z.tuple([
+    z.object({
+      articleId: idSchema,
+      title: z.string().trim().min(1).max(1000),
+      byline: z.string().trim().max(1000).optional(),
+    }),
+  ]),
+  'article:relink-source-file': z.tuple([idSchema]),
 };
 
 export const libraryDomainIpcInvokeSchemas = {
@@ -614,6 +622,8 @@ export const libraryDomainIpcInvokeSchemas = {
         .max(6)
         .optional(),
       query: z.string().max(500).optional(),
+      sort: z.enum(['recent', 'title', 'progress', 'annotations']).optional(),
+      status: z.enum(['all', 'unread', 'reading', 'completed', 'annotated']).optional(),
       page: positivePageSchema.optional(),
       pageSize: pageSizeSchema.optional(),
     }),

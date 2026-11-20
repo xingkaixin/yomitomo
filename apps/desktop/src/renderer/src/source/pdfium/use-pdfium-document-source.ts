@@ -18,15 +18,21 @@ type PdfArticleRecord = ArticleRecord & { pdf: NonNullable<ArticleRecord['pdf']>
 
 export type PdfiumEngineSource = ReturnType<typeof usePdfiumEngineSource>;
 
-type PdfFileState = { fileReady: boolean; loadError: string };
+type PdfFileState = { fileReady: boolean; loadError: string; isSourceMissing: boolean };
 
 function pdfFileReducer(
   _state: PdfFileState,
-  event: { type: 'fileRead' } | { type: 'fileReadFailed'; message: string },
+  event:
+    | { type: 'loadStarted' }
+    | { type: 'fileRead' }
+    | { type: 'fileReadFailed'; message: string; isSourceMissing: boolean },
 ): PdfFileState {
+  if (event.type === 'loadStarted') {
+    return { fileReady: false, loadError: '', isSourceMissing: false };
+  }
   return event.type === 'fileRead'
-    ? { fileReady: true, loadError: '' }
-    : { fileReady: false, loadError: event.message };
+    ? { fileReady: true, loadError: '', isSourceMissing: false }
+    : { fileReady: false, loadError: event.message, isSourceMissing: event.isSourceMissing };
 }
 
 // contextBridge wraps each returned promise anew, so `use` needs one renderer-side promise to
@@ -61,16 +67,19 @@ export function usePdfiumDocumentSource(
 ) {
   const openTrace = useMemo(() => pdfOpenTrace(article.id), []);
   const recordedOpenPhasesRef = useRef(new Set<string>());
-  // Keep the up-to-120MB PDF buffer outside React state so it can be dropped once EmbedPDF opens it.
   const bufferRef = useRef<ArrayBuffer | null>(null);
-  const [{ fileReady, loadError }, dispatch] = useReducer(pdfFileReducer, {
+  const loadRequestIdRef = useRef(0);
+  const [{ fileReady, loadError, isSourceMissing }, dispatch] = useReducer(pdfFileReducer, {
     fileReady: false,
     loadError: '',
+    isSourceMissing: false,
   });
   const readEngineState = useStableCallback(() => ({ engine, engineError, isLoading }));
 
-  useMountEffect(() => {
-    let cancelled = false;
+  const loadFile = useStableCallback(() => {
+    const requestId = (loadRequestIdRef.current += 1);
+    bufferRef.current = null;
+    dispatch({ type: 'loadStarted' });
     const fileReadStartedAt = performance.now();
     recordPdfOpenTimingOnce(recordedOpenPhasesRef, openTrace, 'open_requested', {
       fileSize: article.pdf.metadata.fileSize,
@@ -83,32 +92,33 @@ export function usePdfiumDocumentSource(
     void getDesktopApi()
       .article.pdf.readFile(article.id)
       .then((data) => {
-        if (!cancelled) {
-          bufferRef.current = data;
-          dispatch({ type: 'fileRead' });
-          recordPdfOpenTiming(openTrace, 'file_read_done', {
-            byteLength: data.byteLength,
-            copyDurationMs: 0,
-            durationMs: rendererPerformanceElapsedMs(fileReadStartedAt),
-            ipcByteLength: data.byteLength,
-            rendererCopiedBuffer: false,
-          });
-        }
+        if (loadRequestIdRef.current !== requestId) return;
+        bufferRef.current = data;
+        dispatch({ type: 'fileRead' });
+        recordPdfOpenTiming(openTrace, 'file_read_done', {
+          byteLength: data.byteLength,
+          copyDurationMs: 0,
+          durationMs: rendererPerformanceElapsedMs(fileReadStartedAt),
+          ipcByteLength: data.byteLength,
+          rendererCopiedBuffer: false,
+        });
       })
       .catch((error) => {
-        if (!cancelled) {
-          bufferRef.current = null;
-          const message = pdfReadErrorMessage(error);
-          dispatch({ type: 'fileReadFailed', message });
-          recordPdfOpenTiming(openTrace, 'file_read_error', {
-            durationMs: rendererPerformanceElapsedMs(fileReadStartedAt),
-            message,
-          });
-        }
+        if (loadRequestIdRef.current !== requestId) return;
+        const message = pdfReadErrorMessage(error);
+        const missing = error instanceof Error && error.message === 'PDF_SOURCE_FILE_MISSING';
+        dispatch({ type: 'fileReadFailed', message, isSourceMissing: missing });
+        recordPdfOpenTiming(openTrace, 'file_read_error', {
+          durationMs: rendererPerformanceElapsedMs(fileReadStartedAt),
+          message,
+        });
       });
+  });
 
+  useMountEffect(() => {
+    loadFile();
     return () => {
-      cancelled = true;
+      loadRequestIdRef.current += 1;
       bufferRef.current = null;
     };
   });
@@ -117,6 +127,9 @@ export function usePdfiumDocumentSource(
   const releaseBuffer = useCallback(() => {
     bufferRef.current = null;
   }, []);
+  const reload = useCallback(() => {
+    loadFile();
+  }, [loadFile]);
 
   const recordEngineState = useCallback(
     (marker: HTMLElement | null) => {
@@ -139,11 +152,13 @@ export function usePdfiumDocumentSource(
     engineError,
     fileReady,
     isLoading,
+    isSourceMissing,
     loadError,
     marker: createElement('span', { hidden: true, key: engineStatus, ref: recordEngineState }),
     openTrace,
     readBuffer,
     releaseBuffer,
+    reload,
   };
 }
 

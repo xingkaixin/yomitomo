@@ -1,8 +1,28 @@
 import { ARTICLE_SOURCE_TYPES } from '@yomitomo/shared';
-import type { LibraryCatalogItemType, LibraryCatalogListInput } from '../../../ipc-contract';
+import type {
+  LibraryCatalogItemType,
+  LibraryCatalogListInput,
+  LibraryCatalogSort,
+  LibraryCatalogStatusFilter,
+} from '../../../ipc-contract';
 import type { LibraryTypeFilter } from './library-filter-types';
 
 export const LIBRARY_PAGE_SIZE_OPTIONS = [6, 12, 18, 24] as const;
+
+export const LIBRARY_SORT_OPTIONS: readonly LibraryCatalogSort[] = [
+  'recent',
+  'title',
+  'progress',
+  'annotations',
+];
+
+export const LIBRARY_STATUS_FILTER_OPTIONS: readonly LibraryCatalogStatusFilter[] = [
+  'all',
+  'unread',
+  'reading',
+  'completed',
+  'annotated',
+];
 
 export type LibraryPageSize = (typeof LIBRARY_PAGE_SIZE_OPTIONS)[number];
 
@@ -14,6 +34,8 @@ export type LibraryQuerySessionState = {
   scope: LibraryQueryScope;
   selectedTypes: ReadonlySet<LibraryTypeFilter>;
   searchQuery: string;
+  sort: LibraryCatalogSort;
+  statusFilter: LibraryCatalogStatusFilter;
   page: number;
   pageSize: LibraryPageSize;
   pageTransition: LibraryTransitionDirection;
@@ -21,6 +43,8 @@ export type LibraryQuerySessionState = {
 
 export type LibraryQuerySessionEvent =
   | { type: 'query-changed'; query: string }
+  | { type: 'sort-changed'; sort: LibraryCatalogSort }
+  | { type: 'status-changed'; status: LibraryCatalogStatusFilter }
   | { type: 'type-toggled'; value: LibraryTypeFilter; availableCount: number }
   | { type: 'types-reset' }
   | { type: 'types-pruned'; available: ReadonlySet<LibraryTypeFilter> }
@@ -37,6 +61,8 @@ type LibraryQuerySessionInitialState = {
   pageSize: unknown;
   searchQuery: string;
   selectedTypes: ReadonlySet<LibraryTypeFilter>;
+  sort?: LibraryCatalogSort;
+  statusFilter?: LibraryCatalogStatusFilter;
 };
 
 export function createLibraryQuerySessionState({
@@ -45,6 +71,8 @@ export function createLibraryQuerySessionState({
   pageSize,
   searchQuery,
   selectedTypes,
+  sort = 'recent',
+  statusFilter = 'all',
 }: LibraryQuerySessionInitialState): LibraryQuerySessionState {
   return {
     scope: activeCollectionId
@@ -52,6 +80,8 @@ export function createLibraryQuerySessionState({
       : { kind: 'library' },
     selectedTypes: new Set(selectedTypes),
     searchQuery,
+    sort,
+    statusFilter,
     page: normalizePage(page),
     pageSize: normalizeLibraryPageSize(pageSize),
     pageTransition: 'none',
@@ -65,6 +95,10 @@ export function libraryQuerySessionReducer(
   switch (event.type) {
     case 'query-changed':
       return resetList(state, { searchQuery: event.query });
+    case 'sort-changed':
+      return resetList(state, { sort: event.sort });
+    case 'status-changed':
+      return resetList(state, { statusFilter: event.status });
     case 'type-toggled':
       return resetList(state, {
         selectedTypes: toggledTypes(state.selectedTypes, event.value, event.availableCount),
@@ -118,6 +152,8 @@ export function libraryCatalogInput(state: LibraryQuerySessionState): LibraryCat
         ? ([...state.selectedTypes] as LibraryCatalogListInput['types'])
         : undefined,
     query: state.searchQuery,
+    sort: state.sort !== 'recent' ? state.sort : undefined,
+    status: state.statusFilter !== 'all' ? state.statusFilter : undefined,
     page: state.page,
     pageSize: state.pageSize,
   };
@@ -153,16 +189,25 @@ export function normalizeLibraryPageSize(value: unknown): LibraryPageSize {
 
 function resetList(
   state: LibraryQuerySessionState,
-  values: Partial<Pick<LibraryQuerySessionState, 'pageSize' | 'searchQuery' | 'selectedTypes'>>,
+  values: Partial<
+    Pick<
+      LibraryQuerySessionState,
+      'pageSize' | 'searchQuery' | 'selectedTypes' | 'sort' | 'statusFilter'
+    >
+  >,
 ): LibraryQuerySessionState {
   const selectedTypes = values.selectedTypes || state.selectedTypes;
   const searchQuery = values.searchQuery ?? state.searchQuery;
   const pageSize = values.pageSize ?? state.pageSize;
+  const sort = values.sort ?? state.sort;
+  const statusFilter = values.statusFilter ?? state.statusFilter;
   if (
     state.page === 1 &&
     state.pageTransition === 'none' &&
     state.searchQuery === searchQuery &&
     state.pageSize === pageSize &&
+    state.sort === sort &&
+    state.statusFilter === statusFilter &&
     sameTypes(state.selectedTypes, selectedTypes)
   ) {
     return state;
@@ -171,6 +216,8 @@ function resetList(
     ...state,
     selectedTypes,
     searchQuery,
+    sort,
+    statusFilter,
     pageSize,
     page: 1,
     pageTransition: 'none',

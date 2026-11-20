@@ -110,6 +110,7 @@ export function appNavigationReducer(
 const libraryImportMenuCommands: Partial<Record<AppMenuCommand, LibraryImportDialogKind>> = {
   'import-ebook': 'ebook',
   'import-pdf': 'pdf',
+  'import-text': 'text',
   'import-web': 'article',
 };
 

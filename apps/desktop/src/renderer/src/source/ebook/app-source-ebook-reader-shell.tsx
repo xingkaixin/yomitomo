@@ -7,6 +7,8 @@ import {
   type ReaderSurfaceHandle,
 } from '@yomitomo/reader-ui/reader-app-view';
 import { readerDesktopEmbeddedBundleStyles } from '@yomitomo/reader-ui/reader-styles';
+import { useTranslation } from 'react-i18next';
+import { Button } from '../../components/ui/button';
 import { sourceEbookReaderStyles } from './app-source-bookcase-ebook-utils';
 
 type EbookReaderShellProps = {
@@ -15,11 +17,14 @@ type EbookReaderShellProps = {
   readerState: {
     status: 'loading' | 'ready' | 'error';
     message: string;
+    sourceMissing?: boolean;
   };
   isSpread: boolean;
+  relinkingSource?: boolean;
   viewHostRef: React.RefObject<HTMLDivElement | null>;
   measureHostRef: React.RefObject<HTMLDivElement | null>;
   onReaderKeyDown: React.KeyboardEventHandler<HTMLDivElement>;
+  onRelinkSource?: () => void;
 };
 
 export function EbookReaderShell({
@@ -27,10 +32,13 @@ export function EbookReaderShell({
   readerSurfaceRef,
   readerState,
   isSpread,
+  relinkingSource = false,
   viewHostRef,
   measureHostRef,
   onReaderKeyDown,
+  onRelinkSource,
 }: EbookReaderShellProps) {
+  const { t } = useTranslation();
   const readerSettings = readerApp.settings.readerSettings;
 
   return (
@@ -76,7 +84,21 @@ export function EbookReaderShell({
                 </div>
                 {readerState.status !== 'ready' ? (
                   <div className="ebook-reader-status" role="status">
-                    {readerState.message}
+                    <div className="ebook-reader-status-card">
+                      <span>{readerState.message}</span>
+                      {readerState.status === 'error' &&
+                      readerState.sourceMissing &&
+                      onRelinkSource ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={relinkingSource}
+                          onClick={onRelinkSource}
+                        >
+                          {t('ebookReader.relinkSource')}
+                        </Button>
+                      ) : null}
+                    </div>
                   </div>
                 ) : null}
                 <div className="ebook-foliate-measurer" ref={measureHostRef} aria-hidden="true" />

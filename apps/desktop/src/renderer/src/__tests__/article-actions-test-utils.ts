@@ -28,6 +28,7 @@ export function articleActionStubs(overrides: Partial<ArticleActions> = {}): Art
     saveArticleComment: vi.fn<ArticleActions['saveArticleComment']>(),
     saveArticleReaderChatState: vi.fn<ArticleActions['saveArticleReaderChatState']>(),
     saveArticleReadingProgress: vi.fn<ArticleActions['saveArticleReadingProgress']>(),
+    updateArticleMetadata: vi.fn<ArticleActions['updateArticleMetadata']>(),
     ...overrides,
   };
 }

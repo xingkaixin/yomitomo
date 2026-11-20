@@ -68,6 +68,8 @@ export function LibraryEntityGrid({
 type LibraryEntityActions = {
   deleteArticle: (article: ArticleSummaryRecord) => Promise<boolean>;
   deleteCollection: (collection: Collection) => void;
+  editArticleMetadata: (article: ArticleSummaryRecord) => void;
+  manageItemCollections: (entity: LibraryCatalogItem) => void;
   openArticle: (article: ArticleSummaryRecord) => void;
   openCollection: (collection: Collection) => void;
   openCollectionPicker: (collection: Collection) => void;
@@ -107,6 +109,8 @@ function LibraryEntityCard({
       <ArticleLibraryCard
         article={article}
         onDelete={() => actions.deleteArticle(article)}
+        onEditMetadata={() => actions.editArticleMetadata(article)}
+        onManageCollections={() => actions.manageItemCollections(entity)}
         onOpen={() => actions.openArticle(article)}
         onRemoveFromCollection={
           activeCollectionId ? () => actions.removeCollectionMember?.(entity) : undefined
@@ -122,6 +126,7 @@ function LibraryEntityCard({
     <WeReadLibraryCard
       book={book}
       pinned={entity.pinned}
+      onManageCollections={() => actions.manageItemCollections(entity)}
       onOpen={() => actions.openWeReadBook(book)}
       onOpenExternal={() => actions.openWeReadExternal(book)}
       onRemoveFromCollection={
@@ -134,6 +139,7 @@ function LibraryEntityCard({
 
 function WeReadLibraryCard({
   book,
+  onManageCollections,
   onOpen,
   onOpenExternal,
   onRemoveFromCollection,
@@ -141,6 +147,7 @@ function WeReadLibraryCard({
   pinned,
 }: {
   book: WeReadBook;
+  onManageCollections?: () => void;
   onOpen: () => void;
   onOpenExternal: () => void;
   onRemoveFromCollection?: () => Promise<void> | void;
@@ -197,6 +204,20 @@ function WeReadLibraryCard({
                     <span>{t('library.actions.openWeReadExternal')}</span>
                   </button>
                 </DropdownMenuItem>
+                {onManageCollections ? (
+                  <DropdownMenuItem asChild>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        dispatchMenu({ type: 'itemChosen' });
+                        onManageCollections();
+                      }}
+                    >
+                      <HugeiconsIcon icon={CollectionAddIcon} size={14} />
+                      <span>{t('library.collection.addToCollection')}</span>
+                    </button>
+                  </DropdownMenuItem>
+                ) : null}
                 {onRemoveFromCollection ? (
                   <DropdownMenuItem asChild>
                     <button

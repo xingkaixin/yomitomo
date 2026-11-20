@@ -182,6 +182,7 @@ function articleIpcContext(
 ): ArticleIpcContext {
   return {
     elapsedMs: () => 1,
+    getMainWindow: () => null,
     getAiModule: async () => ({
       bilingualTranslationPromptVersion: 1,
       translateBilingualArticleBlocksEffect: vi.fn(),
@@ -213,6 +214,8 @@ function articleIpcContext(
         saveArticleComment: vi.fn(),
         saveArticleReaderChatState: vi.fn(),
         saveArticleReadingProgress: vi.fn(),
+        updateArticleEbookFormat: vi.fn(),
+        updateArticleMetadata: vi.fn(),
         updateArticleTranslationSegment: vi.fn(),
         ...persistenceOverrides,
       },

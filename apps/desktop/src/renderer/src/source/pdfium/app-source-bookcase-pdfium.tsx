@@ -44,7 +44,9 @@ import { useAssistantPassageReveal } from '../bookcase/use-assistant-passage-rev
 import { useSourceReaderApp } from '../bookcase/use-source-reader-app';
 import { useReaderAnnotationLine } from '../bookcase/use-reader-annotation-line';
 import { useDesktopReaderSettings } from '../../settings/app-reader-settings';
-import { getOptionalDesktopApi } from '../../shell/app-desktop-api';
+import { getDesktopApi, getOptionalDesktopApi } from '../../shell/app-desktop-api';
+import { appToast } from '../../shell/app-toast';
+import { Button } from '../../components/ui/button';
 import {
   useReaderPageTurnKeys,
   type ReaderPageTurnDirection,
@@ -155,12 +157,18 @@ function PdfiumArticleReader({
     engine,
     engineError,
     fileReady,
+    isSourceMissing,
+    reload,
     isLoading,
     loadError,
     openTrace,
     readBuffer,
     releaseBuffer,
   } = documentSource;
+  const [relinking, dispatchRelinking] = useReducer(
+    (_busy: boolean, event: { type: 'started' | 'finished' }) => event.type === 'started',
+    false,
+  );
   const documentId = `embedpdf-${article.id}`;
   const plugins = usePdfiumPlugins();
   const openInitialDocument = useStableCallback(async (registry: PluginRegistry) => {
@@ -175,7 +183,7 @@ function PdfiumArticleReader({
         autoActivate: true,
         buffer,
         documentId,
-        name: article.pdf.metadata.title || article.title,
+        name: article.title,
         scale: 1,
       })
       .wait(
@@ -195,6 +203,22 @@ function PdfiumArticleReader({
       );
   });
 
+  const handleRelinkSource = useCallback(async () => {
+    if (relinking) return;
+    dispatchRelinking({ type: 'started' });
+    try {
+      const result = await getDesktopApi().article.relinkSourceFile(article.id);
+      if (!result.canceled) {
+        appToast.success(t('pdfReader.relinkSuccess'));
+        reload();
+      }
+    } catch {
+      appToast.error(t('pdfReader.relinkFailed'));
+    } finally {
+      dispatchRelinking({ type: 'finished' });
+    }
+  }, [article.id, relinking, reload, t]);
+
   const status =
     loadError ||
     (engineError ? engineError.message : '') ||
@@ -205,13 +229,32 @@ function PdfiumArticleReader({
       <div className="pdf-reader-main pdfium-spike-main">
         {status ? (
           <div
-            className={`pdf-reader-status${loadError || engineError ? ' is-error' : ''}`}
+            className={`pdf-reader-status${loadError || engineError ? ' is-error' : ''}${
+              isSourceMissing ? ' is-recoverable' : ''
+            }`}
             role="status"
           >
-            {!loadError && !engineError ? (
-              <HugeiconsIcon icon={Loading03Icon} className="is-spinning" size={18} />
+            <div className="pdf-reader-status-row">
+              {!loadError && !engineError ? (
+                <HugeiconsIcon icon={Loading03Icon} className="is-spinning" size={18} />
+              ) : null}
+              <span>{status}</span>
+            </div>
+            {isSourceMissing ? (
+              <div className="pdf-reader-status-actions">
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={relinking}
+                  onClick={() => void handleRelinkSource()}
+                >
+                  {t('pdfReader.relinkSource')}
+                </Button>
+                <Button type="button" size="sm" variant="secondary" onClick={onClose}>
+                  {t('common.backToLibrary')}
+                </Button>
+              </div>
             ) : null}
-            <span>{status}</span>
           </div>
         ) : null}
         {engine && fileReady ? (
@@ -838,7 +881,7 @@ function PdfiumDocument({ actions, document, source, toc, viewportOverlay }: Pdf
         </div>
       ),
       extracted: {
-        title: article.pdf.metadata.title || article.title,
+        title: article.title,
         byline: article.pdf.metadata.author,
         content: '',
       },
@@ -935,7 +978,7 @@ function PdfiumDocument({ actions, document, source, toc, viewportOverlay }: Pdf
         </>
       ),
       headerMeta: {
-        title: article.pdf.metadata.title || article.title,
+        title: article.title,
         byline: pdfHeaderByline,
       },
       readingProgress: pageProgress(currentPage - 1, pageCount),
