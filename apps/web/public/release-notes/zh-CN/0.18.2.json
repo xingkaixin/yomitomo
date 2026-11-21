@@ -1,0 +1,11 @@
+{
+  "version": "0.18.2",
+  "highlights": [
+    {
+      "type": "fixed",
+      "title": "阅读库筛选与排序正常显示名称",
+      "description": "阅读库的状态筛选、排序方式和每页数量选择器现在直接显示当前语言的名称，不再在展开菜单前显示 all、recent 等内部值。",
+      "audience": "reader"
+    }
+  ]
+}

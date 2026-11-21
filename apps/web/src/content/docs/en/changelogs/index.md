@@ -5,6 +5,14 @@ sidebar:
   hidden: true
 ---
 
+## 0.18.2
+
+Released: 2026-11-21
+
+- Fixed the library status filter, sort order, and page-size selectors displaying raw internal values instead of localized labels before opening.
+
+[View 0.18.2 release notes](/en/changelogs/v0-18-2/)
+
 ## 0.18.1
 
 Released: 2026-11-20
