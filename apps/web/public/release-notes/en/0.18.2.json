@@ -1,0 +1,11 @@
+{
+  "version": "0.18.2",
+  "highlights": [
+    {
+      "type": "fixed",
+      "title": "Readable library filter and sort labels",
+      "description": "The status filter, sort order, and page-size selectors in the library now show localized labels right away instead of raw values like all or recent before you open the menu.",
+      "audience": "reader"
+    }
+  ]
+}

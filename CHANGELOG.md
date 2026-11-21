@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.18.2 - 2026-11-21
+
+### Fixes
+
+- Fixed the library status filter, sort order, and page-size selectors displaying raw internal values (`all`, `recent`, `24`) instead of localized labels before the dropdown is opened. (#1114)
+
+### Engineering
+
+- Deployed the website directly with `cf deploy ./dist` and upgraded Wrangler to 4.165.0. (#1113)
+
 ## 0.18.1 - 2026-11-20
 
 ### Features
