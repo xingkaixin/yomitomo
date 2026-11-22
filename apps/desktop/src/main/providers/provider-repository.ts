@@ -1,7 +1,8 @@
 import { eq } from 'drizzle-orm';
 import type { LlmProvider } from '@yomitomo/shared';
-import { makeId, providerPresets } from '@yomitomo/shared';
+import { isChatGptOAuthProvider, makeId, providerPresets } from '@yomitomo/shared';
 import * as schema from '../db/schema';
+import { getValidChatGptAccessToken } from './chatgpt-oauth-repository';
 import { prepareCredentialChange, type PreparedCredentialChange } from './credential-swap';
 import { providerApiKeyRef, readProviderApiKey } from './provider-secrets';
 import { getDatabase, type StoreExecutor } from '../store/store-db';
@@ -34,9 +35,19 @@ export type ProviderApiKeyStorage = {
 type ProviderApiKeyStorageRow = {
   apiKey: string;
   apiKeyRef: string | null;
+  presetId?: string | null;
 };
 
 export async function hydrateProviderApiKey(provider: LlmProvider): Promise<LlmProvider> {
+  if (isChatGptOAuthProvider(provider)) {
+    const accessToken = await getValidChatGptAccessToken();
+    return {
+      ...provider,
+      type: 'openai-responses',
+      baseUrl: 'https://api.openai.com/v1',
+      apiKey: accessToken,
+    };
+  }
   const apiKey =
     provider.apiKey?.trim() ||
     (await readProviderApiKey(readProviderSecretStorageRow(provider.id)?.apiKeyRef));
@@ -47,6 +58,15 @@ export async function hydrateProviderApiKey(provider: LlmProvider): Promise<LlmP
 export async function hydrateProviderInputApiKey(
   provider: SaveProviderInput,
 ): Promise<Partial<LlmProvider>> {
+  if (isChatGptOAuthProvider(provider)) {
+    const accessToken = await getValidChatGptAccessToken();
+    return {
+      ...provider,
+      type: 'openai-responses',
+      baseUrl: 'https://api.openai.com/v1',
+      apiKey: accessToken,
+    };
+  }
   const sourceProviderId = provider.id || provider.cloneApiKeyFromProviderId;
   const apiKey =
     provider.apiKey?.trim() ||
@@ -66,6 +86,15 @@ export async function resolveProviderApiKeyStorage(
   existingRow: ProviderApiKeyStorageRow | undefined,
 ): Promise<ProviderApiKeyStorage> {
   const existingApiKeyRef = existingRow?.apiKeyRef || undefined;
+  if (isChatGptOAuthProvider({ presetId: input.presetId || existingRow?.presetId || undefined })) {
+    const credentialChange = await prepareCredentialChange({
+      currentRef: existingApiKeyRef,
+      defaultRef: providerApiKeyRef(providerId),
+      remove: Boolean(existingApiKeyRef),
+      secret: '',
+    });
+    return { credentialChange, storedApiKey: '' };
+  }
   let secret = input.apiKey;
   // Clone copies the source secret into a dedicated keyring entry so deleting either provider never breaks the other.
   if (!existingRow && !secret?.trim() && !input.removeApiKey && input.cloneApiKeyFromProviderId) {
@@ -102,20 +131,26 @@ export function buildProviderRecord(
   const modelInputMode =
     normalizeProviderModelInputMode(input.modelInputMode ?? existing?.modelInputMode) || 'list';
 
+  const presetId = normalizePresetId(input.presetId || existing?.presetId || preset?.id);
+  const isChatGpt = presetId === 'chatgpt';
+
   return {
     id,
     name: input.name?.trim() || existing?.name || preset?.name || 'Untitled Provider',
-    type: preset?.type || normalizeProviderType(input.type || existing?.type) || 'openai-chat',
-    presetId: normalizePresetId(input.presetId || existing?.presetId || preset?.id),
+    type: isChatGpt
+      ? 'openai-responses'
+      : preset?.type || normalizeProviderType(input.type || existing?.type) || 'openai-chat',
+    presetId,
     logo: input.logo || existing?.logo || preset?.logo,
-    baseUrl:
-      input.baseUrl?.trim() ||
-      existing?.baseUrl ||
-      preset?.baseUrl ||
-      defaultProviderPreset?.baseUrl ||
-      'https://api.deepseek.com',
+    baseUrl: isChatGpt
+      ? 'https://api.openai.com/v1'
+      : input.baseUrl?.trim() ||
+        existing?.baseUrl ||
+        preset?.baseUrl ||
+        defaultProviderPreset?.baseUrl ||
+        'https://api.deepseek.com',
     apiKey: '',
-    hasApiKey: Boolean(apiKeyRef),
+    hasApiKey: isChatGpt ? false : Boolean(apiKeyRef),
     modelName:
       input.modelName?.trim() ||
       existing?.modelName ||

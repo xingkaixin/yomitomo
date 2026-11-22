@@ -3,6 +3,7 @@ import type { LlmProvider } from '@yomitomo/shared';
 import {
   errorMessage,
   finiteNumberField,
+  isChatGptOAuthProvider,
   providerPresets,
   trimmedStringField,
   uniqueTrimmedStrings,
@@ -369,6 +370,7 @@ function calculateCostMicros(
 }
 
 function providerPriceAliases(provider: LlmProvider) {
+  if (isChatGptOAuthProvider(provider)) return [];
   return uniqueTrimmedStrings([
     providerIdFromBaseUrl(provider.baseUrl),
     providerPresets.find((preset) => preset.id === provider.presetId)?.modelsDevId,

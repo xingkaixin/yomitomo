@@ -1411,6 +1411,22 @@ WHERE bilingual_translation_provider_id = default_provider_id;
 DROP INDEX IF EXISTS articles_summary_cover_idx;
 `,
   },
+  {
+    id: '0077_chatgpt_oauth_accounts',
+    sql: `
+CREATE TABLE IF NOT EXISTS chatgpt_oauth_accounts (
+  id TEXT PRIMARY KEY NOT NULL,
+  host_id TEXT NOT NULL,
+  client_id TEXT,
+  credential_ref TEXT,
+  account_email TEXT,
+  account_name TEXT,
+  account_subject TEXT,
+  status TEXT NOT NULL DEFAULT 'disconnected',
+  updated_at TEXT NOT NULL
+);
+`,
+  },
 ];
 
 type MigrationDatabase = {

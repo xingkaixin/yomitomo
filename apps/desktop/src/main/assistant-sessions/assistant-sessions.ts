@@ -22,6 +22,7 @@ import {
   taskProviderRoute,
 } from '../agents/agent-runtime-routing';
 import * as schema from '../db/schema';
+import { getValidChatGptAccessToken } from '../providers/chatgpt-oauth-repository';
 import { searchReadingMemoryEntries } from '../reading-memory/reading-memory-store';
 import { readAgentRuntimeContext } from '../store/store-agents';
 import { afterDatabaseMaintenance, type StoreDatabase } from '../store/store-db';
@@ -139,6 +140,7 @@ function createAssistantSessions(host: AssistantSessionHost) {
     resolveAgent: (agentId, allowDisabled) =>
       resolveAgent(withPinnedDatabase, agentId, allowDisabled),
     resolveAgentIdentity: (agentId) => resolveAgentIdentity(withReplyDatabase, agentId),
+    resolveProviderApiKey: () => withPinnedDatabase(() => getValidChatGptAccessToken()),
     ...channelSources,
     publishReply: replySources.publishReply,
     findDiscussion: replySources.findDiscussion,

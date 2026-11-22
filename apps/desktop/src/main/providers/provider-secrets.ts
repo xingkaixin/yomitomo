@@ -12,6 +12,10 @@ export function wereadApiKeyRef(accountId = 'default') {
   return `weread:${accountId}:apiKey`;
 }
 
+export function chatgptOAuthCredentialRef(accountId = 'default') {
+  return `chatgpt-oauth:${accountId}:credentials`;
+}
+
 export async function saveProviderApiKey(providerId: string, apiKey: string) {
   const ref = providerApiKeyRef(providerId);
   await saveStoredSecret(ref, apiKey);
@@ -37,7 +41,7 @@ export function readWeReadApiKey(apiKeyRef?: string | null) {
   return readStoredSecret(apiKeyRef);
 }
 
-async function readStoredSecret(ref?: string | null) {
+export async function readStoredSecret(ref?: string | null) {
   if (!ref) return '';
   const entry = await createEntry(ref);
   try {

@@ -193,6 +193,7 @@ const providerPresetIdSchema = z.enum([
   'doubao',
   'mimo',
   'openai',
+  'chatgpt',
   'anthropic',
   'gemini',
   'openrouter',

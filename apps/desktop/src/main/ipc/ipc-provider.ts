@@ -1,14 +1,28 @@
-import type { ResolvedAppSettings } from '@yomitomo/shared';
+import { isChatGptOAuthProvider, type ResolvedAppSettings } from '@yomitomo/shared';
 import type { DesktopAiModule, DesktopMainIpcContext } from './ipc';
 import { handleDesktopIpc } from './ipc';
 import { hasAppLockPin } from '../app-lock/app-lock-secrets';
 import { DesktopIpcError, desktopIpcErrorCodes } from '../../ipc-errors';
 import { pruneLogFile } from '../app/logger';
+import {
+  ChatGptAuthRequiredError,
+  ChatGptReauthRequiredError,
+} from '../providers/chatgpt-oauth-repository';
 
-type ProviderIpcContext = Pick<DesktopMainIpcContext, 'sendFullStoreUpdated'> & {
+type ProviderIpcContext = Pick<
+  DesktopMainIpcContext,
+  'openExternalUrl' | 'sendFullStoreUpdated'
+> & {
   onSettingsSaved?: () => void;
   getAiModule: () => Promise<Pick<DesktopAiModule, 'listProviderModels' | 'testProvider'>>;
   getPersistenceModules: () => Promise<{
+    chatGptOAuthRepository: Pick<
+      typeof import('../providers/chatgpt-oauth-repository'),
+      | 'cancelChatGptSignIn'
+      | 'disconnectChatGptAccount'
+      | 'readChatGptAccountState'
+      | 'signInChatGptAccount'
+    >;
     providerRepository: Pick<
       typeof import('../providers/provider-repository'),
       'hydrateProviderInputApiKey' | 'readStoredProviderApiKey'
@@ -46,6 +60,24 @@ export function registerProviderIpc(context: ProviderIpcContext) {
     context.sendFullStoreUpdated(event, store);
     return store;
   });
+  handleDesktopIpc('provider:chatgpt-auth-status', async () => {
+    const { chatGptOAuthRepository } = await context.getPersistenceModules();
+    return chatGptOAuthRepository.readChatGptAccountState();
+  });
+  handleDesktopIpc('provider:chatgpt-sign-in', async () => {
+    const { chatGptOAuthRepository } = await context.getPersistenceModules();
+    return chatGptOAuthRepository.signInChatGptAccount({
+      openBrowser: context.openExternalUrl,
+    });
+  });
+  handleDesktopIpc('provider:chatgpt-cancel-sign-in', async () => {
+    const { chatGptOAuthRepository } = await context.getPersistenceModules();
+    chatGptOAuthRepository.cancelChatGptSignIn();
+  });
+  handleDesktopIpc('provider:chatgpt-disconnect', async () => {
+    const { chatGptOAuthRepository } = await context.getPersistenceModules();
+    return chatGptOAuthRepository.disconnectChatGptAccount();
+  });
   handleDesktopIpc('provider:save', async (_event, input) => {
     const { storeProviders } = await context.getPersistenceModules();
     return storeProviders.saveProvider(input);
@@ -65,7 +97,14 @@ export function registerProviderIpc(context: ProviderIpcContext) {
       const { testProvider } = await context.getAiModule();
       const provider = await providerRepository.hydrateProviderInputApiKey(input);
       const apiKey = provider.apiKey?.trim() || '';
-      if (!apiKey) return { ok: false, message: 'PROVIDER_API_KEY_REQUIRED' };
+      if (!apiKey) {
+        return {
+          ok: false,
+          message: isChatGptOAuthProvider(provider)
+            ? desktopIpcErrorCodes.chatGptAuthRequired
+            : 'PROVIDER_API_KEY_REQUIRED',
+        };
+      }
       return await testProvider({
         id: provider.id || 'provider_test',
         name: provider.name?.trim() || 'Temporary provider',
@@ -74,7 +113,7 @@ export function registerProviderIpc(context: ProviderIpcContext) {
         logo: provider.logo,
         baseUrl: provider.baseUrl?.trim() || '',
         apiKey,
-        hasApiKey: true,
+        hasApiKey: !isChatGptOAuthProvider(provider),
         modelName: provider.modelName?.trim() || '',
         modelNames: provider.modelNames,
         modelInputMode: provider.modelInputMode,
@@ -82,7 +121,13 @@ export function registerProviderIpc(context: ProviderIpcContext) {
         createdAt: provider.createdAt || '',
         updatedAt: provider.updatedAt || '',
       });
-    } catch {
+    } catch (error) {
+      if (error instanceof ChatGptAuthRequiredError) {
+        return { ok: false, message: desktopIpcErrorCodes.chatGptAuthRequired };
+      }
+      if (error instanceof ChatGptReauthRequiredError) {
+        return { ok: false, message: desktopIpcErrorCodes.chatGptReauthRequired };
+      }
       return {
         ok: false,
         message: 'PROVIDER_TEST_FAILED',
@@ -92,7 +137,21 @@ export function registerProviderIpc(context: ProviderIpcContext) {
   handleDesktopIpc('provider:list-models', async (_event, input) => {
     const { providerRepository } = await context.getPersistenceModules();
     const { listProviderModels } = await context.getAiModule();
-    return listProviderModels(await providerRepository.hydrateProviderInputApiKey(input));
+    try {
+      return await listProviderModels(await providerRepository.hydrateProviderInputApiKey(input));
+    } catch (error) {
+      if (error instanceof ChatGptAuthRequiredError) {
+        throw new DesktopIpcError(desktopIpcErrorCodes.chatGptAuthRequired, undefined, {
+          cause: error,
+        });
+      }
+      if (error instanceof ChatGptReauthRequiredError) {
+        throw new DesktopIpcError(desktopIpcErrorCodes.chatGptReauthRequired, undefined, {
+          cause: error,
+        });
+      }
+      throw error;
+    }
   });
 }
 

@@ -179,6 +179,12 @@ function providerIpcContext(
       ...aiOverrides,
     }),
     getPersistenceModules: async () => ({
+      chatGptOAuthRepository: {
+        cancelChatGptSignIn: vi.fn(),
+        disconnectChatGptAccount: vi.fn(async () => ({ status: 'disconnected' as const })),
+        readChatGptAccountState: vi.fn(() => ({ status: 'disconnected' as const })),
+        signInChatGptAccount: vi.fn(async () => ({ status: 'connected' as const })),
+      },
       providerRepository: {
         hydrateProviderInputApiKey: vi.fn(),
         readStoredProviderApiKey: vi.fn(),
@@ -201,6 +207,7 @@ function providerIpcContext(
         saveUser: vi.fn(),
       },
     }),
+    openExternalUrl: vi.fn(),
     sendFullStoreUpdated: vi.fn(),
     ...contextOverrides,
   };
