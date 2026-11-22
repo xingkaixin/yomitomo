@@ -222,7 +222,11 @@ export {
   selectionActionShortcutsConflict,
 } from './shortcuts';
 
-export { isChatGptOAuthProvider, providerPresets } from './providers/providers';
+export {
+  isChatGptOAuthProvider,
+  providerPresets,
+  resolveThinkingEffort,
+} from './providers/providers';
 
 export {
   agentPersonalityName,

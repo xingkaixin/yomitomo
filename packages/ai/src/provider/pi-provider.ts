@@ -62,14 +62,9 @@ const NO_THINKING_LEVEL_MAP: ThinkingLevelMap = {
 
 const chatGptModelThinkingMaps = new Map<string, ThinkingLevelMap>();
 
-export function registerChatGptModelThinkingLevels(
-  modelId: string,
-  efforts: readonly ThinkingEffortOption[],
-) {
-  const normalized = modelId.trim();
-  if (!normalized || efforts.length === 0) return;
+function thinkingMapFromEfforts(efforts: readonly ThinkingEffortOption[]): ThinkingLevelMap {
   const supported = new Set(efforts);
-  chatGptModelThinkingMaps.set(normalized, {
+  return {
     off: supported.has('none') ? 'none' : null,
     minimal: supported.has('minimal') ? 'minimal' : null,
     low: supported.has('low') ? 'low' : null,
@@ -77,7 +72,29 @@ export function registerChatGptModelThinkingLevels(
     high: supported.has('high') ? 'high' : null,
     xhigh: supported.has('xhigh') ? 'xhigh' : null,
     max: supported.has('max') ? 'max' : null,
-  });
+  };
+}
+
+export function registerChatGptModelThinkingLevels(
+  modelId: string,
+  efforts: readonly ThinkingEffortOption[],
+) {
+  const normalized = modelId.trim();
+  if (!normalized || efforts.length === 0) return;
+  chatGptModelThinkingMaps.set(normalized, thinkingMapFromEfforts(efforts));
+}
+
+export function replaceChatGptModelThinkingLevels(
+  capabilities: Readonly<Record<string, readonly ThinkingEffortOption[]>>,
+) {
+  chatGptModelThinkingMaps.clear();
+  for (const [modelId, efforts] of Object.entries(capabilities)) {
+    registerChatGptModelThinkingLevels(modelId, efforts);
+  }
+}
+
+export function clearChatGptModelThinkingLevels() {
+  chatGptModelThinkingMaps.clear();
 }
 
 // Chat Completions capabilities published by the gateways for these models.
@@ -195,7 +212,9 @@ export function providerThinkingCapabilities(
     logo: input.logo || preset?.logo,
     baseUrl: input.baseUrl || preset?.baseUrl || '',
     apiKey: '',
-    modelName: input.modelName?.trim() || preset?.modelName || '',
+    modelName: isChatGptOAuthProvider(input)
+      ? input.modelName?.trim() || ''
+      : input.modelName?.trim() || preset?.modelName || '',
     // Probe with an active effort so OpenAI-compatible models that disable reasoning on 'none'
     // still report their available thinking options.
     reasoningEffort: 'medium',
@@ -241,14 +260,16 @@ function piModel(provider: LlmProvider, providerId: string): Model<Api> {
 }
 
 // Sign in with ChatGPT tokens reach /v1/responses with stricter field rules than API keys:
-// they require developer-role instructions and reject max_output_tokens, temperature, cache retention,
-// mid-conversation effort updates, and hosted tool_search.
+// they require developer-role instructions, reject max_output_tokens, temperature, cache retention,
+// mid-conversation effort updates, and hosted tool_search, and declare local tools via additional_tools.
 const CHATGPT_OAUTH_RESPONSES_COMPAT = {
   supportsDeveloperRole: true,
   supportsLongCacheRetention: false,
   supportsExplicitPromptCacheMode: false,
   supportsMaxOutputTokens: false,
   supportsMidConvoEffort: false,
+  supportsMidConvoSystemMessages: true,
+  supportsAdditionalTools: true,
   supportsToolSearch: false,
 } as const;
 
@@ -304,13 +325,6 @@ function catalogModel(provider: LlmProvider): Model<Api> | undefined {
           : provider.presetId && PRESET_CATALOGS[provider.presetId];
   const known = catalog?.[provider.modelName];
   if (known) return known;
-  if (isOfficialOpenAI(provider) && /^gpt-6\.\d+-(sol|astra)/i.test(provider.modelName)) {
-    return {
-      ...fallbackModel(provider, provider.id),
-      reasoning: true,
-      thinkingLevelMap: openAILowToMaxThinking,
-    };
-  }
   if (
     provider.type !== 'gemini' ||
     !['gemini-4-hydrogen', 'gemini-4-carbon'].includes(provider.modelName)

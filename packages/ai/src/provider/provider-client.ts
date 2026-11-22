@@ -2,7 +2,6 @@ import type { LlmProvider, ProviderModel, ThinkingEffortOption } from '@yomitomo
 import { errorMessage, isChatGptOAuthProvider, providerPresets } from '@yomitomo/shared';
 import { Effect, Schema } from 'effect';
 import { normalizeAnthropicError } from './budget';
-import { registerChatGptModelThinkingLevels } from './pi-provider';
 import { anthropicBaseUrl, geminiBaseUrl, openAIBaseUrl } from './provider-urls';
 
 const defaultProviderPreset = providerPresets.find((preset) => preset.id === 'deepseek');
@@ -152,16 +151,21 @@ export async function listProviderModels(
 function normalizeProvider(provider: Partial<LlmProvider>): LlmProvider {
   const preset =
     providerPresets.find((item) => item.id === provider.presetId) || defaultProviderPreset;
+  const isChatGpt = isChatGptOAuthProvider(provider);
   const now = new Date(0).toISOString();
   return {
     id: provider.id || 'draft',
     name: provider.name || preset?.name || 'Provider',
-    type: provider.type || preset?.type || 'openai-chat',
+    type: isChatGpt ? 'openai-responses' : provider.type || preset?.type || 'openai-chat',
     presetId: provider.presetId,
     logo: provider.logo || preset?.logo,
-    baseUrl: provider.baseUrl || preset?.baseUrl || 'https://api.deepseek.com',
+    baseUrl: isChatGpt
+      ? 'https://api.openai.com/v1'
+      : provider.baseUrl || preset?.baseUrl || 'https://api.deepseek.com',
     apiKey: provider.apiKey || '',
-    modelName: provider.modelName || preset?.modelName || 'deepseek-flash',
+    modelName: isChatGpt
+      ? provider.modelName?.trim() || ''
+      : provider.modelName || preset?.modelName || 'deepseek-flash',
     reasoningEffort: provider.reasoningEffort || 'none',
     createdAt: provider.createdAt || now,
     updatedAt: provider.updatedAt || now,
@@ -174,9 +178,9 @@ export const listProviderModelsEffect = Effect.fn('Provider.listModels')(functio
 ) {
   const provider = normalizeProvider(input);
   const budget = modelListBudget(options);
+  if (isChatGptOAuthProvider(provider)) return yield* listChatGptModelsEffect(provider, budget);
   if (provider.type === 'gemini') return yield* listGeminiModelsEffect(provider, budget);
   if (provider.type === 'anthropic') return yield* listAnthropicModelsEffect(provider, budget);
-  if (isChatGptOAuthProvider(provider)) return yield* listChatGptModelsEffect(provider, budget);
   return yield* listOpenAICompatibleModelsEffect(provider, budget);
 });
 
@@ -203,9 +207,6 @@ function listChatGptModelsEffect(
         const supportedReasoningEfforts = parseSupportedReasoningEfforts(
           model.supported_reasoning_levels,
         );
-        if (supportedReasoningEfforts) {
-          registerChatGptModelThinkingLevels(id, supportedReasoningEfforts);
-        }
         const name = model.display_name || id;
         return supportedReasoningEfforts ? { id, name, supportedReasoningEfforts } : { id, name };
       });
@@ -213,10 +214,9 @@ function listChatGptModelsEffect(
       id: model.id || '',
       name: model.name || model.id || '',
     }));
-    return modelList(
-      catalogModels && catalogModels.length > 0 ? catalogModels : fallbackData,
-      provider,
-    );
+    const resolved = body.models ? catalogModels || [] : fallbackData || [];
+    // Account-specific ChatGPT catalogs must not fall back to preset models the account may lack.
+    return dedupeModels(resolved.filter((model) => model.id.trim()));
   });
 }
 

@@ -2,7 +2,6 @@ import type { LlmProvider } from '@yomitomo/shared';
 import { Cause, Effect, Exit } from 'effect';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { providerThinkingCapabilities } from './pi-provider';
 import { listProviderModels, listProviderModelsEffect } from './provider-client';
 
 function jsonResponse(body: unknown, status = 200) {
@@ -69,16 +68,12 @@ describe('listProviderModels', () => {
         supportedReasoningEfforts: ['none', 'medium', 'high'],
       },
     ]);
-    expect(
-      providerThinkingCapabilities({
-        presetId: 'chatgpt',
-        type: 'openai-responses',
-        modelName: 'gpt-custom-flex',
-      }),
-    ).toEqual({
-      supportedEfforts: ['none', 'medium', 'high'],
-      defaultEffort: 'none',
-    });
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ models: [] }));
+    const emptyModels = await listProviderModels(
+      providerFor('openai-responses', 'chatgpt', 'https://api.openai.com/v1'),
+    );
+    expect(emptyModels).toEqual([]);
   });
 
   it('aborts a model-list request that outlives its deadline', async () => {
@@ -133,6 +128,31 @@ describe('listProviderModels', () => {
     if (Exit.isSuccess(exit)) return;
     expect(Cause.squash(exit.cause)).toMatchObject({ _tag: 'ProviderResponseTooLargeError' });
     expect(cancelled).toBe(true);
+  });
+
+  it('pins ChatGPT model list requests to OpenAI even when input specifies another type or baseUrl', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response(JSON.stringify({ models: [] }), { status: 200 }));
+
+    const models = await Effect.runPromise(
+      listProviderModelsEffect({
+        presetId: 'chatgpt',
+        type: 'anthropic',
+        baseUrl: 'https://evil.example/v1',
+        apiKey: 'chatgpt-oauth-token',
+      }),
+    );
+
+    expect(models).toEqual([]);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://api.openai.com/v1/models',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer chatgpt-oauth-token',
+        }),
+      }),
+    );
   });
 });
 

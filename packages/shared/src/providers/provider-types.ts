@@ -21,6 +21,8 @@ export type ChatGptAccountState = {
   email?: string;
   name?: string;
   updatedAt?: string;
+  hasSavedRegistration?: boolean;
+  remoteRevocationFailed?: boolean;
 };
 
 export type ThinkingEffortOption = 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
