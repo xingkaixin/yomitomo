@@ -25,7 +25,7 @@ export function rowToProvider(row: typeof schema.providers.$inferSelect): LlmPro
     modelName: row.modelName,
     modelNames: normalizeModelNames(row.modelNames),
     modelInputMode: normalizeProviderModelInputMode(row.modelInputMode) || 'list',
-    reasoningEffort: 'none',
+    reasoningEffort: normalizeReasoningEffort(row.reasoningEffort) || 'none',
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -102,6 +102,7 @@ export function normalizeReasoningEffort(value: unknown): ReasoningEffort | unde
     value === 'medium' ||
     value === 'high' ||
     value === 'xhigh' ||
+    value === 'max' ||
     value === 'auto'
     ? value
     : undefined;

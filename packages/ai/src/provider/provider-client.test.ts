@@ -2,6 +2,7 @@ import type { LlmProvider } from '@yomitomo/shared';
 import { Cause, Effect, Exit } from 'effect';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { providerThinkingCapabilities } from './pi-provider';
 import { listProviderModels, listProviderModelsEffect } from './provider-client';
 
 function jsonResponse(body: unknown, status = 200) {
@@ -24,13 +25,29 @@ describe('listProviderModels', () => {
     },
   );
 
-  it('parses ChatGPT Sign-in model catalogs and keeps only list-visible models', async () => {
+  it('parses ChatGPT Sign-in model catalogs, keeps list-visible models, and records reasoning levels', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       jsonResponse({
         models: [
-          { slug: 'gpt-5.4', display_name: 'GPT-5.4', visibility: 'list' },
+          {
+            slug: 'gpt-6.2-sol',
+            display_name: 'GPT-6.2 Sol',
+            visibility: 'list',
+            supported_reasoning_levels: [
+              { effort: 'low' },
+              { effort: 'medium' },
+              { effort: 'high' },
+              { effort: 'xhigh' },
+              { effort: 'max' },
+            ],
+          },
           { slug: 'internal-only', display_name: 'Internal', visibility: 'hide' },
-          { slug: 'gpt-5.4-mini', display_name: 'GPT-5.4 Mini', visibility: 'list' },
+          {
+            slug: 'gpt-custom-flex',
+            display_name: 'GPT Custom Flex',
+            visibility: 'list',
+            supported_reasoning_levels: ['none', 'medium', 'high'],
+          },
         ],
       }),
     );
@@ -41,9 +58,27 @@ describe('listProviderModels', () => {
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.openai.com/v1/models');
     expect(models).toEqual([
-      { id: 'gpt-5.4', name: 'GPT-5.4' },
-      { id: 'gpt-5.4-mini', name: 'GPT-5.4 Mini' },
+      {
+        id: 'gpt-6.2-sol',
+        name: 'GPT-6.2 Sol',
+        supportedReasoningEfforts: ['low', 'medium', 'high', 'xhigh', 'max'],
+      },
+      {
+        id: 'gpt-custom-flex',
+        name: 'GPT Custom Flex',
+        supportedReasoningEfforts: ['none', 'medium', 'high'],
+      },
     ]);
+    expect(
+      providerThinkingCapabilities({
+        presetId: 'chatgpt',
+        type: 'openai-responses',
+        modelName: 'gpt-custom-flex',
+      }),
+    ).toEqual({
+      supportedEfforts: ['none', 'medium', 'high'],
+      defaultEffort: 'none',
+    });
   });
 
   it('aborts a model-list request that outlives its deadline', async () => {

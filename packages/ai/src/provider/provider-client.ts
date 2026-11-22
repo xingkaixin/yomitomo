@@ -1,7 +1,8 @@
-import type { LlmProvider, ProviderModel } from '@yomitomo/shared';
+import type { LlmProvider, ProviderModel, ThinkingEffortOption } from '@yomitomo/shared';
 import { errorMessage, isChatGptOAuthProvider, providerPresets } from '@yomitomo/shared';
 import { Effect, Schema } from 'effect';
 import { normalizeAnthropicError } from './budget';
+import { registerChatGptModelThinkingLevels } from './pi-provider';
 import { anthropicBaseUrl, geminiBaseUrl, openAIBaseUrl } from './provider-urls';
 
 const defaultProviderPreset = providerPresets.find((preset) => preset.id === 'deepseek');
@@ -17,6 +18,13 @@ const openAIModelListResponseSchema = Schema.Struct({
   ),
 });
 
+const chatGptReasoningLevelSchema = Schema.Union([
+  Schema.String,
+  Schema.Struct({
+    effort: Schema.optionalKey(Schema.String),
+  }),
+]);
+
 const chatGptModelListResponseSchema = Schema.Struct({
   models: Schema.optionalKey(
     Schema.Array(
@@ -24,11 +32,38 @@ const chatGptModelListResponseSchema = Schema.Struct({
         slug: Schema.optionalKey(Schema.String),
         display_name: Schema.optionalKey(Schema.String),
         visibility: Schema.optionalKey(Schema.String),
+        supported_reasoning_levels: Schema.optionalKey(Schema.Array(chatGptReasoningLevelSchema)),
       }),
     ),
   ),
   data: openAIModelListResponseSchema.fields.data,
 });
+
+const THINKING_EFFORT_ORDER: readonly ThinkingEffortOption[] = [
+  'none',
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+];
+
+function parseSupportedReasoningEfforts(
+  levels: readonly (string | { effort?: string })[] | undefined,
+): ThinkingEffortOption[] | undefined {
+  if (!levels || levels.length === 0) return undefined;
+  const set = new Set<ThinkingEffortOption>();
+  for (const item of levels) {
+    const raw = (typeof item === 'string' ? item : item.effort || '').trim().toLowerCase();
+    const mapped = raw === 'off' ? 'none' : raw;
+    if ((THINKING_EFFORT_ORDER as readonly string[]).includes(mapped)) {
+      set.add(mapped as ThinkingEffortOption);
+    }
+  }
+  if (set.size === 0) return undefined;
+  return THINKING_EFFORT_ORDER.filter((effort) => set.has(effort));
+}
 
 const anthropicModelListResponseSchema = Schema.Struct({
   data: Schema.optionalKey(
@@ -163,10 +198,17 @@ function listChatGptModelsEffect(
     const body = yield* responseJsonEffect(response, chatGptModelListResponseSchema, budget);
     const catalogModels = body.models
       ?.filter((model) => model.visibility === 'list' && model.slug?.trim())
-      .map((model) => ({
-        id: model.slug || '',
-        name: model.display_name || model.slug || '',
-      }));
+      .map((model) => {
+        const id = model.slug || '';
+        const supportedReasoningEfforts = parseSupportedReasoningEfforts(
+          model.supported_reasoning_levels,
+        );
+        if (supportedReasoningEfforts) {
+          registerChatGptModelThinkingLevels(id, supportedReasoningEfforts);
+        }
+        const name = model.display_name || id;
+        return supportedReasoningEfforts ? { id, name, supportedReasoningEfforts } : { id, name };
+      });
     const fallbackData = body.data?.map((model) => ({
       id: model.id || '',
       name: model.name || model.id || '',

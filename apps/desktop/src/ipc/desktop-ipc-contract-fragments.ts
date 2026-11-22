@@ -14,6 +14,7 @@ import type {
   LibraryPin,
   LibraryPinPatch,
   ProviderModel,
+  ProviderThinkingCapabilities,
   UserFacingReleaseNote,
   WeReadBookDetail,
   WeReadReadingStatsState,
@@ -717,6 +718,15 @@ export const providerIpcInvokeDescriptors = {
   }),
   'provider:test': desktopIpcInvoke<DesktopIpcSchemaArgs<'provider:test'>, ProviderTestResult>()({
     route: ['provider', 'test'],
+    roles: mainOnly,
+    validation: 'schema',
+    databaseIndependent: true,
+  }),
+  'provider:thinking-levels': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'provider:thinking-levels'>,
+    ProviderThinkingCapabilities
+  >()({
+    route: ['provider', 'getThinkingLevels'],
     roles: mainOnly,
     validation: 'schema',
     databaseIndependent: true,

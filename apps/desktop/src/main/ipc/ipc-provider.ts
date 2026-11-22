@@ -14,7 +14,9 @@ type ProviderIpcContext = Pick<
   'openExternalUrl' | 'sendFullStoreUpdated'
 > & {
   onSettingsSaved?: () => void;
-  getAiModule: () => Promise<Pick<DesktopAiModule, 'listProviderModels' | 'testProvider'>>;
+  getAiModule: () => Promise<
+    Pick<DesktopAiModule, 'listProviderModels' | 'providerThinkingCapabilities' | 'testProvider'>
+  >;
   getPersistenceModules: () => Promise<{
     chatGptOAuthRepository: Pick<
       typeof import('../providers/chatgpt-oauth-repository'),
@@ -152,6 +154,10 @@ export function registerProviderIpc(context: ProviderIpcContext) {
       }
       throw error;
     }
+  });
+  handleDesktopIpc('provider:thinking-levels', async (_event, input) => {
+    const { providerThinkingCapabilities } = await context.getAiModule();
+    return providerThinkingCapabilities(input);
   });
 }
 

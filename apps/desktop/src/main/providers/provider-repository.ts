@@ -11,6 +11,7 @@ import {
   normalizePresetId,
   normalizeProviderModelInputMode,
   normalizeProviderType,
+  normalizeReasoningEffort,
 } from '../store/store-normalizers';
 
 const defaultProviderPreset = providerPresets.find((preset) => preset.id === 'deepseek');
@@ -164,7 +165,8 @@ export function buildProviderRecord(
           normalizeModelNames(existing?.modelNames) ??
           preset?.modelNames),
     modelInputMode,
-    reasoningEffort: 'none',
+    reasoningEffort:
+      normalizeReasoningEffort(input.reasoningEffort) ?? existing?.reasoningEffort ?? 'none',
     createdAt: existing?.createdAt || options.now,
     updatedAt: options.now,
   };

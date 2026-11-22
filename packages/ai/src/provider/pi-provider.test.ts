@@ -1,7 +1,12 @@
 import { createModels } from '@earendil-works/pi-ai/models';
 import type { LlmProvider, ReasoningEffort } from '@yomitomo/shared';
 import { describe, expect, it } from 'vitest';
-import { piModelRef, piProviderFor, piThinkingLevel } from './pi-provider';
+import {
+  piModelRef,
+  piProviderFor,
+  piThinkingLevel,
+  providerThinkingCapabilities,
+} from './pi-provider';
 
 const agent = { id: 'agent-1', temperature: 0.3 };
 
@@ -189,6 +194,46 @@ describe('piProviderFor', () => {
       expect.arrayContaining([
         expect.objectContaining({ role: 'developer', content: 'Follow reading instructions.' }),
       ]),
+    );
+  });
+
+  it('clamps unsupported none effort on gpt-6.2-sol to low and exposes only supported thinking levels', async () => {
+    const provider = compatible('chatgpt', 'gpt-6.2-sol', 'none', 'openai-responses');
+    expect(providerThinkingCapabilities(provider)).toEqual({
+      supportedEfforts: ['low', 'medium', 'high', 'xhigh', 'max'],
+      defaultEffort: 'low',
+    });
+    expect(piThinkingLevel(provider)).toBe('low');
+
+    const payload = await requestPayload(provider, { systemPrompt: 'Read carefully.' });
+    const wireBody = JSON.parse(JSON.stringify(payload)) as Record<string, unknown>;
+    expect(wireBody.reasoning).toMatchObject({ effort: 'low' });
+
+    const maxPayload = await requestPayload(
+      compatible('chatgpt', 'gpt-6.2-sol', 'max', 'openai-responses'),
+    );
+    expect(maxPayload?.reasoning).toMatchObject({ effort: 'max' });
+  });
+
+  it('includes none when supported and omits reasoning for non-thinking ChatGPT models', async () => {
+    expect(
+      providerThinkingCapabilities(compatible('chatgpt', 'gpt-5.4', 'none', 'openai-responses')),
+    ).toEqual({
+      supportedEfforts: ['none', 'low', 'medium', 'high', 'xhigh'],
+      defaultEffort: 'none',
+    });
+
+    const gpt4o = compatible('chatgpt', 'gpt-4o', 'none', 'openai-responses');
+    expect(providerThinkingCapabilities(gpt4o)).toEqual({
+      supportedEfforts: [],
+      defaultEffort: 'none',
+    });
+    expect(piThinkingLevel(gpt4o)).toBeUndefined();
+    const payload = await requestPayload(gpt4o, { systemPrompt: 'Hello.' });
+    const wireBody = JSON.parse(JSON.stringify(payload)) as Record<string, unknown>;
+    expect(wireBody).not.toHaveProperty('reasoning');
+    expect(wireBody.input).toEqual(
+      expect.arrayContaining([expect.objectContaining({ role: 'developer', content: 'Hello.' })]),
     );
   });
 

@@ -23,6 +23,7 @@ export {
   piModelRef,
   piProviderFor,
   piThinkingLevel,
+  providerThinkingCapabilities,
   type PiModelRef,
   type PiProviderOptions,
 } from './provider/pi-provider';

@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { useReducer, useRef } from 'react';
 import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
@@ -13,6 +14,7 @@ export function useProviderModelFetch(
   options?: { chatGptConnected?: boolean },
 ) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const [{ loadingScope, modelError, modelNotice, modelOptions }, dispatch] = useReducer(
     modelFetchReducer,
     initialModelFetchState,
@@ -83,6 +85,7 @@ export function useProviderModelFetch(
     dispatch({ type: 'fetchStarted', scope });
     try {
       const models = await getDesktopApi().provider.listModels(draft);
+      void queryClient.invalidateQueries({ queryKey: ['provider', 'thinking-levels'] });
       const latestDraft = readDraftInScope(requestId, scope);
       if (!latestDraft) return;
       const names = models.map((model) => model.id).filter(Boolean);

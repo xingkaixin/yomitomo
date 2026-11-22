@@ -14,6 +14,8 @@ import {
   providerPresets,
   type ChatGptAccountState,
   type ProviderPreset,
+  type ProviderThinkingCapabilities,
+  type ThinkingEffortOption,
 } from '@yomitomo/shared';
 import type { ProviderDraft } from './app-settings';
 import { providerLogoMap } from './app-settings-provider-assets';
@@ -36,6 +38,10 @@ import { getDesktopApi, getOptionalDesktopApi } from '../shell/app-desktop-api';
 
 const CHATGPT_AUTH_STATUS_QUERY_KEY = ['provider', 'chatgpt-auth-status'] as const;
 const DISCONNECTED_CHATGPT_ACCOUNT: ChatGptAccountState = { status: 'disconnected' };
+const EMPTY_THINKING_CAPABILITIES: ProviderThinkingCapabilities = {
+  supportedEfforts: [],
+  defaultEffort: 'none',
+};
 
 export function providerDraftFromPreset(
   draft: ProviderDraft,
@@ -79,6 +85,29 @@ export function ProviderForm({
     },
     enabled: isChatGpt,
   });
+  const modelKey = draft.modelName?.trim() || '';
+  const { data: thinkingCapabilities = EMPTY_THINKING_CAPABILITIES } = useQuery({
+    queryKey: [
+      'provider',
+      'thinking-levels',
+      draft.presetId || '',
+      draft.type || '',
+      draft.baseUrl || '',
+      modelKey,
+      draft.modelNames?.length ?? 0,
+    ],
+    queryFn: () => {
+      const api = getOptionalDesktopApi()?.provider?.getThinkingLevels;
+      return api ? api(draft) : Promise.resolve(EMPTY_THINKING_CAPABILITIES);
+    },
+    enabled: Boolean(modelKey),
+  });
+  const supportedThinkingEfforts = thinkingCapabilities.supportedEfforts;
+  const selectedThinkingEffort: ThinkingEffortOption =
+    draft.reasoningEffort &&
+    supportedThinkingEfforts.includes(draft.reasoningEffort as ThinkingEffortOption)
+      ? (draft.reasoningEffort as ThinkingEffortOption)
+      : thinkingCapabilities.defaultEffort;
   const {
     fetchModels,
     clearModelStatus,
@@ -208,6 +237,31 @@ export function ProviderForm({
         onChange={onChange}
         onFetchModels={fetchModels}
       />
+      {supportedThinkingEfforts.length > 0 ? (
+        <Field id="provider-thinking" className="col-span-2" label={t('settings.models.thinking')}>
+          <Select
+            value={selectedThinkingEffort}
+            onValueChange={(value) =>
+              onChange({ ...draft, reasoningEffort: value as ThinkingEffortOption })
+            }
+          >
+            <SelectTrigger id="provider-thinking" aria-labelledby="provider-thinking-label">
+              <SelectValue>
+                {t(`settings.models.thinkingEfforts.${selectedThinkingEffort}`)}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent className={selectContentClassName}>
+              <SelectGroup>
+                {supportedThinkingEfforts.map((effort) => (
+                  <SelectItem key={effort} value={effort}>
+                    {t(`settings.models.thinkingEfforts.${effort}`)}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
+      ) : null}
       {isChatGpt ? null : (
         <Field id="provider-api-key" className="col-span-2" label="API Key">
           <SecretInput

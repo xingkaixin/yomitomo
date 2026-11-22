@@ -175,6 +175,10 @@ function providerIpcContext(
   return {
     getAiModule: async () => ({
       listProviderModels: vi.fn(),
+      providerThinkingCapabilities: vi.fn(() => ({
+        supportedEfforts: [],
+        defaultEffort: 'none' as const,
+      })),
       testProvider: vi.fn(),
       ...aiOverrides,
     }),

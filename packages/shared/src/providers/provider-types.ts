@@ -23,15 +23,14 @@ export type ChatGptAccountState = {
   updatedAt?: string;
 };
 
-export type ReasoningEffort =
-  | 'default'
-  | 'none'
-  | 'minimal'
-  | 'low'
-  | 'medium'
-  | 'high'
-  | 'xhigh'
-  | 'auto';
+export type ThinkingEffortOption = 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+
+export type ReasoningEffort = 'default' | ThinkingEffortOption | 'auto';
+
+export type ProviderThinkingCapabilities = {
+  supportedEfforts: ThinkingEffortOption[];
+  defaultEffort: ThinkingEffortOption;
+};
 
 export type ArticleTextBudgetProfile = {
   defaultFactor: number;
@@ -55,6 +54,7 @@ export type ProviderPreset = {
 export type ProviderModel = {
   id: string;
   name: string;
+  supportedReasoningEfforts?: ThinkingEffortOption[];
 };
 
 export type ProviderModelInputMode = 'list' | 'custom';
