@@ -38,21 +38,22 @@ const downloads = {
 
 const localeUrls = {
   'zh-CN': `${siteUrl}/`,
+  zh: `${siteUrl}/`,
   en: `${siteUrl}/en/`,
   ja: `${siteUrl}/ja/`,
 };
 const canonicalUrl = localeUrls[lang];
-const defaultLocaleUrl = `${siteUrl}/`;
+const defaultLocaleUrl = localeUrls.en;
 const pageTitle = isEnglish
-  ? 'Yomitomo — Open-source AI Reader for PDF & EPUB'
+  ? 'Yomitomo — Free, Local-First AI Reader for PDF & EPUB'
   : isJapanese
-    ? 'Yomitomo — PDF・EPUBに対応した無料のAI読書アプリ'
-    : 'Yomitomo：免费开源 AI 阅读器，支持 PDF、EPUB 与网页批注';
+    ? 'Yomitomo — PDF・EPUB注釈対応の無料ローカルAI読書アプリ'
+    : 'Yomitomo：免费开源本地 AI 阅读器，支持 PDF、EPUB 与网页批注';
 const pageDescription = isEnglish
-  ? 'Read PDF, EPUB and web articles on macOS and Windows. Highlight passages, discuss them with AI, and keep notes locally. Free and open source; bring your own model.'
+  ? 'Free, open-source AI reader for PDF, EPUB and web articles on macOS & Windows. Annotate passages, discuss with AI via API key or Ollama, and keep data local.'
   : isJapanese
-    ? 'PDF・EPUB・Web記事を読み、原文に注釈を付けてAIと対話。読書メモは端末内に保存。macOS・Windows対応の無料オープンソースアプリです。AIには自分のAPIキーやローカルモデルを使えます。'
-    : '用 Yomitomo 阅读 PDF、EPUB 和网页文章，在原文划线、记笔记并与 AI 讨论，支持微信读书笔记同步。免费开源，适用于 macOS 和 Windows，阅读数据保存在本机，AI 可使用自备 API 或本地模型。';
+    ? 'PDF・EPUB・Web記事にアノテーションを付けてAIと対話できる無料オープンソース読書アプリ（macOS・Windows対応）。読書メモは端末内に保存し、APIキーやOllamaなどローカルモデルを使えます。'
+    : '用 Yomitomo 阅读 PDF、EPUB 和网页文章，在原文划线批注并与 AI 讨论，支持微信读书笔记同步。免费开源，支持 macOS 和 Windows，数据保存在本机，可接 API Key 或 Ollama 本地模型。';
 const ogImageUrl = `${siteUrl}/assets/og-image.jpg`;
 const faqItems = getFaqItems(lang);
 const jsonLd = buildLandingStructuredData({

@@ -70,10 +70,10 @@ export function buildLandingStructuredData({
         '@type': 'SoftwareApplication',
         '@id': softwareId,
         name: 'Yomitomo',
-        applicationCategory: 'EducationalApplication',
+        applicationCategory: 'ProductivityApplication',
         operatingSystem: ['macOS', 'Windows'],
         softwareVersion: version,
-        url: siteUrl,
+        url: canonicalUrl,
         image: { '@id': `${siteUrl}/#primaryimage` },
         screenshot: [
           `${siteUrl}/assets/${screenshotLocale}-home.webp`,
