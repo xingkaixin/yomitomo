@@ -90,3 +90,4 @@ Yomitomo 不提供面目模糊的通用 AI，而是打造了一组性格鲜明�
 - [学术论文精读：研究者的 AI 深度阅读工作流](/blog/scenarios/academic-paper-reading/)
 - [电子书深度阅读：从「读过」到「读透」的认知进阶](/blog/scenarios/deep-ebook-reading/)
 - [AI 伴读与审阅助手详细功能文档](/docs/ai-companions/)
+- [我做了一个 AI 伴读，因为 AI 摘要正在杀死阅读（作者博客）](https://xingkaixin.me/posts/yomitomo-ai-reading-companion/)
