@@ -259,6 +259,11 @@ const zh: HomeCopy = {
     links: [
       { href: '/docs/weread-api-key/', title: '获取微信读书 API Key' },
       { href: '/blog/scenarios/weread-migration/', title: '把微信读书划线和想法同步到本地' },
+      {
+        href: '/blog/scenarios/local-ai-reading-with-ollama/',
+        title: '连接 Ollama 本地模型阅读 PDF 与 EPUB',
+      },
+      { href: '/blog/scenarios/academic-paper-reading/', title: '用 AI 伴读精读学术论文 PDF' },
     ],
   },
   download: { title: ['下载 Yomitomo，', '开始把读过的留下来。'], arch: 'Apple 芯片' },
@@ -467,7 +472,7 @@ const en: HomeCopy = {
     title: 'From collecting to keeping.',
     src: {
       title: 'Many sources, one library',
-      desc: 'Web articles, EPUB, AZW3, MOBI, PDF, plain text and WeRead live in one library, organized into collections.',
+      desc: 'Web articles, EPUB, AZW3, MOBI, PDF and plain text live in one library, organized into collections.',
     },
     anchor: {
       title: 'Notes anchored to the source',
@@ -499,7 +504,7 @@ const en: HomeCopy = {
     },
     stats: {
       title: 'Reading stats',
-      desc: 'Time, lines and thoughts add up by day, and WeRead reading data can sync in too.',
+      desc: 'Reading time, lines and thoughts add up by day so you can see how your reading habits grow.',
     },
     theme: {
       title: 'Reading appearance',
@@ -560,12 +565,20 @@ const en: HomeCopy = {
     title: 'Choose your reading workflow.',
     links: [
       {
-        href: '/en/blog/scenarios/readwise-reader-alternative/',
-        title: 'Yomitomo or Readwise Reader?',
+        href: '/en/blog/scenarios/local-ai-reading-with-ollama/',
+        title: 'Read PDFs and EPUBs locally with Ollama',
       },
       {
-        href: '/en/blog/scenarios/local-ai-reading-with-ollama/',
-        title: 'Read with a local model in Ollama',
+        href: '/en/blog/scenarios/readwise-reader-alternative/',
+        title: 'Yomitomo vs. Readwise Reader',
+      },
+      {
+        href: '/en/blog/scenarios/zotero-academic-workflow/',
+        title: 'Pair Zotero with Yomitomo for paper reading',
+      },
+      {
+        href: '/en/blog/scenarios/pdf-annotation/',
+        title: 'Annotate and review long PDFs with AI',
       },
     ],
   },
@@ -687,7 +700,7 @@ const en: HomeCopy = {
         title: 'Walden',
         author: 'Henry David Thoreau',
         date: '10/21',
-        kind: 'WeRead',
+        kind: 'Ebook',
         counts: '57 lines · 4 distilled',
       },
       {
@@ -722,7 +735,7 @@ const en: HomeCopy = {
         title: 'The Wealth of Nations',
         author: 'Adam Smith',
         date: '09/18',
-        kind: 'WeRead',
+        kind: 'PDF',
         counts: '33 lines · 5 distilled',
       },
       {
@@ -786,7 +799,7 @@ const ja: HomeCopy = {
     title: '集めることから、残すことへ。',
     src: {
       title: '複数のソースを一つのライブラリに',
-      desc: 'Web記事、EPUB、AZW3、MOBI、PDF、テキスト、微信読書を一つのライブラリに集め、コレクションで整理します。',
+      desc: 'Web記事、EPUB、AZW3、MOBI、PDF、テキストを一つのライブラリに集め、コレクションで整理します。',
     },
     anchor: {
       title: '注釈は原文に結びつく',
@@ -818,7 +831,7 @@ const ja: HomeCopy = {
     },
     stats: {
       title: '読書統計',
-      desc: '時間、線、考えを日ごとに集計し、微信読書の読書データも同期できます。',
+      desc: '読書時間、線、考えを日ごとに集計し、自分の読書リズムを振り返れます。',
     },
     theme: {
       title: '読書表示',
@@ -878,10 +891,21 @@ const ja: HomeCopy = {
   help: {
     title: '目的に合わせて使い始める。',
     links: [
-      { href: '/ja/blog/scenarios/pdf-annotation/', title: 'PDFに注釈を付け、AIと読み進める' },
+      {
+        href: '/ja/blog/scenarios/pdf-annotation/',
+        title: 'PDFにアノテーションを付け、AIと精読する',
+      },
       {
         href: '/ja/blog/scenarios/zotero-academic-workflow/',
         title: 'Zoteroの論文をYomitomoで精読する',
+      },
+      {
+        href: '/ja/blog/scenarios/local-ai-reading-with-ollama/',
+        title: 'OllamaのローカルAIでPDF・EPUBを読む',
+      },
+      {
+        href: '/ja/blog/scenarios/readwise-reader-alternative/',
+        title: 'Readwise Readerとの違いを比較する',
       },
     ],
   },
@@ -1002,7 +1026,7 @@ const ja: HomeCopy = {
         title: 'ウォールデン',
         author: 'ヘンリー・ソロー',
         date: '10/21',
-        kind: '微信読書',
+        kind: '電子書籍',
         counts: '線 57 · まとめ 4',
       },
       {
@@ -1037,7 +1061,7 @@ const ja: HomeCopy = {
         title: '国富論',
         author: 'アダム・スミス',
         date: '09/18',
-        kind: '微信読書',
+        kind: 'PDF',
         counts: '線 33 · まとめ 5',
       },
       {

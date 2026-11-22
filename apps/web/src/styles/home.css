@@ -455,7 +455,7 @@
   font-size: 17px;
   line-height: 1.86;
 }
-.r-article h2 {
+.r-article-title {
   margin: 0 0 16px;
   font-size: 28px;
   font-weight: 800;
@@ -1111,7 +1111,7 @@
   box-shadow: var(--r-raised-shadow);
   overflow: hidden;
 }
-.s-doc h3 {
+.s-doc-title {
   margin: 22px 0 14px;
   font-family: var(--serif);
   font-size: 22px;
@@ -2506,7 +2506,7 @@
     font-size: 16px;
     line-height: 1.82;
   }
-  .r-article h2 {
+  .r-article-title {
     font-size: 22px;
   }
   .r-article::before {

@@ -12,7 +12,7 @@ const zhFaq: FaqItem[] = [
   {
     question: 'Yomitomo 支持哪些阅读来源？',
     answer:
-      'Yomitomo 支持网页文章、PDF、EPUB 和微信读书四类来源。不同来源的内容、划线和讨论都汇集在同一个工作台，同步过来的笔记会保留原文锚点。',
+      'Yomitomo 支持网页文章、PDF、EPUB、AZW3、MOBI、纯文本和微信读书。不同来源的内容、划线和讨论都汇集在同一个工作台，同步过来的笔记会保留原文锚点。',
   },
   {
     question: '我的阅读数据会上传到云端吗？',
@@ -32,7 +32,7 @@ const zhFaq: FaqItem[] = [
   {
     question: '使用 Yomitomo 需要配置 API Key 吗？',
     answer:
-      '普通阅读和手动批注不需要。使用 AI 功能时，需配置模型供应商与任务路由；远程服务通常需要自己的 API Key，也可以连接本地模型。',
+      '普通阅读和手动批注不需要。使用 AI 功能时，需配置模型供应商与任务路由；远程服务通常需要自己的 API Key，也可以连接 Ollama 等本地模型。',
   },
 ];
 
@@ -45,7 +45,7 @@ const enFaq: FaqItem[] = [
   {
     question: 'What sources does Yomitomo support?',
     answer:
-      'Yomitomo supports web articles, PDF, EPUB, and WeRead. Content, highlights, and discussions from every source land on one workbench, and synced notes keep their original anchors.',
+      'Yomitomo supports web articles, PDF, EPUB, AZW3, MOBI, and plain text. Content, highlights, and discussions from every source land on one workbench.',
   },
   {
     question: 'Is my reading data uploaded to the cloud?',
@@ -65,7 +65,7 @@ const enFaq: FaqItem[] = [
   {
     question: 'Do I need an API key to use Yomitomo?',
     answer:
-      'Reading and manual annotations do not require an API key. AI features require a configured provider and task routes. Remote services usually need your own API key; you can also connect a local model.',
+      'Reading and manual annotations do not require an API key. AI features require a configured provider and task routes. Remote services usually need your own API key; you can also connect a local model such as Ollama.',
   },
 ];
 
@@ -78,7 +78,7 @@ const jaFaq: FaqItem[] = [
   {
     question: 'どの読書ソースに対応していますか？',
     answer:
-      'Web記事、PDF、EPUB、微信読書に対応しています。異なるソースの本文、線、対話を一つのワークスペースに集め、同期したメモも原文の位置を保ちます。',
+      'Web記事、PDF、EPUB、AZW3、MOBI、テキストに対応しています。異なるソースの本文、線、対話を一つのワークスペースに集約して読み進められます。',
   },
   {
     question: '読書データはクラウドへ送信されますか？',
@@ -98,7 +98,7 @@ const jaFaq: FaqItem[] = [
   {
     question: 'Yomitomoを使うにはAPIキーが必要ですか？',
     answer:
-      '読書と手動の注釈には不要です。AI機能にはプロバイダーとタスクルートの設定が必要です。リモートサービスには通常ご自身のAPIキーが必要ですが、ローカルモデルにも接続できます。',
+      '読書と手動の注釈には不要です。AI機能にはプロバイダーとタスクルートの設定が必要です。リモートサービスには通常ご自身のAPIキーが必要ですが、Ollamaなどのローカルモデルにも接続できます。',
   },
 ];
 
