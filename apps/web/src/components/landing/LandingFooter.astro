@@ -1,6 +1,8 @@
 ---
 import {
+  authorBlogUrl,
   changelogsUrl,
+  englishAuthorBlogUrl,
   englishChangelogsUrl,
   githubUrl,
   japaneseChangelogsUrl,
@@ -16,6 +18,7 @@ const { lang = 'zh-CN' } = Astro.props;
 const isEnglish = lang === 'en';
 const isJapanese = lang === 'ja';
 const prefix = isEnglish ? '/en' : isJapanese ? '/ja' : '';
+const authorUrl = isEnglish || isJapanese ? englishAuthorBlogUrl : authorBlogUrl;
 const year = new Date().getFullYear();
 
 const links = [
@@ -31,11 +34,12 @@ const links = [
   },
 ];
 
-const fine = isEnglish
-  ? `© ${year} YOMITOMO · MIT License`
+const finePrefix = isEnglish
+  ? `© ${year} YOMITOMO · MIT License · Built by `
   : isJapanese
-    ? `© ${year} YOMITOMO · MITライセンス`
-    : `© ${year} YOMITOMO · MIT 协议`;
+    ? `© ${year} YOMITOMO · MITライセンス · 制作：`
+    : `© ${year} YOMITOMO · MIT 协议 · 由 `;
+const fineSuffix = isEnglish || isJapanese ? '' : ' 制作';
 ---
 
 <footer class="lp-footer">
@@ -80,6 +84,8 @@ const fine = isEnglish
         </a>
       </div>
     </div>
-    <p class="fine">{fine}</p>
+    <p class="fine">
+      {finePrefix}<a href={authorUrl} target="_blank" rel="noopener">XingKaiXin</a>{fineSuffix}
+    </p>
   </div>
 </footer>

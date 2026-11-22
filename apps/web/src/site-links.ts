@@ -38,6 +38,8 @@ function latestChangelogPage(paths: string[], urlPrefix: string) {
   return page;
 }
 
+export const authorBlogUrl = 'https://xingkaixin.me/';
+export const englishAuthorBlogUrl = 'https://xingkaixin.me/en/';
 export const githubUrl = 'https://github.com/xingkaixin/yomitomo';
 export const youtubeUrl = 'https://www.youtube.com/@yomitomo';
 export const xUrl = 'https://x.com/yomitomo';
