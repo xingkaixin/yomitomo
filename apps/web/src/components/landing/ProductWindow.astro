@@ -13,7 +13,7 @@ const insight = band.companions['insight-editor'];
 const question = band.companions['question-mentor'];
 ---
 
-<div class="win">
+<div class="win" data-nosnippet>
   <div class="lights" aria-hidden="true"><i></i><i></i><i></i></div>
   <div class="win-track" data-flow-track>
 
@@ -48,7 +48,7 @@ const question = band.companions['question-mentor'];
         </div>
 
         <div class="r-article">
-          <h2>{w.article.title}</h2>
+          <div class="r-article-title">{w.article.title}</div>
           <p>{w.article.paragraphs[0]}<sup class="r-ref">1</sup></p>
           <p>{w.article.paragraphs[1]}{lang === 'en' ? ' ' : ''}<span class="hl is-active">{w.article.quote}</span><sup class="r-ref is-active">2</sup></p>
           <p class="is-extra"><span class="hl">{w.article.quote2}</span><sup class="r-ref">3</sup>{lang === 'en' ? ' ' : ''}{w.article.paragraphs[2]}</p>
@@ -110,7 +110,7 @@ const question = band.companions['question-mentor'];
       <div class="s-main">
         <div class="s-doc">
           <div class="d-head">{w.distillDraft} <span class="chip">{w.draft}</span><span class="s-publish">{w.publish}</span></div>
-          <h3>{w.doc.title}</h3>
+          <div class="s-doc-title">{w.doc.title}</div>
           <p>{w.doc.first}</p>
           <p>{w.doc.before}<del>{w.doc.removed}</del><ins>{w.doc.added}</ins>{w.doc.end}</p>
           <div class="s-prop"><span class="av"><img src={avatar('root-reviewer')} alt="" width="96" height="96" loading="lazy" /></span>{w.proposal}<u>{w.accept}</u><u>{w.ignore}</u></div>
