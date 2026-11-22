@@ -20,9 +20,13 @@ export {
   parseDistillationReviewItem,
 } from './assistant/distillation-review-items';
 export {
+  clearChatGptModelThinkingLevels,
   piModelRef,
   piProviderFor,
   piThinkingLevel,
+  providerThinkingCapabilities,
+  replaceChatGptModelThinkingLevels,
   type PiModelRef,
+  type PiProviderOptions,
 } from './provider/pi-provider';
 export { runReadingJudgment } from './reading-memory/reading-judgment';

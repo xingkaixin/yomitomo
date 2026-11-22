@@ -16,6 +16,8 @@ export const desktopIpcErrorCodes = {
   invalidArgs: 'IPC_INVALID_ARGS',
   providerRouteRequired: 'PROVIDER_ROUTE_REQUIRED',
   providerApiKeyRequired: 'PROVIDER_API_KEY_REQUIRED',
+  chatGptAuthRequired: 'CHATGPT_AUTH_REQUIRED',
+  chatGptReauthRequired: 'CHATGPT_REAUTH_REQUIRED',
   reviewAgentNotFound: 'REVIEW_AGENT_NOT_FOUND',
   senderNotAuthorized: 'IPC_SENDER_NOT_AUTHORIZED',
 } as const;

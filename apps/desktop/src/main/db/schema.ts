@@ -827,3 +827,16 @@ export const wereadReadingStats = sqliteTable(
     index('weread_reading_stats_fetched_at_idx').on(table.fetchedAt),
   ],
 );
+
+export const chatgptOAuthAccounts = sqliteTable('chatgpt_oauth_accounts', {
+  id: text('id').primaryKey(),
+  hostId: text('host_id').notNull(),
+  clientId: text('client_id'),
+  credentialRef: text('credential_ref'),
+  accountEmail: text('account_email'),
+  accountName: text('account_name'),
+  accountSubject: text('account_subject'),
+  modelCapabilitiesJson: text('model_capabilities_json'),
+  status: text('status').notNull().default('disconnected'),
+  updatedAt: text('updated_at').notNull(),
+});

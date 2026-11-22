@@ -1,7 +1,23 @@
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Delete02Icon, ViewIcon, ViewOffIcon } from '@hugeicons/core-free-icons';
+import {
+  Delete02Icon,
+  Logout01Icon,
+  Tick01Icon,
+  ViewIcon,
+  ViewOffIcon,
+} from '@hugeicons/core-free-icons';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useReducer, useRef } from 'react';
-import { providerPresets } from '@yomitomo/shared';
+import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
+import {
+  isChatGptOAuthProvider,
+  providerPresets,
+  resolveThinkingEffort,
+  type ChatGptAccountState,
+  type ProviderPreset,
+  type ProviderThinkingCapabilities,
+  type ThinkingEffortOption,
+} from '@yomitomo/shared';
 import type { ProviderDraft } from './app-settings';
 import { providerLogoMap } from './app-settings-provider-assets';
 import { useProviderModelFetch } from './app-settings-provider-model-fetch';
@@ -19,13 +35,20 @@ import {
 } from '../components/ui/select';
 import { useTranslation } from 'react-i18next';
 import { providerPresetDisplayName } from '../i18n/app-i18n-labels';
-import type { ProviderPreset } from '@yomitomo/shared';
-import { getDesktopApi } from '../shell/app-desktop-api';
+import { getDesktopApi, getOptionalDesktopApi } from '../shell/app-desktop-api';
+
+const CHATGPT_AUTH_STATUS_QUERY_KEY = ['provider', 'chatgpt-auth-status'] as const;
+const DISCONNECTED_CHATGPT_ACCOUNT: ChatGptAccountState = { status: 'disconnected' };
+const EMPTY_THINKING_CAPABILITIES: ProviderThinkingCapabilities = {
+  supportedEfforts: [],
+  defaultEffort: 'none',
+};
 
 export function providerDraftFromPreset(
   draft: ProviderDraft,
   preset: ProviderPreset,
 ): ProviderDraft {
+  const isChatGpt = preset.id === 'chatgpt';
   return {
     ...draft,
     presetId: preset.id,
@@ -33,8 +56,9 @@ export function providerDraftFromPreset(
     type: preset.type,
     logo: preset.logo,
     baseUrl: preset.baseUrl,
-    modelName: preset.modelName,
-    modelNames: preset.modelNames,
+    // Account-specific ChatGPT catalogs must come from the signed-in account, not static presets.
+    modelName: isChatGpt ? '' : preset.modelName,
+    modelNames: isChatGpt ? [] : preset.modelNames,
     modelInputMode: 'list',
     reasoningEffort: 'none',
   };
@@ -54,6 +78,39 @@ export function ProviderForm({
   showProviderIdentityFields?: boolean;
 }) {
   const { t } = useTranslation();
+  const isChatGpt = isChatGptOAuthProvider(draft);
+  const queryClient = useQueryClient();
+  const { data: chatGptAccount = DISCONNECTED_CHATGPT_ACCOUNT } = useQuery({
+    queryKey: CHATGPT_AUTH_STATUS_QUERY_KEY,
+    queryFn: () => {
+      const api = getOptionalDesktopApi()?.provider?.getChatGptAuthStatus;
+      return api ? api() : Promise.resolve(DISCONNECTED_CHATGPT_ACCOUNT);
+    },
+    enabled: isChatGpt,
+  });
+  const modelKey = draft.modelName?.trim() || '';
+  const { data: thinkingCapabilities = EMPTY_THINKING_CAPABILITIES } = useQuery({
+    queryKey: [
+      'provider',
+      'thinking-levels',
+      draft.presetId || '',
+      draft.type || '',
+      draft.baseUrl || '',
+      modelKey,
+      draft.modelNames?.length ?? 0,
+    ],
+    queryFn: () => {
+      const api = getOptionalDesktopApi()?.provider?.getThinkingLevels;
+      return api ? api(draft) : Promise.resolve(EMPTY_THINKING_CAPABILITIES);
+    },
+    enabled: Boolean(modelKey),
+  });
+  const supportedThinkingEfforts = thinkingCapabilities.supportedEfforts;
+  const selectedThinkingEffort: ThinkingEffortOption = resolveThinkingEffort(
+    supportedThinkingEfforts,
+    draft.reasoningEffort,
+    thinkingCapabilities.defaultEffort,
+  );
   const {
     fetchModels,
     clearModelStatus,
@@ -62,13 +119,31 @@ export function ProviderForm({
     modelNotice,
     presetModels,
     visibleModels,
-  } = useProviderModelFetch(draft, onChange);
+  } = useProviderModelFetch(draft, onChange, {
+    chatGptConnected: chatGptAccount.status === 'connected',
+  });
 
   function applyPreset(presetId: string) {
     const preset = providerPresets.find((item) => item.id === presetId);
     if (!preset) return;
     clearModelStatus();
-    onChange(providerDraftFromPreset(draft, preset));
+    const nextDraft = providerDraftFromPreset(draft, preset);
+    onChange(nextDraft);
+    if (preset.id === 'chatgpt' && chatGptAccount.status === 'connected') {
+      void fetchModels({ draft: nextDraft, forceConnected: true });
+    }
+  }
+
+  function handleChatGptConnected(nextState: ChatGptAccountState) {
+    queryClient.setQueryData(CHATGPT_AUTH_STATUS_QUERY_KEY, nextState);
+    if (nextState.status === 'connected') {
+      void fetchModels({ forceConnected: true });
+    }
+  }
+
+  function handleChatGptDisconnected(nextState: ChatGptAccountState) {
+    queryClient.setQueryData(CHATGPT_AUTH_STATUS_QUERY_KEY, nextState);
+    void queryClient.invalidateQueries({ queryKey: ['provider', 'thinking-levels'] });
   }
 
   const selectedPreset = providerPresets.find((preset) => preset.id === draft.presetId);
@@ -135,17 +210,32 @@ export function ProviderForm({
           />
         </Field>
       ) : null}
-      <Field id="provider-base-url" label="Base URL">
-        <Input
-          id="provider-base-url"
-          name="provider-base-url"
-          type="url"
-          autoComplete="off"
-          value={draft.baseUrl || ''}
-          onChange={(event) => onChange({ ...draft, baseUrl: event.target.value })}
-        />
-      </Field>
+      {isChatGpt ? (
+        <Field
+          id="provider-chatgpt-account"
+          className="col-span-2"
+          label={t('settings.models.chatGptAccount')}
+        >
+          <ChatGptAccountField
+            account={chatGptAccount}
+            onConnected={handleChatGptConnected}
+            onDisconnected={handleChatGptDisconnected}
+          />
+        </Field>
+      ) : (
+        <Field id="provider-base-url" label="Base URL">
+          <Input
+            id="provider-base-url"
+            name="provider-base-url"
+            type="url"
+            autoComplete="off"
+            value={draft.baseUrl || ''}
+            onChange={(event) => onChange({ ...draft, baseUrl: event.target.value })}
+          />
+        </Field>
+      )}
       <ProviderModelFields
+        className={isChatGpt ? 'col-span-2' : undefined}
         draft={draft}
         modelError={modelError}
         modelLoading={modelLoading}
@@ -155,29 +245,248 @@ export function ProviderForm({
         onChange={onChange}
         onFetchModels={fetchModels}
       />
-      <Field id="provider-api-key" className="col-span-2" label="API Key">
-        <SecretInput
-          id="provider-api-key"
-          key={storedKeyProviderId || 'new'}
-          hasStoredValue={Boolean(draft.hasApiKey)}
-          value={draft.apiKey || ''}
-          onChange={(apiKey) => onChange({ ...draft, apiKey, removeApiKey: false })}
-          onRevealStoredValue={() =>
-            storedKeyProviderId
-              ? getDesktopApi().provider.readApiKey(storedKeyProviderId)
-              : Promise.resolve('')
-          }
-          onRemove={() =>
-            onChange({
-              ...draft,
-              apiKey: '',
-              cloneApiKeyFromProviderId: undefined,
-              hasApiKey: false,
-              removeApiKey: true,
-            })
-          }
-        />
-      </Field>
+      {supportedThinkingEfforts.length > 0 ? (
+        <Field id="provider-thinking" className="col-span-2" label={t('settings.models.thinking')}>
+          <Select
+            value={selectedThinkingEffort}
+            onValueChange={(value) =>
+              onChange({ ...draft, reasoningEffort: value as ThinkingEffortOption })
+            }
+          >
+            <SelectTrigger id="provider-thinking" aria-labelledby="provider-thinking-label">
+              <SelectValue>
+                {t(`settings.models.thinkingEfforts.${selectedThinkingEffort}`)}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent className={selectContentClassName}>
+              <SelectGroup>
+                {supportedThinkingEfforts.map((effort) => (
+                  <SelectItem key={effort} value={effort}>
+                    {t(`settings.models.thinkingEfforts.${effort}`)}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
+      ) : null}
+      {isChatGpt ? null : (
+        <Field id="provider-api-key" className="col-span-2" label="API Key">
+          <SecretInput
+            id="provider-api-key"
+            key={storedKeyProviderId || 'new'}
+            hasStoredValue={Boolean(draft.hasApiKey)}
+            value={draft.apiKey || ''}
+            onChange={(apiKey) => onChange({ ...draft, apiKey, removeApiKey: false })}
+            onRevealStoredValue={() =>
+              storedKeyProviderId
+                ? getDesktopApi().provider.readApiKey(storedKeyProviderId)
+                : Promise.resolve('')
+            }
+            onRemove={() =>
+              onChange({
+                ...draft,
+                apiKey: '',
+                cloneApiKeyFromProviderId: undefined,
+                hasApiKey: false,
+                removeApiKey: true,
+              })
+            }
+          />
+        </Field>
+      )}
+    </div>
+  );
+}
+
+type ChatGptAuthUiState = {
+  busy: 'idle' | 'signing_in' | 'disconnecting';
+  error: string;
+};
+
+type ChatGptAuthUiEvent =
+  | { type: 'signInStarted' }
+  | { type: 'disconnectStarted' }
+  | { type: 'succeeded' }
+  | { type: 'cancelled' }
+  | { type: 'failed'; error: string };
+
+const initialChatGptAuthUiState: ChatGptAuthUiState = {
+  busy: 'idle',
+  error: '',
+};
+
+function chatGptAuthUiReducer(
+  state: ChatGptAuthUiState,
+  event: ChatGptAuthUiEvent,
+): ChatGptAuthUiState {
+  switch (event.type) {
+    case 'signInStarted':
+      return { busy: 'signing_in', error: '' };
+    case 'disconnectStarted':
+      return { busy: 'disconnecting', error: '' };
+    case 'succeeded':
+    case 'cancelled':
+      return { busy: 'idle', error: '' };
+    case 'failed':
+      return { busy: 'idle', error: event.error };
+  }
+}
+
+function ChatGptAccountField({
+  account,
+  onConnected,
+  onDisconnected,
+}: {
+  account: ChatGptAccountState;
+  onConnected: (state: ChatGptAccountState) => void;
+  onDisconnected: (state: ChatGptAccountState) => void;
+}) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const [state, dispatch] = useReducer(chatGptAuthUiReducer, initialChatGptAuthUiState);
+  const signingInRef = useRef(false);
+  const mountedRef = useRef(true);
+
+  useMountEffect(() => () => {
+    mountedRef.current = false;
+    if (signingInRef.current) {
+      signingInRef.current = false;
+      void getOptionalDesktopApi()?.provider?.cancelChatGptSignIn?.();
+    }
+  });
+
+  async function signIn() {
+    signingInRef.current = true;
+    dispatch({ type: 'signInStarted' });
+    try {
+      const nextState = await getDesktopApi().provider.signInChatGpt();
+      signingInRef.current = false;
+      if (!mountedRef.current) return;
+      dispatch({ type: 'succeeded' });
+      onConnected(nextState);
+    } catch (error) {
+      signingInRef.current = false;
+      void queryClient.invalidateQueries({ queryKey: CHATGPT_AUTH_STATUS_QUERY_KEY });
+      if (!mountedRef.current) return;
+      const message =
+        error instanceof Error ? error.message : t('settings.models.chatGptSignInFailed');
+      if (message.toLowerCase().includes('cancelled')) {
+        dispatch({ type: 'cancelled' });
+        return;
+      }
+      dispatch({ type: 'failed', error: message });
+    }
+  }
+
+  function cancelSignIn() {
+    signingInRef.current = false;
+    void getOptionalDesktopApi()?.provider?.cancelChatGptSignIn?.();
+    void queryClient.invalidateQueries({ queryKey: CHATGPT_AUTH_STATUS_QUERY_KEY });
+    dispatch({ type: 'cancelled' });
+  }
+
+  async function disconnect() {
+    dispatch({ type: 'disconnectStarted' });
+    try {
+      const nextState = await getDesktopApi().provider.disconnectChatGpt();
+      if (!mountedRef.current) return;
+      if (nextState.remoteRevocationFailed) {
+        dispatch({ type: 'failed', error: t('settings.models.chatGptRemoteRevocationNotice') });
+      } else {
+        dispatch({ type: 'succeeded' });
+      }
+      onDisconnected(nextState);
+    } catch (error) {
+      void queryClient.invalidateQueries({ queryKey: CHATGPT_AUTH_STATUS_QUERY_KEY });
+      if (!mountedRef.current) return;
+      dispatch({
+        type: 'failed',
+        error:
+          error instanceof Error ? error.message : t('settings.models.chatGptDisconnectFailed'),
+      });
+    }
+  }
+
+  const connected = account.status === 'connected';
+  const reauthRequired = account.status === 'reauth_required';
+  const accountLabel = account.email || account.name || t('settings.models.chatGptConnected');
+
+  return (
+    <div className="chatgpt-auth-field">
+      <div className="chatgpt-auth-card">
+        <div className="chatgpt-auth-copy">
+          <div className="chatgpt-auth-title-row">
+            <span
+              className={
+                connected
+                  ? 'chatgpt-auth-badge is-connected'
+                  : reauthRequired
+                    ? 'chatgpt-auth-badge is-reauth'
+                    : 'chatgpt-auth-badge'
+              }
+            >
+              {connected ? <HugeiconsIcon icon={Tick01Icon} size={12} /> : null}
+              {connected
+                ? t('settings.models.chatGptStatusConnected')
+                : reauthRequired
+                  ? t('settings.models.chatGptStatusReauth')
+                  : t('settings.models.chatGptStatusDisconnected')}
+            </span>
+            {connected ? <strong className="chatgpt-auth-identity">{accountLabel}</strong> : null}
+          </div>
+          <p className="chatgpt-auth-note">
+            {state.busy === 'signing_in'
+              ? t('settings.models.chatGptWaitingBrowser')
+              : connected
+                ? t('settings.models.chatGptSharedAccountHint')
+                : reauthRequired
+                  ? t('settings.models.chatGptReauthHint')
+                  : t('settings.models.chatGptSignInHint')}
+          </p>
+        </div>
+        <div className="chatgpt-auth-actions">
+          {state.busy === 'signing_in' ? (
+            <Button type="button" variant="secondary" onClick={cancelSignIn}>
+              {t('settings.models.cancel')}
+            </Button>
+          ) : connected ? (
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={state.busy === 'disconnecting'}
+              onClick={disconnect}
+            >
+              <HugeiconsIcon icon={Logout01Icon} size={14} />
+              {t('settings.models.chatGptDisconnect')}
+            </Button>
+          ) : (
+            <>
+              <Button type="button" disabled={state.busy === 'disconnecting'} onClick={signIn}>
+                {reauthRequired
+                  ? t('settings.models.chatGptReconnect')
+                  : t('settings.models.chatGptSignIn')}
+              </Button>
+              {reauthRequired || account.hasSavedRegistration ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={state.busy === 'disconnecting'}
+                  onClick={disconnect}
+                >
+                  <HugeiconsIcon icon={Logout01Icon} size={14} />
+                  {t('settings.models.chatGptDisconnect')}
+                </Button>
+              ) : null}
+            </>
+          )}
+        </div>
+      </div>
+      {state.error ? (
+        <p className="settings-inline-error" role="alert">
+          {state.error}
+        </p>
+      ) : null}
     </div>
   );
 }

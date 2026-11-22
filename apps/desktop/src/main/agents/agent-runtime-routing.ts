@@ -1,6 +1,10 @@
 import type { Agent, ResolvedAppSettings, LlmProvider, UiLanguage } from '@yomitomo/shared';
 import { resolveAgentPublicIdentity } from '@yomitomo/shared';
 import { DesktopIpcError, desktopIpcErrorCodes } from '../../ipc-errors';
+import {
+  ChatGptAuthRequiredError,
+  ChatGptReauthRequiredError,
+} from '../providers/chatgpt-oauth-repository';
 import { ProviderApiKeyRequiredError } from '../providers/provider-repository';
 
 export type ProviderTask = 'readingAssistant' | 'reviewAssistant' | 'bilingualTranslation';
@@ -34,6 +38,16 @@ export async function taskProvider(
   } catch (error) {
     if (error instanceof ProviderApiKeyRequiredError) {
       throw new DesktopIpcError(desktopIpcErrorCodes.providerApiKeyRequired, undefined, {
+        cause: error,
+      });
+    }
+    if (error instanceof ChatGptAuthRequiredError) {
+      throw new DesktopIpcError(desktopIpcErrorCodes.chatGptAuthRequired, undefined, {
+        cause: error,
+      });
+    }
+    if (error instanceof ChatGptReauthRequiredError) {
+      throw new DesktopIpcError(desktopIpcErrorCodes.chatGptReauthRequired, undefined, {
         cause: error,
       });
     }

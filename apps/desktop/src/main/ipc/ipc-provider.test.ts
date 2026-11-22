@@ -154,6 +154,56 @@ describe('provider IPC persistence boundary', () => {
     });
     expect(JSON.stringify(result)).not.toContain('sk-secret');
   });
+
+  it('rejects ChatGPT model list responses whose token session changed mid-request', async () => {
+    ipcMocks.ipcMainHandle.mockClear();
+    const listProviderModels = vi.fn(async () => [
+      {
+        id: 'gpt-6.2-sol',
+        name: 'gpt-6.2-sol',
+        supportedReasoningEfforts: ['low' as const, 'max' as const],
+      },
+    ]);
+    const saveChatGptModelCapabilities = vi.fn(() => false);
+    const getValidChatGptAccessTokenWithSession = vi.fn(async () => ({
+      accessToken: 'token-account-a',
+      credentialRef: 'chatgpt-oauth:default:session-a',
+    }));
+
+    registerProviderIpc(
+      providerIpcContext(
+        {},
+        { listProviderModels },
+        { getValidChatGptAccessTokenWithSession, saveChatGptModelCapabilities },
+      ),
+    );
+
+    const handler = ipcMocks.ipcMainHandle.mock.calls.find(
+      ([channel]) => channel === 'provider:list-models',
+    )?.[1];
+    expect(handler).toBeTypeOf('function');
+
+    const result = await handler(
+      {},
+      { presetId: 'chatgpt', type: 'anthropic', baseUrl: 'https://evil.example/v1' },
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: 'CHATGPT_AUTH_REQUIRED' },
+    });
+    expect(listProviderModels).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'openai-responses',
+        baseUrl: 'https://api.openai.com/v1',
+        apiKey: 'token-account-a',
+      }),
+    );
+    expect(saveChatGptModelCapabilities).toHaveBeenCalledWith(
+      [{ id: 'gpt-6.2-sol', name: 'gpt-6.2-sol', supportedReasoningEfforts: ['low', 'max'] }],
+      'chatgpt-oauth:default:session-a',
+    );
+  });
 });
 
 type ProviderIpcContext = Parameters<typeof registerProviderIpc>[0];
@@ -167,7 +217,9 @@ function providerIpcContext(
   providerOverrides: Partial<ProviderRepository>,
   aiOverrides: Partial<ProviderAiModule> = {},
   persistenceOverrides: {
+    getValidChatGptAccessTokenWithSession?: ProviderPersistenceModules['chatGptOAuthRepository']['getValidChatGptAccessTokenWithSession'];
     readAppLockSettings?: ProviderPersistenceModules['storeSettings']['readAppLockSettings'];
+    saveChatGptModelCapabilities?: ProviderPersistenceModules['chatGptOAuthRepository']['saveChatGptModelCapabilities'];
     saveSettings?: ProviderPersistenceModules['storeSettings']['saveSettings'];
   } = {},
   contextOverrides: Partial<ProviderIpcContext> = {},
@@ -175,10 +227,29 @@ function providerIpcContext(
   return {
     getAiModule: async () => ({
       listProviderModels: vi.fn(),
+      providerThinkingCapabilities: vi.fn(() => ({
+        supportedEfforts: [],
+        defaultEffort: 'none' as const,
+      })),
       testProvider: vi.fn(),
       ...aiOverrides,
     }),
     getPersistenceModules: async () => ({
+      chatGptOAuthRepository: {
+        cancelChatGptSignIn: vi.fn(),
+        disconnectChatGptAccount: vi.fn(async () => ({ status: 'disconnected' as const })),
+        getValidChatGptAccessTokenWithSession:
+          persistenceOverrides.getValidChatGptAccessTokenWithSession ||
+          vi.fn(async () => ({
+            accessToken: 'chatgpt-token',
+            credentialRef: 'chatgpt-oauth:default:test',
+          })),
+        readChatGptAccountState: vi.fn(() => ({ status: 'disconnected' as const })),
+        saveChatGptModelCapabilities:
+          persistenceOverrides.saveChatGptModelCapabilities || vi.fn(() => true),
+        signInChatGptAccount: vi.fn(async () => ({ status: 'connected' as const })),
+        syncChatGptModelCapabilitiesFromStore: vi.fn(),
+      },
       providerRepository: {
         hydrateProviderInputApiKey: vi.fn(),
         readStoredProviderApiKey: vi.fn(),
@@ -201,6 +272,7 @@ function providerIpcContext(
         saveUser: vi.fn(),
       },
     }),
+    openExternalUrl: vi.fn(),
     sendFullStoreUpdated: vi.fn(),
     ...contextOverrides,
   };

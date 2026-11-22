@@ -152,6 +152,7 @@ async function getAppUpdaterModule() {
 
 function getPersistenceModules() {
   persistenceModulesPromise ||= Promise.all([
+    import('./providers/chatgpt-oauth-repository'),
     import('./providers/provider-repository'),
     import('./store/store-agents'),
     import('./store/store-articles'),
@@ -164,6 +165,7 @@ function getPersistenceModules() {
     import('./weread/weread-repository'),
   ]).then(
     ([
+      chatGptOAuthRepository,
       providerRepository,
       storeAgents,
       storeArticles,
@@ -175,6 +177,7 @@ function getPersistenceModules() {
       storeSnapshot,
       weReadRepository,
     ]) => ({
+      chatGptOAuthRepository,
       providerRepository,
       storeAgents,
       storeArticles,
@@ -411,6 +414,9 @@ const beforeQuit = createBeforeQuitHandler({
     if (failure) throw failure.reason;
   },
   finalize: () => {
+    void persistenceModulesPromise?.then((modules) =>
+      modules.chatGptOAuthRepository.cancelChatGptSignIn(),
+    );
     closeDatabase();
   },
   quit: () => app.quit(),

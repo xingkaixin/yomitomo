@@ -1,13 +1,33 @@
 import { createModels } from '@earendil-works/pi-ai/models';
 import type { LlmProvider, ReasoningEffort } from '@yomitomo/shared';
+import { resolveThinkingEffort } from '@yomitomo/shared';
 import { describe, expect, it } from 'vitest';
-import { piModelRef, piProviderFor, piThinkingLevel } from './pi-provider';
+import {
+  piModelRef,
+  piProviderFor,
+  piThinkingLevel,
+  providerThinkingCapabilities,
+} from './pi-provider';
 
 const agent = { id: 'agent-1', temperature: 0.3 };
 
-async function requestPayload(provider: LlmProvider) {
+async function requestPayload(
+  provider: LlmProvider,
+  options?: {
+    systemPrompt?: string;
+    maxTokens?: number;
+    temperature?: number;
+    resolveApiKey?: () => Promise<string>;
+  },
+) {
   const models = createModels();
-  models.setProvider(piProviderFor(provider, agent));
+  models.setProvider(
+    piProviderFor(
+      provider,
+      agent,
+      options?.resolveApiKey ? { resolveApiKey: options.resolveApiKey } : undefined,
+    ),
+  );
   const ref = piModelRef(provider, agent);
   const model = models.getModel(ref.provider, ref.modelId)!;
   const controller = new AbortController();
@@ -16,9 +36,14 @@ async function requestPayload(provider: LlmProvider) {
   const thinkingLevel = piThinkingLevel(provider);
   await models.completeSimple(
     model,
-    { messages: [{ role: 'user', content: 'hi', timestamp: 0 }] },
+    {
+      systemPrompt: options?.systemPrompt,
+      messages: [{ role: 'user', content: 'hi', timestamp: 0 }],
+    },
     {
       ...(thinkingLevel && thinkingLevel !== 'off' ? { reasoning: thinkingLevel } : {}),
+      maxTokens: options?.maxTokens,
+      temperature: options?.temperature,
       signal: controller.signal,
       onPayload: (value) => {
         payload = value as Record<string, unknown>;
@@ -148,5 +173,180 @@ describe('piProviderFor', () => {
     expect(deepseekHigh).toMatchObject({ reasoning_effort: 'high' });
     expect(deepseekHigh).not.toHaveProperty('thinking');
     expect(deepseekHigh).not.toHaveProperty('temperature');
+  });
+
+  it('shapes ChatGPT Sign-in requests for /v1/responses without unsupported fields', async () => {
+    const provider = compatible('chatgpt', 'gpt-5.4', 'none', 'openai-responses');
+    const payload = await requestPayload(provider, {
+      systemPrompt: 'Follow reading instructions.',
+      maxTokens: 1024,
+    });
+    const wireBody = JSON.parse(JSON.stringify(payload)) as Record<string, unknown>;
+    expect(wireBody).toMatchObject({
+      model: 'gpt-5.4',
+      store: false,
+      stream: true,
+    });
+    expect(wireBody).not.toHaveProperty('max_output_tokens');
+    expect(wireBody).not.toHaveProperty('temperature');
+    expect(wireBody).not.toHaveProperty('prompt_cache_retention');
+    expect(wireBody).not.toHaveProperty('prompt_cache_options');
+    expect(wireBody.input).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ role: 'developer', content: 'Follow reading instructions.' }),
+      ]),
+    );
+  });
+
+  it('clamps unsupported none effort on gpt-6.2-sol to low and exposes only supported thinking levels', async () => {
+    const provider = compatible('chatgpt', 'gpt-6.2-sol', 'none', 'openai-responses');
+    expect(providerThinkingCapabilities(provider)).toEqual({
+      supportedEfforts: ['low', 'medium', 'high', 'xhigh', 'max'],
+      defaultEffort: 'low',
+    });
+    expect(piThinkingLevel(provider)).toBe('low');
+
+    const payload = await requestPayload(provider, { systemPrompt: 'Read carefully.' });
+    const wireBody = JSON.parse(JSON.stringify(payload)) as Record<string, unknown>;
+    expect(wireBody.reasoning).toMatchObject({ effort: 'low' });
+
+    const maxPayload = await requestPayload(
+      compatible('chatgpt', 'gpt-6.2-sol', 'max', 'openai-responses'),
+    );
+    expect(maxPayload?.reasoning).toMatchObject({ effort: 'max' });
+  });
+
+  it.each(['gpt-6.2-sol', 'gpt-5.4'])(
+    'sends local tools through additional_tools for %s without top-level tools or tool_search',
+    async (modelId) => {
+      const provider = compatible('chatgpt', modelId, 'low', 'openai-responses');
+      const models = createModels();
+      models.setProvider(piProviderFor(provider, agent));
+      const ref = piModelRef(provider, agent);
+      const model = models.getModel(ref.provider, ref.modelId)!;
+      const controller = new AbortController();
+      let payload: Record<string, unknown> | undefined;
+      await models.completeSimple(
+        model,
+        {
+          systemPrompt: 'Review annotations.',
+          tools: [
+            {
+              name: 'add_review_item',
+              description: 'Record a review item',
+              parameters: {
+                type: 'object',
+                properties: { summary: { type: 'string' } },
+                required: ['summary'],
+              },
+            },
+          ],
+          messages: [
+            { role: 'user', content: 'Review this note.', timestamp: 1 },
+            {
+              role: 'assistant',
+              content: [
+                {
+                  type: 'toolCall',
+                  id: 'call_1',
+                  name: 'add_review_item',
+                  arguments: { summary: 'Clear claim' },
+                },
+              ],
+              api: 'openai-responses',
+              provider: ref.provider,
+              model: model.id,
+              usage: {
+                input: 0,
+                output: 0,
+                cacheRead: 0,
+                cacheWrite: 0,
+                totalTokens: 0,
+                cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+              },
+              stopReason: 'toolUse',
+              timestamp: 2,
+            },
+            {
+              role: 'toolResult',
+              toolCallId: 'call_1',
+              toolName: 'add_review_item',
+              content: [{ type: 'text', text: 'Recorded.' }],
+              isError: false,
+              timestamp: 3,
+            },
+          ],
+        },
+        {
+          reasoning: 'low',
+          signal: controller.signal,
+          onPayload: (value) => {
+            payload = value as Record<string, unknown>;
+            controller.abort();
+          },
+        },
+      );
+
+      const wireBody = JSON.parse(JSON.stringify(payload)) as Record<string, unknown>;
+      expect(wireBody).not.toHaveProperty('tools');
+      expect(wireBody.input).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: 'additional_tools',
+            role: 'developer',
+            tools: [expect.objectContaining({ type: 'function', name: 'add_review_item' })],
+          }),
+          expect.objectContaining({
+            type: 'function_call_output',
+            call_id: 'call_1',
+            output: 'Recorded.',
+          }),
+        ]),
+      );
+    },
+  );
+
+  it('includes none when supported and omits reasoning for non-thinking ChatGPT models', async () => {
+    expect(
+      providerThinkingCapabilities(compatible('chatgpt', 'gpt-5.4', 'none', 'openai-responses')),
+    ).toEqual({
+      supportedEfforts: ['none', 'low', 'medium', 'high', 'xhigh'],
+      defaultEffort: 'none',
+    });
+    // Switching from max on gpt-6.2-sol to gpt-5.4 clamps UI and runtime identically to xhigh.
+    const gpt54Caps = providerThinkingCapabilities(
+      compatible('chatgpt', 'gpt-5.4', 'max', 'openai-responses'),
+    );
+    expect(resolveThinkingEffort(gpt54Caps.supportedEfforts, 'max', gpt54Caps.defaultEffort)).toBe(
+      'xhigh',
+    );
+    expect(piThinkingLevel(compatible('chatgpt', 'gpt-5.4', 'max', 'openai-responses'))).toBe(
+      'xhigh',
+    );
+
+    const gpt4o = compatible('chatgpt', 'gpt-4o', 'none', 'openai-responses');
+    expect(providerThinkingCapabilities(gpt4o)).toEqual({
+      supportedEfforts: [],
+      defaultEffort: 'none',
+    });
+    expect(piThinkingLevel(gpt4o)).toBeUndefined();
+    const payload = await requestPayload(gpt4o, { systemPrompt: 'Hello.' });
+    const wireBody = JSON.parse(JSON.stringify(payload)) as Record<string, unknown>;
+    expect(wireBody).not.toHaveProperty('reasoning');
+    expect(wireBody.input).toEqual(
+      expect.arrayContaining([expect.objectContaining({ role: 'developer', content: 'Hello.' })]),
+    );
+  });
+
+  it('resolves dynamic OAuth tokens on each request through resolveApiKey', async () => {
+    const provider = compatible('chatgpt', 'gpt-5.4', 'none', 'openai-responses');
+    let tokenVersion = 0;
+    const piProvider = piProviderFor(provider, agent, {
+      resolveApiKey: async () => `oauth-token-${++tokenVersion}`,
+    });
+    const first = await piProvider.auth?.apiKey?.resolve({} as never);
+    const second = await piProvider.auth?.apiKey?.resolve({} as never);
+    expect(first?.auth).toEqual({ apiKey: 'oauth-token-1' });
+    expect(second?.auth).toEqual({ apiKey: 'oauth-token-2' });
   });
 });

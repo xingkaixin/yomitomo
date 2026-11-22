@@ -3,12 +3,18 @@ import type {
   Model,
   ModelThinkingLevel,
   OpenAICompletionsCompat,
+  ThinkingLevelMap,
 } from '@earendil-works/pi-ai';
 import { anthropicMessagesApi } from '@earendil-works/pi-ai/api/anthropic-messages.lazy';
 import { googleGenerativeAIApi } from '@earendil-works/pi-ai/api/google-generative-ai.lazy';
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy';
 import { openAIResponsesApi } from '@earendil-works/pi-ai/api/openai-responses.lazy';
-import { clampThinkingLevel, createProvider, type Provider } from '@earendil-works/pi-ai/models';
+import {
+  clampThinkingLevel,
+  createProvider,
+  getSupportedThinkingLevels,
+  type Provider,
+} from '@earendil-works/pi-ai/models';
 import { ANTHROPIC_MODELS } from '@earendil-works/pi-ai/providers/anthropic.models';
 import { DEEPSEEK_MODELS } from '@earendil-works/pi-ai/providers/deepseek.models';
 import { GOOGLE_MODELS } from '@earendil-works/pi-ai/providers/google.models';
@@ -19,10 +25,13 @@ import { VERCEL_AI_GATEWAY_MODELS } from '@earendil-works/pi-ai/providers/vercel
 import { XIAOMI_MODELS } from '@earendil-works/pi-ai/providers/xiaomi.models';
 import { ZAI_MODELS } from '@earendil-works/pi-ai/providers/zai.models';
 import {
+  isChatGptOAuthProvider,
   providerPresets,
   type Agent,
   type LlmProvider,
   type ProviderPresetId,
+  type ProviderThinkingCapabilities,
+  type ThinkingEffortOption,
 } from '@yomitomo/shared';
 import { geminiBaseUrl, openAIBaseUrl } from './provider-urls';
 
@@ -32,6 +41,61 @@ const MAX_OUTPUT_TOKENS = 4096;
 type ModelCatalog = Readonly<Record<string, Model<Api>>>;
 
 const lowToMaxThinking = { off: null, minimal: null, xhigh: 'xhigh', max: 'max' } as const;
+const openAILowToMaxThinking: ThinkingLevelMap = {
+  off: null,
+  minimal: null,
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+  xhigh: 'xhigh',
+  max: 'max',
+};
+const NO_THINKING_LEVEL_MAP: ThinkingLevelMap = {
+  off: null,
+  minimal: null,
+  low: null,
+  medium: null,
+  high: null,
+  xhigh: null,
+  max: null,
+};
+
+const chatGptModelThinkingMaps = new Map<string, ThinkingLevelMap>();
+
+function thinkingMapFromEfforts(efforts: readonly ThinkingEffortOption[]): ThinkingLevelMap {
+  const supported = new Set(efforts);
+  return {
+    off: supported.has('none') ? 'none' : null,
+    minimal: supported.has('minimal') ? 'minimal' : null,
+    low: supported.has('low') ? 'low' : null,
+    medium: supported.has('medium') ? 'medium' : null,
+    high: supported.has('high') ? 'high' : null,
+    xhigh: supported.has('xhigh') ? 'xhigh' : null,
+    max: supported.has('max') ? 'max' : null,
+  };
+}
+
+export function registerChatGptModelThinkingLevels(
+  modelId: string,
+  efforts: readonly ThinkingEffortOption[],
+) {
+  const normalized = modelId.trim();
+  if (!normalized || efforts.length === 0) return;
+  chatGptModelThinkingMaps.set(normalized, thinkingMapFromEfforts(efforts));
+}
+
+export function replaceChatGptModelThinkingLevels(
+  capabilities: Readonly<Record<string, readonly ThinkingEffortOption[]>>,
+) {
+  chatGptModelThinkingMaps.clear();
+  for (const [modelId, efforts] of Object.entries(capabilities)) {
+    registerChatGptModelThinkingLevels(modelId, efforts);
+  }
+}
+
+export function clearChatGptModelThinkingLevels() {
+  chatGptModelThinkingMaps.clear();
+}
 
 // Chat Completions capabilities published by the gateways for these models.
 // pi-ai's Vercel catalog describes Anthropic Messages, which uses different thinking controls.
@@ -79,15 +143,21 @@ export function piModelRef(provider: LlmProvider, agent: Pick<Agent, 'id'>): PiM
   return { provider: `${provider.id}~${agent.id}`, modelId: provider.modelName };
 }
 
+export type PiProviderOptions = {
+  resolveApiKey?: () => Promise<string>;
+};
+
 // One pi provider per (provider, agent) pair carries the agent's sampling parameters, because
 // pi-durable conversations reference a model and cannot set temperature per request.
 export function piProviderFor(
   provider: LlmProvider,
   agent: Pick<Agent, 'id'> & { temperature?: number },
+  options?: PiProviderOptions,
 ): Provider {
   const ref = piModelRef(provider, agent);
-  const supportsTemperature =
-    gatewayCapabilities(provider)?.temperature ?? provider.presetId !== 'vercel';
+  const supportsTemperature = isChatGptOAuthProvider(provider)
+    ? false
+    : (gatewayCapabilities(provider)?.temperature ?? provider.presetId !== 'vercel');
   const model = {
     ...piModel(provider, ref.provider),
     // Thinking models reject or ignore temperature, so it only applies when thinking is off.
@@ -102,7 +172,12 @@ export function piProviderFor(
     auth: {
       apiKey: {
         name: provider.name,
-        resolve: async () => ({ auth: { apiKey: provider.apiKey }, source: 'keyring' }),
+        resolve: async () => ({
+          auth: {
+            apiKey: options?.resolveApiKey ? await options.resolveApiKey() : provider.apiKey,
+          },
+          source: 'keyring',
+        }),
       },
     },
     models: [model],
@@ -119,7 +194,51 @@ export function piProviderFor(
 export function piThinkingLevel(provider: LlmProvider): ModelThinkingLevel | undefined {
   const effort = provider.reasoningEffort ?? 'none';
   if (effort === 'default' || effort === 'auto') return undefined;
-  return clampThinkingLevel(piModel(provider, provider.id), effort === 'none' ? 'off' : effort);
+  const model = piModel(provider, provider.id);
+  const supported = getSupportedThinkingLevels(model);
+  if (supported.length === 0) return undefined;
+  return clampThinkingLevel(model, effort === 'none' ? 'off' : effort);
+}
+
+export function providerThinkingCapabilities(
+  input: Partial<LlmProvider>,
+): ProviderThinkingCapabilities {
+  const preset = providerPresets.find((item) => item.id === input.presetId);
+  const provider: LlmProvider = {
+    id: input.id || 'draft',
+    name: input.name || preset?.name || 'Provider',
+    type: input.type || preset?.type || 'openai-chat',
+    presetId: input.presetId,
+    logo: input.logo || preset?.logo,
+    baseUrl: input.baseUrl || preset?.baseUrl || '',
+    apiKey: '',
+    modelName: isChatGptOAuthProvider(input)
+      ? input.modelName?.trim() || ''
+      : input.modelName?.trim() || preset?.modelName || '',
+    // Probe with an active effort so OpenAI-compatible models that disable reasoning on 'none'
+    // still report their available thinking options.
+    reasoningEffort: 'medium',
+    createdAt: '',
+    updatedAt: '',
+  };
+  if (!provider.modelName) {
+    return { supportedEfforts: [], defaultEffort: 'none' };
+  }
+  const model = piModel(provider, provider.id);
+  const levels = getSupportedThinkingLevels(model);
+  const supportedEfforts = levels.map((level): ThinkingEffortOption =>
+    level === 'off' ? 'none' : level,
+  );
+  if (
+    supportedEfforts.length === 0 ||
+    (supportedEfforts.length === 1 && supportedEfforts[0] === 'none')
+  ) {
+    return { supportedEfforts: [], defaultEffort: 'none' };
+  }
+  return {
+    supportedEfforts,
+    defaultEffort: supportedEfforts.includes('none') ? 'none' : supportedEfforts[0],
+  };
 }
 
 function piModel(provider: LlmProvider, providerId: string): Model<Api> {
@@ -140,11 +259,51 @@ function piModel(provider: LlmProvider, providerId: string): Model<Api> {
   };
 }
 
+// Sign in with ChatGPT tokens reach /v1/responses with stricter field rules than API keys:
+// they require developer-role instructions, reject max_output_tokens, temperature, cache retention,
+// mid-conversation effort updates, and hosted tool_search, and declare local tools via additional_tools.
+const CHATGPT_OAUTH_RESPONSES_COMPAT = {
+  supportsDeveloperRole: true,
+  supportsLongCacheRetention: false,
+  supportsExplicitPromptCacheMode: false,
+  supportsMaxOutputTokens: false,
+  supportsMidConvoEffort: false,
+  supportsMidConvoSystemMessages: true,
+  supportsAdditionalTools: true,
+  supportsToolSearch: false,
+} as const;
+
 function modelWithCapabilities(
   model: Model<Api>,
   provider: LlmProvider,
   known: Model<Api> | undefined,
 ): Model<Api> {
+  if (isChatGptOAuthProvider(provider)) {
+    const knownCompat =
+      known && known.api === 'openai-responses'
+        ? (known.compat as Record<string, unknown> | undefined)
+        : undefined;
+    const dynamicMap = chatGptModelThinkingMaps.get(provider.modelName);
+    const thinkingLevelMap =
+      dynamicMap ??
+      (known
+        ? known.reasoning
+          ? known.thinkingLevelMap
+          : NO_THINKING_LEVEL_MAP
+        : openAILowToMaxThinking);
+    return {
+      ...model,
+      // pi-ai sends system prompts as role:"developer" only when model.reasoning is true.
+      // For non-reasoning models, NO_THINKING_LEVEL_MAP keeps params.reasoning omitted.
+      reasoning: true,
+      thinkingLevelMap,
+      compat: {
+        ...(model.compat as Record<string, unknown> | undefined),
+        ...knownCompat,
+        ...CHATGPT_OAUTH_RESPONSES_COMPAT,
+      },
+    };
+  }
   if (provider.reasoningEffort === 'default') return { ...model, reasoning: false };
   if (!known) return model;
   return {
@@ -165,12 +324,12 @@ function catalogModel(provider: LlmProvider): Model<Api> | undefined {
           ? OPENAI_MODELS
           : provider.presetId && PRESET_CATALOGS[provider.presetId];
   const known = catalog?.[provider.modelName];
+  if (known) return known;
   if (
-    known ||
     provider.type !== 'gemini' ||
     !['gemini-4-hydrogen', 'gemini-4-carbon'].includes(provider.modelName)
   ) {
-    return known;
+    return undefined;
   }
   // pi-ai 1.5.2 lacks these models; Google rejects thinking budgets and the "off" level.
   return {
@@ -216,6 +375,14 @@ function fallbackModel(provider: LlmProvider, providerId: string): Model<Api> {
   if (provider.type === 'gemini') {
     return { ...base, api: 'google-generative-ai', baseUrl: geminiBaseUrl(provider.baseUrl) };
   }
+  if (isChatGptOAuthProvider(provider)) {
+    return {
+      ...base,
+      api: 'openai-responses',
+      baseUrl: 'https://api.openai.com/v1',
+      compat: CHATGPT_OAUTH_RESPONSES_COMPAT,
+    };
+  }
   const baseUrl = openAIBaseUrl(provider.baseUrl);
   if (isOfficialOpenAI(provider)) {
     return {
@@ -257,5 +424,9 @@ function compatibleThinking(provider: LlmProvider): OpenAICompletionsCompat | nu
 }
 
 function isOfficialOpenAI(provider: LlmProvider) {
-  return provider.presetId === 'openai' || /^https:\/\/api\.openai\.com\/?/.test(provider.baseUrl);
+  return (
+    provider.presetId === 'openai' ||
+    isChatGptOAuthProvider(provider) ||
+    /^https:\/\/api\.openai\.com\/?/.test(provider.baseUrl)
+  );
 }

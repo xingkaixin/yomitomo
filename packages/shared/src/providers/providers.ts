@@ -129,6 +129,16 @@ export const providerPresets: ProviderPreset[] = [
     modelNames: ['gpt-6-astra', 'gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-luna', 'gpt-5.4'],
   },
   {
+    id: 'chatgpt',
+    name: 'ChatGPT',
+    type: 'openai-responses',
+    baseUrl: 'https://api.openai.com/v1',
+    modelName: 'gpt-5.4',
+    logo: 'openai.png',
+    articleTextBudget: DEFAULT_ARTICLE_TEXT_BUDGET,
+    modelNames: ['gpt-5.4', 'gpt-5.4-mini', 'gpt-5.4-nano', 'gpt-5.4-pro'],
+  },
+  {
     id: 'anthropic',
     modelsDevId: 'anthropic',
     name: 'Anthropic',
@@ -197,3 +207,36 @@ export const providerPresets: ProviderPreset[] = [
     ],
   },
 ];
+
+export function isChatGptOAuthProvider(
+  provider: { presetId?: string } | null | undefined,
+): boolean {
+  return provider?.presetId === 'chatgpt';
+}
+
+const THINKING_EFFORT_ORDER = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const;
+
+// Matches pi-ai's clampThinkingLevel order so UI display, saved draft, and runtime agree.
+export function resolveThinkingEffort(
+  supportedEfforts: readonly (typeof THINKING_EFFORT_ORDER)[number][],
+  currentEffort: string | undefined,
+  defaultEffort: (typeof THINKING_EFFORT_ORDER)[number],
+): (typeof THINKING_EFFORT_ORDER)[number] {
+  if (supportedEfforts.length === 0) return defaultEffort;
+  if (!currentEffort || currentEffort === 'default' || currentEffort === 'auto') {
+    return defaultEffort;
+  }
+  const requested = currentEffort as (typeof THINKING_EFFORT_ORDER)[number];
+  if (supportedEfforts.includes(requested)) return requested;
+  const requestedIndex = THINKING_EFFORT_ORDER.indexOf(requested);
+  if (requestedIndex === -1) return defaultEffort;
+  for (let index = requestedIndex + 1; index < THINKING_EFFORT_ORDER.length; index += 1) {
+    const candidate = THINKING_EFFORT_ORDER[index];
+    if (supportedEfforts.includes(candidate)) return candidate;
+  }
+  for (let index = requestedIndex - 1; index >= 0; index -= 1) {
+    const candidate = THINKING_EFFORT_ORDER[index];
+    if (supportedEfforts.includes(candidate)) return candidate;
+  }
+  return defaultEffort;
+}

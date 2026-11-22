@@ -31,7 +31,7 @@ import type {
   TextAnchor,
   UiLanguage,
 } from '@yomitomo/shared';
-import { resolveAgentPublicIdentity } from '@yomitomo/shared';
+import { isChatGptOAuthProvider, resolveAgentPublicIdentity } from '@yomitomo/shared';
 import {
   AgentConversationsDoc,
   ChannelCursorsDoc,
@@ -77,6 +77,7 @@ export type AssistantChannelPorts = {
   models: ReturnType<typeof createModels>;
   resolveAgent: (agentId: string, allowDisabled: boolean) => Promise<ResolvedChannelAgent>;
   resolveAgentIdentity: (agentId: string) => Promise<ChannelAgentIdentity>;
+  resolveProviderApiKey?: (provider: LlmProvider) => Promise<string>;
   readChannel: (
     articleId: string,
     channel: AssistantChannel,
@@ -671,7 +672,16 @@ export function createAssistantChannelRuntime(ports: AssistantChannelPorts) {
       ports.models.setProvider(await e2eFakeProvider(resolved));
       return;
     }
-    ports.models.setProvider(piProviderFor(resolved.provider, resolved.agent));
+    const resolveProviderApiKey = ports.resolveProviderApiKey;
+    ports.models.setProvider(
+      piProviderFor(
+        resolved.provider,
+        resolved.agent,
+        isChatGptOAuthProvider(resolved.provider) && resolveProviderApiKey
+          ? { resolveApiKey: () => resolveProviderApiKey(resolved.provider) }
+          : undefined,
+      ),
+    );
   }
 
   async function compactWhenLarge(

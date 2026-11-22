@@ -8,20 +8,31 @@ export type ProviderPresetId =
   | 'doubao'
   | 'mimo'
   | 'openai'
+  | 'chatgpt'
   | 'anthropic'
   | 'gemini'
   | 'openrouter'
   | 'vercel';
 
-export type ReasoningEffort =
-  | 'default'
-  | 'none'
-  | 'minimal'
-  | 'low'
-  | 'medium'
-  | 'high'
-  | 'xhigh'
-  | 'auto';
+export type ChatGptAuthStatus = 'disconnected' | 'connected' | 'reauth_required';
+
+export type ChatGptAccountState = {
+  status: ChatGptAuthStatus;
+  email?: string;
+  name?: string;
+  updatedAt?: string;
+  hasSavedRegistration?: boolean;
+  remoteRevocationFailed?: boolean;
+};
+
+export type ThinkingEffortOption = 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+
+export type ReasoningEffort = 'default' | ThinkingEffortOption | 'auto';
+
+export type ProviderThinkingCapabilities = {
+  supportedEfforts: ThinkingEffortOption[];
+  defaultEffort: ThinkingEffortOption;
+};
 
 export type ArticleTextBudgetProfile = {
   defaultFactor: number;
@@ -37,7 +48,7 @@ export type ProviderPreset = {
   logo: string;
   modelNames: string[];
   articleTextBudget: ArticleTextBudgetProfile;
-  modelsDevId: string;
+  modelsDevId?: string;
   // Only for presets whose models the pi-ai catalog does not cover.
   maxOutputTokens?: Record<string, number>;
 };
@@ -45,6 +56,7 @@ export type ProviderPreset = {
 export type ProviderModel = {
   id: string;
   name: string;
+  supportedReasoningEfforts?: ThinkingEffortOption[];
 };
 
 export type ProviderModelInputMode = 'list' | 'custom';

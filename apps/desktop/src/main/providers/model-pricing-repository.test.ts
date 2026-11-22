@@ -100,6 +100,36 @@ describe('model pricing repository', () => {
     });
   });
 
+  it('skips API cost estimation for ChatGPT subscription OAuth providers', async () => {
+    const database = pricingDatabase();
+    database.rows.providers.push(providerRow({ id: 'provider_chatgpt', presetId: 'chatgpt' }));
+    database.rows.assistantRuns.push(
+      assistantRunRow({
+        id: 'run_chatgpt',
+        providerId: 'provider_chatgpt',
+        providerName: 'ChatGPT',
+        modelName: 'gpt-5-mini',
+        inputTokens: 1_000,
+        outputTokens: 500,
+      }),
+    );
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        openai: {
+          models: {
+            'gpt-5-mini': {
+              cost: { input: 2, output: 8 },
+            },
+          },
+        },
+      }),
+    );
+
+    await refreshModelsDevPrices(database.store);
+
+    expect(database.rows.assistantRuns[0].estimatedCostMicros).toBeNull();
+  });
+
   it.each([
     {
       name: 'non-numeric cost',

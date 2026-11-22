@@ -1,5 +1,5 @@
-import type { LlmProvider, ProviderModel } from '@yomitomo/shared';
-import { errorMessage, providerPresets } from '@yomitomo/shared';
+import type { LlmProvider, ProviderModel, ThinkingEffortOption } from '@yomitomo/shared';
+import { errorMessage, isChatGptOAuthProvider, providerPresets } from '@yomitomo/shared';
 import { Effect, Schema } from 'effect';
 import { normalizeAnthropicError } from './budget';
 import { anthropicBaseUrl, geminiBaseUrl, openAIBaseUrl } from './provider-urls';
@@ -16,6 +16,53 @@ const openAIModelListResponseSchema = Schema.Struct({
     ),
   ),
 });
+
+const chatGptReasoningLevelSchema = Schema.Union([
+  Schema.String,
+  Schema.Struct({
+    effort: Schema.optionalKey(Schema.String),
+  }),
+]);
+
+const chatGptModelListResponseSchema = Schema.Struct({
+  models: Schema.optionalKey(
+    Schema.Array(
+      Schema.Struct({
+        slug: Schema.optionalKey(Schema.String),
+        display_name: Schema.optionalKey(Schema.String),
+        visibility: Schema.optionalKey(Schema.String),
+        supported_reasoning_levels: Schema.optionalKey(Schema.Array(chatGptReasoningLevelSchema)),
+      }),
+    ),
+  ),
+  data: openAIModelListResponseSchema.fields.data,
+});
+
+const THINKING_EFFORT_ORDER: readonly ThinkingEffortOption[] = [
+  'none',
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+];
+
+function parseSupportedReasoningEfforts(
+  levels: readonly (string | { effort?: string })[] | undefined,
+): ThinkingEffortOption[] | undefined {
+  if (!levels || levels.length === 0) return undefined;
+  const set = new Set<ThinkingEffortOption>();
+  for (const item of levels) {
+    const raw = (typeof item === 'string' ? item : item.effort || '').trim().toLowerCase();
+    const mapped = raw === 'off' ? 'none' : raw;
+    if ((THINKING_EFFORT_ORDER as readonly string[]).includes(mapped)) {
+      set.add(mapped as ThinkingEffortOption);
+    }
+  }
+  if (set.size === 0) return undefined;
+  return THINKING_EFFORT_ORDER.filter((effort) => set.has(effort));
+}
 
 const anthropicModelListResponseSchema = Schema.Struct({
   data: Schema.optionalKey(
@@ -104,16 +151,21 @@ export async function listProviderModels(
 function normalizeProvider(provider: Partial<LlmProvider>): LlmProvider {
   const preset =
     providerPresets.find((item) => item.id === provider.presetId) || defaultProviderPreset;
+  const isChatGpt = isChatGptOAuthProvider(provider);
   const now = new Date(0).toISOString();
   return {
     id: provider.id || 'draft',
     name: provider.name || preset?.name || 'Provider',
-    type: provider.type || preset?.type || 'openai-chat',
+    type: isChatGpt ? 'openai-responses' : provider.type || preset?.type || 'openai-chat',
     presetId: provider.presetId,
     logo: provider.logo || preset?.logo,
-    baseUrl: provider.baseUrl || preset?.baseUrl || 'https://api.deepseek.com',
+    baseUrl: isChatGpt
+      ? 'https://api.openai.com/v1'
+      : provider.baseUrl || preset?.baseUrl || 'https://api.deepseek.com',
     apiKey: provider.apiKey || '',
-    modelName: provider.modelName || preset?.modelName || 'deepseek-flash',
+    modelName: isChatGpt
+      ? provider.modelName?.trim() || ''
+      : provider.modelName || preset?.modelName || 'deepseek-flash',
     reasoningEffort: provider.reasoningEffort || 'none',
     createdAt: provider.createdAt || now,
     updatedAt: provider.updatedAt || now,
@@ -126,10 +178,47 @@ export const listProviderModelsEffect = Effect.fn('Provider.listModels')(functio
 ) {
   const provider = normalizeProvider(input);
   const budget = modelListBudget(options);
+  if (isChatGptOAuthProvider(provider)) return yield* listChatGptModelsEffect(provider, budget);
   if (provider.type === 'gemini') return yield* listGeminiModelsEffect(provider, budget);
   if (provider.type === 'anthropic') return yield* listAnthropicModelsEffect(provider, budget);
   return yield* listOpenAICompatibleModelsEffect(provider, budget);
 });
+
+function listChatGptModelsEffect(
+  provider: LlmProvider,
+  budget: ProviderModelListBudget,
+): Effect.Effect<ProviderModel[], ProviderClientError> {
+  return Effect.gen(function* () {
+    const response = yield* fetchProviderModels('https://api.openai.com/v1/models', budget, {
+      headers: {
+        ...bearerHeaders(provider),
+        accept: 'application/json',
+      },
+    });
+    if (!response.ok) {
+      const message = yield* modelListErrorEffect(response, budget);
+      return yield* Effect.fail(new ProviderHttpError(message));
+    }
+    const body = yield* responseJsonEffect(response, chatGptModelListResponseSchema, budget);
+    const catalogModels = body.models
+      ?.filter((model) => model.visibility === 'list' && model.slug?.trim())
+      .map((model) => {
+        const id = model.slug || '';
+        const supportedReasoningEfforts = parseSupportedReasoningEfforts(
+          model.supported_reasoning_levels,
+        );
+        const name = model.display_name || id;
+        return supportedReasoningEfforts ? { id, name, supportedReasoningEfforts } : { id, name };
+      });
+    const fallbackData = body.data?.map((model) => ({
+      id: model.id || '',
+      name: model.name || model.id || '',
+    }));
+    const resolved = body.models ? catalogModels || [] : fallbackData || [];
+    // Account-specific ChatGPT catalogs must not fall back to preset models the account may lack.
+    return dedupeModels(resolved.filter((model) => model.id.trim()));
+  });
+}
 
 function listOpenAICompatibleModelsEffect(
   provider: LlmProvider,

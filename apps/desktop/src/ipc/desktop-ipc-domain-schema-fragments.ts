@@ -193,6 +193,7 @@ const providerPresetIdSchema = z.enum([
   'doubao',
   'mimo',
   'openai',
+  'chatgpt',
   'anthropic',
   'gemini',
   'openrouter',
@@ -206,6 +207,7 @@ const reasoningEffortSchema = z.enum([
   'medium',
   'high',
   'xhigh',
+  'max',
   'auto',
 ]);
 const providerShapeSchema = z.object({
@@ -638,6 +640,7 @@ export const providerDomainIpcInvokeSchemas = {
   'provider:read-api-key': z.tuple([idSchema]),
   'provider:save': z.tuple([providerPatchSchema]),
   'provider:test': z.tuple([providerPatchSchema]),
+  'provider:thinking-levels': z.tuple([providerPatchSchema]),
   'settings:save': z.tuple([settingsSchema]),
   'user:save': z.tuple([userPatchSchema]),
 };

@@ -23,6 +23,7 @@ import type { RendererStateEventDispatcher } from './renderer-state-event-dispat
 export { isAppLockSettingsLocked } from '../../app-store';
 
 export type DesktopPersistenceModules = {
+  chatGptOAuthRepository: typeof import('../providers/chatgpt-oauth-repository');
   providerRepository: typeof import('../providers/provider-repository');
   storeAgents: typeof import('../store/store-agents');
   storeArticles: typeof import('../store/store-articles');

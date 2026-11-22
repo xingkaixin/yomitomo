@@ -24,6 +24,58 @@ describe('listProviderModels', () => {
     },
   );
 
+  it('parses ChatGPT Sign-in model catalogs, keeps list-visible models, and records reasoning levels', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        models: [
+          {
+            slug: 'gpt-6.2-sol',
+            display_name: 'GPT-6.2 Sol',
+            visibility: 'list',
+            supported_reasoning_levels: [
+              { effort: 'low' },
+              { effort: 'medium' },
+              { effort: 'high' },
+              { effort: 'xhigh' },
+              { effort: 'max' },
+            ],
+          },
+          { slug: 'internal-only', display_name: 'Internal', visibility: 'hide' },
+          {
+            slug: 'gpt-custom-flex',
+            display_name: 'GPT Custom Flex',
+            visibility: 'list',
+            supported_reasoning_levels: ['none', 'medium', 'high'],
+          },
+        ],
+      }),
+    );
+
+    const models = await listProviderModels(
+      providerFor('openai-responses', 'chatgpt', 'https://api.openai.com/v1'),
+    );
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.openai.com/v1/models');
+    expect(models).toEqual([
+      {
+        id: 'gpt-6.2-sol',
+        name: 'GPT-6.2 Sol',
+        supportedReasoningEfforts: ['low', 'medium', 'high', 'xhigh', 'max'],
+      },
+      {
+        id: 'gpt-custom-flex',
+        name: 'GPT Custom Flex',
+        supportedReasoningEfforts: ['none', 'medium', 'high'],
+      },
+    ]);
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ models: [] }));
+    const emptyModels = await listProviderModels(
+      providerFor('openai-responses', 'chatgpt', 'https://api.openai.com/v1'),
+    );
+    expect(emptyModels).toEqual([]);
+  });
+
   it('aborts a model-list request that outlives its deadline', async () => {
     const started = pendingFetch();
 
@@ -76,6 +128,31 @@ describe('listProviderModels', () => {
     if (Exit.isSuccess(exit)) return;
     expect(Cause.squash(exit.cause)).toMatchObject({ _tag: 'ProviderResponseTooLargeError' });
     expect(cancelled).toBe(true);
+  });
+
+  it('pins ChatGPT model list requests to OpenAI even when input specifies another type or baseUrl', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response(JSON.stringify({ models: [] }), { status: 200 }));
+
+    const models = await Effect.runPromise(
+      listProviderModelsEffect({
+        presetId: 'chatgpt',
+        type: 'anthropic',
+        baseUrl: 'https://evil.example/v1',
+        apiKey: 'chatgpt-oauth-token',
+      }),
+    );
+
+    expect(models).toEqual([]);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://api.openai.com/v1/models',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer chatgpt-oauth-token',
+        }),
+      }),
+    );
   });
 });
 

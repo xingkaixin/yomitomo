@@ -7,7 +7,7 @@ import {
   Settings02Icon,
 } from '@hugeicons/core-free-icons';
 import { useReducer, type KeyboardEvent } from 'react';
-import type { LlmProvider } from '@yomitomo/shared';
+import { isChatGptOAuthProvider, type LlmProvider } from '@yomitomo/shared';
 import { providerLogoMap } from './app-settings-provider-assets';
 import { useTranslation } from 'react-i18next';
 import { providerDisplayName } from '../i18n/app-i18n-labels';
@@ -180,7 +180,11 @@ function ProviderCard({
       <SettingsConfirmDialog
         cancelLabel={t('settings.confirm.cancel')}
         confirmLabel={t('settings.models.deleteProviderConfirm')}
-        description={t('settings.models.deleteProviderConfirmDescription')}
+        description={
+          isChatGptOAuthProvider(provider)
+            ? t('settings.models.deleteChatGptProviderConfirmDescription')
+            : t('settings.models.deleteProviderConfirmDescription')
+        }
         open={confirmOpen}
         title={t('settings.models.deleteProviderConfirmTitle', { name: displayName })}
         onCancel={() => dispatch({ type: 'deleteDismissed' })}

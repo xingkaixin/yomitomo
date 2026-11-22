@@ -18,6 +18,10 @@ console.log(`Preset models against models.dev, new models since ${lastTag} (${si
 
 let unmapped = false;
 for (const preset of providerPresets) {
+  if (!preset.modelsDevId) {
+    console.log(`\n${preset.id} -> skipped (no models.dev catalog)`);
+    continue;
+  }
   const models = catalogue[preset.modelsDevId]?.models;
   console.log(`\n${preset.id} -> ${preset.modelsDevId}`);
   if (!models) {

@@ -1,7 +1,8 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { useReducer, useRef } from 'react';
 import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
-import { providerPresets } from '@yomitomo/shared';
+import { isChatGptOAuthProvider, providerPresets } from '@yomitomo/shared';
 import type { ProviderDraft } from './app-settings';
 import { appToast } from '../shell/app-toast';
 import { useTranslation } from 'react-i18next';
@@ -10,8 +11,10 @@ import { getDesktopApi } from '../shell/app-desktop-api';
 export function useProviderModelFetch(
   draft: ProviderDraft,
   onChange: (draft: ProviderDraft) => void,
+  options?: { chatGptConnected?: boolean },
 ) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const [{ loadingScope, modelError, modelNotice, modelOptions }, dispatch] = useReducer(
     modelFetchReducer,
     initialModelFetchState,
@@ -24,7 +27,8 @@ export function useProviderModelFetch(
   const scope = providerModelScope(draft);
   const modelLoading = loadingScope === scope;
   const selectedPreset = providerPresets.find((preset) => preset.id === draft.presetId);
-  const presetModels = selectedPreset?.modelNames || [];
+  const isChatGpt = isChatGptOAuthProvider(draft);
+  const presetModels = isChatGpt ? [] : selectedPreset?.modelNames || [];
   const storedVisibleModels = draft.modelNames === undefined ? presetModels : draft.modelNames;
   const fetchedVisibleModels = modelOptions.filter(
     (modelName) => !presetModels.includes(modelName) || storedVisibleModels.includes(modelName),
@@ -44,21 +48,37 @@ export function useProviderModelFetch(
     return null;
   }
 
-  async function fetchModels() {
-    const fallbackModels = selectedPreset?.modelNames || [];
-    if (!draft.apiKey?.trim() && !draft.hasApiKey) {
+  async function fetchModels(fetchOptions?: { draft?: ProviderDraft; forceConnected?: boolean }) {
+    const targetDraft = fetchOptions?.draft ?? draft;
+    const targetIsChatGpt = isChatGptOAuthProvider(targetDraft);
+    const targetPreset = providerPresets.find((preset) => preset.id === targetDraft.presetId);
+    const targetScope = providerModelScope(targetDraft);
+    const fallbackModels = targetIsChatGpt ? [] : targetPreset?.modelNames || [];
+    const missingAuth = targetIsChatGpt
+      ? !(fetchOptions?.forceConnected || options?.chatGptConnected)
+      : !targetDraft.apiKey?.trim() && !targetDraft.hasApiKey;
+    if (missingAuth) {
       dispatch({ type: 'fetchSkipped' });
-      appToast.warning(t('settings.models.apiKeyRequiredForModels'), {
-        description:
-          fallbackModels.length > 0 ? t('settings.models.presetModelsWithApiKey') : undefined,
-      });
-      if (fallbackModels.length > 0 && draft.modelNames === undefined) {
+      appToast.warning(
+        targetIsChatGpt
+          ? t('settings.models.chatGptSignInRequiredForModels')
+          : t('settings.models.apiKeyRequiredForModels'),
+        {
+          description:
+            fallbackModels.length > 0
+              ? targetIsChatGpt
+                ? t('settings.models.presetModelsWithChatGpt')
+                : t('settings.models.presetModelsWithApiKey')
+              : undefined,
+        },
+      );
+      if (fallbackModels.length > 0 && targetDraft.modelNames === undefined) {
         const nextModelNames = fallbackModels;
         onChange({
-          ...draft,
+          ...targetDraft,
           modelInputMode: 'list',
-          modelName: nextModelNames.includes(draft.modelName || '')
-            ? draft.modelName
+          modelName: nextModelNames.includes(targetDraft.modelName || '')
+            ? targetDraft.modelName
             : nextModelNames[0],
           modelNames: nextModelNames,
         });
@@ -66,10 +86,11 @@ export function useProviderModelFetch(
       return;
     }
     const requestId = ++modelRequestRef.current;
-    dispatch({ type: 'fetchStarted', scope });
+    dispatch({ type: 'fetchStarted', scope: targetScope });
     try {
-      const models = await getDesktopApi().provider.listModels(draft);
-      const latestDraft = readDraftInScope(requestId, scope);
+      const models = await getDesktopApi().provider.listModels(targetDraft);
+      void queryClient.invalidateQueries({ queryKey: ['provider', 'thinking-levels'] });
+      const latestDraft = readDraftInScope(requestId, targetScope);
       if (!latestDraft) return;
       const names = models.map((model) => model.id).filter(Boolean);
       dispatch({
@@ -80,7 +101,16 @@ export function useProviderModelFetch(
             ? t('settings.models.fetchedModels', { count: names.length })
             : t('settings.models.noModelsFetched'),
       });
-      if (names.length > 0) {
+      if (isChatGptOAuthProvider(latestDraft)) {
+        onChange({
+          ...latestDraft,
+          modelInputMode: 'list',
+          modelName: names.includes(latestDraft.modelName || '')
+            ? latestDraft.modelName
+            : names[0] || '',
+          modelNames: names,
+        });
+      } else if (names.length > 0) {
         const baseModelNames =
           latestDraft.modelNames === undefined ? fallbackModels : latestDraft.modelNames;
         const nextModelNames = mergeModelNames(
@@ -107,7 +137,7 @@ export function useProviderModelFetch(
         });
       }
     } catch (error) {
-      if (!readDraftInScope(requestId, scope)) return;
+      if (!readDraftInScope(requestId, targetScope)) return;
       dispatch({
         type: 'fetchFailed',
         error: error instanceof Error ? error.message : t('settings.models.fetchModelsFailed'),

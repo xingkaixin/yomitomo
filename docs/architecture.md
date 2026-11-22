@@ -80,11 +80,11 @@ telemetry → shared
 - **文章正文与元数据分表。** 正文 HTML、电子书章节与索引、共读计划和内联封面存在 1:1 的
   `article_bodies` 表，只有 `article:get`、封面读取和整篇保存会访问。`articles` 行只放元数据和
   阅读状态；SQLite 更新时会重写整行及其溢出页，大字段留在行内会让每次进度保存重写数 MB。
-- **密钥不进数据库。** provider 和微信读书 API key 存系统 keyring，数据库只存引用，见
-  `apps/desktop/src/main/providers/provider-secrets.ts`。引用为空即视为没有密钥，读取不回退到按
+- **密钥不进数据库。** provider API key、ChatGPT OAuth 凭据和微信读书 API key 存系统 keyring，数据库只存引用，见
+  `apps/desktop/src/main/providers/provider-secrets.ts` 与 `apps/desktop/src/main/providers/chatgpt-oauth-repository.ts`。引用为空即视为没有密钥，读取不回退到按
   id 推导的固定 keyring 条目。旧版本留在 SQLite 的明文 provider key 在迁移进 keyring 前原样保留
   以便重试，运行时不读取。完整备份
-  （`apps/desktop/src/main/full-backup.ts`）清除这些引用，不包含 keyring、本地模型和日志。
+  （`apps/desktop/src/main/full-backup.ts`）清除这些引用和 ChatGPT OAuth 账号绑定记录，不包含 keyring、本地模型和日志。
   设置 `YOMITOMO_USER_DATA_DIR` 的隔离运行（e2e、启动基准）使用带 `.isolated` 后缀的 keyring
   服务名，不读写正式和开发 profile 的密钥（`apps/desktop/src/main/app/app-environment.ts`）。
 - **文章写入与阅读记忆镜像不是原子的，这是有意的降级。** 保存文章或批注时，阅读记忆镜像在

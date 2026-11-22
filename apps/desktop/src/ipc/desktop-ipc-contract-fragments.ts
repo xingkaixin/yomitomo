@@ -7,12 +7,14 @@ import type {
   ArticleTranslation,
   ArticleUpsertPatch,
   AssistantRunEvent,
+  ChatGptAccountState,
   CollectionStorePatch,
   CollectionWithMembers,
   DesktopStore,
   LibraryPin,
   LibraryPinPatch,
   ProviderModel,
+  ProviderThinkingCapabilities,
   UserFacingReleaseNote,
   WeReadBookDetail,
   WeReadReadingStatsState,
@@ -660,6 +662,29 @@ export const libraryCollectionIpcInvokeDescriptors = {
 } as const;
 
 export const providerIpcInvokeDescriptors = {
+  'provider:chatgpt-auth-status': desktopIpcInvoke<[], ChatGptAccountState>()({
+    route: ['provider', 'getChatGptAuthStatus'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+  }),
+  'provider:chatgpt-sign-in': desktopIpcInvoke<[], ChatGptAccountState>()({
+    route: ['provider', 'signInChatGpt'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+    databaseIndependent: true,
+  }),
+  'provider:chatgpt-cancel-sign-in': desktopIpcInvoke<[], void>()({
+    route: ['provider', 'cancelChatGptSignIn'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+    databaseIndependent: true,
+  }),
+  'provider:chatgpt-disconnect': desktopIpcInvoke<[], ChatGptAccountState>()({
+    route: ['provider', 'disconnectChatGpt'],
+    roles: mainOnly,
+    validation: { exempt: 'no-args' },
+    databaseIndependent: true,
+  }),
   'provider:delete': desktopIpcInvoke<
     DesktopIpcSchemaArgs<'provider:delete'>,
     ProviderStorePatch
@@ -693,6 +718,15 @@ export const providerIpcInvokeDescriptors = {
   }),
   'provider:test': desktopIpcInvoke<DesktopIpcSchemaArgs<'provider:test'>, ProviderTestResult>()({
     route: ['provider', 'test'],
+    roles: mainOnly,
+    validation: 'schema',
+    databaseIndependent: true,
+  }),
+  'provider:thinking-levels': desktopIpcInvoke<
+    DesktopIpcSchemaArgs<'provider:thinking-levels'>,
+    ProviderThinkingCapabilities
+  >()({
+    route: ['provider', 'getThinkingLevels'],
     roles: mainOnly,
     validation: 'schema',
     databaseIndependent: true,

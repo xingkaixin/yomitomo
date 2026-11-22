@@ -120,6 +120,22 @@ function classifyDesktopIpcError(error: unknown): AssistantFailureInfo | null {
       openSettings: true,
     };
   }
+  if (error.code === desktopIpcErrorCodes.chatGptAuthRequired) {
+    return {
+      kind: 'provider_unconfigured',
+      message: i18next.t('settings.models.chatGptAuthRequired'),
+      canRetry: true,
+      openSettings: true,
+    };
+  }
+  if (error.code === desktopIpcErrorCodes.chatGptReauthRequired) {
+    return {
+      kind: 'auth_failed',
+      message: i18next.t('settings.models.chatGptReauthRequired'),
+      canRetry: true,
+      openSettings: true,
+    };
+  }
   return null;
 }
 

@@ -1,7 +1,8 @@
 import { eq } from 'drizzle-orm';
 import type { LlmProvider } from '@yomitomo/shared';
-import { makeId, providerPresets } from '@yomitomo/shared';
+import { isChatGptOAuthProvider, makeId, providerPresets } from '@yomitomo/shared';
 import * as schema from '../db/schema';
+import { getValidChatGptAccessToken } from './chatgpt-oauth-repository';
 import { prepareCredentialChange, type PreparedCredentialChange } from './credential-swap';
 import { providerApiKeyRef, readProviderApiKey } from './provider-secrets';
 import { getDatabase, type StoreExecutor } from '../store/store-db';
@@ -10,6 +11,7 @@ import {
   normalizePresetId,
   normalizeProviderModelInputMode,
   normalizeProviderType,
+  normalizeReasoningEffort,
 } from '../store/store-normalizers';
 
 const defaultProviderPreset = providerPresets.find((preset) => preset.id === 'deepseek');
@@ -34,9 +36,19 @@ export type ProviderApiKeyStorage = {
 type ProviderApiKeyStorageRow = {
   apiKey: string;
   apiKeyRef: string | null;
+  presetId?: string | null;
 };
 
 export async function hydrateProviderApiKey(provider: LlmProvider): Promise<LlmProvider> {
+  if (isChatGptOAuthProvider(provider)) {
+    const accessToken = await getValidChatGptAccessToken();
+    return {
+      ...provider,
+      type: 'openai-responses',
+      baseUrl: 'https://api.openai.com/v1',
+      apiKey: accessToken,
+    };
+  }
   const apiKey =
     provider.apiKey?.trim() ||
     (await readProviderApiKey(readProviderSecretStorageRow(provider.id)?.apiKeyRef));
@@ -47,6 +59,15 @@ export async function hydrateProviderApiKey(provider: LlmProvider): Promise<LlmP
 export async function hydrateProviderInputApiKey(
   provider: SaveProviderInput,
 ): Promise<Partial<LlmProvider>> {
+  if (isChatGptOAuthProvider(provider)) {
+    const accessToken = await getValidChatGptAccessToken();
+    return {
+      ...provider,
+      type: 'openai-responses',
+      baseUrl: 'https://api.openai.com/v1',
+      apiKey: accessToken,
+    };
+  }
   const sourceProviderId = provider.id || provider.cloneApiKeyFromProviderId;
   const apiKey =
     provider.apiKey?.trim() ||
@@ -66,6 +87,15 @@ export async function resolveProviderApiKeyStorage(
   existingRow: ProviderApiKeyStorageRow | undefined,
 ): Promise<ProviderApiKeyStorage> {
   const existingApiKeyRef = existingRow?.apiKeyRef || undefined;
+  if (isChatGptOAuthProvider({ presetId: input.presetId || existingRow?.presetId || undefined })) {
+    const credentialChange = await prepareCredentialChange({
+      currentRef: existingApiKeyRef,
+      defaultRef: providerApiKeyRef(providerId),
+      remove: Boolean(existingApiKeyRef),
+      secret: '',
+    });
+    return { credentialChange, storedApiKey: '' };
+  }
   let secret = input.apiKey;
   // Clone copies the source secret into a dedicated keyring entry so deleting either provider never breaks the other.
   if (!existingRow && !secret?.trim() && !input.removeApiKey && input.cloneApiKeyFromProviderId) {
@@ -102,34 +132,50 @@ export function buildProviderRecord(
   const modelInputMode =
     normalizeProviderModelInputMode(input.modelInputMode ?? existing?.modelInputMode) || 'list';
 
-  return {
-    id,
-    name: input.name?.trim() || existing?.name || preset?.name || 'Untitled Provider',
-    type: preset?.type || normalizeProviderType(input.type || existing?.type) || 'openai-chat',
-    presetId: normalizePresetId(input.presetId || existing?.presetId || preset?.id),
-    logo: input.logo || existing?.logo || preset?.logo,
-    baseUrl:
-      input.baseUrl?.trim() ||
-      existing?.baseUrl ||
-      preset?.baseUrl ||
-      defaultProviderPreset?.baseUrl ||
-      'https://api.deepseek.com',
-    apiKey: '',
-    hasApiKey: Boolean(apiKeyRef),
-    modelName:
-      input.modelName?.trim() ||
+  const presetId = normalizePresetId(input.presetId || existing?.presetId || preset?.id);
+  const isChatGpt = presetId === 'chatgpt';
+  const modelName = isChatGpt
+    ? input.modelName?.trim() || existing?.modelName || ''
+    : input.modelName?.trim() ||
       existing?.modelName ||
       preset?.modelName ||
       defaultProviderPreset?.modelName ||
-      'deepseek-flash',
+      'deepseek-flash';
+  if (isChatGpt && !modelName) {
+    throw new Error('ChatGPT model selection is required');
+  }
+
+  return {
+    id,
+    name: input.name?.trim() || existing?.name || preset?.name || 'Untitled Provider',
+    type: isChatGpt
+      ? 'openai-responses'
+      : preset?.type || normalizeProviderType(input.type || existing?.type) || 'openai-chat',
+    presetId,
+    logo: input.logo || existing?.logo || preset?.logo,
+    baseUrl: isChatGpt
+      ? 'https://api.openai.com/v1'
+      : input.baseUrl?.trim() ||
+        existing?.baseUrl ||
+        preset?.baseUrl ||
+        defaultProviderPreset?.baseUrl ||
+        'https://api.deepseek.com',
+    apiKey: '',
+    hasApiKey: isChatGpt ? false : Boolean(apiKeyRef),
+    modelName,
     modelNames:
       modelInputMode === 'custom'
         ? undefined
-        : (normalizeModelNames(input.modelNames) ??
-          normalizeModelNames(existing?.modelNames) ??
-          preset?.modelNames),
+        : isChatGpt
+          ? (normalizeModelNames(input.modelNames) ??
+            normalizeModelNames(existing?.modelNames) ??
+            [])
+          : (normalizeModelNames(input.modelNames) ??
+            normalizeModelNames(existing?.modelNames) ??
+            preset?.modelNames),
     modelInputMode,
-    reasoningEffort: 'none',
+    reasoningEffort:
+      normalizeReasoningEffort(input.reasoningEffort) ?? existing?.reasoningEffort ?? 'none',
     createdAt: existing?.createdAt || options.now,
     updatedAt: options.now,
   };

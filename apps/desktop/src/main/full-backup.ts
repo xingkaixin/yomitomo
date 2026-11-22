@@ -193,6 +193,12 @@ function sanitizePortableDatabase(path: string) {
     database.transaction(() => {
       database.exec("UPDATE providers SET api_key = '', api_key_ref = NULL");
       database.exec('UPDATE weread_accounts SET api_key_ref = NULL');
+      const hasChatGptTable = database
+        .prepare(
+          "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'chatgpt_oauth_accounts'",
+        )
+        .get();
+      if (hasChatGptTable) database.exec('DELETE FROM chatgpt_oauth_accounts');
       database.exec('DELETE FROM secret_deletion_tasks');
       database.exec(
         'UPDATE app_settings SET app_lock_enabled = 0, app_lock_locked = 0, app_lock_lock_on_startup = 0',

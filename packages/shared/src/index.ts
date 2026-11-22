@@ -94,6 +94,8 @@ export type {
   AssistantRuntimeProgressStep,
   AssistantRuntimeProgressStepStatus,
   AssistantRuntimeProgressSummary,
+  ChatGptAccountState,
+  ChatGptAuthStatus,
   Collection,
   CollectionMember,
   CollectionMembersPatch,
@@ -133,6 +135,7 @@ export type {
   ProviderModelInputMode,
   ProviderPreset,
   ProviderPresetId,
+  ProviderThinkingCapabilities,
   ProviderType,
   PublicAgent,
   ReaderChatMessage,
@@ -167,6 +170,7 @@ export type {
   ReadingTrace,
   ReadingTraceScope,
   ReasoningEffort,
+  ThinkingEffortOption,
   ReleaseNoteAudience,
   ReleaseNoteHighlight,
   ReleaseNoteHighlightType,
@@ -218,7 +222,11 @@ export {
   selectionActionShortcutsConflict,
 } from './shortcuts';
 
-export { providerPresets } from './providers/providers';
+export {
+  isChatGptOAuthProvider,
+  providerPresets,
+  resolveThinkingEffort,
+} from './providers/providers';
 
 export {
   agentPersonalityName,

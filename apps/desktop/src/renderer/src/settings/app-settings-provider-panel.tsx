@@ -10,13 +10,17 @@ import {
   SecurityCheckIcon,
   Tick01Icon,
 } from '@hugeicons/core-free-icons';
-import React, { useReducer } from 'react';
+import React, { useReducer, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import {
+  isChatGptOAuthProvider,
   providerPresets,
   type ResolvedAppSettings,
   type LlmProvider,
   type ProviderPreset,
 } from '@yomitomo/shared';
+import { getOptionalDesktopApi } from '../shell/app-desktop-api';
 import type { ProviderDraft, ProviderTestState } from './app-settings';
 import { providerLogoMap } from './app-settings-provider-assets';
 import { providerDraftFromPreset, ProviderForm } from './app-settings-provider-form';
@@ -78,6 +82,9 @@ export function ProviderSettings({ providerDraft, routesDraft, providers }: Prov
     presetPicked: false,
     step: 1,
   });
+  const queryClient = useQueryClient();
+  const presetLoadRequestRef = useRef(0);
+  const readLatestDraft = useStableCallback(() => draft);
   const testStatus = testState.status;
   const usedProviderIds = new Set(
     [
@@ -89,16 +96,19 @@ export function ProviderSettings({ providerDraft, routesDraft, providers }: Prov
   );
 
   function selectProvider(provider: LlmProvider) {
+    presetLoadRequestRef.current += 1;
     providerDraft.select(provider);
     dispatchEditor({ type: 'editStarted' });
   }
 
   function cloneProvider(provider: LlmProvider) {
+    presetLoadRequestRef.current += 1;
     providerDraft.clone(provider);
     dispatchEditor({ type: 'cloneStarted' });
   }
 
   function createProvider() {
+    presetLoadRequestRef.current += 1;
     providerDraft.create();
     dispatchEditor({ type: 'createStarted' });
   }
@@ -113,7 +123,44 @@ export function ProviderSettings({ providerDraft, routesDraft, providers }: Prov
   }
 
   function closeProviderEditor() {
+    presetLoadRequestRef.current += 1;
     dispatchEditor({ type: 'closed' });
+  }
+
+  function pickPreset(preset: ProviderPreset) {
+    const nextDraft = providerDraftFromPreset(draft, preset);
+    providerDraft.update(nextDraft);
+    dispatchEditor({ type: 'presetPicked' });
+    const requestId = ++presetLoadRequestRef.current;
+    if (preset.id !== 'chatgpt') return;
+    const providerApi = getOptionalDesktopApi()?.provider;
+    const getChatGptAuthStatus = providerApi?.getChatGptAuthStatus;
+    const listModels = providerApi?.listModels;
+    if (!getChatGptAuthStatus || !listModels) return;
+    void (async () => {
+      try {
+        const account = await getChatGptAuthStatus();
+        if (requestId !== presetLoadRequestRef.current) return;
+        queryClient.setQueryData(['provider', 'chatgpt-auth-status'], account);
+        if (account.status !== 'connected') return;
+        const models = await listModels(nextDraft);
+        if (requestId !== presetLoadRequestRef.current) return;
+        void queryClient.invalidateQueries({ queryKey: ['provider', 'thinking-levels'] });
+        const latestDraft = readLatestDraft();
+        if (!isChatGptOAuthProvider(latestDraft)) return;
+        const names = models.map((model) => model.id).filter(Boolean);
+        providerDraft.update({
+          ...latestDraft,
+          modelInputMode: 'list',
+          modelName: names.includes(latestDraft.modelName || '')
+            ? latestDraft.modelName
+            : names[0] || '',
+          modelNames: names,
+        });
+      } catch {
+        // Leave the draft empty so the user can retry manually without showing unavailable presets.
+      }
+    })();
   }
 
   async function saveProviderAndClose() {
@@ -156,10 +203,7 @@ export function ProviderSettings({ providerDraft, routesDraft, providers }: Prov
                 providerPresetPicked={providerEditor.presetPicked}
                 onChange={providerDraft.update}
                 onCancel={closeProviderEditor}
-                onPickPreset={(preset) => {
-                  providerDraft.update(providerDraftFromPreset(draft, preset));
-                  dispatchEditor({ type: 'presetPicked' });
-                }}
+                onPickPreset={pickPreset}
                 onSave={saveProviderAndClose}
                 onStepChange={(step) => dispatchEditor({ type: 'stepChanged', step })}
                 onTest={testProvider}
@@ -406,7 +450,10 @@ function ProviderPresetPicker({
               <span className="provider-editor-pick-copy">
                 <strong>{providerPresetDisplayName(preset.id, preset.name)}</strong>
                 <span>
-                  {providerProtocolLabel(preset.type)} ·{' '}
+                  {preset.id === 'chatgpt'
+                    ? t('settings.models.chatGptProtocolLabel')
+                    : providerProtocolLabel(preset.type)}{' '}
+                  ·{' '}
                   {t('settings.models.presetModelCount', {
                     count: preset.modelNames.length,
                   })}
@@ -431,9 +478,12 @@ function ProviderPresetPicker({
 }
 
 function ProviderConnectionSummary({ draft }: { draft: ProviderDraft }) {
+  const { t } = useTranslation();
   const providerLogo = providerDraftLogo(draft);
   const providerName = providerDraftName(draft);
-  const host = providerHost(draft.baseUrl);
+  const host = isChatGptOAuthProvider(draft)
+    ? t('settings.models.chatGptProtocolLabel')
+    : providerHost(draft.baseUrl);
 
   return (
     <div className="provider-editor-current">
