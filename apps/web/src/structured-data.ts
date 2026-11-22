@@ -1,6 +1,9 @@
+import { authorBlogUrl } from './site-links';
+
 export const siteUrl = 'https://yomitomo.app';
 
 const organizationId = `${siteUrl}/#organization`;
+const authorId = `${siteUrl}/#author`;
 const websiteId = `${siteUrl}/#website`;
 const softwareId = `${siteUrl}/#software`;
 const ogImageUrl = `${siteUrl}/assets/og-image.jpg`;
@@ -13,11 +16,19 @@ const organization = {
   logo: `${siteUrl}/assets/yomitomo-logo.png`,
 };
 
+const author = {
+  '@type': 'Person',
+  '@id': authorId,
+  name: 'XingKaiXin',
+  url: authorBlogUrl,
+};
+
 const website = {
   '@type': 'WebSite',
   '@id': websiteId,
   name: 'Yomitomo',
   url: siteUrl,
+  author: { '@id': authorId },
   publisher: { '@id': organizationId },
 };
 
@@ -47,6 +58,7 @@ export function buildLandingStructuredData({
     '@context': 'https://schema.org',
     '@graph': [
       { ...organization, sameAs },
+      author,
       website,
       {
         '@type': 'WebPage',
@@ -81,6 +93,8 @@ export function buildLandingStructuredData({
           `${siteUrl}/assets/${screenshotLocale}-assistant.webp`,
         ],
         description,
+        author: { '@id': authorId },
+        creator: { '@id': authorId },
         publisher: { '@id': organizationId },
         offers: [
           {
@@ -133,6 +147,7 @@ export function buildBlogArticleStructuredData({
     '@context': 'https://schema.org',
     '@graph': [
       organization,
+      author,
       website,
       {
         '@type': 'WebPage',

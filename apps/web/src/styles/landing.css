@@ -455,6 +455,20 @@ body {
   margin-top: 20px;
 }
 
+.lp-footer .fine a {
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-underline-offset: 3px;
+  transition:
+    color var(--dur-1) var(--ease),
+    text-decoration-color var(--dur-1) var(--ease);
+}
+
+.lp-footer .fine a:hover {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .lp-skip-link {
     transition: none;
