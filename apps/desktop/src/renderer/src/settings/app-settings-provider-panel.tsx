@@ -12,6 +12,7 @@ import {
 } from '@hugeicons/core-free-icons';
 import React, { useReducer } from 'react';
 import {
+  isChatGptOAuthProvider,
   providerPresets,
   type ResolvedAppSettings,
   type LlmProvider,
@@ -406,7 +407,10 @@ function ProviderPresetPicker({
               <span className="provider-editor-pick-copy">
                 <strong>{providerPresetDisplayName(preset.id, preset.name)}</strong>
                 <span>
-                  {providerProtocolLabel(preset.type)} ·{' '}
+                  {preset.id === 'chatgpt'
+                    ? t('settings.models.chatGptProtocolLabel')
+                    : providerProtocolLabel(preset.type)}{' '}
+                  ·{' '}
                   {t('settings.models.presetModelCount', {
                     count: preset.modelNames.length,
                   })}
@@ -431,9 +435,12 @@ function ProviderPresetPicker({
 }
 
 function ProviderConnectionSummary({ draft }: { draft: ProviderDraft }) {
+  const { t } = useTranslation();
   const providerLogo = providerDraftLogo(draft);
   const providerName = providerDraftName(draft);
-  const host = providerHost(draft.baseUrl);
+  const host = isChatGptOAuthProvider(draft)
+    ? t('settings.models.chatGptProtocolLabel')
+    : providerHost(draft.baseUrl);
 
   return (
     <div className="provider-editor-current">

@@ -184,7 +184,7 @@ function modelWithCapabilities(
         ...knownCompat,
         ...CHATGPT_OAUTH_RESPONSES_COMPAT,
       },
-    } as Model<Api>;
+    };
   }
   if (provider.reasoningEffort === 'default') return { ...model, reasoning: false };
   if (!known) return model;

@@ -1,7 +1,7 @@
 import { useReducer, useRef } from 'react';
 import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
-import { providerPresets } from '@yomitomo/shared';
+import { isChatGptOAuthProvider, providerPresets } from '@yomitomo/shared';
 import type { ProviderDraft } from './app-settings';
 import { appToast } from '../shell/app-toast';
 import { useTranslation } from 'react-i18next';
@@ -10,6 +10,7 @@ import { getDesktopApi } from '../shell/app-desktop-api';
 export function useProviderModelFetch(
   draft: ProviderDraft,
   onChange: (draft: ProviderDraft) => void,
+  options?: { chatGptConnected?: boolean },
 ) {
   const { t } = useTranslation();
   const [{ loadingScope, modelError, modelNotice, modelOptions }, dispatch] = useReducer(
@@ -44,14 +45,27 @@ export function useProviderModelFetch(
     return null;
   }
 
-  async function fetchModels() {
+  async function fetchModels(fetchOptions?: { forceConnected?: boolean }) {
     const fallbackModels = selectedPreset?.modelNames || [];
-    if (!draft.apiKey?.trim() && !draft.hasApiKey) {
+    const isChatGpt = isChatGptOAuthProvider(draft);
+    const missingAuth = isChatGpt
+      ? !(fetchOptions?.forceConnected || options?.chatGptConnected)
+      : !draft.apiKey?.trim() && !draft.hasApiKey;
+    if (missingAuth) {
       dispatch({ type: 'fetchSkipped' });
-      appToast.warning(t('settings.models.apiKeyRequiredForModels'), {
-        description:
-          fallbackModels.length > 0 ? t('settings.models.presetModelsWithApiKey') : undefined,
-      });
+      appToast.warning(
+        isChatGpt
+          ? t('settings.models.chatGptSignInRequiredForModels')
+          : t('settings.models.apiKeyRequiredForModels'),
+        {
+          description:
+            fallbackModels.length > 0
+              ? isChatGpt
+                ? t('settings.models.presetModelsWithChatGpt')
+                : t('settings.models.presetModelsWithApiKey')
+              : undefined,
+        },
+      );
       if (fallbackModels.length > 0 && draft.modelNames === undefined) {
         const nextModelNames = fallbackModels;
         onChange({

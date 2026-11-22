@@ -16,7 +16,11 @@ async function requestPayload(
 ) {
   const models = createModels();
   models.setProvider(
-    piProviderFor(provider, agent, options?.resolveApiKey ? { resolveApiKey: options.resolveApiKey } : undefined),
+    piProviderFor(
+      provider,
+      agent,
+      options?.resolveApiKey ? { resolveApiKey: options.resolveApiKey } : undefined,
+    ),
   );
   const ref = piModelRef(provider, agent);
   const model = models.getModel(ref.provider, ref.modelId)!;

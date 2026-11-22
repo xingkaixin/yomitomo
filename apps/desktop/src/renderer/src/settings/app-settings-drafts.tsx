@@ -5,6 +5,7 @@ import { useShallow } from 'zustand/react/shallow';
 import type { ResolvedAppSettings, DesktopStore, LlmProvider } from '@yomitomo/shared';
 import type { UserStorePatch } from '../../../ipc-contract';
 import {
+  isChatGptOAuthProvider,
   normalizeSelectionActionShortcutDraft,
   selectionActionShortcutsConflict,
 } from '@yomitomo/shared';
@@ -205,6 +206,7 @@ export function createSettingsDraftStore(desktopStore: DesktopStoreApi): Setting
     }
 
     function cloneProvider(source: LlmProvider) {
+      const isChatGpt = isChatGptOAuthProvider(source);
       openProviderEditor(null, {
         name: i18next.t('settings.models.cloneProviderName', {
           name: providerDisplayName(source),
@@ -219,8 +221,8 @@ export function createSettingsDraftStore(desktopStore: DesktopStoreApi): Setting
         modelInputMode: source.modelInputMode || 'list',
         reasoningEffort: source.reasoningEffort || 'none',
         apiKey: '',
-        hasApiKey: Boolean(source.hasApiKey),
-        cloneApiKeyFromProviderId: source.hasApiKey ? source.id : undefined,
+        hasApiKey: isChatGpt ? false : Boolean(source.hasApiKey),
+        cloneApiKeyFromProviderId: !isChatGpt && source.hasApiKey ? source.id : undefined,
         removeApiKey: false,
       });
     }

@@ -20,6 +20,7 @@ import { Input } from '../components/ui/input';
 import { useTranslation } from 'react-i18next';
 
 export function ProviderModelFields({
+  className,
   draft,
   modelError,
   modelLoading,
@@ -29,6 +30,7 @@ export function ProviderModelFields({
   onChange,
   onFetchModels,
 }: {
+  className?: string;
   draft: ProviderDraft;
   modelError: string;
   modelLoading: boolean;
@@ -99,7 +101,7 @@ export function ProviderModelFields({
   }
 
   return (
-    <Field id="provider-model" label={t('settings.models.model')}>
+    <Field id="provider-model" className={className} label={t('settings.models.model')}>
       <div className="provider-model-field">
         <ProviderModelPicker
           id="provider-model"
