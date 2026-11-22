@@ -2121,6 +2121,8 @@ export const zhCNResources = {
         chatGptReauthHint: 'ChatGPT 登录态已失效，请重新登录以恢复使用。',
         chatGptSignInFailed: 'ChatGPT 登录失败，请重试。',
         chatGptDisconnectFailed: '断开 ChatGPT 连接失败，请重试。',
+        chatGptRemoteRevocationNotice:
+          '已清除本地连接，但未能确认远端断开。请在 ChatGPT 设置中移除 Yomitomo 授权。',
         chatGptSignInRequiredForModels: '请先登录 ChatGPT 账号再获取模型列表。',
         presetModelsWithChatGpt: '未登录时仍可使用预设模型，登录 ChatGPT 后可拉取完整可用列表。',
         chatGptAuthRequired: '请先在模型设置中登录 ChatGPT 账号。',

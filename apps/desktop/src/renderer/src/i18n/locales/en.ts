@@ -2227,6 +2227,8 @@ export const enResources = {
         chatGptReauthHint: 'Your ChatGPT session expired. Sign in again to continue.',
         chatGptSignInFailed: 'ChatGPT sign-in failed. Try again.',
         chatGptDisconnectFailed: 'Failed to disconnect ChatGPT. Try again.',
+        chatGptRemoteRevocationNotice:
+          'Local connection cleared, but remote revocation could not be confirmed. Remove Yomitomo in ChatGPT Settings.',
         chatGptSignInRequiredForModels: 'Sign in with ChatGPT first to fetch models.',
         presetModelsWithChatGpt:
           'Preset models remain available; sign in with ChatGPT to load your full model catalog.',

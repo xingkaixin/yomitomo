@@ -12,6 +12,7 @@ import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import {
   isChatGptOAuthProvider,
   providerPresets,
+  resolveThinkingEffort,
   type ChatGptAccountState,
   type ProviderPreset,
   type ProviderThinkingCapabilities,
@@ -47,6 +48,7 @@ export function providerDraftFromPreset(
   draft: ProviderDraft,
   preset: ProviderPreset,
 ): ProviderDraft {
+  const isChatGpt = preset.id === 'chatgpt';
   return {
     ...draft,
     presetId: preset.id,
@@ -54,8 +56,9 @@ export function providerDraftFromPreset(
     type: preset.type,
     logo: preset.logo,
     baseUrl: preset.baseUrl,
-    modelName: preset.modelName,
-    modelNames: preset.modelNames,
+    // Account-specific ChatGPT catalogs must come from the signed-in account, not static presets.
+    modelName: isChatGpt ? '' : preset.modelName,
+    modelNames: isChatGpt ? [] : preset.modelNames,
     modelInputMode: 'list',
     reasoningEffort: 'none',
   };
@@ -103,11 +106,11 @@ export function ProviderForm({
     enabled: Boolean(modelKey),
   });
   const supportedThinkingEfforts = thinkingCapabilities.supportedEfforts;
-  const selectedThinkingEffort: ThinkingEffortOption =
-    draft.reasoningEffort &&
-    supportedThinkingEfforts.includes(draft.reasoningEffort as ThinkingEffortOption)
-      ? (draft.reasoningEffort as ThinkingEffortOption)
-      : thinkingCapabilities.defaultEffort;
+  const selectedThinkingEffort: ThinkingEffortOption = resolveThinkingEffort(
+    supportedThinkingEfforts,
+    draft.reasoningEffort,
+    thinkingCapabilities.defaultEffort,
+  );
   const {
     fetchModels,
     clearModelStatus,
@@ -124,7 +127,11 @@ export function ProviderForm({
     const preset = providerPresets.find((item) => item.id === presetId);
     if (!preset) return;
     clearModelStatus();
-    onChange(providerDraftFromPreset(draft, preset));
+    const nextDraft = providerDraftFromPreset(draft, preset);
+    onChange(nextDraft);
+    if (preset.id === 'chatgpt' && chatGptAccount.status === 'connected') {
+      void fetchModels({ draft: nextDraft, forceConnected: true });
+    }
   }
 
   function handleChatGptConnected(nextState: ChatGptAccountState) {
@@ -136,6 +143,7 @@ export function ProviderForm({
 
   function handleChatGptDisconnected(nextState: ChatGptAccountState) {
     queryClient.setQueryData(CHATGPT_AUTH_STATUS_QUERY_KEY, nextState);
+    void queryClient.invalidateQueries({ queryKey: ['provider', 'thinking-levels'] });
   }
 
   const selectedPreset = providerPresets.find((preset) => preset.id === draft.presetId);
@@ -335,6 +343,7 @@ function ChatGptAccountField({
   onDisconnected: (state: ChatGptAccountState) => void;
 }) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const [state, dispatch] = useReducer(chatGptAuthUiReducer, initialChatGptAuthUiState);
   const signingInRef = useRef(false);
   const mountedRef = useRef(true);
@@ -358,6 +367,7 @@ function ChatGptAccountField({
       onConnected(nextState);
     } catch (error) {
       signingInRef.current = false;
+      void queryClient.invalidateQueries({ queryKey: CHATGPT_AUTH_STATUS_QUERY_KEY });
       if (!mountedRef.current) return;
       const message =
         error instanceof Error ? error.message : t('settings.models.chatGptSignInFailed');
@@ -372,6 +382,7 @@ function ChatGptAccountField({
   function cancelSignIn() {
     signingInRef.current = false;
     void getOptionalDesktopApi()?.provider?.cancelChatGptSignIn?.();
+    void queryClient.invalidateQueries({ queryKey: CHATGPT_AUTH_STATUS_QUERY_KEY });
     dispatch({ type: 'cancelled' });
   }
 
@@ -380,9 +391,14 @@ function ChatGptAccountField({
     try {
       const nextState = await getDesktopApi().provider.disconnectChatGpt();
       if (!mountedRef.current) return;
-      dispatch({ type: 'succeeded' });
+      if (nextState.remoteRevocationFailed) {
+        dispatch({ type: 'failed', error: t('settings.models.chatGptRemoteRevocationNotice') });
+      } else {
+        dispatch({ type: 'succeeded' });
+      }
       onDisconnected(nextState);
     } catch (error) {
+      void queryClient.invalidateQueries({ queryKey: CHATGPT_AUTH_STATUS_QUERY_KEY });
       if (!mountedRef.current) return;
       dispatch({
         type: 'failed',
@@ -445,11 +461,24 @@ function ChatGptAccountField({
               {t('settings.models.chatGptDisconnect')}
             </Button>
           ) : (
-            <Button type="button" onClick={signIn}>
-              {reauthRequired
-                ? t('settings.models.chatGptReconnect')
-                : t('settings.models.chatGptSignIn')}
-            </Button>
+            <>
+              <Button type="button" disabled={state.busy === 'disconnecting'} onClick={signIn}>
+                {reauthRequired
+                  ? t('settings.models.chatGptReconnect')
+                  : t('settings.models.chatGptSignIn')}
+              </Button>
+              {reauthRequired || account.hasSavedRegistration ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={state.busy === 'disconnecting'}
+                  onClick={disconnect}
+                >
+                  <HugeiconsIcon icon={Logout01Icon} size={14} />
+                  {t('settings.models.chatGptDisconnect')}
+                </Button>
+              ) : null}
+            </>
           )}
         </div>
       </div>

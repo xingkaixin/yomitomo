@@ -155,6 +155,7 @@ export function createSettingsDraftStore(desktopStore: DesktopStoreApi): Setting
       hasChanges: () => {
         const { providerDraft, providerEditorActive, selectedProviderId } = get();
         if (!providerEditorActive) return false;
+        if (isChatGptOAuthProvider(providerDraft) && !providerDraft.modelName?.trim()) return false;
         if (!selectedProviderId) return true;
         const selected = currentStore()?.providers.find(({ id }) => id === selectedProviderId);
         return providerDraftHasChanges(providerDraft, selected || null);

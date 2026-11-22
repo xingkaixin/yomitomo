@@ -2254,6 +2254,8 @@ export const jaResources = {
         chatGptReauthHint: 'ChatGPT のセッションが期限切れです。もう一度ログインしてください。',
         chatGptSignInFailed: 'ChatGPT ログインに失敗しました。もう一度お試しください。',
         chatGptDisconnectFailed: 'ChatGPT の接続解除に失敗しました。もう一度お試しください。',
+        chatGptRemoteRevocationNotice:
+          'ローカルの接続は削除しましたが、リモート側の失効を確認できませんでした。ChatGPT の設定から Yomitomo の連携を解除してください。',
         chatGptSignInRequiredForModels:
           'モデル一覧を取得するには、先に ChatGPT でログインしてください。',
         presetModelsWithChatGpt:
