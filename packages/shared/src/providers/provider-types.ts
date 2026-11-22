@@ -8,10 +8,20 @@ export type ProviderPresetId =
   | 'doubao'
   | 'mimo'
   | 'openai'
+  | 'chatgpt'
   | 'anthropic'
   | 'gemini'
   | 'openrouter'
   | 'vercel';
+
+export type ChatGptAuthStatus = 'disconnected' | 'connected' | 'reauth_required';
+
+export type ChatGptAccountState = {
+  status: ChatGptAuthStatus;
+  email?: string;
+  name?: string;
+  updatedAt?: string;
+};
 
 export type ReasoningEffort =
   | 'default'
@@ -37,7 +47,7 @@ export type ProviderPreset = {
   logo: string;
   modelNames: string[];
   articleTextBudget: ArticleTextBudgetProfile;
-  modelsDevId: string;
+  modelsDevId?: string;
   // Only for presets whose models the pi-ai catalog does not cover.
   maxOutputTokens?: Record<string, number>;
 };

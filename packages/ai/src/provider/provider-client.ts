@@ -1,5 +1,5 @@
 import type { LlmProvider, ProviderModel } from '@yomitomo/shared';
-import { errorMessage, providerPresets } from '@yomitomo/shared';
+import { errorMessage, isChatGptOAuthProvider, providerPresets } from '@yomitomo/shared';
 import { Effect, Schema } from 'effect';
 import { normalizeAnthropicError } from './budget';
 import { anthropicBaseUrl, geminiBaseUrl, openAIBaseUrl } from './provider-urls';
@@ -15,6 +15,19 @@ const openAIModelListResponseSchema = Schema.Struct({
       }),
     ),
   ),
+});
+
+const chatGptModelListResponseSchema = Schema.Struct({
+  models: Schema.optionalKey(
+    Schema.Array(
+      Schema.Struct({
+        slug: Schema.optionalKey(Schema.String),
+        display_name: Schema.optionalKey(Schema.String),
+        visibility: Schema.optionalKey(Schema.String),
+      }),
+    ),
+  ),
+  data: openAIModelListResponseSchema.fields.data,
 });
 
 const anthropicModelListResponseSchema = Schema.Struct({
@@ -128,8 +141,42 @@ export const listProviderModelsEffect = Effect.fn('Provider.listModels')(functio
   const budget = modelListBudget(options);
   if (provider.type === 'gemini') return yield* listGeminiModelsEffect(provider, budget);
   if (provider.type === 'anthropic') return yield* listAnthropicModelsEffect(provider, budget);
+  if (isChatGptOAuthProvider(provider)) return yield* listChatGptModelsEffect(provider, budget);
   return yield* listOpenAICompatibleModelsEffect(provider, budget);
 });
+
+function listChatGptModelsEffect(
+  provider: LlmProvider,
+  budget: ProviderModelListBudget,
+): Effect.Effect<ProviderModel[], ProviderClientError> {
+  return Effect.gen(function* () {
+    const response = yield* fetchProviderModels('https://api.openai.com/v1/models', budget, {
+      headers: {
+        ...bearerHeaders(provider),
+        accept: 'application/json',
+      },
+    });
+    if (!response.ok) {
+      const message = yield* modelListErrorEffect(response, budget);
+      return yield* Effect.fail(new ProviderHttpError(message));
+    }
+    const body = yield* responseJsonEffect(response, chatGptModelListResponseSchema, budget);
+    const catalogModels = body.models
+      ?.filter((model) => model.visibility === 'list' && model.slug?.trim())
+      .map((model) => ({
+        id: model.slug || '',
+        name: model.display_name || model.slug || '',
+      }));
+    const fallbackData = body.data?.map((model) => ({
+      id: model.id || '',
+      name: model.name || model.id || '',
+    }));
+    return modelList(
+      catalogModels && catalogModels.length > 0 ? catalogModels : fallbackData,
+      provider,
+    );
+  });
+}
 
 function listOpenAICompatibleModelsEffect(
   provider: LlmProvider,

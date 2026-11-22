@@ -1,7 +1,7 @@
 import type { AssistantMessage } from '@earendil-works/pi-ai';
 import { createModels } from '@earendil-works/pi-ai/models';
 import type { LlmProvider } from '@yomitomo/shared';
-import { errorMessage } from '@yomitomo/shared';
+import { errorMessage, isChatGptOAuthProvider } from '@yomitomo/shared';
 import { Effect } from 'effect';
 import { logAiInfo } from '../logger';
 import type { GenerateOptions, TextPayload } from './generation-runtime-types';
@@ -104,8 +104,12 @@ function completeOnce(
     },
     {
       reasoning: thinks ? level : undefined,
-      // Chat Completions gets its supported sampling parameters from piProviderFor.
-      temperature: !thinks && model.api !== 'openai-completions' ? payload.temperature : undefined,
+      // Chat Completions gets its supported sampling parameters from piProviderFor, and
+      // Sign in with ChatGPT rejects temperature on /v1/responses.
+      temperature:
+        !thinks && model.api !== 'openai-completions' && !isChatGptOAuthProvider(provider)
+          ? payload.temperature
+          : undefined,
       maxTokens: payload.maxTokens,
       signal,
     },

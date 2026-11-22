@@ -5,9 +5,19 @@ import { piModelRef, piProviderFor, piThinkingLevel } from './pi-provider';
 
 const agent = { id: 'agent-1', temperature: 0.3 };
 
-async function requestPayload(provider: LlmProvider) {
+async function requestPayload(
+  provider: LlmProvider,
+  options?: {
+    systemPrompt?: string;
+    maxTokens?: number;
+    temperature?: number;
+    resolveApiKey?: () => Promise<string>;
+  },
+) {
   const models = createModels();
-  models.setProvider(piProviderFor(provider, agent));
+  models.setProvider(
+    piProviderFor(provider, agent, options?.resolveApiKey ? { resolveApiKey: options.resolveApiKey } : undefined),
+  );
   const ref = piModelRef(provider, agent);
   const model = models.getModel(ref.provider, ref.modelId)!;
   const controller = new AbortController();
@@ -16,9 +26,14 @@ async function requestPayload(provider: LlmProvider) {
   const thinkingLevel = piThinkingLevel(provider);
   await models.completeSimple(
     model,
-    { messages: [{ role: 'user', content: 'hi', timestamp: 0 }] },
+    {
+      systemPrompt: options?.systemPrompt,
+      messages: [{ role: 'user', content: 'hi', timestamp: 0 }],
+    },
     {
       ...(thinkingLevel && thinkingLevel !== 'off' ? { reasoning: thinkingLevel } : {}),
+      maxTokens: options?.maxTokens,
+      temperature: options?.temperature,
       signal: controller.signal,
       onPayload: (value) => {
         payload = value as Record<string, unknown>;
@@ -148,5 +163,40 @@ describe('piProviderFor', () => {
     expect(deepseekHigh).toMatchObject({ reasoning_effort: 'high' });
     expect(deepseekHigh).not.toHaveProperty('thinking');
     expect(deepseekHigh).not.toHaveProperty('temperature');
+  });
+
+  it('shapes ChatGPT Sign-in requests for /v1/responses without unsupported fields', async () => {
+    const provider = compatible('chatgpt', 'gpt-5.4', 'none', 'openai-responses');
+    const payload = await requestPayload(provider, {
+      systemPrompt: 'Follow reading instructions.',
+      maxTokens: 1024,
+    });
+    const wireBody = JSON.parse(JSON.stringify(payload)) as Record<string, unknown>;
+    expect(wireBody).toMatchObject({
+      model: 'gpt-5.4',
+      store: false,
+      stream: true,
+    });
+    expect(wireBody).not.toHaveProperty('max_output_tokens');
+    expect(wireBody).not.toHaveProperty('temperature');
+    expect(wireBody).not.toHaveProperty('prompt_cache_retention');
+    expect(wireBody).not.toHaveProperty('prompt_cache_options');
+    expect(wireBody.input).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ role: 'developer', content: 'Follow reading instructions.' }),
+      ]),
+    );
+  });
+
+  it('resolves dynamic OAuth tokens on each request through resolveApiKey', async () => {
+    const provider = compatible('chatgpt', 'gpt-5.4', 'none', 'openai-responses');
+    let tokenVersion = 0;
+    const piProvider = piProviderFor(provider, agent, {
+      resolveApiKey: async () => `oauth-token-${++tokenVersion}`,
+    });
+    const first = await piProvider.auth?.apiKey?.resolve({} as never);
+    const second = await piProvider.auth?.apiKey?.resolve({} as never);
+    expect(first?.auth).toEqual({ apiKey: 'oauth-token-1' });
+    expect(second?.auth).toEqual({ apiKey: 'oauth-token-2' });
   });
 });

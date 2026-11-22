@@ -24,6 +24,28 @@ describe('listProviderModels', () => {
     },
   );
 
+  it('parses ChatGPT Sign-in model catalogs and keeps only list-visible models', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        models: [
+          { slug: 'gpt-5.4', display_name: 'GPT-5.4', visibility: 'list' },
+          { slug: 'internal-only', display_name: 'Internal', visibility: 'hide' },
+          { slug: 'gpt-5.4-mini', display_name: 'GPT-5.4 Mini', visibility: 'list' },
+        ],
+      }),
+    );
+
+    const models = await listProviderModels(
+      providerFor('openai-responses', 'chatgpt', 'https://api.openai.com/v1'),
+    );
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.openai.com/v1/models');
+    expect(models).toEqual([
+      { id: 'gpt-5.4', name: 'GPT-5.4' },
+      { id: 'gpt-5.4-mini', name: 'GPT-5.4 Mini' },
+    ]);
+  });
+
   it('aborts a model-list request that outlives its deadline', async () => {
     const started = pendingFetch();
 

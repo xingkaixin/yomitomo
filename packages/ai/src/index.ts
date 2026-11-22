@@ -24,5 +24,6 @@ export {
   piProviderFor,
   piThinkingLevel,
   type PiModelRef,
+  type PiProviderOptions,
 } from './provider/pi-provider';
 export { runReadingJudgment } from './reading-memory/reading-judgment';

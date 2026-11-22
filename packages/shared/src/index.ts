@@ -94,6 +94,8 @@ export type {
   AssistantRuntimeProgressStep,
   AssistantRuntimeProgressStepStatus,
   AssistantRuntimeProgressSummary,
+  ChatGptAccountState,
+  ChatGptAuthStatus,
   Collection,
   CollectionMember,
   CollectionMembersPatch,
@@ -218,7 +220,7 @@ export {
   selectionActionShortcutsConflict,
 } from './shortcuts';
 
-export { providerPresets } from './providers/providers';
+export { isChatGptOAuthProvider, providerPresets } from './providers/providers';
 
 export {
   agentPersonalityName,

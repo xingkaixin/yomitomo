@@ -19,6 +19,7 @@ import { VERCEL_AI_GATEWAY_MODELS } from '@earendil-works/pi-ai/providers/vercel
 import { XIAOMI_MODELS } from '@earendil-works/pi-ai/providers/xiaomi.models';
 import { ZAI_MODELS } from '@earendil-works/pi-ai/providers/zai.models';
 import {
+  isChatGptOAuthProvider,
   providerPresets,
   type Agent,
   type LlmProvider,
@@ -79,15 +80,21 @@ export function piModelRef(provider: LlmProvider, agent: Pick<Agent, 'id'>): PiM
   return { provider: `${provider.id}~${agent.id}`, modelId: provider.modelName };
 }
 
+export type PiProviderOptions = {
+  resolveApiKey?: () => Promise<string>;
+};
+
 // One pi provider per (provider, agent) pair carries the agent's sampling parameters, because
 // pi-durable conversations reference a model and cannot set temperature per request.
 export function piProviderFor(
   provider: LlmProvider,
   agent: Pick<Agent, 'id'> & { temperature?: number },
+  options?: PiProviderOptions,
 ): Provider {
   const ref = piModelRef(provider, agent);
-  const supportsTemperature =
-    gatewayCapabilities(provider)?.temperature ?? provider.presetId !== 'vercel';
+  const supportsTemperature = isChatGptOAuthProvider(provider)
+    ? false
+    : (gatewayCapabilities(provider)?.temperature ?? provider.presetId !== 'vercel');
   const model = {
     ...piModel(provider, ref.provider),
     // Thinking models reject or ignore temperature, so it only applies when thinking is off.
@@ -102,7 +109,12 @@ export function piProviderFor(
     auth: {
       apiKey: {
         name: provider.name,
-        resolve: async () => ({ auth: { apiKey: provider.apiKey }, source: 'keyring' }),
+        resolve: async () => ({
+          auth: {
+            apiKey: options?.resolveApiKey ? await options.resolveApiKey() : provider.apiKey,
+          },
+          source: 'keyring',
+        }),
       },
     },
     models: [model],
@@ -140,11 +152,40 @@ function piModel(provider: LlmProvider, providerId: string): Model<Api> {
   };
 }
 
+// Sign in with ChatGPT tokens reach /v1/responses with stricter field rules than API keys:
+// they require developer-role instructions and reject max_output_tokens, temperature, cache retention,
+// mid-conversation effort updates, and hosted tool_search.
+const CHATGPT_OAUTH_RESPONSES_COMPAT = {
+  supportsDeveloperRole: true,
+  supportsLongCacheRetention: false,
+  supportsExplicitPromptCacheMode: false,
+  supportsMaxOutputTokens: false,
+  supportsMidConvoEffort: false,
+  supportsToolSearch: false,
+} as const;
+
 function modelWithCapabilities(
   model: Model<Api>,
   provider: LlmProvider,
   known: Model<Api> | undefined,
 ): Model<Api> {
+  if (isChatGptOAuthProvider(provider)) {
+    const knownCompat =
+      known && known.api === 'openai-responses'
+        ? (known.compat as Record<string, unknown> | undefined)
+        : undefined;
+    return {
+      ...model,
+      // pi-ai sends system prompts as role:"developer" only when model.reasoning is true.
+      reasoning: true,
+      thinkingLevelMap: known?.thinkingLevelMap,
+      compat: {
+        ...(model.compat as Record<string, unknown> | undefined),
+        ...knownCompat,
+        ...CHATGPT_OAUTH_RESPONSES_COMPAT,
+      },
+    } as Model<Api>;
+  }
   if (provider.reasoningEffort === 'default') return { ...model, reasoning: false };
   if (!known) return model;
   return {
@@ -216,6 +257,14 @@ function fallbackModel(provider: LlmProvider, providerId: string): Model<Api> {
   if (provider.type === 'gemini') {
     return { ...base, api: 'google-generative-ai', baseUrl: geminiBaseUrl(provider.baseUrl) };
   }
+  if (isChatGptOAuthProvider(provider)) {
+    return {
+      ...base,
+      api: 'openai-responses',
+      baseUrl: 'https://api.openai.com/v1',
+      compat: CHATGPT_OAUTH_RESPONSES_COMPAT,
+    };
+  }
   const baseUrl = openAIBaseUrl(provider.baseUrl);
   if (isOfficialOpenAI(provider)) {
     return {
@@ -257,5 +306,9 @@ function compatibleThinking(provider: LlmProvider): OpenAICompletionsCompat | nu
 }
 
 function isOfficialOpenAI(provider: LlmProvider) {
-  return provider.presetId === 'openai' || /^https:\/\/api\.openai\.com\/?/.test(provider.baseUrl);
+  return (
+    provider.presetId === 'openai' ||
+    isChatGptOAuthProvider(provider) ||
+    /^https:\/\/api\.openai\.com\/?/.test(provider.baseUrl)
+  );
 }

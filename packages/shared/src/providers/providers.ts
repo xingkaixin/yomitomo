@@ -129,6 +129,16 @@ export const providerPresets: ProviderPreset[] = [
     modelNames: ['gpt-6-astra', 'gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-luna', 'gpt-5.4'],
   },
   {
+    id: 'chatgpt',
+    name: 'ChatGPT',
+    type: 'openai-responses',
+    baseUrl: 'https://api.openai.com/v1',
+    modelName: 'gpt-5.4',
+    logo: 'openai.png',
+    articleTextBudget: DEFAULT_ARTICLE_TEXT_BUDGET,
+    modelNames: ['gpt-5.4', 'gpt-5.4-mini', 'gpt-5.4-nano', 'gpt-5.4-pro'],
+  },
+  {
     id: 'anthropic',
     modelsDevId: 'anthropic',
     name: 'Anthropic',
@@ -197,3 +207,9 @@ export const providerPresets: ProviderPreset[] = [
     ],
   },
 ];
+
+export function isChatGptOAuthProvider(
+  provider: { presetId?: string } | null | undefined,
+): boolean {
+  return provider?.presetId === 'chatgpt';
+}
