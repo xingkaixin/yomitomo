@@ -134,6 +134,16 @@ export function buildProviderRecord(
 
   const presetId = normalizePresetId(input.presetId || existing?.presetId || preset?.id);
   const isChatGpt = presetId === 'chatgpt';
+  const modelName = isChatGpt
+    ? input.modelName?.trim() || existing?.modelName || ''
+    : input.modelName?.trim() ||
+      existing?.modelName ||
+      preset?.modelName ||
+      defaultProviderPreset?.modelName ||
+      'deepseek-flash';
+  if (isChatGpt && !modelName) {
+    throw new Error('ChatGPT model selection is required');
+  }
 
   return {
     id,
@@ -152,18 +162,17 @@ export function buildProviderRecord(
         'https://api.deepseek.com',
     apiKey: '',
     hasApiKey: isChatGpt ? false : Boolean(apiKeyRef),
-    modelName:
-      input.modelName?.trim() ||
-      existing?.modelName ||
-      preset?.modelName ||
-      defaultProviderPreset?.modelName ||
-      'deepseek-flash',
+    modelName,
     modelNames:
       modelInputMode === 'custom'
         ? undefined
-        : (normalizeModelNames(input.modelNames) ??
-          normalizeModelNames(existing?.modelNames) ??
-          preset?.modelNames),
+        : isChatGpt
+          ? (normalizeModelNames(input.modelNames) ??
+            normalizeModelNames(existing?.modelNames) ??
+            [])
+          : (normalizeModelNames(input.modelNames) ??
+            normalizeModelNames(existing?.modelNames) ??
+            preset?.modelNames),
     modelInputMode,
     reasoningEffort:
       normalizeReasoningEffort(input.reasoningEffort) ?? existing?.reasoningEffort ?? 'none',

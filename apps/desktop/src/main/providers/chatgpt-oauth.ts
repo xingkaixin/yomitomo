@@ -24,6 +24,7 @@ const REAUTH_ERROR_CODES = new Set([
 
 export type ChatGptOAuthErrorCode =
   | 'cancelled'
+  | 'disconnect_in_progress'
   | 'timeout'
   | 'discovery_failed'
   | 'callback_failed'
@@ -100,6 +101,7 @@ export async function authorizeChatGpt(options: {
   savedClientId?: string;
   savedSubject?: string;
   loginHint?: string;
+  reconsent?: boolean;
   openBrowser: (url: string) => Promise<void>;
   onClientRegistered?: (clientId: string) => void | Promise<void>;
   signal: AbortSignal;
@@ -128,6 +130,7 @@ export async function authorizeChatGpt(options: {
     });
     if (!options.savedClientId) params.set('agent_name_hint', APP_NAME_HINT);
     if (options.loginHint) params.set('login_hint', options.loginHint);
+    if (options.reconsent) params.set('prompt', 'consent');
     authUrl.search = params.toString();
 
     await options.openBrowser(authUrl.toString());
@@ -260,7 +263,9 @@ export async function revokeChatGptRefreshToken(options: {
 }): Promise<void> {
   const signal = AbortSignal.timeout(10_000);
   const discovery = await loadDiscovery(signal);
-  if (!discovery.revocation_endpoint) return;
+  if (!discovery.revocation_endpoint) {
+    throw new ChatGptOAuthError('oauth_error', 'ChatGPT revocation endpoint is unavailable.');
+  }
   const response = await fetchStrict(
     discovery.revocation_endpoint,
     {
@@ -275,6 +280,12 @@ export async function revokeChatGptRefreshToken(options: {
     signal,
   );
   await response.body?.cancel().catch(() => undefined);
+  if (!response.ok) {
+    throw new ChatGptOAuthError(
+      'oauth_error',
+      `ChatGPT token revocation failed with HTTP ${response.status}.`,
+    );
+  }
 }
 
 export async function verifyChatGptIdToken(

@@ -22,8 +22,11 @@ type ProviderIpcContext = Pick<
       typeof import('../providers/chatgpt-oauth-repository'),
       | 'cancelChatGptSignIn'
       | 'disconnectChatGptAccount'
+      | 'getValidChatGptAccessTokenWithSession'
       | 'readChatGptAccountState'
+      | 'saveChatGptModelCapabilities'
       | 'signInChatGptAccount'
+      | 'syncChatGptModelCapabilitiesFromStore'
     >;
     providerRepository: Pick<
       typeof import('../providers/provider-repository'),
@@ -137,10 +140,31 @@ export function registerProviderIpc(context: ProviderIpcContext) {
     }
   });
   handleDesktopIpc('provider:list-models', async (_event, input) => {
-    const { providerRepository } = await context.getPersistenceModules();
+    const { chatGptOAuthRepository, providerRepository } = await context.getPersistenceModules();
     const { listProviderModels } = await context.getAiModule();
     try {
-      return await listProviderModels(await providerRepository.hydrateProviderInputApiKey(input));
+      const isChatGpt = isChatGptOAuthProvider(input);
+      let sessionRef: string | null = null;
+      let hydrated = input;
+      if (isChatGpt) {
+        const session = await chatGptOAuthRepository.getValidChatGptAccessTokenWithSession();
+        sessionRef = session.credentialRef;
+        hydrated = {
+          ...input,
+          type: 'openai-responses',
+          baseUrl: 'https://api.openai.com/v1',
+          apiKey: session.accessToken,
+        };
+      } else {
+        hydrated = await providerRepository.hydrateProviderInputApiKey(input);
+      }
+      const models = await listProviderModels(hydrated);
+      if (isChatGpt) {
+        if (!chatGptOAuthRepository.saveChatGptModelCapabilities(models, sessionRef)) {
+          throw new ChatGptAuthRequiredError();
+        }
+      }
+      return models;
     } catch (error) {
       if (error instanceof ChatGptAuthRequiredError) {
         throw new DesktopIpcError(desktopIpcErrorCodes.chatGptAuthRequired, undefined, {
@@ -156,7 +180,11 @@ export function registerProviderIpc(context: ProviderIpcContext) {
     }
   });
   handleDesktopIpc('provider:thinking-levels', async (_event, input) => {
+    const { chatGptOAuthRepository } = await context.getPersistenceModules();
     const { providerThinkingCapabilities } = await context.getAiModule();
+    if (isChatGptOAuthProvider(input)) {
+      chatGptOAuthRepository.syncChatGptModelCapabilitiesFromStore();
+    }
     return providerThinkingCapabilities(input);
   });
 }

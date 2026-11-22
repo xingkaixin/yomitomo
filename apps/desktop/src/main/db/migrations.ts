@@ -1427,6 +1427,12 @@ CREATE TABLE IF NOT EXISTS chatgpt_oauth_accounts (
 );
 `,
   },
+  {
+    id: '0078_chatgpt_oauth_model_capabilities',
+    sql: `
+ALTER TABLE chatgpt_oauth_accounts ADD COLUMN model_capabilities_json TEXT;
+`,
+  },
 ];
 
 type MigrationDatabase = {

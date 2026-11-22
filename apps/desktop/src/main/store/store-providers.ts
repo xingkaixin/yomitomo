@@ -47,14 +47,14 @@ async function saveProviderRecord(input: SaveProviderInput): Promise<ProviderSto
     existingRow,
   );
   const { apiKeyRef } = credentialChange;
-  const provider = buildProviderRecord(input, {
-    id,
-    now,
-    existing,
-    apiKeyRef,
-  });
 
   try {
+    const provider = buildProviderRecord(input, {
+      id,
+      now,
+      existing,
+      apiKeyRef,
+    });
     database.transaction((tx) => {
       upsertProvider(tx, provider, apiKeyRef, storedApiKey);
       commitCredentialChange(tx, credentialChange);
