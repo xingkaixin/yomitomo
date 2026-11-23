@@ -12,7 +12,7 @@ export type OnboardingShow = {
 };
 
 // Seconds into the show, and the class the stage gains then. onboarding.css owns what each class
-// reveals; the bars of onboarding-music.ts own what is heard at the same moment.
+// reveals; onboarding-music.ts pairs the looping BGM with subtle cues on the key beats.
 const cues: Array<[at: number, className: string]> = [
   [0.1, 'at-wordmark'],
   [0.25, 'at-book'],
