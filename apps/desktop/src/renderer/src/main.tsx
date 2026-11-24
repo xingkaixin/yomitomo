@@ -13,6 +13,7 @@ import {
   DialogContent,
   DialogClose,
 } from './components/ui/dialog';
+import { isAppLockSettingsLocked } from '../../app-store';
 import { AppLockGate } from './app-lock/app-lock-gate';
 import { AvatarImage } from './shell/app-ui';
 import { useAppAgentActions } from './shell/app-agent-actions';
@@ -37,6 +38,7 @@ import { recordStartupTiming } from './shell/app-renderer-performance';
 import { AppSessionStoreProvider, createAppSessionStore, useAppSession } from './shell/app-session';
 import {
   activeSurfaceComponents,
+  preloadReadingLibrary,
   ReadingMemory,
   OnboardingFlow,
   ReadingLibrary,
@@ -62,13 +64,19 @@ import {
   ReaderThemeStoreProvider,
   useReaderThemeController,
 } from './theme/use-reader-theme-controller';
-import { UpdateReleaseDialog } from './shell/app-update-dialog';
 import { AppUpdateCard } from './shell/app-update-card';
 import { useAppUpdateState } from './shell/use-app-update-state';
-import { initializeAppI18n } from './i18n/app-i18n';
+import { ensureAppI18nLanguage, initializeAppI18n } from './i18n/app-i18n';
 import { readCachedUiLanguage } from './i18n/app-language-cache';
-import { AppIsland } from './shell/app-island';
+import { AppIslandHost } from './shell/app-island-host';
+import { libraryCatalogInput } from './reading-library/library-query-session';
+import { prefetchLibraryCatalog } from './reading-library/use-library-catalog';
+import { applyWeReadLibraryState } from './reading-library/use-weread-library-session';
 import './styles.css';
+
+const UpdateReleaseDialog = lazy(() =>
+  import('./shell/app-update-dialog').then((module) => ({ default: module.UpdateReleaseDialog })),
+);
 
 const startupUiLanguage = readCachedUiLanguage();
 initializeAppI18n(startupUiLanguage);
@@ -407,13 +415,15 @@ function ReadyApp({
             </Suspense>
           ) : null}
           {!lockOverlayVisible ? (
-            <UpdateReleaseDialog
-              store={store}
-              updateState={appUpdateState}
-              onSaveSettings={saveSettings}
-            />
+            <Suspense fallback={null}>
+              <UpdateReleaseDialog
+                store={store}
+                updateState={appUpdateState}
+                onSaveSettings={saveSettings}
+              />
+            </Suspense>
           ) : null}
-          <AppIsland />
+          <AppIslandHost />
         </main>
       )}
     </AppLockGate>
@@ -439,10 +449,17 @@ const AnnotationSedimentationWindowApp = lazy(() =>
 
 function createMainWindow() {
   const desktopStore = createDesktopStore();
-  const sessionStore = createAppSessionStore(desktopStore);
+  const queryClient = createAppQueryClient();
+  const sessionStore = createAppSessionStore(desktopStore, {
+    onWeReadStateSynced: (state) => {
+      void applyWeReadLibraryState(queryClient, state, () => {
+        const current = desktopStore.getState().store;
+        return Boolean(current && isAppLockSettingsLocked(current.settings));
+      });
+    },
+  });
   const themeStore = createReaderThemeStore({ applyStore: desktopStore.getState().applyStore });
   const settingsDraftStore = createSettingsDraftStore(desktopStore);
-  const queryClient = createAppQueryClient();
   const unbindDesktopStoreEvents = bindDesktopStoreEvents(desktopStore);
   const unbindMainWindowEvents = bindMainWindowEvents({
     desktopStore,
@@ -451,7 +468,26 @@ function createMainWindow() {
     themeStore,
   });
   const unbindSettingsDraftEvents = bindSettingsDraftEvents(desktopStore, settingsDraftStore);
-  void desktopStore.getState().refreshStore();
+  void preloadReadingLibrary();
+  void desktopStore
+    .getState()
+    .refreshStore()
+    .then((loadedStore) => {
+      if (
+        !loadedStore ||
+        !loadedStore.settings.onboardingCompletedAt ||
+        (loadedStore.settings.appLockEnabled && loadedStore.settings.appLockLocked)
+      ) {
+        return;
+      }
+      if (!getDesktopApi().library?.catalog?.list) return;
+      const queryState = sessionStore.getState().libraryQuery;
+      void prefetchLibraryCatalog(
+        queryClient,
+        libraryCatalogInput(queryState),
+        desktopStore.getState().libraryCatalogRevision,
+      );
+    });
   import.meta.hot?.dispose(() => {
     unbindSettingsDraftEvents();
     unbindMainWindowEvents();
@@ -472,15 +508,25 @@ function createMainWindow() {
   );
 }
 
-const rendererWindowKind = new URLSearchParams(window.location.search).get('window');
-const rootApp =
-  rendererWindowKind === 'annotation-discussion' ? (
-    <AnnotationDiscussionWindowApp />
-  ) : rendererWindowKind === 'annotation-sedimentation' ? (
-    <AnnotationSedimentationWindowApp />
-  ) : (
-    createMainWindow()
-  );
+function mountRoot() {
+  const rendererWindowKind = new URLSearchParams(window.location.search).get('window');
+  const rootApp =
+    rendererWindowKind === 'annotation-discussion' ? (
+      <AnnotationDiscussionWindowApp />
+    ) : rendererWindowKind === 'annotation-sedimentation' ? (
+      <AnnotationSedimentationWindowApp />
+    ) : (
+      createMainWindow()
+    );
 
-createRoot(document.getElementById('root')!).render(<Suspense fallback={null}>{rootApp}</Suspense>);
-recordStartupTiming('react.render_scheduled');
+  createRoot(document.getElementById('root')!).render(
+    <Suspense fallback={null}>{rootApp}</Suspense>,
+  );
+  recordStartupTiming('react.render_scheduled');
+}
+
+if (startupUiLanguage === 'zh-CN') {
+  mountRoot();
+} else {
+  void ensureAppI18nLanguage(startupUiLanguage).finally(mountRoot);
+}

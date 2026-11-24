@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useReducer, useRef } from 'react';
+import React, { lazy, Suspense, useCallback, useMemo, useReducer, useRef } from 'react';
 import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import { useTranslation } from 'react-i18next';
@@ -20,11 +20,9 @@ import type {
 import { errorMessageOrFallback, normalizeUiLanguage } from '@yomitomo/shared';
 import { sortAnnotations } from '@yomitomo/core';
 import type { ReaderTheme } from '@yomitomo/reader-ui/reader-theme';
-import { SourceBookcase } from '../source/bookcase/app-source-bookcase';
 import { publicPersonaAgents } from '../source/bookcase/source-public-agents';
 import type { ReadingEvidenceSourceTarget } from '../shell/app-reading-types';
 import { LibraryHome } from './app-reading-library-home';
-import { WeReadBookcase } from '../shell/app-weread-bookcase';
 import { weReadReaderState } from '../shell/app-weread-reader-pane';
 import { appToast } from '../shell/app-toast';
 import { groupLibraryArticles, type LibrarySort } from './app-reading-library-utils';
@@ -54,8 +52,23 @@ import {
   startReaderOpenTransition,
 } from './reader-open-transition';
 
-import { AnnotationDiscussionCapsules } from './app-annotation-discussion-capsules';
 import type { DiscussionDockCorner } from './discussion-capsule-dock';
+
+const SourceBookcase = lazy(() =>
+  import('../source/bookcase/app-source-bookcase').then((module) => ({
+    default: module.SourceBookcase,
+  })),
+);
+const WeReadBookcase = lazy(() =>
+  import('../shell/app-weread-bookcase').then((module) => ({
+    default: module.WeReadBookcase,
+  })),
+);
+const AnnotationDiscussionCapsules = lazy(() =>
+  import('./app-annotation-discussion-capsules').then((module) => ({
+    default: module.AnnotationDiscussionCapsules,
+  })),
+);
 
 export { groupLibraryArticles };
 export type { LibrarySort };
@@ -468,70 +481,79 @@ export function ReadingLibrary({
       ) : (
         <div className="library-shelf is-expanded">
           <div className="library-shelf-content">
-            {selectedWeReadBook ? (
-              <WeReadBookcase
-                currentNoteKey={
-                  weReadReader?.bookId === selectedWeReadBook.book.bookId
-                    ? weReadReader.noteKey
-                    : null
-                }
-                detail={selectedWeReadBook}
-                inAppReader={weRead.settings.openMethod === 'in-app'}
-                readerMode={
-                  weReadReader?.bookId === selectedWeReadBook.book.bookId ? weReadReader.mode : null
-                }
-                readerObscured={weReadObscured}
-                readerShown={
-                  weReadReader?.bookId === selectedWeReadBook.book.bookId && weReadReader.shown
-                }
-                syncing={weRead.bookSyncing}
-                onClose={openLibraryShelf}
-                onOpenExternal={(target) => openWeReadReaderView(selectedWeReadBook.book, target)}
-                onReaderEvent={dispatchWeReadReader}
-                onSync={() => void weRead.syncBook(selectedWeReadBook.book.bookId)}
-              />
-            ) : selectedArticle ? (
-              <SourceBookcase
-                viewportOverlay={
-                  <AnnotationDiscussionCapsules
-                    agents={publicPersonaAgents(agents, normalizeUiLanguage(settings?.uiLanguage))}
-                    article={selectedArticle}
-                    userProfile={userProfile}
-                    windows={currentMinimizedDiscussionWindows}
-                    corner={discussionCorner}
-                    onDock={(position) => dockDiscussion({ type: 'docked', corner: position })}
-                    onOpen={openArticleDiscussion}
-                  />
-                }
-                annotationActions={{
-                  onArticleChange: (article) =>
-                    navigation.actions.updateArticle(article.id, () => article),
-                  onFocusedAnnotation,
-                  onOpenAnnotation: navigation.actions.selectAnnotation,
-                }}
-                articleActions={articleActions}
-                content={{
-                  agents,
-                  annotations,
-                  article: selectedArticle,
-                  userProfile,
-                }}
-                presentation={{
-                  distillationAnimation,
-                  messageSendShortcut,
-                  readerTheme,
-                  settings,
-                  selectionActionShortcuts,
-                  uiLanguage: normalizeUiLanguage(settings?.uiLanguage),
-                }}
-                readerControl={{
-                  focusAnnotationId: sourceFocusAnnotationId,
-                  onClose: openLibraryShelf,
-                  onOpenEvidenceSource: (target) => void openEvidenceSource(target),
-                  selectedAnnotationId: selectedAnnotation?.id || null,
-                }}
-              />
-            ) : null}
+            <Suspense fallback={null}>
+              {selectedWeReadBook ? (
+                <WeReadBookcase
+                  currentNoteKey={
+                    weReadReader?.bookId === selectedWeReadBook.book.bookId
+                      ? weReadReader.noteKey
+                      : null
+                  }
+                  detail={selectedWeReadBook}
+                  inAppReader={weRead.settings.openMethod === 'in-app'}
+                  readerMode={
+                    weReadReader?.bookId === selectedWeReadBook.book.bookId
+                      ? weReadReader.mode
+                      : null
+                  }
+                  readerObscured={weReadObscured}
+                  readerShown={
+                    weReadReader?.bookId === selectedWeReadBook.book.bookId && weReadReader.shown
+                  }
+                  syncing={weRead.bookSyncing}
+                  onClose={openLibraryShelf}
+                  onOpenExternal={(target) => openWeReadReaderView(selectedWeReadBook.book, target)}
+                  onReaderEvent={dispatchWeReadReader}
+                  onSync={() => void weRead.syncBook(selectedWeReadBook.book.bookId)}
+                />
+              ) : selectedArticle ? (
+                <SourceBookcase
+                  viewportOverlay={
+                    <Suspense fallback={null}>
+                      <AnnotationDiscussionCapsules
+                        agents={publicPersonaAgents(
+                          agents,
+                          normalizeUiLanguage(settings?.uiLanguage),
+                        )}
+                        article={selectedArticle}
+                        userProfile={userProfile}
+                        windows={currentMinimizedDiscussionWindows}
+                        corner={discussionCorner}
+                        onDock={(position) => dockDiscussion({ type: 'docked', corner: position })}
+                        onOpen={openArticleDiscussion}
+                      />
+                    </Suspense>
+                  }
+                  annotationActions={{
+                    onArticleChange: (article) =>
+                      navigation.actions.updateArticle(article.id, () => article),
+                    onFocusedAnnotation,
+                    onOpenAnnotation: navigation.actions.selectAnnotation,
+                  }}
+                  articleActions={articleActions}
+                  content={{
+                    agents,
+                    annotations,
+                    article: selectedArticle,
+                    userProfile,
+                  }}
+                  presentation={{
+                    distillationAnimation,
+                    messageSendShortcut,
+                    readerTheme,
+                    settings,
+                    selectionActionShortcuts,
+                    uiLanguage: normalizeUiLanguage(settings?.uiLanguage),
+                  }}
+                  readerControl={{
+                    focusAnnotationId: sourceFocusAnnotationId,
+                    onClose: openLibraryShelf,
+                    onOpenEvidenceSource: (target) => void openEvidenceSource(target),
+                    selectedAnnotationId: selectedAnnotation?.id || null,
+                  }}
+                />
+              ) : null}
+            </Suspense>
           </div>
         </div>
       )}

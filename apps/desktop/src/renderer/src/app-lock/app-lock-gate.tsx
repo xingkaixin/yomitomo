@@ -1,25 +1,18 @@
-import { HugeiconsIcon } from '@hugeicons/react';
-import { LockKeyIcon } from '@hugeicons/core-free-icons';
-import { useReducer, type ReactNode } from 'react';
+import { lazy, Suspense, useReducer, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DesktopStore } from '@yomitomo/shared';
 import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
 import { useEventListener } from '@yomitomo/reader-ui/use-event-listener';
 import { rendererStoreForAppLockState } from '../../../app-store';
 import { desktopIpcErrorRetryAfterMs, isDesktopIpcErrorLike } from '../../../ipc-errors';
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '../components/ui/input-otp';
-import { ShimmeringText } from '../components/ui/shimmering-text';
-import {
-  SlideToUnlock,
-  SlideToUnlockHandle,
-  SlideToUnlockText,
-  SlideToUnlockTrack,
-} from '../components/ui/slide-to-unlock';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
 import { getDesktopApi } from '../shell/app-desktop-api';
 import { appToast } from '../shell/app-toast';
+import type { AppLockStep } from './app-lock-overlay';
 
-type AppLockStep = 'slide' | 'pin';
+const AppLockOverlay = lazy(() =>
+  import('./app-lock-overlay').then((module) => ({ default: module.AppLockOverlay })),
+);
 
 export type AppLockRenderState = {
   enabled: boolean;
@@ -49,16 +42,18 @@ export function AppLockGate({ children, enabled, locked, onStoreUpdated }: AppLo
             shortcutLabel: controller.shortcutLabel,
           })}
       {locked ? (
-        <AppLockOverlay
-          error={controller.error}
-          inputKey={controller.inputKey}
-          pin={controller.pin}
-          step={controller.step}
-          verifying={controller.verifying}
-          onPinChange={controller.updatePin}
-          onSlideComplete={controller.completeSlide}
-          onUnlock={() => void controller.unlockApp()}
-        />
+        <Suspense fallback={<div aria-modal="true" className="app-lock-overlay" role="dialog" />}>
+          <AppLockOverlay
+            error={controller.error}
+            inputKey={controller.inputKey}
+            pin={controller.pin}
+            step={controller.step}
+            verifying={controller.verifying}
+            onPinChange={controller.updatePin}
+            onSlideComplete={controller.completeSlide}
+            onUnlock={() => void controller.unlockApp()}
+          />
+        </Suspense>
       ) : null}
     </>
   );
@@ -193,128 +188,6 @@ function appLockReducer(state: AppLockState, event: AppLockEvent): AppLockState 
     case 'unlocked':
       return { ...state, error: '', pin: '', step: 'slide', verifying: false };
   }
-}
-
-type AppLockOverlayProps = {
-  error: string;
-  inputKey: number;
-  pin: string;
-  step: AppLockStep;
-  verifying: boolean;
-  onPinChange: (value: string) => void;
-  onSlideComplete: () => void;
-  onUnlock: (pin?: string) => void;
-};
-
-function AppLockOverlay({
-  error,
-  inputKey,
-  pin,
-  step,
-  verifying,
-  onPinChange,
-  onSlideComplete,
-  onUnlock,
-}: AppLockOverlayProps) {
-  const { t } = useTranslation();
-  const pinReady = validAppLockPin(pin);
-  return (
-    <div
-      aria-labelledby="app-lock-title"
-      aria-modal="true"
-      className="app-lock-overlay"
-      role="dialog"
-    >
-      <div className="app-lock-panel" data-step={step}>
-        <span className="app-lock-icon" aria-hidden="true">
-          <HugeiconsIcon icon={LockKeyIcon} size={24} />
-        </span>
-        <h2 id="app-lock-title">{t('appLock.title')}</h2>
-        {step === 'pin' ? <p>{t('appLock.pinDescription')}</p> : null}
-        {step === 'slide' ? (
-          <SlideToUnlock className="app-lock-slide" onUnlock={onSlideComplete}>
-            <SlideToUnlockTrack>
-              <SlideToUnlockText>
-                {({ isDragging }) => (
-                  <ShimmeringText text={t('appLock.slideLabel')} isStopped={isDragging} />
-                )}
-              </SlideToUnlockText>
-              <SlideToUnlockHandle aria-label={t('appLock.slideLabel')} />
-            </SlideToUnlockTrack>
-          </SlideToUnlock>
-        ) : (
-          <form
-            className="app-lock-pin-form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              onUnlock();
-            }}
-          >
-            <PinOtpInput
-              key={inputKey}
-              ariaLabel={t('appLock.pinLabel')}
-              autoFocus
-              disabled={verifying}
-              value={pin}
-              onChange={onPinChange}
-              onComplete={onUnlock}
-            />
-            {error ? (
-              <span className="app-lock-error" role="alert">
-                {error}
-              </span>
-            ) : null}
-            <button
-              className="app-lock-unlock-button"
-              disabled={!pinReady || verifying}
-              type="submit"
-            >
-              {verifying ? t('appLock.verifying') : t('appLock.unlock')}
-            </button>
-          </form>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function PinOtpInput({
-  ariaLabel,
-  autoFocus = false,
-  disabled = false,
-  value,
-  onChange,
-  onComplete,
-}: {
-  ariaLabel: string;
-  autoFocus?: boolean;
-  disabled?: boolean;
-  value: string;
-  onChange: (value: string) => void;
-  onComplete?: (value: string) => void;
-}) {
-  return (
-    <InputOTP
-      aria-label={ariaLabel}
-      autoFocus={autoFocus}
-      disabled={disabled}
-      maxLength={4}
-      value={value}
-      onChange={(nextValue) => onChange(digitsOnly(nextValue))}
-      onComplete={(nextValue) => {
-        const nextPin = digitsOnly(String(nextValue));
-        onChange(nextPin);
-        window.setTimeout(() => onComplete?.(nextPin), 0);
-      }}
-    >
-      <InputOTPGroup>
-        <InputOTPSlot index={0} />
-        <InputOTPSlot index={1} />
-        <InputOTPSlot index={2} />
-        <InputOTPSlot index={3} />
-      </InputOTPGroup>
-    </InputOTP>
-  );
 }
 
 function isAppLockShortcutEvent(event: KeyboardEvent) {

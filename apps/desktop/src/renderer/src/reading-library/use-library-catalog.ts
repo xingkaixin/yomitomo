@@ -11,8 +11,10 @@ import type {
   LibraryCatalogScope,
 } from '../../../ipc-contract';
 import { getOptionalDesktopApi } from '../shell/app-desktop-api';
+import { recordStartupTiming } from '../shell/app-renderer-performance';
 
 const CATALOG_SEARCH_DEBOUNCE_MS = 180;
+let initialCatalogReadyRecorded = false;
 
 export const libraryCatalogQueryKey = ['library', 'catalog'] as const;
 
@@ -35,6 +37,7 @@ export function useLibraryCatalog(
     queryKey: [...libraryCatalogQueryKey, input.scope, request, revision],
     queryFn: ({ signal }) => listCatalog(request, debounce, signal),
     enabled,
+    staleTime: Infinity,
   });
 
   const result = catalog.data ?? latest?.state.data ?? null;
@@ -68,6 +71,19 @@ export function observedLibraryCatalogResult(
   return query.state.data as LibraryCatalogListResult;
 }
 
+export function prefetchLibraryCatalog(
+  queryClient: QueryClient,
+  input: LibraryCatalogListInput,
+  revision: unknown,
+) {
+  const request = catalogRequest(input);
+  return queryClient.prefetchQuery({
+    queryKey: [...libraryCatalogQueryKey, request.scope, request, revision],
+    queryFn: ({ signal }) => listCatalog(request, false, signal),
+    staleTime: Infinity,
+  });
+}
+
 function catalogRequest(input: LibraryCatalogListInput): LibraryCatalogListInput {
   return { ...input, query: input.query || '' };
 }
@@ -82,7 +98,15 @@ async function listCatalog(
   // Reading the signal lets Query cancel an abandoned request, so a superseded search never
   // reaches IPC and a late response is discarded.
   if (debounce) await delay(CATALOG_SEARCH_DEBOUNCE_MS, signal);
-  return list(request);
+  const result = await list(request);
+  if (!initialCatalogReadyRecorded) {
+    initialCatalogReadyRecorded = true;
+    recordStartupTiming('library.catalog_ready', {
+      entityCount: result.entities.length,
+      totalCount: result.totalCount,
+    });
+  }
+  return result;
 }
 
 type CatalogQuery = Query<LibraryCatalogListResult, Error, LibraryCatalogListResult>;

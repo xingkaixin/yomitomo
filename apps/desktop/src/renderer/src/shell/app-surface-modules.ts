@@ -5,8 +5,16 @@ import { preloadedExport, preloadEntries } from './app-secondary-module-preload'
  * Owns how each surface is code-split and which preloaded export supersedes its lazy
  * fallback, so the root view sees plain components instead of preload entry status.
  */
+let readingLibraryPromise: Promise<typeof import('../reading-library/app-reading-library')> | null =
+  null;
+
+export function preloadReadingLibrary() {
+  readingLibraryPromise ||= import('../reading-library/app-reading-library');
+  return readingLibraryPromise;
+}
+
 export const ReadingLibrary = lazy(() =>
-  import('../reading-library/app-reading-library').then((module) => ({
+  preloadReadingLibrary().then((module) => ({
     default: module.ReadingLibrary,
   })),
 );

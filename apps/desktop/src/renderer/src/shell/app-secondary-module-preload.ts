@@ -130,6 +130,7 @@ export function preloadedExport<TModule, TKey extends keyof TModule, TFallback>(
 export function preloadIdleModules() {
   recordStartupTiming('secondary_modules.preload_scheduled');
   const tasks = [
+    () => import('./app-island'),
     () => preloadEntries.settingsPanels.load(),
     () => preloadEntries.settingsProvider.load(),
     () => preloadEntries.settingsAbout.load(),

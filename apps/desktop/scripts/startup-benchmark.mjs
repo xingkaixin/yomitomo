@@ -20,7 +20,11 @@ const stages = [
   'library.catalog_ready',
   'contentVisible',
 ];
-const doneEvents = ['performance.startup.window.show', 'performance.startup.store.ready_for_ui'];
+const doneEvents = [
+  'performance.startup.window.show',
+  'performance.startup.store.ready_for_ui',
+  'performance.startup.library.catalog_ready',
+];
 const runTimeoutMs = 30_000;
 const quitTimeoutMs = 10_000;
 const lsregisterPath =
@@ -96,7 +100,9 @@ async function measureLaunch(firstLaunch) {
   const exited = new Promise((resolveExit) => child.once('exit', resolveExit));
 
   try {
-    await waitForStdoutEvents(child, exited, firstLaunch ? doneEvents.slice(0, 1) : doneEvents);
+    const requiredEvents = firstLaunch ? doneEvents.slice(0, 1) : doneEvents;
+    await waitForStdoutEvents(child, exited, requiredEvents);
+    await waitForLogEvents(logPath, logOffset, requiredEvents);
   } finally {
     requestQuit(child);
     const forceKill = setTimeout(() => child.kill('SIGKILL'), quitTimeoutMs);
@@ -115,8 +121,12 @@ async function measureLaunch(firstLaunch) {
     return entry ? Date.parse(entry.at) - spawnedAt : null;
   };
   const stageTimes = Object.fromEntries(stages.map((name) => [name, at(name)]));
-  // Builds that do not log library.catalog_ready fall back to the store being ready for the UI.
-  const contentReady = stageTimes['library.catalog_ready'] ?? stageTimes['store.ready_for_ui'];
+  if (!firstLaunch && stageTimes['library.catalog_ready'] === null) {
+    throw new Error('Startup sample finished without logging performance.startup.library.catalog_ready');
+  }
+  const contentReady = firstLaunch
+    ? stageTimes['store.ready_for_ui']
+    : stageTimes['library.catalog_ready'];
   stageTimes.contentVisible =
     stageTimes['window.show'] === null || contentReady === null
       ? null
@@ -153,6 +163,15 @@ function requestQuit(child) {
     ],
     { stdio: 'ignore' },
   );
+}
+
+async function waitForLogEvents(path, offset, events) {
+  const deadline = Date.now() + 2_000;
+  while (Date.now() < deadline) {
+    const text = existsSync(path) ? (await readFile(path)).subarray(offset).toString('utf8') : '';
+    if (events.every((event) => text.includes(`"${event}"`))) return;
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 15));
+  }
 }
 
 function waitForStdoutEvents(child, exited, events) {

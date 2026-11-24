@@ -16,6 +16,7 @@ import {
   observedLibraryCatalogResult,
 } from '../reading-library/use-library-catalog';
 import {
+  applyWeReadLibraryState,
   libraryCatalogTypes,
   weReadLibraryStateQuery,
 } from '../reading-library/use-weread-library-session';
@@ -59,6 +60,13 @@ export function bindMainWindowEvents(stores: {
   const unsubscribeUpdateStatus = getDesktopApi().updates.onStatus((state) =>
     queryClient.setQueryData(appUpdateStateQuery.queryKey, state),
   );
+  // Keep WeRead push updates active while the library surface is unmounted (e.g. in Settings)
+  // so staleTime: Infinity catalog queries invalidate before returning to the library.
+  const unsubscribeWeReadState = getDesktopApi().weRead?.onStateUpdated?.((nextState) => {
+    void applyWeReadLibraryState(queryClient, nextState, () =>
+      isStoreLocked(desktopStore.getState().store),
+    );
+  });
   const unbindLibraryQueryEvents = bindLibraryQueryEvents({
     desktopStore,
     queryClient,
@@ -94,6 +102,7 @@ export function bindMainWindowEvents(stores: {
     unsubscribeMenuCommands();
     unsubscribeRevealPassage?.();
     unsubscribeUpdateStatus();
+    unsubscribeWeReadState?.();
     unbindLibraryQueryEvents();
     unbindUpdateDialogEvents();
   };
