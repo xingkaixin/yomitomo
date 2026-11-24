@@ -61,7 +61,17 @@ const { hero, flow } = getHomeCopy(lang);
   </div>
 
   <div class="wrap stage" data-hero-stage>
-    <img class="rabbit" src="/assets/rabbit.webp" alt="" width="1000" height="673" fetchpriority="high" />
+    <img
+      class="rabbit"
+      src="/assets/rabbit.webp"
+      srcset="/assets/rabbit-640.webp 640w, /assets/rabbit.webp 1000w"
+      sizes="(max-width: 720px) 60vw, min(43vw, 620px)"
+      alt=""
+      width="1000"
+      height="673"
+      fetchpriority="high"
+      decoding="async"
+    />
     <div class="flow-pin" data-flow-pin>
       <div class="flow-sticky" data-flow-sticky>
         <ProductWindow lang={lang} />

@@ -14,7 +14,17 @@ const copy = getHomeCopy(lang).download;
   <div class="wrap dl-in">
     <h2>{copy.title[0]}<br />{copy.title[1]}</h2>
     <div class="dl-stage">
-      <img class="dl-rabbit" src="/assets/rabbit.webp" alt="" width="1000" height="673" loading="lazy" />
+      <img
+        class="dl-rabbit"
+        src="/assets/rabbit.webp"
+        srcset="/assets/rabbit-640.webp 640w, /assets/rabbit.webp 1000w"
+        sizes="(max-width: 640px) 210px, min(26vw, 340px)"
+        alt=""
+        width="1000"
+        height="673"
+        loading="lazy"
+        decoding="async"
+      />
       <div class="dl-cards">
         <a
           class="dl-card"
