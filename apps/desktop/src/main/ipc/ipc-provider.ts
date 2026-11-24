@@ -7,7 +7,7 @@ import { pruneLogFile } from '../app/logger';
 import {
   ChatGptAuthRequiredError,
   ChatGptReauthRequiredError,
-} from '../providers/chatgpt-oauth-repository';
+} from '../providers/chatgpt-oauth-errors';
 
 type ProviderIpcContext = Pick<
   DesktopMainIpcContext,

@@ -2,10 +2,7 @@ import { performance } from 'node:perf_hooks';
 import type { EbookImportFileInput, PdfImportFileInput } from '../../ipc-contract';
 import { isSourceImportError } from '../../ipc/article-import-boundary';
 import { DesktopIpcError, isDesktopIpcErrorLike } from '../../ipc-errors';
-import {
-  createArticleTranslationRuntime,
-  type ArticleTranslationRuntimeContext,
-} from '../articles/article-translation-runtime';
+import type { ArticleTranslationRuntimeContext } from '../articles/article-translation-runtime';
 import {
   assistantArticleTexts,
   removeArticleAssistantSession,
@@ -61,7 +58,17 @@ type ArticleIpcContext = Pick<
   };
 
 export function registerArticleIpc(context: ArticleIpcContext) {
-  const translationRuntime = createArticleTranslationRuntime(context);
+  let translationRuntimePromise: Promise<
+    ReturnType<
+      typeof import('../articles/article-translation-runtime').createArticleTranslationRuntime
+    >
+  > | null = null;
+  const getTranslationRuntime = () => {
+    translationRuntimePromise ||= import('../articles/article-translation-runtime').then(
+      ({ createArticleTranslationRuntime }) => createArticleTranslationRuntime(context),
+    );
+    return translationRuntimePromise;
+  };
   handleDesktopIpc('article:get', async (_event, id) => {
     const { storeArticles: articlePersistence } = await context.getPersistenceModules();
     const article = await articlePersistence.readArticle(id);
@@ -92,14 +99,17 @@ export function registerArticleIpc(context: ArticleIpcContext) {
     return articlePersistence.readArticleStatsSummaries();
   });
   handleDesktopIpc('article-translation:get-current', async (_event, input) => {
+    const translationRuntime = await getTranslationRuntime();
     return translationRuntime.readCurrent(input);
   });
   handleDesktopIpc('article-translation:translate', async (_event, input) => {
+    const translationRuntime = await getTranslationRuntime();
     return translationRuntime.translate(input, (update) => {
       sendDesktopIpcRendererEvent(_event.sender, 'article-translation:updated', update);
     });
   });
   handleDesktopIpc('article-translation:delete-current', async (_event, input) => {
+    const translationRuntime = await getTranslationRuntime();
     return translationRuntime.deleteCurrent(input);
   });
   handleDesktopIpc('article:save-annotation', async (event, input) => {
@@ -249,7 +259,7 @@ export function registerArticleIpc(context: ArticleIpcContext) {
   handleDesktopIpc('ebook:read-file', async (_event, articleId) => {
     const { readEbookSourceFile } = await import('../ebooks/ebook-storage');
     const file = await readEbookSourceFile(articleId);
-    return file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength);
+    return pdfSourceArrayBufferForIpc(file).data;
   });
   handleDesktopIpc('pdf:import-file', (event, input: PdfImportFileInput) =>
     withSourceImportIpcErrors(async () => {

@@ -4,7 +4,7 @@ import { DesktopIpcError, desktopIpcErrorCodes } from '../../ipc-errors';
 import {
   ChatGptAuthRequiredError,
   ChatGptReauthRequiredError,
-} from '../providers/chatgpt-oauth-repository';
+} from '../providers/chatgpt-oauth-errors';
 import { ProviderApiKeyRequiredError } from '../providers/provider-repository';
 
 export type ProviderTask = 'readingAssistant' | 'reviewAssistant' | 'bilingualTranslation';

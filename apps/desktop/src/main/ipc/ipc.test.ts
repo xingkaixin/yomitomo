@@ -1,6 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { desktopIpcErrorCodes, type DesktopIpcInvokeEnvelope } from '../../ipc-errors';
-import { handleDesktopIpc, resetDesktopIpcRegistrationsForTest } from './ipc';
+import {
+  configureDesktopIpcAppLockGuardContext,
+  handleDesktopIpc,
+  resetDesktopIpcRegistrationsForTest,
+} from './ipc';
 
 const ipcState = vi.hoisted(() => {
   const handlers = new Map<string, (...args: unknown[]) => unknown>();
@@ -25,9 +29,48 @@ vi.mock('../store/store-db', () => ({
 beforeEach(() => {
   ipcState.handlers.clear();
   resetDesktopIpcRegistrationsForTest();
+  configureDesktopIpcAppLockGuardContext(null);
+});
+
+afterEach(() => {
+  configureDesktopIpcAppLockGuardContext(null);
 });
 
 describe('handleDesktopIpc', () => {
+  it('waits for startup app-lock initialization before allowing protected IPC calls', async () => {
+    let locked = false;
+    let releaseStartup!: () => void;
+    const startupReady = new Promise<void>((resolve) => {
+      releaseStartup = () => {
+        locked = true;
+        resolve();
+      };
+    });
+    configureDesktopIpcAppLockGuardContext({
+      getPersistenceModules: async () => ({
+        storeSettings: {
+          readAppLockSettings: () => ({ appLockEnabled: true, appLockLocked: locked }),
+        },
+      }),
+      waitForStartupReady: () => startupReady,
+    });
+    const handler = vi.fn(() => null);
+    handleDesktopIpc('article:get', handler);
+
+    const pendingEnvelope = invokeRegisteredHandler('article:get', 'article_1');
+    await Promise.resolve();
+    expect(handler).not.toHaveBeenCalled();
+
+    releaseStartup();
+    const envelope = await pendingEnvelope;
+
+    expect(envelope).toMatchObject({
+      ok: false,
+      error: { code: desktopIpcErrorCodes.appLockRequired },
+    });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
   it('rejects malformed URL imports before invoking the handler', async () => {
     const handler = vi.fn();
     handleDesktopIpc('article:import-url', handler);
