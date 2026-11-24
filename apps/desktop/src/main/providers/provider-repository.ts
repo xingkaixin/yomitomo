@@ -2,7 +2,6 @@ import { eq } from 'drizzle-orm';
 import type { LlmProvider } from '@yomitomo/shared';
 import { isChatGptOAuthProvider, makeId, providerPresets } from '@yomitomo/shared';
 import * as schema from '../db/schema';
-import { getValidChatGptAccessToken } from './chatgpt-oauth-repository';
 import { prepareCredentialChange, type PreparedCredentialChange } from './credential-swap';
 import { providerApiKeyRef, readProviderApiKey } from './provider-secrets';
 import { getDatabase, type StoreExecutor } from '../store/store-db';
@@ -41,6 +40,7 @@ type ProviderApiKeyStorageRow = {
 
 export async function hydrateProviderApiKey(provider: LlmProvider): Promise<LlmProvider> {
   if (isChatGptOAuthProvider(provider)) {
+    const { getValidChatGptAccessToken } = await import('./chatgpt-oauth-repository');
     const accessToken = await getValidChatGptAccessToken();
     return {
       ...provider,
@@ -60,6 +60,7 @@ export async function hydrateProviderInputApiKey(
   provider: SaveProviderInput,
 ): Promise<Partial<LlmProvider>> {
   if (isChatGptOAuthProvider(provider)) {
+    const { getValidChatGptAccessToken } = await import('./chatgpt-oauth-repository');
     const accessToken = await getValidChatGptAccessToken();
     return {
       ...provider,

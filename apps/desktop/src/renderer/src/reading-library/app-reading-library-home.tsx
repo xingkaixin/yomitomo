@@ -15,7 +15,7 @@ import {
   TextIcon,
   Tick01Icon,
 } from '@hugeicons/core-free-icons';
-import React, { useMemo, useReducer, useRef } from 'react';
+import React, { Suspense, lazy, useMemo, useReducer, useRef } from 'react';
 import { useStableCallback } from '@yomitomo/reader-ui/use-stable-callback';
 import {
   type ResolvedAppSettings,
@@ -60,8 +60,6 @@ import {
   type TextImportCommitInput,
 } from '../../../ipc-contract';
 import { libraryContentSourceBaseOptions } from './app-library-content-sources';
-import { LibraryCollectionEmpty } from './app-reading-library-collection-empty';
-import { CollectionPickerDialog } from './app-reading-library-collection-picker';
 import { LibraryEntityGrid } from './app-reading-library-entity-grid';
 import { CollectionIcon } from './collection-icon';
 import {
@@ -74,11 +72,28 @@ import {
   type ArticleImportResult,
 } from './app-reading-library-imports';
 import { libraryEntityPinTarget, libraryItemTitle } from './app-reading-library-entities';
-import {
-  EditArticleMetadataDialog,
-  ItemCollectionsDialog,
-} from './app-reading-library-item-dialogs';
 import { useLibrarySearchClearDissolve } from './app-reading-library-search-clear-dissolve';
+
+const LibraryCollectionEmpty = lazy(() =>
+  import('./app-reading-library-collection-empty').then((module) => ({
+    default: module.LibraryCollectionEmpty,
+  })),
+);
+const CollectionPickerDialog = lazy(() =>
+  import('./app-reading-library-collection-picker').then((module) => ({
+    default: module.CollectionPickerDialog,
+  })),
+);
+const EditArticleMetadataDialog = lazy(() =>
+  import('./app-reading-library-item-dialogs').then((module) => ({
+    default: module.EditArticleMetadataDialog,
+  })),
+);
+const ItemCollectionsDialog = lazy(() =>
+  import('./app-reading-library-item-dialogs').then((module) => ({
+    default: module.ItemCollectionsDialog,
+  })),
+);
 import { useLibraryFileDrop } from './use-library-file-drop';
 import type { LibraryTypeFilter } from './library-filter-types';
 import {
@@ -676,25 +691,27 @@ export function LibraryHome({
                 onConnectWeRead={onOpenDataSources}
               />
             ) : emptyReason.variant === 'collection' && activeCollection ? (
-              <LibraryCollectionEmpty
-                catalogRevision={catalogRevision}
-                collection={activeCollection}
-                libraryHasItems={emptyReason.libraryHasItems}
-                weReadConfigured={wereadSettings.configured}
-                weReadSyncing={wereadSyncing}
-                onAddExisting={() =>
-                  dispatchOverlay({
-                    type: 'collectionPickerOpened',
-                    collectionId: activeCollection.id,
-                  })
-                }
-                onAddMember={(member) => addCollectionMembers(activeCollection.id, [member])}
-                onAddWebArticle={importDialogs.openArticleImport}
-                onAddEbook={importDialogs.openEbookImport}
-                onAddPdf={importDialogs.openPdfImport}
-                onSyncWeRead={onSyncWeRead}
-                onConnectWeRead={onOpenDataSources}
-              />
+              <Suspense fallback={null}>
+                <LibraryCollectionEmpty
+                  catalogRevision={catalogRevision}
+                  collection={activeCollection}
+                  libraryHasItems={emptyReason.libraryHasItems}
+                  weReadConfigured={wereadSettings.configured}
+                  weReadSyncing={wereadSyncing}
+                  onAddExisting={() =>
+                    dispatchOverlay({
+                      type: 'collectionPickerOpened',
+                      collectionId: activeCollection.id,
+                    })
+                  }
+                  onAddMember={(member) => addCollectionMembers(activeCollection.id, [member])}
+                  onAddWebArticle={importDialogs.openArticleImport}
+                  onAddEbook={importDialogs.openEbookImport}
+                  onAddPdf={importDialogs.openPdfImport}
+                  onSyncWeRead={onSyncWeRead}
+                  onConnectWeRead={onOpenDataSources}
+                />
+              </Suspense>
             ) : emptyReason.variant === 'message' ? (
               <LibraryMessageEmpty messageKey={emptyReason.messageKey} t={t} />
             ) : null}
@@ -787,32 +804,38 @@ export function LibraryHome({
         />
       ) : null}
       {pickerCollection ? (
-        <CollectionPickerDialog
-          catalogRevision={catalogRevision}
-          collection={pickerCollection}
-          typeOptions={pickerTypeOptions}
-          onAddMembers={(members) => addCollectionMembers(pickerCollection.id, members)}
-          onClose={() => dispatchOverlay({ type: 'collectionPickerClosed' })}
-        />
+        <Suspense fallback={null}>
+          <CollectionPickerDialog
+            catalogRevision={catalogRevision}
+            collection={pickerCollection}
+            typeOptions={pickerTypeOptions}
+            onAddMembers={(members) => addCollectionMembers(pickerCollection.id, members)}
+            onClose={() => dispatchOverlay({ type: 'collectionPickerClosed' })}
+          />
+        </Suspense>
       ) : null}
       {editingArticle ? (
-        <EditArticleMetadataDialog
-          article={editingArticle}
-          onClose={() => dispatchOverlay({ type: 'articleMetadataEditClosed' })}
-          onSave={onUpdateArticleMetadata}
-        />
+        <Suspense fallback={null}>
+          <EditArticleMetadataDialog
+            article={editingArticle}
+            onClose={() => dispatchOverlay({ type: 'articleMetadataEditClosed' })}
+            onSave={onUpdateArticleMetadata}
+          />
+        </Suspense>
       ) : null}
       {managingCollectionsItem ? (
-        <ItemCollectionsDialog
-          collections={collections}
-          collectionMembers={collectionMembers}
-          itemTitle={libraryItemTitle(managingCollectionsItem)}
-          memberRef={libraryCatalogItemRef(managingCollectionsItem)}
-          onAddMember={(collectionId, member) => addCollectionMembers(collectionId, [member])}
-          onClose={() => dispatchOverlay({ type: 'itemCollectionsClosed' })}
-          onCreateCollection={onCreateCollection}
-          onRemoveMember={removeCollectionMember}
-        />
+        <Suspense fallback={null}>
+          <ItemCollectionsDialog
+            collections={collections}
+            collectionMembers={collectionMembers}
+            itemTitle={libraryItemTitle(managingCollectionsItem)}
+            memberRef={libraryCatalogItemRef(managingCollectionsItem)}
+            onAddMember={(collectionId, member) => addCollectionMembers(collectionId, [member])}
+            onClose={() => dispatchOverlay({ type: 'itemCollectionsClosed' })}
+            onCreateCollection={onCreateCollection}
+            onRemoveMember={removeCollectionMember}
+          />
+        </Suspense>
       ) : null}
       {importDialogs.dialogs}
       {fileDrop.dragging ? (

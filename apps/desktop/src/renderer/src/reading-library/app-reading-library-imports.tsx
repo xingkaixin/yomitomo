@@ -11,7 +11,7 @@ import {
   Refresh01Icon,
   TextIcon,
 } from '@hugeicons/core-free-icons';
-import React, { useReducer, useRef } from 'react';
+import React, { Suspense, lazy, useReducer, useRef } from 'react';
 import { useInterval } from '@yomitomo/reader-ui/use-interval';
 import { useMountEffect } from '@yomitomo/reader-ui/use-mount-effect';
 import type { ResolvedAppSettings, ArticleRecord } from '@yomitomo/shared';
@@ -31,7 +31,12 @@ import type {
 } from '../shell/app-reading-types';
 import { useLibrarySession } from '../shell/app-session';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
-import { TextImportDialog } from './app-reading-library-text-import';
+
+const TextImportDialog = lazy(() =>
+  import('./app-reading-library-text-import').then((module) => ({
+    default: module.TextImportDialog,
+  })),
+);
 import {
   LibraryImportCrate,
   LibraryImportShelf,
@@ -553,11 +558,13 @@ export function useLibraryImportDialogs({
         />
       ) : null}
       {activeDialog === 'text' ? (
-        <TextImportDialog
-          onBusyChange={setImportBusy}
-          onClose={closeDialog}
-          onCommit={onCommitTextImport}
-        />
+        <Suspense fallback={null}>
+          <TextImportDialog
+            onBusyChange={setImportBusy}
+            onClose={closeDialog}
+            onCommit={onCommitTextImport}
+          />
+        </Suspense>
       ) : null}
     </>
   );

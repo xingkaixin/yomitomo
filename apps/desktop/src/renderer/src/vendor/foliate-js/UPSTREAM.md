@@ -24,6 +24,16 @@ instead of kept compatible. Performance changes need a before/after run of
 - `epub.js`, `paginator.js`, `view.js`: `section-load-timing` reports per-stage section load times
   (zip read, parse, resource replacement, serialization, iframe load, style, layout, anchor). The
   reader records them as `performance.ebook_section_load`.
-- `view.js`: zip.js reads entries in 1 MiB chunks instead of 64 KiB. Each chunk is a separate Blob
-  read in the renderer, so image-heavy sections load faster.
+- `vendor/fflate.js`, `view.js`: export `inflateRawSync` and use an in-memory ZIP central-directory
+  parser that inflates small entries (<= 96 KiB, e.g. XHTML/CSS/OPF) synchronously with pre-sized
+  `fflate` and larger entries (images) in parallel via native `DecompressionStream('deflate-raw')`
+  without intermediate `Blob` copies, with `WeakMap<File>` loader sharing across visible and
+  background pagination views and a bounded 24 MiB LRU cache (falling back to `zip.js` with 1 MiB
+  chunks for ZIP64, encrypted, or Info-ZIP Unicode Path `0x7075` archives).
+- `epub.js`: O(1) `manifestByHref` lookup, in-flight `loadItem` deduplication for non-recursive leaf
+  assets, single-pass DOM resource discovery, parallel `Promise.all` replacement for leaf assets
+  with sequential replacement for recursive resources (stylesheets, SVGs, scripts), and avoiding
+  double-wrapping `Blob` instances in `createURL`.
+- `paginator.js`: remove the redundant `display: 'none'` toggle in `View.load()` and batch
+  `getComputedStyle()` reads before inline style writes in `setImageSize()` to avoid N forced layouts.
 - `view.d.ts`: types for the parts of the API the reader calls.

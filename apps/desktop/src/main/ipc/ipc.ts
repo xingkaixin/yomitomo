@@ -66,6 +66,7 @@ export type DesktopIpcAppLockGuardContext = {
   getPersistenceModules: () => Promise<{
     storeSettings: Pick<typeof import('../store/store-settings'), 'readAppLockSettings'>;
   }>;
+  waitForStartupReady?: () => Promise<unknown>;
 };
 
 export type DesktopIpcHandler<Channel extends DesktopIpcInvokeChannel> = (
@@ -143,6 +144,7 @@ export function resetDesktopIpcRegistrationsForTest() {
 }
 
 export async function assertDesktopIpcAppLockUnlocked(context: DesktopIpcAppLockGuardContext) {
+  await context.waitForStartupReady?.();
   const { storeSettings } = await context.getPersistenceModules();
   assertAppLockSettingsUnlocked(storeSettings.readAppLockSettings());
 }

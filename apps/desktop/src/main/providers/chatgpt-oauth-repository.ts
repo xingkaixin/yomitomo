@@ -36,19 +36,9 @@ const VALID_THINKING_EFFORTS = new Set<ThinkingEffortOption>([
   'max',
 ]);
 
-export class ChatGptAuthRequiredError extends Error {
-  constructor() {
-    super('ChatGPT sign-in is required');
-    this.name = 'ChatGptAuthRequiredError';
-  }
-}
+import { ChatGptAuthRequiredError, ChatGptReauthRequiredError } from './chatgpt-oauth-errors';
 
-export class ChatGptReauthRequiredError extends Error {
-  constructor(message = 'ChatGPT session expired; sign in again') {
-    super(message);
-    this.name = 'ChatGptReauthRequiredError';
-  }
-}
+export { ChatGptAuthRequiredError, ChatGptReauthRequiredError };
 
 type ChatGptOAuthRow = typeof schema.chatgptOAuthAccounts.$inferSelect;
 

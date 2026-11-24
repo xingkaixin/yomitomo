@@ -200,8 +200,10 @@ telemetry → shared
   1,612 ms 降到 1,065 ms，滚动的脚本时间却从 183 ms 增到 596 ms，因此不采用。引入按视口挂载前
   需要测量证明，并保留卡片高度缓存、活动卡片和退出动画的挂载、跳转到未挂载批注的定位，
   分别验证 EPUB 翻页与 PDF 缩放。
-- **书库目录查询保留候选集物化。** 取消物化在 50,000 条数据下更慢。大书库优化先用真实形态的
-  数据测量计数、筛选和排序，不直接加索引。
+- **书库目录查询按路径区分策略。** 默认浏览（无关键词、全部状态、按最近更新排序）直接利用
+  `articles_updated_at_idx` 走 Top-K 索引快路径，避免扫描全表；带搜索或筛选时仍保留单次扫描的
+  `filtered_candidates as materialized` 候选集物化，避免计数与分页重复计算（取消物化在 50,000 条
+  数据下更慢）。大书库优化先用真实形态的数据测量计数、筛选和排序，不盲目加索引。
 - **PDF 双语翻译首版限定单栏文本型文档。** `apps/desktop/src/main/articles/article-translation-identity.ts`
   与 `apps/desktop/src/renderer/src/source/pdfium/pdfium-translation-blocks.ts` 已按页（`pdf-page-<index>`）
   和内容哈希 block identity 接入单栏文本型 PDF 翻译缓存复用，并在已渲染的 PDF 页面层上按归一化坐标叠加

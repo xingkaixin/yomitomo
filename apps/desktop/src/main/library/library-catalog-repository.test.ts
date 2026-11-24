@@ -233,6 +233,108 @@ describe('library catalog repository', () => {
     expect(progress(198, 200, '2026-07-02T00:00:00.000Z')).toBe(0);
     expect(progress(199, 200, '2026-07-02T00:00:00.000Z')).toBe(1);
   });
+
+  it('matches SQLite UTF-8 NOCASE tie-breaking on the recent fast path', () => {
+    const sqlite = new SQLiteDatabase(':memory:');
+    for (const migration of migrations) sqlite.exec(migration.sql);
+    const database = drizzle(sqlite, { schema });
+    const sameTime = '2026-08-01T00:00:00.000Z';
+    sqlite
+      .prepare(
+        `insert into articles (id, url, canonical_url, source_type, title, excerpt, content_hash, created_at, updated_at)
+         values (?, ?, ?, 'web', ?, '', ?, ?, ?)`,
+      )
+      .run(
+        'a_emoji',
+        'https://example.com/1',
+        'https://example.com/1',
+        '📘 Reading',
+        'h1',
+        sameTime,
+        sameTime,
+      );
+    sqlite
+      .prepare(
+        `insert into articles (id, url, canonical_url, source_type, title, excerpt, content_hash, created_at, updated_at)
+         values (?, ?, ?, 'web', ?, '', ?, ?, ?)`,
+      )
+      .run(
+        'a_fullwidth',
+        'https://example.com/2',
+        'https://example.com/2',
+        'ＡＢＣ',
+        'h2',
+        sameTime,
+        sameTime,
+      );
+    sqlite
+      .prepare(
+        `insert into collections (id, name, created_at, updated_at) values ('col_1', '📘 Shelf', ?, ?)`,
+      )
+      .run(sameTime, sameTime);
+
+    const fastFirst = readLibraryCatalogRows(database, {
+      scope: { kind: 'library' },
+      sort: 'recent',
+      page: 1,
+      pageSize: 1,
+    });
+    const slowFirst = readLibraryCatalogRows(database, {
+      scope: { kind: 'library' },
+      sort: 'recent',
+      status: 'unread',
+      page: 1,
+      pageSize: 1,
+    });
+
+    expect(fastFirst.entities.map(entityKey)).toEqual(['article:a_fullwidth']);
+    expect(fastFirst.entities.map(entityKey)).toEqual(slowFirst.entities.map(entityKey));
+
+    // SQLite COLLATE NOCASE stops comparison at NUL and breaks equal-length ties by id.
+    sqlite
+      .prepare(
+        `insert into articles (id, url, canonical_url, source_type, title, excerpt, content_hash, created_at, updated_at)
+         values (?, ?, ?, 'web', ?, '', ?, ?, ?)`,
+      )
+      .run(
+        'a_nul_2',
+        'https://example.com/3',
+        'https://example.com/3',
+        'A\0a',
+        'h3',
+        '2026-08-02T00:00:00.000Z',
+        '2026-08-02T00:00:00.000Z',
+      );
+    sqlite
+      .prepare(
+        `insert into articles (id, url, canonical_url, source_type, title, excerpt, content_hash, created_at, updated_at)
+         values (?, ?, ?, 'web', ?, '', ?, ?, ?)`,
+      )
+      .run(
+        'a_nul_1',
+        'https://example.com/4',
+        'https://example.com/4',
+        'a\0z',
+        'h4',
+        '2026-08-02T00:00:00.000Z',
+        '2026-08-02T00:00:00.000Z',
+      );
+    const fastNul = readLibraryCatalogRows(database, {
+      scope: { kind: 'library' },
+      sort: 'recent',
+      page: 1,
+      pageSize: 2,
+    });
+    const slowNul = readLibraryCatalogRows(database, {
+      scope: { kind: 'library' },
+      sort: 'recent',
+      status: 'unread',
+      page: 1,
+      pageSize: 2,
+    });
+    expect(fastNul.entities.map(entityKey)).toEqual(['article:a_nul_1', 'article:a_nul_2']);
+    expect(fastNul.entities.map(entityKey)).toEqual(slowNul.entities.map(entityKey));
+  });
 });
 
 function entityKey(entity: ReturnType<typeof readLibraryCatalogRows>['entities'][number]) {

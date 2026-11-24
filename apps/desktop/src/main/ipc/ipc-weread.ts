@@ -2,7 +2,6 @@ import type { DesktopMainIpcContext } from './ipc';
 import { handleDesktopIpc } from './ipc';
 import { readDatabaseLifecycle, withDatabaseLease } from '../store/store-db';
 import { buildWeReadOpenUrl, getWeReadStatsPeriodStart } from '../weread/weread-protocol';
-import { syncWeReadBook, syncWeReadLibrary } from '../weread/weread-sync';
 import {
   clearWeReadWebLogin,
   closeWeReadReader,
@@ -83,7 +82,10 @@ export function registerWeReadIpc(context: WeReadIpcContext) {
     }
   });
   handleDesktopIpc('weread:sync', async () => {
-    const { weReadRepository: weReadPersistence } = await context.getPersistenceModules();
+    const [{ weReadRepository: weReadPersistence }, { syncWeReadLibrary }] = await Promise.all([
+      context.getPersistenceModules(),
+      import('../weread/weread-sync'),
+    ]);
     return syncWeReadLibrary({
       persistence: weReadPersistence,
       reason: 'manual',
@@ -93,7 +95,10 @@ export function registerWeReadIpc(context: WeReadIpcContext) {
     });
   });
   handleDesktopIpc('weread:sync-book', async (_event, bookId) => {
-    const { weReadRepository: weReadPersistence } = await context.getPersistenceModules();
+    const [{ weReadRepository: weReadPersistence }, { syncWeReadBook }] = await Promise.all([
+      context.getPersistenceModules(),
+      import('../weread/weread-sync'),
+    ]);
     return syncWeReadBook(bookId, weReadPersistence, context.logInfo);
   });
   handleDesktopIpc('weread:get-book', async (_event, bookId) => {

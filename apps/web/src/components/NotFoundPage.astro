@@ -4,7 +4,7 @@ import FontPreloads from './FontPreloads.astro';
 import HomeNav from './landing/HomeNav.astro';
 import LandingFooter from './landing/LandingFooter.astro';
 import type { Lang } from './landing/home-copy';
-import '../styles/landing.css';
+import '../styles/landing-base.css';
 import '../styles/home.css';
 
 type Props = {
@@ -54,7 +54,16 @@ const copy = {
     <div class="lp lp-root">
       <main class="nf">
         <div class="nf-book"></div>
-        <img class="nf-rabbit" src="/assets/rabbit.webp" alt="" width="1000" height="673" />
+        <img
+          class="nf-rabbit"
+          src="/assets/rabbit.webp"
+          srcset="/assets/rabbit-640.webp 640w, /assets/rabbit.webp 1000w"
+          sizes="(max-width: 720px) 60vw, min(43vw, 620px)"
+          alt=""
+          width="1000"
+          height="673"
+          decoding="async"
+        />
         <HomeNav lang={lang} downloadHref={`${prefix}/#download`} />
         <div class="wrap nf-copy">
           <p class="nf-code">404</p>

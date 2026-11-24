@@ -6,13 +6,21 @@ import type { ReadingLibraryRuntime } from '../reading-memory/reading-library-ru
 import type { ReadingReviewRuntime } from '../reading-memory/reading-review-runtime';
 import { handleDesktopIpc } from './ipc';
 
-type ReadingMemoryIpcContext = {
+type ReadingMemoryRuntimes = {
   relations: ReadingRelationsRuntime;
   library: ReadingLibraryRuntime;
   review: ReadingReviewRuntime;
   controls: ReadingMemoryControls;
-  recordUsage: (key: DesktopIpcInvokeArgs<'reading-memory:record-usage'>[0]) => void;
 };
+
+type ReadingMemoryIpcContext =
+  | (ReadingMemoryRuntimes & {
+      recordUsage: (key: DesktopIpcInvokeArgs<'reading-memory:record-usage'>[0]) => void;
+    })
+  | {
+      getRuntimes: () => Promise<ReadingMemoryRuntimes>;
+      recordUsage: (key: DesktopIpcInvokeArgs<'reading-memory:record-usage'>[0]) => void;
+    };
 
 const handleReadingMemoryIpc: typeof handleDesktopIpc = (channel, handler) =>
   handleDesktopIpc(
@@ -24,65 +32,78 @@ const handleReadingMemoryIpc: typeof handleDesktopIpc = (channel, handler) =>
         },
   );
 
-export function registerReadingMemoryIpc({
-  relations,
-  library,
-  review,
-  controls,
-  recordUsage,
-}: ReadingMemoryIpcContext) {
+export function registerReadingMemoryIpc(context: ReadingMemoryIpcContext) {
+  const { recordUsage } = context;
+  const resolveRuntimes =
+    'getRuntimes' in context ? context.getRuntimes : () => Promise.resolve(context);
   handleReadingMemoryIpc('reading-memory:record-usage', (_event, key) => recordUsage(key));
-  handleReadingMemoryIpc('reading-memory:review:queue', () => review.queue());
-  handleReadingMemoryIpc('reading-memory:review:start', (event, input) =>
-    review.start(event.sender, input),
+  handleReadingMemoryIpc('reading-memory:review:queue', async () =>
+    (await resolveRuntimes()).review.queue(),
   );
-  handleReadingMemoryIpc('reading-memory:review:reveal', (event, input) =>
-    review.reveal(event.sender.id, input),
+  handleReadingMemoryIpc('reading-memory:review:start', async (event, input) =>
+    (await resolveRuntimes()).review.start(event.sender, input),
   );
-  handleReadingMemoryIpc('reading-memory:review:history', (event, input) =>
-    review.history(event.sender.id, input),
+  handleReadingMemoryIpc('reading-memory:review:reveal', async (event, input) =>
+    (await resolveRuntimes()).review.reveal(event.sender.id, input),
   );
-  handleReadingMemoryIpc('reading-memory:review:submit', (event, input) =>
-    review.submit(event.sender.id, input),
+  handleReadingMemoryIpc('reading-memory:review:history', async (event, input) =>
+    (await resolveRuntimes()).review.history(event.sender.id, input),
   );
-  handleReadingMemoryIpc('reading-memory:review:cancel', (event, input) =>
-    review.cancel(event.sender.id, input.requestId, input.comparisonId),
+  handleReadingMemoryIpc('reading-memory:review:submit', async (event, input) =>
+    (await resolveRuntimes()).review.submit(event.sender.id, input),
   );
-  handleReadingMemoryIpc('reading-memory:review:search-evidence', (event, input) =>
-    review.searchEvidence(event.sender.id, input),
+  handleReadingMemoryIpc('reading-memory:review:cancel', async (event, input) =>
+    (await resolveRuntimes()).review.cancel(event.sender.id, input.requestId, input.comparisonId),
   );
-  handleReadingMemoryIpc('reading-memory:review:compare-evidence', (event, input) =>
-    review.compareEvidence(event.sender.id, input),
+  handleReadingMemoryIpc('reading-memory:review:search-evidence', async (event, input) =>
+    (await resolveRuntimes()).review.searchEvidence(event.sender.id, input),
   );
-  handleReadingMemoryIpc('reading-memory:library:context', (_event, input) =>
-    library.context(input),
+  handleReadingMemoryIpc('reading-memory:review:compare-evidence', async (event, input) =>
+    (await resolveRuntimes()).review.compareEvidence(event.sender.id, input),
   );
-  handleReadingMemoryIpc('reading-memory:library:search', (event, input) =>
-    library.search(event.sender, input),
+  handleReadingMemoryIpc('reading-memory:library:context', async (_event, input) =>
+    (await resolveRuntimes()).library.context(input),
   );
-  handleReadingMemoryIpc('reading-memory:library:answer', (event, input) =>
-    library.answer(event.sender.id, input.requestId),
+  handleReadingMemoryIpc('reading-memory:library:search', async (event, input) =>
+    (await resolveRuntimes()).library.search(event.sender, input),
   );
-  handleReadingMemoryIpc('reading-memory:library:cancel', (event, input) =>
-    library.cancel(event.sender.id, input.requestId),
+  handleReadingMemoryIpc('reading-memory:library:answer', async (event, input) =>
+    (await resolveRuntimes()).library.answer(event.sender.id, input.requestId),
   );
-  handleReadingMemoryIpc('reading-memory:relations:search', (event, input) =>
-    relations.search(event.sender, input),
+  handleReadingMemoryIpc('reading-memory:library:cancel', async (event, input) =>
+    (await resolveRuntimes()).library.cancel(event.sender.id, input.requestId),
   );
-  handleReadingMemoryIpc('reading-memory:relations:judge', (event, input) =>
-    relations.judge(event.sender.id, input.requestId),
+  handleReadingMemoryIpc('reading-memory:relations:search', async (event, input) =>
+    (await resolveRuntimes()).relations.search(event.sender, input),
   );
-  handleReadingMemoryIpc('reading-memory:relations:cancel', (event, input) =>
-    relations.cancel(event.sender.id, input.requestId),
+  handleReadingMemoryIpc('reading-memory:relations:judge', async (event, input) =>
+    (await resolveRuntimes()).relations.judge(event.sender.id, input.requestId),
   );
-  handleReadingMemoryIpc('reading-memory:confirm-privacy', () => relations.confirmPrivacy());
-  handleReadingMemoryIpc('reading-memory:model:status', () => controls.status());
-  handleReadingMemoryIpc('reading-memory:model:download', (_event, source) =>
-    controls.download(source),
+  handleReadingMemoryIpc('reading-memory:relations:cancel', async (event, input) =>
+    (await resolveRuntimes()).relations.cancel(event.sender.id, input.requestId),
   );
-  handleReadingMemoryIpc('reading-memory:model:cancel', () => controls.cancel());
-  handleReadingMemoryIpc('reading-memory:model:remove', () => controls.remove());
-  handleReadingMemoryIpc('reading-memory:index:pause', () => controls.pause());
-  handleReadingMemoryIpc('reading-memory:index:resume', () => controls.resume());
-  handleReadingMemoryIpc('reading-memory:index:rebuild', () => controls.rebuild());
+  handleReadingMemoryIpc('reading-memory:confirm-privacy', async () =>
+    (await resolveRuntimes()).relations.confirmPrivacy(),
+  );
+  handleReadingMemoryIpc('reading-memory:model:status', async () =>
+    (await resolveRuntimes()).controls.status(),
+  );
+  handleReadingMemoryIpc('reading-memory:model:download', async (_event, source) =>
+    (await resolveRuntimes()).controls.download(source),
+  );
+  handleReadingMemoryIpc('reading-memory:model:cancel', async () =>
+    (await resolveRuntimes()).controls.cancel(),
+  );
+  handleReadingMemoryIpc('reading-memory:model:remove', async () =>
+    (await resolveRuntimes()).controls.remove(),
+  );
+  handleReadingMemoryIpc('reading-memory:index:pause', async () =>
+    (await resolveRuntimes()).controls.pause(),
+  );
+  handleReadingMemoryIpc('reading-memory:index:resume', async () =>
+    (await resolveRuntimes()).controls.resume(),
+  );
+  handleReadingMemoryIpc('reading-memory:index:rebuild', async () =>
+    (await resolveRuntimes()).controls.rebuild(),
+  );
 }

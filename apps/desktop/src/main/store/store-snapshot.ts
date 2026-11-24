@@ -47,6 +47,10 @@ export async function readShellStore(): Promise<DesktopStore> {
   return readStoreInternal(undefined, { includeArticles: false });
 }
 
+export async function readShellStoreForIpc(): Promise<DesktopStore> {
+  return readStoreInternal(undefined, { includeArticles: false, cloneCached: false });
+}
+
 export async function readShellStoreWithProfile(): Promise<{
   store: DesktopStore;
   profile: StoreReadProfileEntry[];
@@ -63,22 +67,24 @@ export function warmStoreDatabaseWithProfile() {
 
 async function readStoreInternal(
   profile?: StoreReadProfileEntry[],
-  options: { includeArticles?: boolean } = {},
+  options: { includeArticles?: boolean; cloneCached?: boolean } = {},
 ): Promise<DesktopStore> {
   const database = measureStoreRead(profile, 'get_database', getDatabase);
-  await measureStoreReadAsync(profile, 'recover_secret_deletions', recoverPendingSecretDeletions);
-  await measureStoreReadAsync(
-    profile,
-    'recover_article_source_cleanup',
-    recoverPendingArticleSourceCleanup,
-  );
-  await measureStoreReadAsync(profile, 'migrate_provider_api_keys', () =>
-    migrateProviderApiKeys(database),
-  );
+  await Promise.all([
+    measureStoreReadAsync(profile, 'recover_secret_deletions', recoverPendingSecretDeletions),
+    measureStoreReadAsync(
+      profile,
+      'recover_article_source_cleanup',
+      recoverPendingArticleSourceCleanup,
+    ),
+    measureStoreReadAsync(profile, 'migrate_provider_api_keys', () =>
+      migrateProviderApiKeys(database),
+    ),
+  ]);
   backfillAnnotationMemoryOnce(database, profile);
   const includeArticles = options.includeArticles !== false;
   if (!includeArticles && !profile) {
-    const cached = readCachedShellStore();
+    const cached = readCachedShellStore(options.cloneCached !== false);
     if (cached) return cached;
   }
   const store = measureStoreRead(profile, 'read_store_rows', () =>
@@ -86,12 +92,14 @@ async function readStoreInternal(
   );
   if (!includeArticles) {
     const version = readDatabaseWriteVersion();
-    cachedShellStore = version ? { version, store: structuredClone(store) } : null;
+    cachedShellStore = version
+      ? { version, store: options.cloneCached === false ? store : structuredClone(store) }
+      : null;
   }
   return store;
 }
 
-function readCachedShellStore(): DesktopStore | null {
+function readCachedShellStore(clone: boolean): DesktopStore | null {
   if (!cachedShellStore) return null;
   const currentVersion = readDatabaseWriteVersion();
   if (
@@ -102,7 +110,7 @@ function readCachedShellStore(): DesktopStore | null {
     cachedShellStore = null;
     return null;
   }
-  return structuredClone(cachedShellStore.store);
+  return clone ? structuredClone(cachedShellStore.store) : cachedShellStore.store;
 }
 
 function ensureDefaultStoreRows(database: StoreDatabase) {

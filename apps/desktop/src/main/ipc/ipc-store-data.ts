@@ -16,7 +16,9 @@ type StoreDataIpcContext = Pick<
 > & {
   beforeDatabaseRestore?: () => Promise<void> | void;
   onDatabaseRestored: () => Promise<void> | void;
-  startupStoreInitialization: StartupStoreInitializationResult;
+  startupStoreInitialization:
+    | StartupStoreInitializationResult
+    | Promise<StartupStoreInitializationResult>;
   getAppUpdaterModule: () => Promise<
     Pick<
       DesktopAppUpdaterModule,
@@ -27,6 +29,11 @@ type StoreDataIpcContext = Pick<
       | 'simulateUpdateAvailable'
     >
   >;
+  getStartupPersistenceModules?: () => Promise<{
+    storeSnapshot: Pick<typeof import('../store/store-snapshot'), 'readShellStore'> & {
+      readShellStoreForIpc?: (typeof import('../store/store-snapshot'))['readShellStoreForIpc'];
+    };
+  }>;
   getPersistenceModules: () => Promise<{
     storeAssistantExecutions: Pick<
       typeof import('../store/store-assistant-executions'),
@@ -34,18 +41,23 @@ type StoreDataIpcContext = Pick<
       | 'queryAssistantExecutionRuns'
       | 'queryAssistantExecutionSummary'
     >;
-    storeSnapshot: Pick<typeof import('../store/store-snapshot'), 'readShellStore'>;
+    storeSnapshot: Pick<typeof import('../store/store-snapshot'), 'readShellStore'> & {
+      readShellStoreForIpc?: (typeof import('../store/store-snapshot'))['readShellStoreForIpc'];
+    };
   }>;
 };
 
 export function registerStoreDataIpc(context: StoreDataIpcContext) {
   handleDesktopIpc('store:get', async (): Promise<DesktopStoreGetResult> => {
     try {
-      if (!context.startupStoreInitialization.ok) {
-        throw context.startupStoreInitialization.error;
+      const startupStoreInitialization = await context.startupStoreInitialization;
+      if (!startupStoreInitialization.ok) {
+        throw startupStoreInitialization.error;
       }
-      const { storeSnapshot } = await context.getPersistenceModules();
-      const store = await storeSnapshot.readShellStore();
+      const { storeSnapshot } = await (
+        context.getStartupPersistenceModules ?? context.getPersistenceModules
+      )();
+      const store = await (storeSnapshot.readShellStoreForIpc ?? storeSnapshot.readShellStore)();
       assertAppLockSettingsUnlocked(store.settings);
       return { ok: true, store };
     } catch (error) {

@@ -1,12 +1,11 @@
 import { useCallback, useReducer } from 'react';
-import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryOptions, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import i18next from 'i18next';
 import type { WeReadBook, WeReadBookDetail, WeReadSettings } from '@yomitomo/shared';
 import { ARTICLE_SOURCE_TYPES, errorMessageOrFallback } from '@yomitomo/shared';
 import type { LibraryCatalogItemType, WeReadState } from '../../../ipc-contract';
 import { getDesktopApi, getOptionalDesktopApi } from '../shell/app-desktop-api';
 import { appToast } from '../shell/app-toast';
-import { useDesktopEvent } from '../shell/use-desktop-event';
 import { libraryCatalogQueryKey } from './use-library-catalog';
 
 type UseWeReadLibrarySessionInput = {
@@ -51,9 +50,23 @@ export function libraryCatalogTypes(
   return available ? SOURCE_TYPES_WITH_WEREAD : ARTICLE_SOURCE_TYPES;
 }
 
+export async function applyWeReadLibraryState(
+  queryClient: QueryClient,
+  nextState: WeReadState,
+  isLocked?: () => boolean,
+) {
+  if (isLocked?.()) return;
+  await queryClient.cancelQueries({ queryKey: weReadLibraryStateQuery.queryKey });
+  if (isLocked?.()) return;
+  queryClient.setQueryData<WeReadState>(weReadLibraryStateQuery.queryKey, {
+    settings: nextState.settings,
+    books: nextState.books,
+  });
+  void queryClient.invalidateQueries({ queryKey: libraryCatalogQueryKey });
+}
+
 export function useWeReadLibrarySession({ onOpenBook }: UseWeReadLibrarySessionInput) {
   const queryClient = useQueryClient();
-  const weReadApi = getOptionalDesktopApi()?.weRead;
   const state = useWeReadLibraryState();
   const [{ openMessage, pendingBookSyncs }, dispatch] = useReducer(weReadActivity, {
     pendingBookSyncs: 0,
@@ -62,18 +75,9 @@ export function useWeReadLibrarySession({ onOpenBook }: UseWeReadLibrarySessionI
   const settings = state?.settings ?? null;
 
   const receiveState = useCallback(
-    async (nextState: WeReadState) => {
-      await queryClient.cancelQueries({ queryKey: weReadLibraryStateQuery.queryKey });
-      queryClient.setQueryData<WeReadState>(weReadLibraryStateQuery.queryKey, {
-        settings: nextState.settings,
-        books: nextState.books,
-      });
-      void queryClient.invalidateQueries({ queryKey: libraryCatalogQueryKey });
-    },
+    (nextState: WeReadState) => applyWeReadLibraryState(queryClient, nextState),
     [queryClient],
   );
-
-  useDesktopEvent(weReadApi?.onStateUpdated, (nextState) => void receiveState(nextState));
 
   const readSyncedBook = useCallback(
     async (bookId: string) => {

@@ -172,7 +172,12 @@ export type AppSessionStoreApi = StoreApi<AppSessionState>;
  * Owns the desktop session: which surface is showing, how navigation and menu commands
  * route into it, and what a lock resets. The root view only picks a surface and renders.
  */
-export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSessionStoreApi {
+export function createAppSessionStore(
+  desktopStore: DesktopStoreApi,
+  options: {
+    onWeReadStateSynced?: (state: WeReadState) => void;
+  } = {},
+): AppSessionStoreApi {
   return createStore<AppSessionState>()((set, get) => {
     let libraryImportBusy = false;
     let libraryView: LibraryView | null = null;
@@ -247,7 +252,10 @@ export function createAppSessionStore(desktopStore: DesktopStoreApi): AppSession
       set({ weReadLibrarySyncing: true });
       const state = await syncWeReadLibraryState();
       set({ weReadLibrarySyncing: false });
-      if (state) libraryView?.receiveWeReadState(state);
+      if (state) {
+        if (options.onWeReadStateSynced) options.onWeReadStateSynced(state);
+        else libraryView?.receiveWeReadState(state);
+      }
     }
 
     function runMenuCommand(command: AppMenuCommand) {

@@ -1471,6 +1471,12 @@ function stripLegacyEbookChapterImages(database: DataMigrationDatabase) {
 }
 
 export function ensureAdditiveSchemaColumns(database: MigrationDatabase) {
+  const existingColumns = new Set(
+    database
+      .prepare('PRAGMA table_info(app_settings)')
+      .all()
+      .map((row) => stringField(recordField(row, 'name'))),
+  );
   const added: string[] = [];
   for (const column of [
     {
@@ -1510,16 +1516,9 @@ export function ensureAdditiveSchemaColumns(database: MigrationDatabase) {
       sql: 'ALTER TABLE app_settings ADD COLUMN telemetry_enabled INTEGER NOT NULL DEFAULT 1',
     },
   ]) {
-    if (tableHasColumn(database, 'app_settings', column.name)) continue;
+    if (existingColumns.has(column.name)) continue;
     database.exec(column.sql);
     added.push(`app_settings.${column.name}`);
   }
   return added;
-}
-
-function tableHasColumn(database: MigrationDatabase, table: string, column: string) {
-  return database
-    .prepare(`PRAGMA table_info(${table})`)
-    .all()
-    .some((row) => recordField(row, 'name') === column);
 }

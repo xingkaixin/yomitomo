@@ -137,6 +137,8 @@ function openDatabaseConnection() {
   sqlite.pragma('synchronous = NORMAL');
   sqlite.pragma('busy_timeout = 5000');
   sqlite.pragma('foreign_keys = ON');
+  sqlite.pragma('temp_store = MEMORY');
+  sqlite.pragma('cache_size = -16384');
   runMigrations(sqlite);
 
   db = drizzle(sqlite, { schema });
@@ -558,10 +560,13 @@ CREATE TABLE IF NOT EXISTS __yomitomo_migrations (
   );
 
   ensureDatabaseCompatibilityTable(database);
-  let readerLevel = assertDatabaseReaderCompatible(applied, readDatabaseReaderLevel(database));
+  const storedReaderLevel = readDatabaseReaderLevel(database);
+  let readerLevel = assertDatabaseReaderCompatible(applied, storedReaderLevel);
+  let appliedAnyMigration = false;
 
   for (const migration of migrations) {
     if (applied.has(migration.id)) continue;
+    appliedAnyMigration = true;
     database.transaction(() => {
       database.exec(migration.sql);
       migration.apply?.(database);
@@ -576,8 +581,13 @@ CREATE TABLE IF NOT EXISTS __yomitomo_migrations (
 
   ensureAdditiveSchemaColumns(database);
 
-  const compatibility = databaseReaderCompatibility(applied, readDatabaseReaderLevel(database));
-  writeDatabaseReaderLevel(database, compatibility.requiredReaderLevel);
+  const latestStoredReaderLevel = appliedAnyMigration
+    ? readDatabaseReaderLevel(database)
+    : storedReaderLevel;
+  const compatibility = databaseReaderCompatibility(applied, latestStoredReaderLevel);
+  if (latestStoredReaderLevel !== compatibility.requiredReaderLevel) {
+    writeDatabaseReaderLevel(database, compatibility.requiredReaderLevel);
+  }
 }
 
 function ensureSqliteMaintenanceStateTable(database: SqliteMaintenanceDatabase) {
