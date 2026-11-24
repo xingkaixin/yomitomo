@@ -55,7 +55,11 @@ export type HomeCopy = {
     companions: Record<CompanionId, Companion>;
   };
   help: { title: string; links: { href: string; title: string }[] };
-  download: { title: [string, string]; arch: string };
+  download: { title: [string, string]; lead: string; arch: string };
+  footer: {
+    tagline: string;
+    columns: { title: string; links: { label: string; href: string; external?: boolean }[] }[];
+  };
   window: {
     library: string;
     me: string;
@@ -266,7 +270,34 @@ const zh: HomeCopy = {
       { href: '/blog/scenarios/academic-paper-reading/', title: '用 AI 伴读精读学术论文 PDF' },
     ],
   },
-  download: { title: ['下载 Yomitomo，', '开始把读过的留下来。'], arch: 'Apple 芯片' },
+  download: {
+    title: ['下载 Yomitomo，', '开始把读过的留下来。'],
+    lead: '本地优先、免费开源。你的划线、想法和讨论只保存在自己的电脑上。',
+    arch: 'Apple 芯片',
+  },
+  footer: {
+    tagline: '在阅读现场增加理解、共鸣与反思，不替你读完，也不改写你写下的任何一句话。',
+    columns: [
+      {
+        title: '产品功能',
+        links: [
+          { label: '阅读库与合集', href: '/docs/library/' },
+          { label: '阅读器与锚定批注', href: '/docs/reader/' },
+          { label: 'AI 伴读助手', href: '/docs/ai-companions/' },
+          { label: '讨论沉淀', href: '/docs/sedimentation/' },
+        ],
+      },
+      {
+        title: '阅读场景',
+        links: [
+          { label: '微信读书同步', href: '/blog/scenarios/weread-migration/' },
+          { label: 'Ollama 本地模型', href: '/blog/scenarios/local-ai-reading-with-ollama/' },
+          { label: '学术论文精读', href: '/blog/scenarios/academic-paper-reading/' },
+          { label: '本地隐私边界', href: '/blog/scenarios/local-first-privacy/' },
+        ],
+      },
+    ],
+  },
   window: {
     library: '阅读库',
     me: '我',
@@ -584,7 +615,35 @@ const en: HomeCopy = {
   },
   download: {
     title: ['Download Yomitomo,', 'and start keeping what you read.'],
+    lead: 'Local-first, free and open source. Your highlights, thoughts and discussions stay on your computer.',
     arch: 'Apple Silicon',
+  },
+  footer: {
+    tagline:
+      'Add understanding and reflection where you read, without reading for you or rewriting a single word you wrote.',
+    columns: [
+      {
+        title: 'Product',
+        links: [
+          { label: 'Library & Collections', href: '/en/docs/library/' },
+          { label: 'Reader & Anchored Notes', href: '/en/docs/reader/' },
+          { label: 'AI Companions', href: '/en/docs/ai-companions/' },
+          { label: 'Distillation', href: '/en/docs/sedimentation/' },
+        ],
+      },
+      {
+        title: 'Workflows',
+        links: [
+          {
+            label: 'Ollama Local Models',
+            href: '/en/blog/scenarios/local-ai-reading-with-ollama/',
+          },
+          { label: 'PDF Annotation', href: '/en/blog/scenarios/pdf-annotation/' },
+          { label: 'Zotero Academic Flow', href: '/en/blog/scenarios/zotero-academic-workflow/' },
+          { label: 'Local-First Privacy', href: '/en/blog/scenarios/local-first-privacy/' },
+        ],
+      },
+    ],
   },
   window: {
     library: 'Library',
@@ -911,7 +970,32 @@ const ja: HomeCopy = {
   },
   download: {
     title: ['Yomitomoをダウンロードして、', '読んだことを残し始めよう。'],
+    lead: 'ローカル優先、無料オープンソース。線や考え、対話はすべて端末内に保存されます。',
     arch: 'Apple Silicon',
+  },
+  footer: {
+    tagline:
+      '読む現場に理解と対話を添える読書アプリ。代わりに読み終えることも、あなたの言葉を書き換えることもありません。',
+    columns: [
+      {
+        title: '機能',
+        links: [
+          { label: 'ライブラリ', href: '/ja/docs/library/' },
+          { label: 'リーダーと原文注釈', href: '/ja/docs/reader/' },
+          { label: 'AI読書パートナー', href: '/ja/docs/ai-companions/' },
+          { label: '対話とまとめ', href: '/ja/docs/sedimentation/' },
+        ],
+      },
+      {
+        title: '活用シーン',
+        links: [
+          { label: 'Ollama ローカルAI', href: '/ja/blog/scenarios/local-ai-reading-with-ollama/' },
+          { label: 'PDF精読と注釈', href: '/ja/blog/scenarios/pdf-annotation/' },
+          { label: 'Zotero 論文精読', href: '/ja/blog/scenarios/zotero-academic-workflow/' },
+          { label: 'ローカルプライバシー', href: '/ja/blog/scenarios/local-first-privacy/' },
+        ],
+      },
+    ],
   },
   window: {
     library: 'ライブラリ',

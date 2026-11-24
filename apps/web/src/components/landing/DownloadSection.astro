@@ -1,4 +1,14 @@
 ---
+import {
+  authorBlogUrl,
+  changelogsUrl,
+  englishAuthorBlogUrl,
+  englishChangelogsUrl,
+  githubUrl,
+  japaneseChangelogsUrl,
+  xUrl,
+  youtubeUrl,
+} from '../../site-links';
 import { getHomeCopy, type Lang } from './home-copy';
 
 type Props = {
@@ -7,60 +17,193 @@ type Props = {
 };
 
 const { lang = 'zh-CN', downloads } = Astro.props;
-const copy = getHomeCopy(lang).download;
+const isEnglish = lang === 'en';
+const isJapanese = lang === 'ja';
+const prefix = isEnglish ? '/en' : isJapanese ? '/ja' : '';
+const copy = getHomeCopy(lang);
+const changelogsHref = isEnglish
+  ? englishChangelogsUrl
+  : isJapanese
+    ? japaneseChangelogsUrl
+    : changelogsUrl;
+const authorUrl = isEnglish || isJapanese ? englishAuthorBlogUrl : authorBlogUrl;
+const year = new Date().getFullYear();
+
+const resourceColumn = {
+  title: isEnglish ? 'Resources' : isJapanese ? 'リソース' : '资源',
+  links: [
+    { label: copy.nav.docs, href: `${prefix}/docs/` },
+    { label: copy.nav.blog, href: `${prefix}/blog/` },
+    { label: copy.nav.changelogs, href: changelogsHref },
+    { label: 'GitHub', href: githubUrl, external: true },
+  ],
+};
+
+const columns = [...copy.footer.columns, resourceColumn];
+
+const creditPrefix = isEnglish
+  ? 'Built by '
+  : isJapanese
+    ? '制作：'
+    : '由 ';
+const creditSuffix = isEnglish
+  ? ' · MIT License'
+  : isJapanese
+    ? ' · MITライセンス'
+    : ' 制作 · MIT 协议';
 ---
 
-<section class="dl" id="download">
-  <div class="wrap dl-in">
-    <h2>{copy.title[0]}<br />{copy.title[1]}</h2>
-    <div class="dl-stage">
+<footer class="finale" id="download">
+  <div class="finale-backdrop" aria-hidden="true">
+    <picture class="finale-art">
+      <source
+        type="image/avif"
+        srcset="/assets/backgrounds/home-footer-960.avif 960w, /assets/backgrounds/home-footer.avif 1600w"
+        sizes="100vw"
+      />
+      <source
+        type="image/webp"
+        srcset="/assets/backgrounds/home-footer-960.webp 960w, /assets/backgrounds/home-footer.webp 1600w"
+        sizes="100vw"
+      />
       <img
-        class="dl-rabbit"
-        src="/assets/rabbit.webp"
-        srcset="/assets/rabbit-640.webp 640w, /assets/rabbit.webp 1000w"
-        sizes="(max-width: 640px) 210px, min(26vw, 340px)"
+        src="/assets/backgrounds/home-footer.webp"
         alt=""
-        width="1000"
-        height="673"
+        width="1600"
+        height="900"
         loading="lazy"
         decoding="async"
       />
-      <div class="dl-cards">
-        <a
-          class="dl-card"
-          href={downloads.mac}
-          data-umami-event="download_click"
-          data-umami-event-platform="macos-arm64"
-          data-umami-event-language={lang}
-          data-umami-event-version={downloads.version}
-        >
-          <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              fill="currentColor"
-              d="M16.7 12.7c0-2.7 2.2-4 2.3-4.1-1.2-1.8-3.2-2.1-3.9-2.1-1.7-.2-3.2 1-4.1 1-.8 0-2.1-1-3.5-1-1.8 0-3.5 1.1-4.4 2.7-1.9 3.4-.5 8.4 1.4 11.1.9 1.3 2 2.8 3.5 2.8 1.4-.1 1.9-.9 3.5-.9s2.1.9 3.6.9c1.5 0 2.4-1.4 3.3-2.7 1-1.5 1.5-3 1.5-3.1 0-.1-3.1-1.3-3.2-4.6ZM14 4.7c.8-1 1.3-2.3 1.1-3.7-1.1 0-2.5.8-3.3 1.7-.7.9-1.3 2.2-1.2 3.5 1.3.1 2.6-.6 3.4-1.5Z"
-            ></path>
-          </svg>
-          <b>macOS</b>
-          <span>{copy.arch} · v{downloads.version}</span>
-        </a>
-        <a
-          class="dl-card"
-          href={downloads.windows}
-          data-umami-event="download_click"
-          data-umami-event-platform="windows-x64"
-          data-umami-event-language={lang}
-          data-umami-event-version={downloads.version}
-        >
-          <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              fill="currentColor"
-              d="M1.8 4.2 10.8 3v8.5h-9V4.2Zm10.4-1.4 10-1.4v10.1h-10V2.8ZM1.8 12.5h9V21l-9-1.2v-7.3Zm10.4 0h10v10.1l-10-1.4v-8.7Z"
-            ></path>
-          </svg>
-          <b>Windows</b>
-          <span>x64 · v{downloads.version}</span>
-        </a>
+    </picture>
+  </div>
+
+  <div class="wrap finale-in">
+    <div class="finale-zone">
+      <div class="finale-dl">
+        <h2>{copy.download.title[0]}<br />{copy.download.title[1]}</h2>
+        <p class="finale-lead">{copy.download.lead}</p>
+        <div class="finale-actions">
+          <a
+            class="finale-btn"
+            href={downloads.mac}
+            data-umami-event="download_click"
+            data-umami-event-platform="macos-arm64"
+            data-umami-event-language={lang}
+            data-umami-event-version={downloads.version}
+          >
+            <svg width="21" height="21" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M16.7 12.7c0-2.7 2.2-4 2.3-4.1-1.2-1.8-3.2-2.1-3.9-2.1-1.7-.2-3.2 1-4.1 1-.8 0-2.1-1-3.5-1-1.8 0-3.5 1.1-4.4 2.7-1.9 3.4-.5 8.4 1.4 11.1.9 1.3 2 2.8 3.5 2.8 1.4-.1 1.9-.9 3.5-.9s2.1.9 3.6.9c1.5 0 2.4-1.4 3.3-2.7 1-1.5 1.5-3 1.5-3.1 0-.1-3.1-1.3-3.2-4.6ZM14 4.7c.8-1 1.3-2.3 1.1-3.7-1.1 0-2.5.8-3.3 1.7-.7.9-1.3 2.2-1.2 3.5 1.3.1 2.6-.6 3.4-1.5Z"
+              ></path>
+            </svg>
+            <span>
+              <b>macOS</b>
+              <small>{copy.download.arch} · v{downloads.version}</small>
+            </span>
+          </a>
+          <a
+            class="finale-btn is-sec"
+            href={downloads.windows}
+            data-umami-event="download_click"
+            data-umami-event-platform="windows-x64"
+            data-umami-event-language={lang}
+            data-umami-event-version={downloads.version}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M1.8 4.2 10.8 3v8.5h-9V4.2Zm10.4-1.4 10-1.4v10.1h-10V2.8ZM1.8 12.5h9V21l-9-1.2v-7.3Zm10.4 0h10v10.1l-10-1.4v-8.7Z"
+              ></path>
+            </svg>
+            <span>
+              <b>Windows</b>
+              <small>x64 · v{downloads.version}</small>
+            </span>
+          </a>
+        </div>
+      </div>
+
+      <div class="finale-rule" aria-hidden="true"></div>
+
+      <div class="finale-grid">
+        <div class="finale-brand">
+          <a class="brand" href={`${prefix}/`}>
+            <img
+              src="/assets/yomitomo-logo-96.webp"
+              alt=""
+              width="28"
+              height="28"
+              loading="lazy"
+              decoding="async"
+            />
+            <span>Yomitomo</span>
+          </a>
+          <p>{copy.footer.tagline}</p>
+          <div class="finale-socials">
+            <a href={githubUrl} target="_blank" rel="noopener" aria-label="GitHub">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M12 .5C5.37.5 0 5.78 0 12.29c0 5.2 3.44 9.61 8.21 11.17.6.11.82-.25.82-.56 0-.28-.01-1.02-.02-2-3.34.71-4.04-1.58-4.04-1.58-.55-1.37-1.33-1.74-1.33-1.74-1.09-.73.08-.72.08-.72 1.2.08 1.84 1.21 1.84 1.21 1.07 1.8 2.81 1.28 3.5.98.11-.76.42-1.28.76-1.57-2.67-.3-5.47-1.31-5.47-5.84 0-1.29.47-2.35 1.24-3.18-.12-.3-.54-1.51.12-3.15 0 0 1.01-.32 3.3 1.21a11.6 11.6 0 0 1 3-.4c1.02 0 2.05.13 3 .4 2.29-1.53 3.3-1.21 3.3-1.21.66 1.64.24 2.85.12 3.15.77.83 1.24 1.89 1.24 3.18 0 4.54-2.81 5.54-5.49 5.83.43.37.81 1.1.81 2.22 0 1.6-.01 2.89-.01 3.28 0 .31.21.68.83.56A12.02 12.02 0 0 0 24 12.29C24 5.78 18.63.5 12 .5z"
+                ></path>
+              </svg>
+            </a>
+            <a href={xUrl} target="_blank" rel="noopener" aria-label="X">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24h-6.66l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25h6.83l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"
+                ></path>
+              </svg>
+            </a>
+            <a href={youtubeUrl} target="_blank" rel="noopener" aria-label="YouTube">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12z"
+                ></path>
+              </svg>
+            </a>
+          </div>
+        </div>
+
+        {
+          columns.map((col) => (
+            <div class="finale-col">
+              <h3>{col.title}</h3>
+              <ul>
+                {col.links.map((link) => (
+                  <li>
+                    <a
+                      href={link.href}
+                      target={link.external ? '_blank' : undefined}
+                      rel={link.external ? 'noopener' : undefined}
+                    >
+                      {link.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))
+        }
+      </div>
+
+      <div class="finale-legal">
+        <p>
+          {creditPrefix}<a href={authorUrl} target="_blank" rel="noopener">XingKaiXin</a>{creditSuffix}
+        </p>
+        <p class="finale-locales">
+          <span>© {year} YOMITOMO</span>
+          <span aria-hidden="true">·</span>
+          <a href="/" aria-current={lang === 'zh-CN' ? 'page' : undefined}>中文</a>
+          <span aria-hidden="true">/</span>
+          <a href="/en/" aria-current={lang === 'en' ? 'page' : undefined}>EN</a>
+          <span aria-hidden="true">/</span>
+          <a href="/ja/" aria-current={lang === 'ja' ? 'page' : undefined}>日本語</a>
+        </p>
       </div>
     </div>
   </div>
-</section>
+</footer>

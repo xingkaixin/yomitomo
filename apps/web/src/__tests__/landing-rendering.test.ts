@@ -25,11 +25,22 @@ describe('landing page rendering', () => {
     async (lang) => {
       const page = await renderLandingPage(lang);
       const images = page.querySelectorAll<HTMLImageElement>('img[src^="/assets/"]');
+      const sources = page.querySelectorAll<HTMLSourceElement>('source[srcset]');
 
       expect(images.length).toBeGreaterThan(0);
       for (const image of images) {
         const path = image.getAttribute('src')!;
         expect(existsSync(new URL(`../../public${path}`, import.meta.url)), path).toBe(true);
+      }
+      for (const source of sources) {
+        const entries = source
+          .getAttribute('srcset')!
+          .split(',')
+          .map((item) => item.trim().split(/\s+/)[0] ?? '')
+          .filter((path) => path.startsWith('/assets/'));
+        for (const path of entries) {
+          expect(existsSync(new URL(`../../public${path}`, import.meta.url)), path).toBe(true);
+        }
       }
     },
   );
