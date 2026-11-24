@@ -268,7 +268,6 @@ class View {
                 this.#iframe.style.display = 'block'
                 const { vertical, rtl } = getDirection(doc)
                 const background = getBackground(doc)
-                this.#iframe.style.display = 'none'
                 lap('styleMs')
 
                 this.#vertical = vertical
@@ -276,7 +275,6 @@ class View {
 
                 this.#contentRange.selectNodeContents(doc.body)
                 const layout = beforeRender?.({ vertical, rtl, background })
-                this.#iframe.style.display = 'block'
                 this.render(layout)
                 this.#observer.observe(doc.body)
                 lap('renderMs')
@@ -355,15 +353,21 @@ class View {
         const vertical = this.#vertical
         const doc = this.document
         const images = doc.body.querySelectorAll('img, svg, video')
-        for (const el of images) {
-            // preserve max size if they are already set
-            const { maxHeight, maxWidth } = doc.defaultView.getComputedStyle(el)
+        const defaultView = doc.defaultView
+        // Batch all getComputedStyle reads before writing inline styles to avoid N forced layouts.
+        const computed = Array.from(images, el => {
+            const { maxHeight, maxWidth } = defaultView.getComputedStyle(el)
+            return { el, maxHeight, maxWidth }
+        })
+        const maxHeightPx = `${height - margin * 2}px`
+        const maxWidthPx = `${width - margin * 2}px`
+        for (const { el, maxHeight, maxWidth } of computed) {
             setStylesImportant(el, {
                 'max-height': vertical
                     ? (maxHeight !== 'none' && maxHeight !== '0px' ? maxHeight : '100%')
-                    : `${height - margin * 2}px`,
+                    : maxHeightPx,
                 'max-width': vertical
-                    ? `${width - margin * 2}px`
+                    ? maxWidthPx
                     : (maxWidth !== 'none' && maxWidth !== '0px' ? maxWidth : '100%'),
                 'object-fit': 'contain',
                 'page-break-inside': 'avoid',

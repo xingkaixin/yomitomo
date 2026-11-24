@@ -10,21 +10,208 @@ const isZip = async file => {
     return arr[0] === 0x50 && arr[1] === 0x4b && arr[2] === 0x03 && arr[3] === 0x04
 }
 
-const makeZipLoader = async file => {
-    const { configure, ZipReader, BlobReader, TextWriter, BlobWriter } =
-        await import('./vendor/zip.js')
-    // Each chunk is a separate Blob read; the 64 KiB default splits a 500 KB image into
-    // eight reads and makes its load about 1.6x slower.
-    configure({ useWebWorkers: false, chunkSize: 1 << 20 })
-    const reader = new ZipReader(new BlobReader(file))
-    const entries = await reader.getEntries()
-    const map = new Map(entries.map(entry => [entry.filename, entry]))
-    const load = f => (name, ...args) =>
-        map.has(name) ? f(map.get(name), ...args) : null
-    const loadText = load(entry => entry.getData(new TextWriter()))
-    const loadBlob = load((entry, type) => entry.getData(new BlobWriter(type)))
+const zipLoaderCache = new WeakMap()
+const utf8Decoder = new TextDecoder()
+const SYNC_INFLATE_MAX_BYTES = 96 * 1024
+
+const decompressRawDeflate = async compressed => {
+    const ds = new DecompressionStream('deflate-raw')
+    const writer = ds.writable.getWriter()
+    const writePromise = writer.write(compressed).then(() => writer.close())
+    const [buffer] = await Promise.all([new Response(ds.readable).arrayBuffer(), writePromise])
+    return new Uint8Array(buffer)
+}
+
+// Fast in-memory ZIP parser for standard EPUB archives (STORED / DEFLATE), avoiding zip.js
+// BlobReader chunk round-trips. Small entries (XHTML/CSS/OPF) inflate synchronously with fflate
+// to avoid Stream/IPC setup overhead; large entries (images) use parallel native DecompressionStream.
+// Falls back to zip.js for ZIP64, encrypted, or exotic entries.
+const tryParseInMemoryZip = (bytes, inflateRawSync) => {
+    const len = bytes.length
+    if (len < 22) return null
+    const view = new DataView(bytes.buffer, bytes.byteOffset, len)
+    const minEocd = Math.max(0, len - 65557)
+    let eocdOffset = -1
+    for (let i = len - 22; i >= minEocd; i--) {
+        if (view.getUint32(i, true) === 0x06054b50) {
+            eocdOffset = i
+            break
+        }
+    }
+    if (eocdOffset < 0) return null
+    const entryCount = view.getUint16(eocdOffset + 10, true)
+    const cdSize = view.getUint32(eocdOffset + 12, true)
+    const cdOffset = view.getUint32(eocdOffset + 16, true)
+    if (entryCount === 0xffff || cdSize === 0xffffffff || cdOffset === 0xffffffff) return null
+    if (cdOffset + cdSize > len) return null
+
+    const map = new Map()
+    const entries = []
+    let pos = cdOffset
+    const cdEnd = cdOffset + cdSize
+    for (let i = 0; i < entryCount && pos + 46 <= cdEnd; i++) {
+        if (view.getUint32(pos, true) !== 0x02014b50) return null
+        const flags = view.getUint16(pos + 8, true)
+        const method = view.getUint16(pos + 10, true)
+        // Encrypted entries or unsupported compression methods fall back to zip.js.
+        if ((flags & 1) !== 0 || (method !== 0 && method !== 8)) return null
+        const compressedSize = view.getUint32(pos + 20, true)
+        const uncompressedSize = view.getUint32(pos + 24, true)
+        const nameLen = view.getUint16(pos + 28, true)
+        const extraLen = view.getUint16(pos + 30, true)
+        const commentLen = view.getUint16(pos + 32, true)
+        const localHeaderOffset = view.getUint32(pos + 42, true)
+        if (
+            compressedSize === 0xffffffff ||
+            uncompressedSize === 0xffffffff ||
+            localHeaderOffset === 0xffffffff
+        ) return null
+        const nameStart = pos + 46
+        const extraStart = nameStart + nameLen
+        const extraEnd = extraStart + extraLen
+        if (extraEnd > cdEnd) return null
+        // Fall back to zip.js when an Info-ZIP Unicode Path extra field (0x7075) is present
+        // or a non-UTF-8 flag hides non-ASCII filename bytes.
+        for (let extraPos = extraStart; extraPos + 4 <= extraEnd; ) {
+            const headerId = view.getUint16(extraPos, true)
+            const dataSize = view.getUint16(extraPos + 2, true)
+            if (headerId === 0x7075) return null
+            extraPos += 4 + dataSize
+        }
+        const filename = utf8Decoder.decode(bytes.subarray(nameStart, extraStart))
+        pos = extraEnd + commentLen
+        if (localHeaderOffset + 30 > len || view.getUint32(localHeaderOffset, true) !== 0x04034b50) {
+            return null
+        }
+        const localNameLen = view.getUint16(localHeaderOffset + 26, true)
+        const localExtraLen = view.getUint16(localHeaderOffset + 28, true)
+        const dataStart = localHeaderOffset + 30 + localNameLen + localExtraLen
+        const dataEnd = dataStart + compressedSize
+        if (dataEnd > len) return null
+        const entry = { filename, method, dataStart, dataEnd, uncompressedSize }
+        map.set(filename, entry)
+        entries.push(entry)
+    }
+
+    const decodedCache = new Map()
+    const decodedInFlight = new Map()
+    let cachedBytes = 0
+    const maxCacheBytes = 24 * 1024 * 1024
+    const rememberDecoded = (name, data) => {
+        if (data.byteLength > maxCacheBytes / 2) return
+        if (decodedCache.has(name)) {
+            cachedBytes -= decodedCache.get(name).byteLength
+            decodedCache.delete(name)
+        }
+        while (cachedBytes + data.byteLength > maxCacheBytes && decodedCache.size > 0) {
+            const oldestKey = decodedCache.keys().next().value
+            cachedBytes -= decodedCache.get(oldestKey).byteLength
+            decodedCache.delete(oldestKey)
+        }
+        decodedCache.set(name, data)
+        cachedBytes += data.byteLength
+    }
+    const inflateEntry = entry => {
+        const compressed = bytes.subarray(entry.dataStart, entry.dataEnd)
+        const preferSync =
+            inflateRawSync &&
+            (typeof DecompressionStream !== 'function' ||
+                (entry.uncompressedSize > 0 && entry.uncompressedSize <= SYNC_INFLATE_MAX_BYTES))
+        if (preferSync) {
+            try {
+                let decompressed
+                if (entry.uncompressedSize > 0 && entry.uncompressedSize < 8 * 1024 * 1024) {
+                    const out = new Uint8Array(entry.uncompressedSize + 1)
+                    decompressed = inflateRawSync(compressed, out)
+                    if (decompressed.byteLength > entry.uncompressedSize) {
+                        decompressed = inflateRawSync(compressed)
+                    }
+                } else {
+                    decompressed = inflateRawSync(compressed)
+                }
+                rememberDecoded(entry.filename, decompressed)
+                return decompressed
+            } catch {
+                // Fall back to DecompressionStream if fflate rejects a stream.
+            }
+        }
+        const pending = decodedInFlight.get(entry.filename)
+        if (pending) return pending
+        const promise = decompressRawDeflate(compressed)
+            .then(decompressed => {
+                rememberDecoded(entry.filename, decompressed)
+                return decompressed
+            })
+            .finally(() => {
+                if (decodedInFlight.get(entry.filename) === promise) {
+                    decodedInFlight.delete(entry.filename)
+                }
+            })
+        decodedInFlight.set(entry.filename, promise)
+        return promise
+    }
+    const readBytes = entry => {
+        if (entry.method === 0) return bytes.subarray(entry.dataStart, entry.dataEnd)
+        const cached = decodedCache.get(entry.filename)
+        if (cached) {
+            decodedCache.delete(entry.filename)
+            decodedCache.set(entry.filename, cached)
+            return cached
+        }
+        return inflateEntry(entry)
+    }
+    const loadText = name => {
+        const entry = map.get(name)
+        if (!entry) return null
+        const data = readBytes(entry)
+        return data instanceof Promise
+            ? data.then(buf => utf8Decoder.decode(buf))
+            : utf8Decoder.decode(data)
+    }
+    const loadBlob = (name, type) => {
+        const entry = map.get(name)
+        if (!entry) return null
+        const data = readBytes(entry)
+        return data instanceof Promise
+            ? data.then(buf => new Blob([buf], { type }))
+            : new Blob([data], { type })
+    }
     const getSize = name => map.get(name)?.uncompressedSize ?? 0
     return { entries, loadText, loadBlob, getSize }
+}
+
+const makeZipLoader = async file => {
+    const cached = zipLoaderCache.get(file)
+    if (cached) return cached
+    const promise = (async () => {
+        try {
+            const [buffer, fflate] = await Promise.all([
+                file.arrayBuffer(),
+                import('./vendor/fflate.js').catch(() => null),
+            ])
+            const inflateRawSync = fflate?.inflateRawSync ?? null
+            if (inflateRawSync || typeof DecompressionStream === 'function') {
+                const fast = tryParseInMemoryZip(new Uint8Array(buffer), inflateRawSync)
+                if (fast) return fast
+            }
+        } catch {
+            // Fall back to zip.js for malformed or non-standard archives.
+        }
+        const { configure, ZipReader, BlobReader, TextWriter, BlobWriter } =
+            await import('./vendor/zip.js')
+        configure({ useWebWorkers: false, chunkSize: 1 << 20 })
+        const reader = new ZipReader(new BlobReader(file))
+        const entries = await reader.getEntries()
+        const map = new Map(entries.map(entry => [entry.filename, entry]))
+        const load = f => (name, ...args) =>
+            map.has(name) ? f(map.get(name), ...args) : null
+        const loadText = load(entry => entry.getData(new TextWriter()))
+        const loadBlob = load((entry, type) => entry.getData(new BlobWriter(type)))
+        const getSize = name => map.get(name)?.uncompressedSize ?? 0
+        return { entries, loadText, loadBlob, getSize }
+    })()
+    zipLoaderCache.set(file, promise)
+    return promise
 }
 
 const getFileEntries = async entry => entry.isFile ? entry

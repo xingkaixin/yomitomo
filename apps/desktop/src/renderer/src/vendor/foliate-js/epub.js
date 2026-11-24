@@ -119,15 +119,49 @@ const pathRelative = (from, to) => {
 
 const pathDirname = str => str.slice(0, str.lastIndexOf('/') + 1)
 
-// replace asynchronously and sequentially
-// same technique as https://stackoverflow.com/a/48032528
+// replace asynchronously in series
 const replaceSeries = async (str, regex, f) => {
     const matches = []
     str.replace(regex, (...args) => (matches.push(args), null))
+    if (!matches.length) return str
     const results = []
     for (const args of matches) results.push(await f(...args))
-    return str.replace(regex, () => results.shift())
+    let i = 0
+    return str.replace(regex, () => results[i++])
 }
+
+const awaitAllSettledOrThrow = async promises => {
+    const settled = await Promise.allSettled(promises)
+    const rejected = settled.find(item => item.status === 'rejected')
+    if (rejected) throw rejected.reason
+}
+
+// replace asynchronously: leaf matches run in parallel while recursive matches run sequentially
+const replaceHybrid = async (str, regex, isRecursiveMatch, f) => {
+    const matches = []
+    str.replace(regex, (...args) => (matches.push(args), null))
+    if (!matches.length) return str
+    const results = new Array(matches.length)
+    const leafTasks = []
+    const recursiveIndexes = []
+    for (let index = 0; index < matches.length; index++) {
+        const args = matches[index]
+        if (isRecursiveMatch(args)) {
+            recursiveIndexes.push(index)
+        } else {
+            leafTasks.push(Promise.resolve(f(...args)).then(val => { results[index] = val }))
+        }
+    }
+    const runRecursive = async () => {
+        for (const index of recursiveIndexes) results[index] = await f(...matches[index])
+    }
+    await awaitAllSettledOrThrow([runRecursive(), ...leafTasks])
+    let i = 0
+    return str.replace(regex, () => results[i++])
+}
+
+const isRecursiveMediaType = mediaType =>
+    Boolean(mediaType && (MIME.JS.test(mediaType) || [MIME.XHTML, MIME.HTML, MIME.CSS, MIME.SVG].includes(mediaType)))
 
 const regexEscape = str => str.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
 
@@ -647,6 +681,7 @@ class Resources {
                 return item
             })
         this.manifestById = new Map(this.manifest.map(item => [item.id, item]))
+        this.manifestByHref = new Map(this.manifest.map(item => [item.href, item]))
         this.spine = $$itemref
             .map(getAttributes('idref', 'id', 'linear', 'properties'))
             .map(item => (item.properties = item.properties?.split(/\s/), item))
@@ -680,7 +715,7 @@ class Resources {
         return this.manifestById.get(id)
     }
     getItemByHref(href) {
-        return this.manifest.find(item => item.href === href)
+        return this.manifestByHref.get(href)
     }
     getItemByProperty(prop) {
         return this.manifest.find(item => item.properties?.includes(prop))
@@ -705,6 +740,7 @@ class Resources {
 
 class Loader {
     #cache = new Map()
+    #pending = new Map()
     #children = new Map()
     #refCount = new Map()
     eventTarget = new EventTarget()
@@ -712,6 +748,7 @@ class Loader {
         this.loadText = loadText
         this.loadBlob = loadBlob
         this.manifest = resources.manifest
+        this.manifestByHref = resources.manifestByHref
         this.assets = resources.manifest
         // needed only when replacing in (X)HTML w/o parsing (see below)
         //.filter(({ mediaType }) => ![MIME.XHTML, MIME.HTML].includes(mediaType))
@@ -724,9 +761,12 @@ class Loader {
         this.eventTarget.dispatchEvent(event)
         const newData = await event.detail.data
         const newType = await event.detail.type
-        const url = URL.createObjectURL(new Blob([newData], { type: newType }))
+        const blob = newData instanceof Blob && (!newType || newData.type === newType)
+            ? newData
+            : new Blob([newData], { type: newType })
+        const url = URL.createObjectURL(blob)
         this.#cache.set(href, url)
-        this.#refCount.set(href, 1)
+        this.#refCount.set(href, (this.#refCount.get(href) ?? 0) + 1)
         if (parent) {
             const childList = this.#children.get(parent)
             if (childList) childList.push(href)
@@ -737,7 +777,7 @@ class Loader {
     ref(href, parent) {
         const childList = this.#children.get(parent)
         if (!childList?.includes(href)) {
-            this.#refCount.set(href, this.#refCount.get(href) + 1)
+            this.#refCount.set(href, (this.#refCount.get(href) ?? 0) + 1)
             //console.log(`referencing ${href}, now ${this.#refCount.get(href)}`)
             if (childList) childList.push(href)
             else this.#children.set(parent, [href])
@@ -778,15 +818,26 @@ class Loader {
             (isScript || [MIME.XHTML, MIME.HTML, MIME.CSS, MIME.SVG].includes(mediaType))
             // prevent circular references
             && parents.every(p => p !== href)
+        // Only deduplicate non-recursive leaf assets; recursive resources (e.g. mutually @import-ing
+        // stylesheets) would deadlock if awaited while still in flight.
         if (shouldReplace) return this.loadReplaced(item, parents, timing)
-        // NOTE: this can be replaced with `Promise.try()`
-        const tryLoadBlob = Promise.resolve().then(() => this.loadBlob(href))
-        return this.createURL(href, tryLoadBlob, mediaType, parent)
+        const inFlight = this.#pending.get(href)
+        if (inFlight) {
+            await inFlight
+            if (this.#cache.has(href)) return this.ref(href, parent)
+            return null
+        }
+        const promise = this.createURL(href, this.loadBlob(href, mediaType), mediaType, parent)
+            .finally(() => {
+                if (this.#pending.get(href) === promise) this.#pending.delete(href)
+            })
+        this.#pending.set(href, promise)
+        return promise
     }
     async loadHref(href, base, parents = []) {
         if (isExternal(href)) return href
         const path = resolveURL(href, base)
-        const item = this.manifest.find(item => item.href === path)
+        const item = this.manifestByHref.get(path)
         if (!item) return href
         return this.loadItem(item, parents.concat(base))
     }
@@ -809,15 +860,6 @@ class Loader {
         if (!str) return null
         if (timing) timing.textLength = str.length
 
-        // note that one can also just use `replaceString` for everything:
-        // ```
-        // const replaced = await this.replaceString(str, href, parents)
-        // return this.createURL(href, replaced, mediaType, parent)
-        // ```
-        // which is basically what Epub.js does, which is simpler, but will
-        // break things like iframes (because you don't want to replace links)
-        // or text that just happen to be paths
-
         // parse and replace in HTML
         if ([MIME.XHTML, MIME.HTML, MIME.SVG].includes(mediaType)) {
             let doc = new DOMParser().parseFromString(str, mediaType)
@@ -829,45 +871,101 @@ class Loader {
                 doc = new DOMParser().parseFromString(str, item.mediaType)
             }
             lap('parseMs')
+            const leafTasks = []
+            const recursiveTasks = []
+            const isRecursiveHref = (targetHref) => {
+                if (!targetHref || isExternal(targetHref)) return false
+                const item = this.manifestByHref.get(resolveURL(targetHref, href))
+                return isRecursiveMediaType(item?.mediaType)
+            }
+            const enqueueAttr = (el, attr) => {
+                const targetHref = el.getAttribute(attr)
+                const run = () =>
+                    this.loadHref(targetHref, href, parents)
+                        .then(val => el.setAttribute(attr, val))
+                if (isRecursiveHref(targetHref)) recursiveTasks.push(run)
+                else leafTasks.push(run())
+            }
             // replace hrefs in XML processing instructions
             // this is mainly for SVGs that use xml-stylesheet
             if ([MIME.XHTML, MIME.SVG].includes(item.mediaType)) {
                 let child = doc.firstChild
                 while (child instanceof ProcessingInstruction) {
-                    if (child.data) {
-                        const replacedData = await replaceSeries(child.data,
-                            /(?:^|\s*)(href\s*=\s*['"])([^'"]*)(['"])/i,
-                            (_, p1, p2, p3) => this.loadHref(p2, href, parents)
-                                .then(p2 => `${p1}${p2}${p3}`))
-                        child.replaceWith(doc.createProcessingInstruction(
-                            child.target, replacedData))
+                    const pi = child
+                    if (pi.data) {
+                        recursiveTasks.push(() =>
+                            replaceSeries(pi.data,
+                                /(?:^|\s*)(href\s*=\s*['"])([^'"]*)(['"])/i,
+                                (_, p1, p2, p3) => this.loadHref(p2, href, parents)
+                                    .then(p2 => `${p1}${p2}${p3}`))
+                                .then(replacedData => pi.replaceWith(
+                                    doc.createProcessingInstruction(pi.target, replacedData))),
+                        )
                     }
                     child = child.nextSibling
                 }
             }
-            // replace hrefs (excluding anchors)
-            const replace = async (el, attr) => el.setAttribute(attr,
-                await this.loadHref(el.getAttribute(attr), href, parents))
-            for (const el of doc.querySelectorAll('link[href]')) await replace(el, 'href')
-            for (const el of doc.querySelectorAll('[src]')) await replace(el, 'src')
-            for (const el of doc.querySelectorAll('[poster]')) await replace(el, 'poster')
-            for (const el of doc.querySelectorAll('object[data]')) await replace(el, 'data')
-            for (const el of doc.querySelectorAll('[*|href]:not([href])'))
-                el.setAttributeNS(NS.XLINK, 'href', await this.loadHref(
-                    el.getAttributeNS(NS.XLINK, 'href'), href, parents))
-            for (const el of doc.querySelectorAll('[srcset]'))
-                el.setAttribute('srcset', await replaceSeries(el.getAttribute('srcset'),
-                    /(\s*)(.+?)\s*((?:\s[\d.]+[wx])+\s*(?:,|$)|,\s+|$)/g,
-                    (_, p1, p2, p3) => this.loadHref(p2, href, parents)
-                        .then(p2 => `${p1}${p2}${p3}`)))
-            // replace inline styles
-            for (const el of doc.querySelectorAll('style'))
-                if (el.textContent) el.textContent =
-                    await this.replaceCSS(el.textContent, href, parents)
-            for (const el of doc.querySelectorAll('[style]'))
-                el.setAttribute('style',
-                    await this.replaceCSS(el.getAttribute('style'), href, parents))
-            // TODO: replace inline scripts? probably not worth the trouble
+            // Run leaf resources (images, fonts, media) in parallel and recursive resources
+            // (stylesheets, SVGs, scripts) sequentially to avoid duplicate Blob URLs or deadlocks.
+            for (const el of doc.querySelectorAll(
+                'link[href], [src], [poster], object[data], [srcset], style, [style]',
+            )) {
+                if (el.localName === 'link' && el.hasAttribute('href'))
+                    enqueueAttr(el, 'href')
+                if (el.hasAttribute('src'))
+                    enqueueAttr(el, 'src')
+                if (el.hasAttribute('poster'))
+                    enqueueAttr(el, 'poster')
+                if (el.localName === 'object' && el.hasAttribute('data'))
+                    enqueueAttr(el, 'data')
+                if (el.hasAttribute('srcset')) {
+                    const srcset = el.getAttribute('srcset')
+                    const srcsetRegex = /(\s*)(.+?)\s*((?:\s[\d.]+[wx])+\s*(?:,|$)|,\s+|$)/g
+                    let hasRecursiveCandidate = false
+                    for (const match of srcset.matchAll(srcsetRegex)) {
+                        if (isRecursiveHref(match[2])) {
+                            hasRecursiveCandidate = true
+                            break
+                        }
+                    }
+                    const runSrcset = () =>
+                        replaceHybrid(
+                            srcset,
+                            srcsetRegex,
+                            ([, , p2]) => isRecursiveHref(p2),
+                            (_, p1, p2, p3) => this.loadHref(p2, href, parents)
+                                .then(p2 => `${p1}${p2}${p3}`),
+                        ).then(val => el.setAttribute('srcset', val))
+                    if (hasRecursiveCandidate) recursiveTasks.push(runSrcset)
+                    else leafTasks.push(runSrcset())
+                }
+                if (el.localName === 'style' && el.textContent)
+                    recursiveTasks.push(() =>
+                        this.replaceCSS(el.textContent, href, parents)
+                            .then(val => { el.textContent = val }),
+                    )
+                if (el.hasAttribute('style'))
+                    recursiveTasks.push(() =>
+                        this.replaceCSS(el.getAttribute('style'), href, parents)
+                            .then(val => el.setAttribute('style', val)),
+                    )
+            }
+            for (const el of doc.querySelectorAll('[*|href]:not([href])')) {
+                const xlinkHref = el.getAttributeNS(NS.XLINK, 'href')
+                if (xlinkHref) {
+                    const run = () =>
+                        this.loadHref(xlinkHref, href, parents)
+                            .then(val => el.setAttributeNS(NS.XLINK, 'href', val))
+                    if (isRecursiveHref(xlinkHref)) recursiveTasks.push(run)
+                    else leafTasks.push(run())
+                }
+            }
+            if (recursiveTasks.length || leafTasks.length) {
+                const runRecursive = async () => {
+                    for (const run of recursiveTasks) await run()
+                }
+                await awaitAllSettledOrThrow([runRecursive(), ...leafTasks])
+            }
             lap('resourceMs')
             const result = new XMLSerializer().serializeToString(doc)
             lap('serializeMs')
@@ -880,10 +978,18 @@ class Loader {
         return this.createURL(href, result, mediaType, parent)
     }
     async replaceCSS(str, href, parents = []) {
-        const replacedUrls = await replaceSeries(str,
+        const isRecursiveHref = (targetHref) => {
+            if (!targetHref || isExternal(targetHref)) return false
+            const item = this.manifestByHref.get(resolveURL(targetHref, href))
+            return isRecursiveMediaType(item?.mediaType)
+        }
+        const replacedUrls = await replaceHybrid(
+            str,
             /url\(\s*["']?([^'"\n]*?)\s*["']?\s*\)/gi,
+            ([, url]) => isRecursiveHref(url),
             (_, url) => this.loadHref(url, href, parents)
-                .then(url => `url("${url}")`))
+                .then(url => `url("${url}")`),
+        )
         // apart from `url()`, strings can be used for `@import` (but why?!)
         return replaceSeries(replacedUrls,
             /@import\s*["']([^"'\n]*?)["']/gi,
