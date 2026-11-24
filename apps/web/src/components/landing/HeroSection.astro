@@ -13,8 +13,28 @@ const { hero, flow } = getHomeCopy(lang);
 ---
 
 <section class="hero">
-  <div class="hero-book"></div>
-  <div class="hero-ground"></div>
+  <div class="hero-backdrop" aria-hidden="true">
+    <picture class="hero-art">
+      <source
+        type="image/avif"
+        srcset="/assets/backgrounds/home-hero-960.avif 960w, /assets/backgrounds/home-hero.avif 1600w"
+        sizes="100vw"
+      />
+      <source
+        type="image/webp"
+        srcset="/assets/backgrounds/home-hero-960.webp 960w, /assets/backgrounds/home-hero.webp 1600w"
+        sizes="100vw"
+      />
+      <img
+        src="/assets/backgrounds/home-hero.webp"
+        alt=""
+        width="1600"
+        height="900"
+        fetchpriority="high"
+        decoding="async"
+      />
+    </picture>
+  </div>
   <HomeNav lang={lang} />
 
   <div class="wrap hero-copy">

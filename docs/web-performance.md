@@ -62,7 +62,7 @@ Source Serif 4 Bold、Noto Sans SC 和 JetBrains Mono Regular 的 `.core` 是全
 
 ## 图片
 
-首页首屏只有兔子图 `rabbit.webp` 使用高请求优先级。产品窗口是 HTML 和 CSS，除头像外不加载图片；内容页页边背景不预加载。
+首页首屏只有首屏背景图（`home-hero.avif` / `home-hero.webp`）和兔子图 `rabbit.webp` 使用高请求优先级；底部下载与页脚背景图（`home-footer.avif` / `home-footer.webp`）使用 `loading="lazy"` 按需加载。产品窗口是 HTML 和 CSS，除头像外不加载图片；内容页页边背景不预加载。
 
 文档里的产品截图通过 `srcset` 提供 640、960、1280、1600 和 2360 像素宽度，浏览器按显示宽度与像素密度选择，并声明实际宽高。更新截图时同时替换各尺寸资源和三语文档中的宽高；日文文档共用英文截图。结构化数据中的产品截图也引用这组资源。
 

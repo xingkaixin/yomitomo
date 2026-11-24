@@ -8,7 +8,6 @@ import BentoSection from './landing/BentoSection.astro';
 import CompanionsBand from './landing/CompanionsBand.astro';
 import HelpSection from './landing/HelpSection.astro';
 import DownloadSection from './landing/DownloadSection.astro';
-import LandingFooter from './landing/LandingFooter.astro';
 import { getFaqItems } from './landing/faq-data';
 import { githubUrl, xUrl, youtubeUrl } from '../site-links';
 import { buildLandingStructuredData, siteUrl } from '../structured-data';
@@ -98,7 +97,7 @@ const jsonLd = buildLandingStructuredData({
     <meta name="twitter:title" content={pageTitle} />
     <meta name="twitter:description" content={pageDescription} />
     <meta name="twitter:image" content={ogImageUrl} />
-    <meta name="theme-color" content="#f54b3f" />
+    <meta name="theme-color" content="#df2f19" />
 
     <script type="application/ld+json" is:inline set:html={JSON.stringify(jsonLd)} />
     <FontPreloads />
@@ -113,9 +112,8 @@ const jsonLd = buildLandingStructuredData({
         <BentoSection lang={lang} />
         <CompanionsBand lang={lang} />
         <HelpSection lang={lang} />
-        <DownloadSection lang={lang} downloads={downloads} />
       </main>
-      <LandingFooter lang={lang} />
+      <DownloadSection lang={lang} downloads={downloads} />
     </div>
 
     <script src="../scripts/home.ts"></script>
