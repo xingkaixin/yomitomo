@@ -1,95 +1,102 @@
 ---
 title: "From Deep Reading to Second Brain: Closing the Knowledge Loop with Yomitomo and Obsidian"
-description: How do you bridge the gap between reading highlights and your Obsidian second brain? Discover how Yomitomo transforms raw reading inputs into high-density bidirectional Markdown knowledge cards.
+description: Process highlights and AI discussions inside Yomitomo first, then export clean Markdown files or copy cited notes into Obsidian, Logseq, or Notion.
 ---
 
-When building a personal "Second Brain" or practicing Zettelkasten note-taking, knowledge workers frequently confront an agonizing friction point:
+A common problem with Obsidian or Logseq vaults is dumping raw reading highlights straight into your notes folder. Hundreds of decontextualized quotes pile up, organizing them without the surrounding page is tedious, and the vault turns into an unread clipping archive.
 
-**The divide between reading ingestion and note synthesis**: highlighting hundreds of disconnected sentences in an e-reader, only to import an unorganized dump of raw excerpts into Obsidian. Organizing these clippings outside the book's original context is mentally exhausting, often causing the entire note-taking habit to collapse.
-
-Yomitomo's **Distillation Workflow** is engineered specifically for Markdown knowledge bases, acting as a dedicated refinement studio between raw reading inputs and your interconnected second brain.
+Yomitomo acts as the reading and processing layer in front of your vault: you read, annotate, question passages with AI companions, and distill key discussions in context first, then export clean Markdown into Obsidian when the notes are actually ready.
 
 ---
 
-## The Four-Layer Ingestion-to-Synthesis Pipeline
+## The Reading-to-Vault Pipeline
 
 ```text
-[ Raw Input Layer ]
-Web Essays / EPUB eBooks / Academic PDFs / WeRead Sync
+[ Source Material ]
+Web articles / EPUB, AZW3, MOBI ebooks / PDFs / .txt & .md / WeRead synced notes
       │
-      ▼ (Deep analytical reading & 5-tier annotation in Yomitomo)
-[ On-Site Dialectic Layer ]
-5 Cognitive Categories (Key Point, Assumption, Concept, Question, Quote) + AI Debates
+      ▼ (Read, highlight, record verbatim thoughts, discuss with Reading Companions)
+[ In-Context Notes ]
+Anchored highlights + thoughts + @GideonFrost / @IrisChen / @MarcusReed threads
       │
-      ▼ (De-duplication & structuring in Distillation Studio)
-[ Distillation Card Layer ]
-300–500 word high-density Markdown knowledge cards (audited by review agents)
+      ▼ (Distill key highlight discussions in the Distillation window)
+[ Published Distillations & Reading Memory ]
+Single-highlight distillations reviewed by Review Assistants + Ask library synthesis
       │
-      ▼ (Manually copy text from the distillation editing area)
-[ Second Brain Layer ]
-Obsidian / Logseq / Notion knowledge vault (bidirectional links & thematic tags)
+      ▼ (Built-in Export Markdown (.md) or Copy Markdown)
+[ External Knowledge Vault ]
+Obsidian / Logseq / Notion (add [[links]], tags, and vault structure)
 ```
 
----
-
-## 3 Steps to Build a Sustainable Distillation Loop
-
-### Step 1: Pre-Process at the Point of Reading
-Avoid dumping raw highlights into Obsidian. In Yomitomo, use shortcut `A` to capture key evidence, and summon `@ZhouYan` or `@ShenQingyuan` to resolve logical ambiguities right in the margin. **Protect your Obsidian vault: only allow restructured, high-density knowledge cards into your second brain**.
-
-### Step 2: Extract Structured Markdown Cards in Distillation Studio
-Upon finishing a chapter or a cluster of related articles, press `T` to open Distillation Studio:
-1. **Aggregate & De-duplicate**: Yomitomo gathers all chapter highlights and discussion threads;
-2. **Restructure in Your Words**: Synthesize the core mechanism, practical applications, and potential boundary conditions;
-3. **Refine with Reviewers**: Invoke `@HeMingheng` to audit logic and `@TangJian` to sharpen phrasing.
-
-### Step 3: Manually Copy to Obsidian and Add Bidirectional Links
-Distillation text is stored in the local database. There is currently no Markdown file export or automatic sync to external note apps:
-- Select the text in the Distillation Studio editing area and copy it manually into an Obsidian concept note (e.g., `[[Cognitive-Science/Working-Memory]]`);
-- Add tags (`#reading/distillation`) and establish `[[bidirectional links]]` to related ideas;
-- If you ever need to verify the author's original data or context, use Yomitomo's instant full-text search to return to the original passage.
+*(Note: Synced WeRead books are read-only inside Yomitomo—you can export a WeRead book's highlights and thoughts as Markdown directly, or import that exported Markdown as a local text document if you want AI discussion and distillation on it.)*
 
 ---
 
-## Workflow Comparison: Raw Sync vs. Distilled Cards
+## 3 Steps to Keep Your Obsidian Vault Clean
 
-| Dimension | Raw Highlight Syncing | Yomitomo + Obsidian Pipeline |
+### Step 1: Think in Context Inside Yomitomo
+Instead of sending every highlighted sentence straight to Obsidian, keep raw reading in Yomitomo. Select text and press `A` to record your immediate thought (or click **Highlight** and choose a color). When an argument needs unpacking, `@`-mention **Reading Companions** like `@GideonFrost` (First-Principles Reviewer), `@IrisChen` (Concept Translator), or `@MarcusReed` (Insight Editor) right beside the passage.
+
+### Step 2: Distill Worthwhile Discussions
+When a highlight's discussion leads to a takeaway you want to keep in your vault, click **Distill these thoughts** to open the **Distillation** window:
+
+1. Click **Organize discussion** to bring thread points into your draft (additions only).
+2. Rewrite the conclusion in your own words.
+3. Run **Review Assistants** in the right-hand review panel—for example, **Simone Carter** (Logic Auditor) and **Julian Cross** (Final Copy Editor)—and accept or reject their inline diff suggestions item by item.
+4. Publish the distillation.
+
+When you want to pull insights across several local documents before writing a synthesis note in Obsidian, use **Reading Memory**: browse the **Distillations** library, click **Find related**, or ask a cross-document question in **Ask library** scoped to a collection or selected sources.
+
+### Step 3: Export Markdown Into Obsidian
+Yomitomo includes built-in **Export Markdown (.md)** and **Copy Markdown** in four places so you choose the right granularity for your vault:
+
+- **Single distillation**: Export or copy from the **Distillation** window or **Distillations** library for atomic concept notes (e.g., `[[Working-Memory]]`).
+- **Whole document**: Export or copy a document's highlights, thoughts, discussions, and published distillations from the reader toolbar for a source/literature note.
+- **Synced WeRead book**: Export or copy a WeRead book's chapter-organized highlights and thoughts from the WeRead book toolbar.
+- **Ask library answer**: Copy a cross-document answer as Markdown with source citations.
+
+Drop the `.md` file into your Obsidian vault (or paste copied Markdown), add your `[[wikilinks]]` and tags, and keep the original source files and passage anchors searchable inside Yomitomo.
+
+---
+
+## Raw Highlight Sync vs. Distill-Then-Export
+
+| Dimension | Raw Auto-Sync to Vault | Yomitomo → Markdown Export → Obsidian |
 |---|---|---|
-| **Information Density** | Extremely low (fragmented author quotes without synthesis) | Extremely high (300–500 word verified personal knowledge cards) |
-| **Obsidian Vault Health** | Rapid bloat; unorganized fragments become difficult to navigate | Clean and modular; every note is a valuable knowledge node |
-| **Cognitive Ownership** | Passive collection without real internal assimilation | Deep restructuring vetted by AI challenges and final author edits |
-| **Traceability** | Loses broad context surrounding isolated excerpts | Permanent, searchable local SQLite archives in Yomitomo |
+| **Note Density** | Long dumps of author quotes without your own reaction | Focused distillations, whole-document notes, or cited **Ask library** syntheses |
+| **Vault Clutter** | Unprocessed clippings accumulate quickly | Only notes you explicitly export enter your vault |
+| **Context** | Hard to check surrounding paragraphs once detached | Original PDFs, ebooks, web articles, and passage threads remain searchable locally in Yomitomo |
+| **Sync Model** | Automatic background sync | Manual **Export Markdown (.md)** / **Copy Markdown**; no automatic two-way sync |
 
 ---
 
-## Target Audience & Usage Boundaries
+## Who This Is For and Where It Stops
 
-### Who This Is For
+### Good Fit
 
-- Power users of Obsidian, Logseq, and Notion building compounding second-brain vaults;
-- Knowledge workers seeking to cure digital hoarding and keep their personal wikis pristine;
-- Writers, podcasters, and researchers producing regular intellectual output.
+- Obsidian, Logseq, and Notion users who want to process reading material before adding files to their vault.
+- Writers and researchers who want both clean `.md` exports and a local archive of original PDFs, ebooks, and web articles.
 
-### What This Is Not For
+### Not Designed For
 
-- **Robotic zero-effort automated scraping**: Yomitomo champions intentional human synthesis over automated content hoarding;
-- **Casual fiction leisure reading**: Leisure reading rarely requires structured Zettelkasten cards.
+- **Hands-free automatic syncing**: Yomitomo does not automatically push highlights to Obsidian, Logseq, or Notion in the background.
+- **Two-way editing**: Changes made in Obsidian do not sync back into Yomitomo's SQLite database.
 
 ---
 
 ## Frequently Asked Questions (FAQ)
 
-### Q1: Does copying distillation cards to Obsidian preserve formatting?
-**Answer:** Manual copying transfers the text from the editing area. Its appearance depends on how the destination handles Markdown and links. Check headings, lists, code blocks, and links after pasting. Source anchors and discussion records do not transfer automatically, and the result may differ from its display in Yomitomo.
+### Q1: What does Markdown export include?
+Exporting from the reader toolbar includes the document's highlights, thoughts, discussions, and published distillations. Exporting from the **Distillation** window or **Distillations** library exports that distillation note. Exporting from a WeRead book exports its synced highlights and thoughts by chapter. **Ask library** lets you copy the answer as Markdown with citations.
 
-### Q2: If I edit a note in Obsidian, does it sync back to Yomitomo?
-**Answer:** No. There is currently no automatic sync with Obsidian. After editing the text in either tool, copy it manually to the other tool if needed.
+### Q2: If I edit an exported `.md` file in Obsidian, does it update Yomitomo?
+No. Export is one-way; there is no automatic two-way sync with Obsidian or Notion. Yomitomo remains the source archive for original documents and passage anchors, while Obsidian holds your edited vault notes.
 
 ---
 
 ## Related Guides & Workflows
 
-- [Knowledge Distillation Workflow: From Highlights to Structured Cards](/en/blog/scenarios/knowledge-distillation/)
-- [Deep Reading for Non-Fiction eBooks](/en/blog/scenarios/deep-ebook-reading/)
-- [Why Local-First Architecture Matters for Reading Privacy](/en/blog/scenarios/local-first-privacy/)
-- [Distillation Feature Documentation](/en/docs/sedimentation/)
+- [Knowledge Distillation Workflow: From Fragmented Highlights to Structured Cards](/en/blog/scenarios/knowledge-distillation/)
+- [Deep Reading for Non-Fiction eBooks: From Passive Highlighting to Cognitive Mastery](/en/blog/scenarios/deep-ebook-reading/)
+- [Why Local-First Architecture Matters: Building Lifelong Intellectual Assets](/en/blog/scenarios/local-first-privacy/)
+- [Distilled Notes and Review](/en/docs/sedimentation/)

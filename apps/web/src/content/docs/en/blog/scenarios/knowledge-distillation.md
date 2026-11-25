@@ -1,80 +1,99 @@
 ---
 title: "Knowledge Distillation Workflow: From Fragmented Highlights to Structured Cards"
-description: Highlighted hundreds of passages without building an actionable knowledge base? Yomitomo's 4-tier cognitive model—Highlight, Thought, Discussion, Distillation—refines raw inputs into permanent intellectual assets.
+description: Turn a single highlight and its discussion into a clear, verified distilled note—then connect distilled notes across your library with Reading Memory and Markdown export.
 ---
 
-Reading tools capture highlights; note-taking apps store text clippings. Yet a massive cognitive gap separates the two: highlights are isolated fragments scattered across dozens of articles, while actionable personal knowledge requires **deconstruction, restructuring, and compression**. Most learners remain stuck in this gap—accumulating thousands of passive highlights that yield no practical output.
+Highlighting is easy; turning highlights into notes you can actually use months later is the hard part. Most reading apps stop at collecting excerpts, leaving you with hundreds of disconnected quotes and no record of why you cared about them.
 
-Yomitomo bridges the divide with a four-tier cognitive distillation pipeline.
-
----
-
-## The Four-Tier Cognitive Distillation Model
-
-| Tier | Cognitive Action | User Input & Trigger | System Processing | Output Format |
-|---|---|---|---|---|
-| **Tier 1: Highlight** | Anchor evidence | Select text, press `A`, assign cognitive type | Precision DOM/text anchor with semantic tag | Categorized source anchor |
-| **Tier 2: Thought** | Capture intuition | Record immediate reaction in highlight popover | Persisted with timestamp alongside highlight | Lightweight raw reflection |
-| **Tier 3: Discussion** | Dialectic debate | Mention AI specialists (`@Agent`) in thread | Injects passage context into multi-turn dialogue | Verifiable thought evolution log |
-| **Tier 4: Distillation** | Structural synthesis | Press `T` to aggregate notes; polish with review agents | De-duplicates ideas and sharpens arguments | Standalone high-density knowledge card |
+Yomitomo organizes close reading into four progressive steps attached to a passage: **Highlight → Thought → Discussion → Distillation**, backed by **Reading Memory** when you want to connect notes across documents.
 
 ---
 
-## Detailed Walkthrough of the Four Tiers
+## The Four Steps on a Passage
 
-### Tier 1: Highlight (Empirical Anchor)
-Select text and press `A` to categorize the passage into one of five cognitive roles (Key Point, Assumption, Concept, Question, Quote). This forces an instant meta-cognitive evaluation: **What function does this sentence serve in your knowledge network?**
-
-### Tier 2: Thought (Spontaneous Reaction)
-Attach an immediate reaction to the highlight: a sudden counter-argument, an intuitive doubt, or a connection to another project. Even a single sentence holds immense value when captured in the flow of reading.
-
-### Tier 3: Discussion (Dialectic Deepening)
-Inside the highlight's discussion stream, question the premise and invoke specialized AI personas:
-- `@XuWenqu` (Inquiry Mentor): Sharpens vague intuition into precise queries;
-- `@ZhouYan` (Root Cause Inquirer): Audits whether your own deductions contain blind spots;
-- `@ChenYanshu` (Insight Curator): Generalizes specific examples into reusable frameworks.
-
-### Tier 4: Distillation (Structured Knowledge Card)
-When you accumulate sufficient notes across a chapter or topic, press `T` to enter Distillation Studio:
-1. **De-duplicate**: Merge passages pointing to the same underlying dynamic;
-2. **Structure**: Organize insights into structured models (e.g., Problem—Mechanism—Countermeasure);
-3. **Compress**: Condense 10,000 words of reading into a 300–500 word synthesis card.
-
-Polish your draft with `@HeMingheng` and `@TangJian`. Once published, your distillation card lives permanently in the sidebar while retaining deep jump links to underlying source text.
+| Step | What You Do | How Yomitomo Handles It | Result |
+|---|---|---|---|
+| **1. Highlight** | Select text and click **Highlight** (or press `A`), optionally choose a highlight color | Anchors the selection to the source text in local SQLite | Highlight card linked to the exact passage |
+| **2. Thought** | Press `A` and write your immediate reaction | Saves your note verbatim beside the highlight (never altered by AI) | Personal note tied to the source quote |
+| **3. Discussion** | Open the highlight's thread and `@`-mention a reading companion (or click **Ask assistants**) | Sends the passage, surrounding context, and thread history to your configured model | Multi-turn discussion anchored to that highlight |
+| **4. Distillation** | Click **Distill these thoughts** inside the highlight's discussion | Opens the **Distillation** window with **Organize discussion** and right-hand **Review Assistants** | Published distillation replacing that single highlight card in the sidebar |
 
 ---
 
-## Target Audience & Usage Boundaries
+## Step-by-Step Walkthrough
 
-### Who This Is For
+### 1. Highlight (Mark the Passage)
+Select a sentence or paragraph and click **Highlight** in the selection menu, or press `A` to highlight and write a note in one step. Pick a highlight color if you want a simple visual system across your notes.
 
-- Knowledge workers and scholars reading 30+ deep articles or 10+ professional books annually;
-- Writers, course creators, and analysts needing structured, high-reusability knowledge cards;
-- Readers tired of fragmented digital clipping who want a genuine synthesis pipeline.
+### 2. Thought (Capture Your Own Reaction)
+Write down why the passage stood out—a disagreement, an example from work, or a question you want to verify. Even one sentence is enough, and Yomitomo keeps your wording exactly as you wrote it.
 
-### What This Is Not For
+### 3. Discussion (Test the Idea)
+When a passage deserves deeper questioning, open its discussion thread and `@`-mention one of the six **Reading Companions**:
 
-- **Passive web bookmark hoarding**: If you never intend to read or process captured URLs, simple browser bookmarks suffice;
-- **Automated robotic content spinning**: Distillation requires human reasoning and judgment.
+- **@MayaBrooks** (Question Mentor): Sharpens vague doubts into concrete questions.
+- **@GideonFrost** (First-Principles Reviewer): Tests premises and causal logic.
+- **@MarcusReed** (Insight Editor): Helps connect a passage to practical takeaways.
+- **@IrisChen** (Concept Translator): Clarifies unfamiliar terms in context.
+- **@DanielPark** (Structure Navigator): Explains the passage's role in the wider argument.
+- **@JuneHartley** (Margin Reading Companion): Offers quick context and commentary.
+
+### 4. Distillation (Organize and Publish One Highlight's Discussion)
+Distillation in Yomitomo works on a **single highlight's discussion**—it turns one messy thread into a clean, self-contained note rather than summarizing an entire book or batch of articles.
+
+1. Inside the highlight's discussion window, click **Distill these thoughts** to open the **Distillation** window.
+2. Click **Organize discussion** to pull points from the thread into your draft. This action only adds content; it does not overwrite your existing text.
+3. Edit the draft in your own words.
+4. Select one or more **Review Assistants** in the right-hand review panel (**Arthur Whitfield**, **Hannah Wells**, **Julian Cross**, **Simone Carter**, **Victor Tan**, or **Grace Kim**). Review Assistants can only be used here, not via `@`-mentions in highlight threads.
+5. Inspect each suggested edit in the **inline diff preview**, accept or reject item by item, and publish.
+
+Publishing replaces only that single highlight card in the sidebar while keeping the jump link to the source passage.
+
+---
+
+## Connecting Distillations Across Documents
+
+Once you have published distillations across multiple articles or books, use **Reading Memory** to work across your library:
+
+- **Distillations** library: Review all published distillations in one view.
+- **Find related**: From any highlight in the reader, surface related notes from other local documents.
+- **Ask library**: Ask cross-document questions scoped to all sources, a collection, or selected documents, and copy the cited answer as Markdown.
+- **Revisit**: Test your recall of a past highlight before revealing your saved thought.
+
+Reading Memory indexes saved highlights, thoughts, participated discussions, and published distillations from your local articles (not WeRead entries, full article text, or unpublished drafts).
+
+---
+
+## Who This Is For and Where It Stops
+
+### Good Fit
+
+- Readers who want key discussions compressed into clear personal notes without losing links to the original passage.
+- Writers, researchers, and analysts who reuse reading takeaways in memos, essays, or external vaults.
+
+### Not Designed For
+
+- **Automatic whole-book or multi-document summarization**: Distillation intentionally starts from a single highlight's discussion that you engaged with.
+- **Passive link hoarding**: If you only want bookmarks, a browser folder is simpler.
 
 ---
 
 ## Frequently Asked Questions (FAQ)
 
-### Q1: Can I edit or unpublish a distillation card after publishing?
-**Answer:** Yes. You can edit any published distillation card or revert it to a draft at any time. When reverted, the full timeline of underlying highlights and AI discussions re-appears.
+### Q1: Can I edit a distillation after publishing it?
+Yes. You can reopen and edit any published distillation from the sidebar or the **Distillations** library, and the original passage anchor and discussion history remain accessible.
 
-### Q2: Does distillation output support Obsidian and Notion?
-**Answer:** There is currently no Markdown file export or automatic sync to external note apps. Select the text in the Distillation Studio editing area and copy it manually into Obsidian or Notion, where you can add bidirectional links. Check the pasted formatting and links; source anchors and discussion records do not transfer automatically.
+### Q2: How do I move distillations into Obsidian or Notion?
+Use the built-in **Export Markdown (.md)** or **Copy Markdown** actions available in the **Distillation** window, the **Distillations** library, the reader toolbar (for a whole document), and **Ask library** answers. There is no automatic two-way sync to Obsidian or Notion.
 
-### Q3: Why is manual distillation superior to AI one-click summaries?
-**Answer:** An AI summary is the model's compression; a distillation card is **your own cognitive assimilation**. Knowledge only becomes actionable when restructured through your personal mental framework.
+### Q3: Why distill manually instead of generating an AI summary?
+An AI summary gives you the model's compression of a text. A distillation captures what you questioned, verified, and decided to keep—grounded in the exact passage where the thought started.
 
 ---
 
 ## Related Guides & Workflows
 
-- [Critical Reading in Practice: Deconstruct Arguments with Review Agents](/en/blog/scenarios/critical-reading/)
-- [Deep Reading for Non-Fiction eBooks](/en/blog/scenarios/deep-ebook-reading/)
-- [Why Local-First Architecture Matters](/en/blog/scenarios/local-first-privacy/)
-- [Distillation Editor Feature Documentation](/en/docs/sedimentation/)
+- [Critical Reading in Practice: Deconstruct Arguments with AI Review Agents](/en/blog/scenarios/critical-reading/)
+- [Deep Reading for Non-Fiction eBooks: From Passive Highlighting to Cognitive Mastery](/en/blog/scenarios/deep-ebook-reading/)
+- [Why Local-First Architecture Matters: Building Lifelong Intellectual Assets](/en/blog/scenarios/local-first-privacy/)
+- [Distilled Notes and Review](/en/docs/sedimentation/)

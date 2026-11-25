@@ -1,81 +1,81 @@
 ---
 title: "Academic Research Pipeline: Zotero Literature Management + Yomitomo Deep Reading"
-description: Zotero excels at citation and cataloging, but struggles with deep AI-assisted critique and structured distillation. Discover how pairing Zotero with Yomitomo builds an end-to-end scholarly research pipeline.
+description: Pair Zotero for citation management and BibTeX with Yomitomo for close PDF reading, passage-level AI discussion, distillation review, Reading Memory, and Markdown export.
 ---
 
-In academic research and systematic literature reviews, **literature management** and **deep cognitive reading** represent two distinct but interdependent phases:
+Managing references and reading papers closely are two different jobs:
 
-1. **Upstream Management**: Capturing metadata from arXiv/Nature with browser connectors, organizing folders, extracting DOIs, and formatting BibTeX/Word citations (the core strength of **Zotero**);
-2. **Downstream Deep Digestion**: Scrutinizing derivations, categorizing cognitive dimensions, challenging premises with specialized AI personas, and synthesizing literature review drafts (the core mission of **Yomitomo**).
+1. **Reference management (Zotero)**: Capturing bibliographic metadata with browser connectors, storing DOIs, organizing reading lists, and inserting formatted citations into Word or LaTeX.
+2. **Close reading and note synthesis (Yomitomo)**: Annotating key PDFs with passage-anchored thoughts, interrogating claims with Reading Companions, distilling important discussions with Review Assistants, querying notes across papers with **Reading Memory**, and exporting clean Markdown.
 
-Attempting to force Zotero to handle deep analytical distillation often leads to bloated libraries filled with unassimilated papers.
-
-Here is how combining **Zotero with Yomitomo** creates an agile research assembly line.
-
----
-
-## Zotero + Yomitomo Integrated Research Workflow
-
-| Pipeline Stage | Lead Application | Core Input & Action | Internal Processing & Data Flow | Output & Deliverable |
-|---|---|---|---|---|
-| **1. Collection & Curation** | **Zotero** | Browser connector grabs paper metadata & PDF from arXiv/IEEE | Extracts authors, year, DOI, and attachments | Structured bibliographic library & BibTeX entries |
-| **2. Ingestion & Reading** | **Yomitomo** | Import target PDFs into Yomitomo Library | High-fidelity PDFium rendering; vector text layer extraction | Immersive local reading environment with 5-tier tagging |
-| **3. AI Logic Audit** | **Yomitomo** | Select text (`A`), summon `@ZhouYan` or `@GuXingjian` in thread | Injects passage context directly to LLM for deductive critique | Verifiable debate record anchored to specific formulas/data |
-| **4. Review Synthesis** | **Yomitomo** | Press `T` to open Distillation Studio; refine with review agents | Synthesizes 300–500 word high-density literature review card | Clean Markdown literature card with citation trace |
-| **5. Citation & Writing** | **Zotero / LaTeX** | Paste card into Zotero Note or Overleaf manuscript | Formats formal citations via Zotero Word/LaTeX plugins | Rigorous, evidence-backed academic publication draft |
+Keeping both tools focused on what they do best avoids overloading Zotero with messy scratch notes while keeping your citations accurate.
 
 ---
 
-## 4 Steps to Build Your Scholarly Workflow
+## Zotero + Yomitomo Research Workflow
 
-### Step 1: Broad Literature Ingestion in Zotero
-When scanning preprints or journal alerts, use the Zotero Connector extension to ingest papers into collections (e.g., "To Read", "Baseline References", "Ablation Studies").
-
-### Step 2: Import Critical Papers into Yomitomo for Deep Study
-For the 10–20 papers requiring thorough deconstruction, drag the PDFs into Yomitomo:
-- **Semantic Tagging**: Press `A` to tag key contributions as **Key Point**, assumptions as **Assumption**, and methodological gaps as **Question**;
-- **Clarity Over Clutter**: Filter by **Question** before lab meetings to pinpoint specific technical questions for your advisor.
-
-### Step 3: Cross-Examine Claims with AI Specialists
-- Invoke `@GuXingjian` to evaluate how specific experimental sections support the main thesis;
-- Invoke `@ZhouYan` to check for unstated confounding variables in control group designs;
-- Invoke `@ShenQingyuan` to clarify mathematical definitions against earlier literature.
-
-### Step 4: Output Synthesis Cards into Your Writing Stack
-Conclude your reading session by pressing `T` to open Distillation Studio. Draft a 400-word evaluation covering Problem Context, Proposed Mechanism, Empirical Breakthrough, and Open Limitations.
-
-After polishing with `@HeMingheng` (Logic Auditor), copy the Markdown block directly into your Zotero item notes or LaTeX draft.
+| Stage | Tool | Action | Output |
+|---|---|---|---|
+| **1. Collect & Catalog** | **Zotero** | Save papers via Zotero Connector from arXiv, IEEE, or publisher sites | Clean metadata, DOI, PDF attachment, and BibTeX entry |
+| **2. Import Key PDFs** | **Yomitomo** | Import the papers you plan to read closely (up to 120 MB/file, 10/batch) | Local PDFium reading view; dark mode preserves original chart colors (optional **Dark eye-care filter**), zoom presets, and single-column **Bilingual translation** |
+| **3. Annotate & Question** | **Yomitomo** | Select text, press `A` to write a thought (or click **Highlight** and choose a color); `@`-mention Reading Companions (`@DanielPark`, `@GideonFrost`, `@IrisChen`) or press `Q` for **Reader Q&A** | Anchored notes and multi-turn threads linked to exact passages |
+| **4. Distill & Cross-Query** | **Yomitomo** | Click **Distill these thoughts** on key threads and run **Review Assistants** in the **Distillation** window; use **Reading Memory** (**Ask library**, **Find related**) across papers | Published distillations and cited cross-paper answers |
+| **5. Export & Cite** | **Yomitomo → Zotero / LaTeX** | Use **Export Markdown (.md)** or **Copy Markdown**; paste into a Zotero item note or manuscript draft, then cite via Zotero | Draft backed by verifiable paper notes and properly formatted citations |
 
 ---
 
-## Target Audience & Usage Boundaries
+## 4 Steps to Pair Zotero and Yomitomo
 
-### Who This Is For
+### Step 1: Collect Broadly in Zotero
+Use the Zotero Connector to capture everything relevant to your topic into Zotero collections (for example, "To Read," "Baselines," or "Ablations") so your bibliographic metadata and BibTeX keys stay clean from day one.
 
-- Graduate students, postdocs, and research fellows managing extensive literature across technical disciplines;
-- Scholars who rely on Zotero for bibliographies but desire modern, AI-assisted deep reading and distillation tools;
+### Step 2: Import Core Papers Into Yomitomo
+Drag the papers that deserve close reading into Yomitomo (up to 10 PDFs per batch, up to 120 MB per file). Use highlight colors to distinguish key claims, methodological assumptions, and questions for lab meetings, and press `A` to record your own thoughts beside the text. Original PDF files are never modified.
+
+### Step 3: Question Claims with Reading Companions
+Inside a highlight's discussion thread, `@`-mention **Reading Companions** (or use **Ask assistants**):
+
+- **@DanielPark** (Structure Navigator): Traces how an experiment or proof supports the paper's thesis.
+- **@GideonFrost** (First-Principles Reviewer): Checks assumptions, baselines, and missing variables.
+- **@IrisChen** (Concept Translator): Clarifies unfamiliar mathematical notation or domain terms in context.
+- **@MayaBrooks** (Question Mentor): Sharpens half-formed doubts into concrete questions for seminars.
+
+### Step 4: Distill Key Threads, Query Across Papers, and Export Markdown
+When a highlight's discussion produces a conclusion worth keeping, click **Distill these thoughts** to open the **Distillation** window, click **Organize discussion**, refine the draft, and run **Review Assistants** in the right-hand review panel—such as **Simone Carter** (Logic Auditor), **Arthur Whitfield** (Evidence Archivist), or **Julian Cross** (Final Copy Editor)—accepting or rejecting inline diff proposals item by item.
+
+Before writing a related-work section, open **Reading Memory** and run **Ask library** scoped to that project's collection or selected papers to pull together your saved highlights, thoughts, discussions, and published distillations with citations.
+
+Finally, use built-in **Export Markdown (.md)** or **Copy Markdown** (for an individual distillation, a whole paper's notes, or an **Ask library** answer) and paste the text into your Zotero item note or LaTeX/Word draft, where Zotero handles formal citations.
+
+---
+
+## Who This Is For and Where It Stops
+
+### Good Fit
+
+- Graduate students, postdocs, and researchers who already rely on Zotero for references and want stronger close-reading, AI discussion, and cross-paper note retrieval.
 - Authors drafting literature reviews, grant proposals, and dissertation chapters.
 
-### What This Is Not For
+### Not Designed For
 
-- **Generating raw BibTeX citations**: For quick citations without reading the paper, use Zotero directly;
-- **Un-OCRed image scans**: Scanned manuscripts must be OCR-processed before importing into Yomitomo.
+- **Replacing Zotero's citation engine**: Yomitomo has no BibTeX or LaTeX citation export and no automatic sync with Zotero.
+- **Image-only scanned PDFs**: Run OCR before importing scanned papers into Yomitomo.
 
 ---
 
 ## Frequently Asked Questions (FAQ)
 
-### Q1: Why not just highlight PDFs inside Zotero's built-in reader?
-**Answer:** Zotero's reader is designed for basic highlighting and linear notes. It lacks **5-tier cognitive categorization**, **passage-anchored multi-agent AI debates**, and a **dedicated Distillation Studio** for synthesizing review cards.
+### Q1: Why not just highlight inside Zotero's built-in PDF reader?
+Zotero's reader is great for quick highlights and keeping annotations inside your reference manager. Yomitomo adds passage-anchored multi-turn discussions with specialized **Reading Companions**, single-highlight **Distillation** with **Review Assistants** and inline diff previews, page-by-page **Bilingual translation** for single-column PDFs, and **Reading Memory** (**Ask library**, **Find related**, **Revisit**) across your local reading notes.
 
-### Q2: Does importing a PDF into Yomitomo duplicate disk space?
-**Answer:** Yomitomo stores imported PDFs inside its local application directory. Given modern disk capacities and the substantial performance benefit of instant local full-text indexing, the minor storage usage of a few dozen PDFs is negligible.
+### Q2: Does importing a PDF into Yomitomo copy the file on disk?
+Yes. Yomitomo stores a local copy of imported PDFs inside its application data directory so your Zotero library files stay untouched and your Yomitomo backups remain self-contained. Import only the papers you plan to read closely rather than mirroring your entire Zotero archive.
 
 ---
 
 ## Related Guides & Workflows
 
-- [Academic Paper Deep Reading: An AI-Powered Workflow](/en/blog/scenarios/academic-paper-reading/)
-- [Critical Reading in Practice: Deconstruct Arguments](/en/blog/scenarios/critical-reading/)
-- [Knowledge Distillation Workflow: From Highlights to Structured Cards](/en/blog/scenarios/knowledge-distillation/)
-- [PDF Reader Documentation & Shortcuts](/en/docs/reader/)
+- [Academic Paper Deep Reading: An AI-Powered Workflow for Researchers](/en/blog/scenarios/academic-paper-reading/)
+- [Critical Reading in Practice: Deconstruct Arguments with AI Review Agents](/en/blog/scenarios/critical-reading/)
+- [Knowledge Distillation Workflow: From Fragmented Highlights to Structured Cards](/en/blog/scenarios/knowledge-distillation/)
+- [Reader, Annotations, and Discussions](/en/docs/reader/)

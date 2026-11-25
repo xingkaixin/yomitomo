@@ -4,9 +4,9 @@ description: Connect Yomitomo to a local Ollama model, annotate a PDF or EPUB, a
 lastUpdated: 2026-10-12
 ---
 
-Yomitomo can send reading questions to an Ollama model running on the same computer. Configure an OpenAI-compatible connection at `http://localhost:11434/v1`, select a downloaded local model, and assign it to reading tasks. Your local model handles those AI requests; remote providers send the required context to their configured servers.
+Yomitomo can send reading questions to an Ollama model running on the same computer. Configure an `OpenAI compatible` provider at `http://localhost:11434/v1`, select a downloaded local model, and assign it to reading tasks. Your local model handles those AI requests; remote providers send the required context to their configured servers.
 
-Maintained by the Yomitomo project, based on the v0.16.2 configuration and [Ollama's OpenAI compatibility documentation](https://docs.ollama.com/api/openai-compatibility). This is a setup guide, not a hardware performance benchmark.
+Maintained by the Yomitomo project, based on the v0.18.2 configuration and [Ollama's OpenAI compatibility documentation](https://docs.ollama.com/api/openai-compatibility). This is a setup guide, not a hardware performance benchmark.
 
 ## 1. Prepare a local model
 
@@ -23,7 +23,7 @@ Choose a locally downloaded model rather than a cloud model if local inference i
 
 ## 2. Connect Yomitomo
 
-In **Settings > Models & routing**, add a provider using the OpenAI Chat Completions protocol and configure:
+In **Settings > Models & routing**, add a provider using the `OpenAI compatible` preset (OpenAI Chat Completions protocol) and configure:
 
 | Field | Value |
 | --- | --- |
@@ -32,13 +32,13 @@ In **Settings > Models & routing**, add a provider using the OpenAI Chat Complet
 | API Key | `ollama` as a placeholder for the local server |
 | Model | The exact installed tag, such as `qwen2.5:7b` |
 
-Fetch the model list or add the model manually, test the connection, then save. Choose this provider and model as the default. Check any task overrides so reading and review requests use the intended local model. Start with **Fast response**; tool-based workflows also depend on the model's capabilities.
+Fetch the model list or add the model manually, test the connection, then save. Choose this provider and model as the **Default model**, and check each optional task override (**Reading comprehension**, **In-depth review**, and **Bilingual translation**) so requests go to your intended local model instead of a remote provider.
 
 ## 3. Try one passage
 
-1. Import a local text-based PDF or EPUB from the library's add menu.
+1. Import a local text-based PDF or DRM-free ebook (EPUB, AZW3, or MOBI) from the library's add menu.
 2. Open it and select a short paragraph.
-3. Create a highlight with `A`, open its discussion, and mention a reading assistant.
+3. Press `A` to create a highlight and record a thought, open its discussion, and `@`-mention a reading companion such as `@GideonFrost` or `@JuneHartley`.
 4. Ask a question with a verifiable answer, such as which sentence supports the author's conclusion.
 5. Compare the reply with the source before saving your own note.
 
@@ -47,13 +47,18 @@ Fetch the model list or add the model manually, test the connection, then save. 
   <figcaption>Import a local PDF before testing passage-level AI discussion.</figcaption>
 </figure>
 
-Scanned PDFs may need OCR in another tool before their text can be selected. There is no need to test the setup with sensitive material.
+Scanned PDFs need OCR in another tool before their text can be selected. There is no need to test the setup with sensitive material.
 
 ## What works offline?
 
-Previously imported documents, manual notes and a compatible downloaded local model can be used without a cloud model API. Download the application and model weights first, then verify your intended reading task with the network disconnected.
+Previously imported documents, manual highlights and thoughts, keyword search, and a compatible downloaded local model can be used without a cloud model API. Download the application and model weights first, then verify your intended reading task with the network disconnected.
 
-Web imports, WeRead sync, update checks and model downloads require network access. Yomitomo also has optional anonymous usage metrics in settings, and it periodically fetches a public model pricing catalog from models.dev. Connecting Ollama does not disable these features or make the computer physically isolated. See [settings and data](/en/docs/settings/) for model routing and telemetry controls.
+Connecting Ollama does not disable every network feature in Yomitomo or isolate the computer from the network:
+
+- **Explicit online features**: importing web articles fetches target URLs; WeRead sync and the optional in-app WeRead web reader contact WeRead; downloading the optional local Reading Memory embedding model (`embeddinggemma-300m-ONNX`) fetches weights from ModelScope or Hugging Face.
+- **Background requests**: Yomitomo checks `download.yomitomo.app` / `yomitomo.app` for updates, sends anonymous usage metrics to `telemetry.yomitomo.app` by default (a daily anonymous heartbeat and Reading Memory action counts without an install ID, no reading content; opt out in **Settings > General > Privacy**), and fetches a public model pricing catalog from `models.dev` on startup and every 24 hours (not controlled by the telemetry toggle; sends no reading content, API key, or install ID).
+
+See [Settings, Models, and Data](/en/docs/settings/) for model routing and privacy controls.
 
 ## Troubleshooting
 
@@ -62,9 +67,9 @@ Web imports, WeRead sync, update checks and model downloads require network acce
 | Connection refused | Ollama must be running on the same computer at the configured port. |
 | Model not found | Match the full installed model tag, including its size suffix. |
 | Slow replies or out-of-memory errors | Try a smaller model and shorter context; close other memory-intensive applications. |
-| Basic replies work but review or tools fail | Model capabilities vary. Try Fast response and a model compatible with the requested task. |
-| A request still goes to a remote provider | Check the default model and every task override. |
+| Basic replies work but review or translation struggles | Model capabilities vary. Switch to a more capable local model for **In-depth review** or **Bilingual translation**, or verify the prompt works directly in Ollama. |
+| A request still goes to a remote provider | Check the **Default model** and every per-task override in **Settings > Models & routing**. |
 
 Local inference can consume substantial memory, power and GPU time. We do not promise a fixed tokens-per-second rate or negligible battery use.
 
-<a href="/en/#download" data-umami-event="download_section_click" data-umami-event-language="en" data-umami-event-placement="guide">Download Yomitomo and try reading with a local model</a>. For everyday annotation controls, see the [reader guide](/en/docs/reader/).
+<a href="/en/#download" data-umami-event="download_section_click" data-umami-event-language="en" data-umami-event-placement="guide">Download Yomitomo and try reading with a local model</a>. For everyday annotation controls, see [Reader, Annotations, and Discussions](/en/docs/reader/).

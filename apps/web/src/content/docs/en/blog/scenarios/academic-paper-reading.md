@@ -1,84 +1,87 @@
 ---
 title: "Academic Paper Deep Reading: An AI-Powered Workflow for Researchers"
-description: Need to read multiple papers daily? Use Yomitomo to build an end-to-end academic reading pipeline—from multi-tier annotations to AI dialectic critiques and permanent research dossiers.
+description: Read academic PDFs closely with Yomitomo—anchored highlights, passage-level AI discussion, per-highlight distillation, cross-paper Reading Memory, and Markdown export.
 ---
 
-Consider a familiar academic scenario: your lab discusses two recent preprints in the morning seminar, and your advisor asks for a literature synthesis by next week. You open the PDFs, highlight lines with a yellow virtual marker, and close the file thinking you grasped the essence. A week later, when writing the synthesis, you vaguely recall an intriguing comparison chart, but cannot remember the underlying premises or the exact paper it came from.
+Suppose your lab discusses two preprints in a morning seminar and you need to write a literature synthesis next week. You highlight lines in a PDF viewer and close the file thinking you followed the argument. A week later, you remember a comparison chart, but not the paper's assumptions or why a claim looked shaky.
 
-This is not a memory flaw. Traditional PDF viewers offer one-dimensional color highlighting, but real scholarship demands far more: **deconstructing argumentative structures**, **interrogating hidden assumptions**, and **tracing conceptual evolution** that you can reliably verify months later.
+Flat highlighting marks where something looked important, not what you thought about it or how the argument held up. In research reading, you need to record your own doubts beside the exact sentence, test the paper's reasoning, and find those notes again across related papers.
 
-Yomitomo restructures academic paper reading into a verifiable, compounding cognitive workflow.
+Yomitomo keeps your highlights, notes, AI discussions, and distilled takeaways anchored to the source PDF in a local database.
 
 ---
 
-## Academic Paper Reading & Distillation Workflow
+## Academic Paper Reading Workflow
 
-| Stage | Input | System Processing | Output | Boundaries |
+| Stage | User Action | How Yomitomo Handles It | Output | Boundaries |
 |---|---|---|---|---|
-| **Document Ingestion** | PDF preprints / journal articles (≤120MB) | Local high-fidelity rendering via PDFium engine; vector text layer extraction | Local reading entries; dark mode with original chart color preservation | Scanned pure-image PDFs require pre-OCR processing |
-| **Five-Dimensional Tagging** | Select text and press `A` | Binds text anchor; tags as Key Point, Assumption, Concept, Question, or Quote | Structured semantic highlights filterable by cognitive type | Coordinate-based non-destructive overlay; does not alter raw PDF binary |
-| **AI Dialectic Inquiry** | Mention specific agents (e.g., `@ZhouYan`, `@GuXingjian`) | Injects highlighted text, paragraph context, and user prompt directly to LLM | Persistent multi-turn debate thread anchored to specific text | AI is tightly bound to selected passage; does not generate detached summaries |
-| **Synthesis & Distillation** | Press `T` to open Distillation Studio | Compile insights; invoke `@HeMingheng` & `@LiangZhengyan` for evidence audit | High-density 300–500 word literature synthesis card (stored locally) | Focuses on researcher's synthesized findings, not robotic word-for-word translation |
+| **Document Import** | Import local PDFs (up to 120 MB/file, 10/batch) | Renders locally with PDFium; extracts the text layer | Local library entry; dark mode preserves original chart colors (optional **Dark eye-care filter**); zoom presets and single-column **Bilingual translation** | No built-in OCR; scanned image-only PDFs need OCR before import |
+| **Anchored Notes** | Select text and click **Highlight** or press `A` to record a thought | Saves text anchor, highlight color, and your verbatim thought in local SQLite | Highlight card in the sidebar with its own discussion thread | Non-destructive overlay; does not modify the original PDF file |
+| **Passage Discussion** | `@`-mention a reading companion (e.g., `@DanielPark`, `@GideonFrost`, `@IrisChen`) or press `Q` for **Reader Q&A** | Sends the selected passage, surrounding context, and your prompt to your configured model | Multi-turn discussion attached to that highlight (or the open paper in Reader Q&A) | Requires a configured local or remote model; always check replies against the paper |
+| **Distillation** | Click **Distill these thoughts** inside a highlight's discussion | Opens the **Distillation** window; supports **Organize discussion** and right-hand **Review Assistants** with inline diff preview | Published distillation replacing that single highlight card in the sidebar | Operates on one highlight's discussion, not an entire paper or multi-paper batch |
+| **Cross-Paper Recall** | Use **Find related** in the reader, or **Ask library** / **Distillations** in **Reading Memory** | Searches saved highlights, thoughts, participated discussions, and published distillations across local articles | Cited cross-paper answers and Markdown export | Indexes saved notes on local articles, not full raw article text or unpublished drafts |
 
 ---
 
-## Action Guide: 3 Steps to Academic Literature Mastery
+## 3 Steps for Reading Research Papers
 
-### Step 1: Multi-Dimensional Semantic Annotations
+### Step 1: Anchor Your Own Questions While Reading
 
-Instead of a flat yellow highlighter, Yomitomo provides five scholarly cognitive categories:
-- **Key Point**: Core theses, novel methodologies, and primary empirical conclusions;
-- **Assumption**: Unstated premises or boundary conditions (e.g., "Assumes perfect market liquidity");
-- **Concept**: Specialized domain terminology, mathematical definitions, or new taxonomies;
-- **Question**: Dubious derivations, inadequate sample sizes, or baseline omissions;
-- **Quote**: Striking statements and benchmark metrics suited for direct citation.
+Open a PDF in Yomitomo. Dark mode keeps original page and figure colors by default so charts stay readable, with an optional **Dark eye-care filter** if you prefer dimmer pages. You can switch zoom presets (**Fit width**, **Fit page**, **100%**, or `⌘/Ctrl + / − / 0`) and use page-by-page **Bilingual translation** on single-column text PDFs.
 
-Before a group meeting, filter by **Question** to focus discussion on contentious claims; when writing your thesis, filter by **Key Point** to assemble your narrative spine.
+When a claim, assumption, or derivation catches your eye, select the text and press `A` to write your thought immediately (or click **Highlight** to save the passage first, and pick a highlight color to distinguish key claims from open questions). Your highlight and thought are stored verbatim—Yomitomo never rewrites them.
 
-### Step 2: AI as a Critical Interlocutor, Not a Summary Ghostwriter
+### Step 2: Interrogate Passages with Reading Companions
 
-Generic AI reading tools produce bland 300-word summaries that bypass your own conceptual restructuring. Yomitomo mandates **strict textual anchoring**:
-- Mention `@GuXingjian` (Structure Navigator): Map how the current paragraph functions within the macro-argument (premise, empirical evidence, or counter-argument).
-- Mention `@ZhouYan` (Root Cause Inquirer): Rigorously test causal claims—are conditions necessary and sufficient? Are confounding variables ignored?
-- Mention `@ShenQingyuan` (Concept Translator): Clarify the historical evolution of domain-specific terminology.
+Instead of asking a chatbot to summarize a 20-page paper, open a highlight's discussion and `@`-mention one of the six built-in **Reading Companions** (or use **Ask assistants**):
 
-All AI responses reside inside that specific highlight's dedicated discussion stream.
+- **@DanielPark** (Structure Navigator): Maps how a paragraph or section functions inside the paper's argument.
+- **@GideonFrost** (First-Principles Reviewer): Tests assumptions, causal steps, and missing boundary conditions.
+- **@IrisChen** (Concept Translator): Explains unfamiliar terminology or formal definitions in context.
+- **@MayaBrooks** (Question Mentor): Sharpens a vague objection into concrete follow-up questions.
+- **@JuneHartley** (Margin Reading Companion) and **@MarcusReed** (Insight Editor): Help unpack dense prose or pull out reusable takeaways.
 
-### Step 3: Knowledge Consolidation in Distillation Studio
+Each reply stays inside that highlight's thread. You can also press `Q` for **Reader Q&A** when you have a question about the open document.
 
-After finishing a set of related papers, press `T` to launch Distillation Studio. Aggregate fragmented notes into a coherent synthesis draft and invoke review specialists:
-- **@HeMingheng** (Logic Auditor): Identifies inductive leaps and non sequiturs;
-- **@LiangZhengyan** (Evidence Scribe): Flags unsupported assertions requiring empirical validation;
-- **@TangJian** (Senior Editor): Trims academic jargon to maximize clarity.
+### Step 3: Distill Key Discussions and Query Across Papers
+
+When a highlight's discussion reaches a conclusion worth keeping, click **Distill these thoughts** to open the **Distillation** window.
+
+1. Click **Organize discussion** to pull points from the thread into your draft (additions only—it does not silently erase what you wrote).
+2. Edit the draft in your own words.
+3. Run one or more **Review Assistants** in the right-hand review panel—for example, **Simone Carter** (Logic Auditor) to check reasoning gaps, **Arthur Whitfield** (Evidence Archivist) to flag unsupported claims, or **Julian Cross** (Final Copy Editor) to tighten phrasing.
+4. Review suggested edits item by item in the inline diff preview, then publish. The published distillation replaces that single highlight card in the sidebar while keeping the link back to the passage.
+
+To synthesize across multiple papers, open **Reading Memory**: browse the **Distillations** library, click **Find related** from a highlight, or run **Ask library** scoped to a collection or selected papers to get a cited answer you can copy as Markdown.
 
 ---
 
-## Target Audience & Usage Boundaries
+## Who This Is For and Where It Stops
 
-### Who This Is For
+### Good Fit
 
-- Graduate students, postdocs, and principal investigators tracking literature across arXiv, bioRxiv, and peer-reviewed journals;
-- R&D scientists, patent examiners, and industry analysts performing due diligence;
-- Serious readers who want permanent, verifiable research dossiers instead of transient highlights.
+- Graduate students, postdocs, and researchers reading preprints and journal PDFs closely.
+- R&D engineers and analysts who want notes anchored to exact claims and figures.
+- Readers who want local storage and control over which AI model sees their passages.
 
-### What This Is Not For
+### Not Designed For
 
-- **Automated shallow batch summarization**: Yomitomo is built for deep comprehension, not skimming hundreds of abstracts in 30 seconds;
-- **Scanned image-only PDFs without OCR**: Raw image scans must be OCR-processed beforehand;
-- **Replacing Zotero**: Zotero excels at metadata capture and BibTeX citations; Yomitomo excels at deep reading, logical deconstruction, and distillation.
+- **Batch-summarizing dozens of papers without reading**: Yomitomo is built around passages you select and question yourself.
+- **Image-only scanned PDFs**: Yomitomo has no built-in OCR; run OCR first if the PDF has no text layer.
+- **Replacing Zotero**: Keep Zotero for bibliographic metadata, DOIs, and BibTeX/Word citations; pair it with Yomitomo for close reading.
 
 ---
 
 ## Frequently Asked Questions (FAQ)
 
-### Q1: Does annotating a PDF in Yomitomo modify the original PDF file?
-**Answer:** Never. Yomitomo uses a non-destructive database overlay. All coordinates, highlights, AI discussions, and notes are stored in local SQLite, leaving your original PDF file unaltered.
+### Q1: Does annotating a PDF in Yomitomo modify the original file?
+No. Yomitomo stores coordinates, highlights, thoughts, discussions, and distillations in its local SQLite database. The PDF binary is not altered.
 
-### Q2: Will AI companions hallucinate when reading long survey papers?
-**Answer:** No. Yomitomo uses anchored contextual injection: only the selected highlight and its surrounding paragraph are fed into the prompt, preventing token bloat and attention drift.
+### Q2: Can AI companions still make mistakes on long papers?
+Yes. Anchoring discussions to a selected passage and its surrounding context keeps replies focused on the text in front of you, which reduces drift compared with dumping an entire PDF into a chat window. Even so, models can misread formulas, tables, or context—always verify claims against the original paper.
 
-### Q3: Can I export synthesized notes to Obsidian or LaTeX?
-**Answer:** Select the text in the Distillation Studio editing area and copy it manually into an external tool. There is currently no Markdown, LaTeX, or BibTeX file export. Check formatting and links after pasting into Obsidian, Logseq, or Notion. For LaTeX reviews or bibliographies, format the text and verify citations yourself. Source anchors and discussion records do not transfer automatically.
+### Q3: Can I export notes to Obsidian or LaTeX?
+Yomitomo includes built-in **Export Markdown (.md)** and **Copy Markdown** for a whole document's highlights, thoughts, discussions, and published distillations (from the reader toolbar), for individual distillations (from the **Distillation** window or **Distillations** library), and for **Ask library** answers (with citations). There is no automatic two-way sync to Obsidian or Notion, no LaTeX or BibTeX export, and no annotated-PDF export. For LaTeX papers, paste the Markdown text and format citations yourself.
 
 ---
 
@@ -86,5 +89,5 @@ After finishing a set of related papers, press `T` to launch Distillation Studio
 
 - [Critical Reading in Practice: Deconstruct Arguments with AI Review Agents](/en/blog/scenarios/critical-reading/)
 - [PDF Annotation in Practice: Review Contracts, Whitepapers, and Reports](/en/blog/scenarios/pdf-annotation/)
-- [Knowledge Distillation Workflow: From Highlights to Structured Cards](/en/blog/scenarios/knowledge-distillation/)
-- [PDF Reader Shortcuts & Features Documentation](/en/docs/reader/)
+- [Knowledge Distillation Workflow: From Fragmented Highlights to Structured Cards](/en/blog/scenarios/knowledge-distillation/)
+- [Reader, Annotations, and Discussions](/en/docs/reader/)

@@ -1,88 +1,90 @@
 ---
 title: "Why Local-First Architecture Matters: Building Lifelong Intellectual Assets"
-description: Understand the boundaries of local storage, remote AI requests, OS credentials, and data backups.
+description: Understand what stays on your computer, what network requests Yomitomo makes, how API keys are stored, and how local backups work.
 ---
 
-"Cloud-first" has become the default architecture for reading and note-taking apps: your documents are in the cloud, your highlights are in the cloud, and your reading analytics are in the cloud. While this delivers convenience, it incurs an under-discussed cost: **your intellectual labor no longer truly belongs to you**.
+Most reading apps store your documents, highlights, and notes on vendor servers. That makes multi-device sync convenient, but it ties years of personal notes to someone else's pricing, terms of service, and uptime.
 
-Reading data carries an intimate privacy profile. Unlike public status updates, it directly mirrors your internal cognitive process: raw skepticism toward authority, tentative hypotheses, and cross-disciplinary connections. Entrusting them to centralized cloud vendors exposes your mental models to third-party scraping, AI training pipelines, or total loss upon service shutdown.
-
-Yomitomo takes a fundamentally different path: **Local-First Architecture**.
-
-Remote AI requests send the reading content and conversation needed for the task to your configured model endpoint. A model running on your computer performs inference locally.
+Yomitomo takes a **local-first** approach: your library, highlights, thoughts, discussions, and published distillations live on your own computer in open formats, with no Yomitomo account required. At the same time, "local-first" does not mean "zero network traffic." Knowing the exact privacy boundary lets you decide what to enable, what to disable, and which model to use for sensitive files.
 
 ---
 
-## Local-First Architecture & Data Flow
+## Local Storage vs. Outbound Network Requests
 
-| Component | User Input & Operations | System Internal Processing | Storage & Output | Security & Data Boundaries |
-|---|---|---|---|---|
-| **Document Library** | Import EPUB, PDF, or capture web articles | Local parsing, cleaning, and persistence | Local SQLite and source document files | Zero proxy servers; no centralized telemetry collecting reading text |
-| **Annotations & Threads** | Highlights (`A`), thoughts, discussion threads | Physical anchor binding; categorization; full-text indexing | Local structured graph and instant search index | Fully functional offline without internet access |
-| **AI Model Credentials** | BYOK API Keys (OpenAI / Claude / DeepSeek / Ollama) | Encrypted storage via OS Keyring (macOS Keychain / Windows Credential Manager) | Local SQLite stores only provider metadata & key handles | Direct requests to configured model endpoints; remote AI receives task content |
-| **Distillation & Backup** | Aggregate highlights into Markdown cards | Complete or database-only backup | Local backup folder or `.sqlite` file | Complete backups include original ebooks, PDFs, and PDF thumbnails, but exclude API keys |
-
----
-
-## Four Core Pillars of Local-First Reading
-
-### 1. Data Sovereignty: 100% Stored Locally on Your Machine
-
-All your documents, highlights, thoughts, AI debate histories, distillation articles, and reading statistics live inside your local application directory:
-- **No registration or login required**: Start reading immediately upon download without tying to any account system;
-- **Zero forced obsolescence**: Immune to external terms-of-service changes, pricing hikes, or server shutdowns;
-- **Zero surveillance**: No telemetry tracking your reading speed, habits, or intellectual leanings.
-
-### 2. Hardware-Level Credential Protection: OS Keyring Integration
-
-Yomitomo supports Bring Your Own Key (BYOK) for any OpenAI-compatible provider or local engine. Your keys are never stored in plaintext config files.
-- macOS: Written directly into **Keychain**;
-- Windows: Written directly into **Credential Manager**.
-
-SQLite stores provider metadata and key references. Model requests go directly to your configured endpoint; remote providers receive the reading content and conversation needed for the task.
-
-### 3. True Offline Autonomy: Network as an Enhancement, Not a Requirement
-
-While cloud apps fail or show blank screens offline, Yomitomo's core engine—parsing, PDF/EPUB rendering, multi-tier annotations, discussion logs, and distillation drafting—works flawlessly with no network connection. When paired with local Ollama models, you can perform private AI-assisted deep reading during flights or in secure environments.
-
-### 4. Open Standards: Zero Format Lock-In
-
-Your annotations, discussions, and distillation bodies are stored in standard SQLite tables. You can read them with standard database tools. Original PDF and ebook files are stored separately from the database.
+| Component | Stored Locally | Outbound Network Activity |
+|---|---|---|
+| **Documents & Notes** | SQLite database + separate local PDFs, ebooks (EPUB/AZW3/MOBI), web captures, and text files | None for reading, manual annotation, or keyword search |
+| **API Keys** | OS keyring (**macOS Keychain** / **Windows Credential Manager**); SQLite stores provider metadata only | Sent directly to your configured provider endpoint when authenticating an AI or WeRead request |
+| **AI & Translation** | Discussions, distillations, and usage records stay in local SQLite | Configured remote LLM/translation providers receive the passage, context, and prompt when you invoke them; a local model (e.g., Ollama) runs on your machine |
+| **Reading Memory** | Local SQLite + optional local embedding model (`embeddinggemma-300m-ONNX`) | Downloads the embedding model from **ModelScope** or **Hugging Face** only when you explicitly request it |
+| **Web Import & WeRead** | Captured articles and synced WeRead notes stay in local SQLite | Web import fetches the target URL; WeRead sync and optional in-app web reader talk directly to WeRead |
+| **Updates, Telemetry & Pricing** | Local settings and cached pricing catalog | Update checks (`download.yomitomo.app` / `yomitomo.app`), opt-out anonymous telemetry (`telemetry.yomitomo.app`), and public pricing catalog (`models.dev`) |
 
 ---
 
-## Target Audience & Usage Boundaries
+## Complete Outbound Request Boundary
 
-### Who This Is For
+To keep privacy claims concrete and verifiable, here is every outbound network request Yomitomo can make:
 
-- Academics, legal professionals, analysts, engineers, and privacy-conscious thinkers handling sensitive or proprietary texts;
-- Rational software users weary of SaaS lock-in, recurring subscriptions, and platform shutdowns;
-- Readers who frequently study in offline environments (commutes, flights, offline research labs);
-- Advanced users who maintain personal API keys or local Ollama / vLLM instances.
+1. **Configured LLM or translation provider**: Triggered only when you explicitly invoke an AI companion, review assistant, Reader Q&A, Ask library, or translation. Requests go directly from your machine to the endpoint you configured (no Yomitomo relay server).
+2. **Target URL on web import**: Fetches the URL you paste into **Add web article** (direct fetch, with an unauthenticated headless browser fallback for dynamic/SPA pages).
+3. **WeRead API and optional in-app WeRead web reader**: Communicates directly with WeRead when you sync notes via the official Skill API or open a book in Yomitomo's embedded WeRead web reader. The embedded web reader's login session stays local and is excluded from complete backups.
+4. **ModelScope / Hugging Face**: Contacted only if you explicitly choose to download the optional local Reading Memory embedding model (`embeddinggemma-300m-ONNX`).
+5. **`download.yomitomo.app` / `yomitomo.app`**: Checked for application updates.
+6. **`telemetry.yomitomo.app`**: Enabled by default and opt-out in **Settings > General > Privacy**. Sends a daily anonymous heartbeat and Reading Memory action counts without an install ID. It never sends reading content, document titles, highlights, thoughts, or discussions.
+7. **`models.dev`**: Performs a GET request on startup and every 24 hours to fetch the public model pricing catalog used to estimate costs in **Stats > Assistant usage**. This request is not controlled by the telemetry toggle and sends no reading content, API key, or install ID.
 
-### What This Is Not For
+---
 
-- **Real-time multi-user collaborative editing**: Yomitomo is engineered for personal deep thinking, not multi-seat live co-editing;
-- **Pre-packaged bundled cloud AI subscriptions**: Yomitomo does not resell compute credits; users configure their own API keys or local models.
+## Four Practical Properties of Local-First Reading
+
+### 1. Your Reading Core Works Without AI or Internet
+Without an AI provider, API key, or local embedding model configured, reading, highlighting, writing thoughts, and keyword search work normally. Saving a highlight or thought never waits for AI, embeddings, or remote calls.
+
+### 2. Credentials Live in the OS Keyring
+API keys for model providers and WeRead are stored in **macOS Keychain** or **Windows Credential Manager**, never in plaintext config files. SQLite holds only provider settings and references.
+
+### 3. Standard SQLite and Built-In Markdown Export
+Your annotations, discussions, and distillations are stored in a standard local SQLite database, while original PDFs and ebooks are stored separately on disk. You can also export notes anytime via built-in **Export Markdown (.md)** and **Copy Markdown** without vendor lock-in.
+
+### 4. Full Local Backups
+In **Settings > Data management**, you can create either a **database-only backup** or a **complete backup**:
+- A **complete backup** includes the SQLite database, original ebooks and PDFs, and PDF thumbnails.
+- **Excluded from complete backups**: API keys, App Lock settings, and the WeRead web reader login session.
+
+---
+
+## Who This Is For and Where It Stops
+
+### Good Fit
+
+- Researchers, engineers, lawyers, analysts, and readers working with proprietary or sensitive documents.
+- Users who want local SQLite storage, Markdown export, and BYOK or local Ollama inference without a recurring subscription.
+- People who read offline on flights or commutes and want a dependable desktop app.
+
+### Not Designed For
+
+- **Real-time multi-user collaboration**: Yomitomo is built for individual reading and note-taking.
+- **Built-in cloud sync across mobile devices**: Syncing across machines uses manual backups rather than a hosted account.
 
 ---
 
 ## Frequently Asked Questions (FAQ)
 
-### Q1: Does local-first mean I cannot sync between my laptop and desktop?
-**Answer:** Create a complete backup in Settings > Data Management, copy the entire folder to the other computer, and restore it there. It includes the database, original ebooks and PDFs, and PDF thumbnails. API keys and App Lock do not transfer; configure keys again afterward. Database-only backups still require keeping source files separately. See the [backup guide](/en/docs/settings/#data-management-and-backup).
+### Q1: How do I move my library between two computers?
+Create a complete backup in **Settings > Data management**, copy the backup folder to the other computer, and restore it there. It includes the database, original ebooks and PDFs, and PDF thumbnails. Re-enter your API keys (and WeRead web reader login if used) afterward. A database-only backup does not include source PDFs or ebooks. See [Settings, Models, and Data](/en/docs/settings/#data-management-and-backup).
 
-### Q2: Can Yomitomo developers access my OpenAI or DeepSeek API Keys?
-**Answer:** Yomitomo does not relay LLM requests. API keys are stored in the OS keystore, and requests go directly to your configured model endpoint. Remote providers receive task content and the key used for authentication.
+### Q2: Can Yomitomo developers see my API keys or reading content?
+No. Yomitomo does not relay LLM requests through a proxy server. API keys stay in your OS keyring, and AI requests go directly to the model endpoint you configured. Anonymous telemetry (which you can disable in **Settings > General > Privacy**) never includes reading content.
 
-### Q3: What happens to my reading history if Yomitomo ceases development?
-**Answer:** Your data remains completely accessible and functional forever. Because data resides in a standard local SQLite database, you can open and export it anytime using standard database tools.
+### Q3: What happens to my notes if Yomitomo stops being developed?
+Your local app keeps working offline, your original PDFs and ebooks remain separate files on disk, your notes remain readable in standard SQLite tables, and you can export them as Markdown files at any time.
 
 ---
 
 ## Related Guides & Workflows
 
+- [Read PDFs and EPUBs with local AI: Yomitomo + Ollama setup](/en/blog/scenarios/local-ai-reading-with-ollama/)
 - [Knowledge Distillation Workflow: From Fragmented Highlights to Structured Cards](/en/blog/scenarios/knowledge-distillation/)
-- [WeRead Notes Migration Guide: Bring Highlights Local](/en/blog/scenarios/weread-migration/)
-- [Escaping the Read-It-Later Black Hole](/en/blog/scenarios/web-article-collection/)
-- [Yomitomo Settings and Architecture Docs](/en/docs/settings/)
+- [WeRead Notes Migration Guide: Bring Your Highlights and Thoughts Local](/en/blog/scenarios/weread-migration/)
+- [Settings, Models, and Data](/en/docs/settings/)

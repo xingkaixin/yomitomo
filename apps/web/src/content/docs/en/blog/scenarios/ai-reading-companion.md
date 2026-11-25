@@ -1,90 +1,94 @@
 ---
 title: "The Right Way to Use AI Reading Companions: Partner with Models, Don't Outsource Thinking"
-description: Worried AI weakens critical thinking? Yomitomo positions LLMs as critical co-readers anchored to source passages—ensuring you remain the principal thinker and final decision maker.
+description: Use Yomitomo's reading companions and review assistants on demand—anchored to passages you choose—without handing over your judgment to generic book summaries.
 ---
 
-"Read an entire book in 30 seconds with AI" has become a pervasive marketing slogan. Upload a PDF, click a button, and receive a bulleted summary. While ostensibly efficient, consider what is actually lost in this transaction:
+"Read an entire book in 30 seconds with AI" is a common pitch: upload a file, click summarize, and skim a list of bullets. You get a quick overview, but you skip the parts that actually make reading stick—noticing weak assumptions, questioning unfamiliar terms, and testing whether an argument holds up.
 
-**Your own cognitive restructuring process is eliminated.**
-
-Consuming a generic second-hand summary robs you of wrestling with complex arguments, noticing subtle contradictions, and experiencing authentic intellectual surprise. You skip the confusion, questioning, and synthesis that constitute real learning.
-
-Yomitomo establishes a clear boundary: **AI is an active co-reader, never a surrogate thinker**. It engages strictly within your self-directed reading flow and never summarizes in your absence.
+Yomitomo treats AI as an on-demand reading partner, not a substitute reader. Active AI output only runs when you explicitly trigger it—never automatically while you scroll or turn pages. Your own highlights and thoughts are always saved and shown verbatim.
 
 ---
 
-## AI Reading Companion Workflow & Interaction Rules
+## How AI Fits Into the Reading Flow
 
-| Stage | Trigger Action | System Processing | Output | Boundaries |
+| Stage | Trigger Action | System Behavior | Output | Boundaries |
 |---|---|---|---|---|
-| **Passage Anchoring** | Select text, press `A`, pick cognitive role, record initial thought | Creates precision DOM/text anchor; records initial reaction | Highlight card with dedicated discussion thread | No floating prompts allowed without exact text anchor |
-| **Targeted Invocation** | Type `@` in discussion thread to summon specialist (e.g., `@ZhouYan`) | Injects passage, surrounding context, and persona prompt directly to LLM | Nuanced critique challenging assumptions and logic | No unsolicited popups; operates strictly on user demand |
-| **Multi-Turn Debate** | Follow up with counter-arguments or additional queries | Merges conversation history with new context in LLM request | Verifiable thought evolution timeline | Kept strictly within that highlight's thread |
-| **Synthesis & Audit** | Launch Distillation Studio (`T`), invoke review agents (`@HeMingheng`) | Audits draft for logical gaps, missing evidence, and verbosity | Structured feedback with side-by-side revision proposals | Reviewers offer suggestions; author retains final editorial control |
+| **Highlight & Thought** | Select text, click **Highlight** or press `A` to record a thought | Saves text anchor, optional highlight color, and your verbatim note in local SQLite | Highlight card in the sidebar with its own discussion thread | Reading and manual annotation work normally even with no AI configured |
+| **Passage Discussion** | `@`-mention a reading companion in a highlight thread, click **Ask assistants**, or press `Q` for **Reader Q&A** | Sends the passage, surrounding context, and your prompt to your configured model | Reply attached to that highlight's thread (or to the open document in Reader Q&A) | Only runs on explicit user action; for EPUBs, context stops at the highlighted chapter or your current reading progress to avoid spoilers |
+| **Multi-Turn Follow-Up** | Reply in the highlight thread with follow-up questions or counterarguments | Includes that thread's history in the request | Persistent discussion record anchored to the source text | Stays attached to that highlight so you can verify claims against the original passage |
+| **Distillation & Review** | Click **Distill these thoughts** inside a highlight's discussion | Opens the **Distillation** window; supports **Organize discussion** and right-hand **Review Assistants** | Inline diff proposals you accept or reject item by item | Operates on a single highlight's discussion; you keep final editorial control |
 
 ---
 
-## The Passage-Anchoring Iron Rule
+## Anchored to the Text You Choose
 
-Yomitomo's architecture enforces one fundamental constraint: **every AI reflection and dialogue must be anchored to a specific text passage**.
+When you select a passage in Yomitomo, you can click **Highlight**, press `A` to record a thought, press `C` to copy, press `Q` to ask a question in **Reader Q&A**, or click **Find related** to check your past notes in **Reading Memory**.
 
-AI cannot perform floating summaries over an entire book without context. Only when you highlight a section and note your initial instinct can an AI agent respond within your dedicated thread. Its feedback directly cites the passage, your reflection, and the surrounding text.
+In a highlight's discussion thread, replies are grounded in that specific passage and its surrounding context. For EPUBs, assistants also respect a spoiler-safe reading boundary: they only read chapters up to the highlighted chapter or your current reading progress.
 
-This prevents superficial reading habits and ensures every future review traces back to original empirical evidence.
-
----
-
-## Matrix of Specialized Personas: Beyond Generic Chatbots
-
-Rather than providing an undifferentiated chat interface, Yomitomo deploys two distinct cohorts of specialized reading and review agents:
-
-### Reading Matrix (Inspiration, Clarification & Conceptual Decomposition)
-- **@LinZhiwei** (Marginal Companion): Clarifies obscure concepts, providing historical and intellectual context;
-- **@ZhouYan** (Root Cause Inquirer): Rigorously audits underlying premises and causal logic;
-- **@XuWenqu** (Inquiry Mentor): Refines vague intuitive doubts into sharp, testable questions;
-- **@ChenYanshu** (Insight Curator): Extracts cross-domain mental models for practical application;
-- **@ShenQingyuan** (Concept Translator): Unpacks specialized terminology and intellectual genealogies;
-- **@GuXingjian** (Structure Navigator): Clarifies the architectural role of paragraphs within broader arguments.
-
-### Review Matrix (Evidence, Logic & Actionable Verification)
-- **@LiangZhengyan** (Evidence Scribe): Audits empirical backing and dataset validity;
-- **@HeMingheng** (Logic Auditor): Identifies logical fallacies, circular reasoning, and causal inversions;
-- **@SuDingbai** (Risk Auditor): Flags overgeneralizations, cognitive biases, and unhedged claims;
-- **@TangJian** (Senior Editor): Eliminates redundancies and refines prose for maximum density.
+Because every thread stays linked to its source sentence, you can always jump back and check whether an AI reply actually matches what the author wrote.
 
 ---
 
-## Target Audience & Usage Boundaries
+## Two Distinct Groups of Built-In Assistants
 
-### Who This Is For
+Yomitomo separates assistants by where they work: **Reading Companions** help while you read and discuss a passage, while **Review Assistants** critique a draft inside the **Distillation** window.
 
-- Independent thinkers who refuse to rely on secondhand AI summaries;
-- Professionals reading serious non-fiction, academic literature, and technical reports;
-- Writers and researchers who use dialectic dialogue to spark original insights.
+### Reading Companions (6 Built-In)
 
-### What This Is Not For
+You can `@`-mention these companions in any highlight discussion thread, pick them via **Ask assistants**, or chat with them in **Reader Q&A** (`Q`):
 
-- **Skimming entire books in 3 minutes**: Yomitomo is built for slow, deliberate mastery;
-- **Audio-only passive entertainment**: The interface is optimized for desktop analytical study.
+- **June Hartley** (`@JuneHartley`, Margin Reading Companion): Offers quick context and approachable explanations beside the text.
+- **Gideon Frost** (`@GideonFrost`, First-Principles Reviewer): Challenges underlying premises, logic steps, and hidden assumptions.
+- **Maya Brooks** (`@MayaBrooks`, Question Mentor): Helps turn vague doubts into specific, testable questions.
+- **Marcus Reed** (`@MarcusReed`, Insight Editor): Connects passages to practical takeaways and broader implications.
+- **Iris Chen** (`@IrisChen`, Concept Translator): Explains specialized terminology and concepts in plain language.
+- **Daniel Park** (`@DanielPark`, Structure Navigator): Clarifies how a passage fits into the author's overall structure and argument.
+
+### Review Assistants (6 Built-In)
+
+Review assistants are selectable **only** in the right-hand review panel of the **Distillation** window. They cannot be `@`-mentioned inside highlight discussion threads:
+
+- **Arthur Whitfield** (Evidence Archivist): Checks whether claims in your draft have concrete backing.
+- **Hannah Wells** (Reader Advocate): Spots unclear jumps or missing context from a reader's perspective.
+- **Julian Cross** (Final Copy Editor): Cuts wordiness and tightens phrasing.
+- **Simone Carter** (Logic Auditor): Flags logical gaps, leaps, and weak causal links.
+- **Victor Tan** (Risk Examiner): Surfaces unhedged claims, blind spots, and edge cases.
+- **Grace Kim** (Action Calibrator): Checks whether practical conclusions or next steps are realistic and specific.
+
+---
+
+## Who This Is For and Where It Stops
+
+### Good Fit
+
+- Readers who want to do the thinking themselves and use AI to test or clarify specific passages.
+- Researchers, engineers, and analysts working through dense non-fiction, papers, and technical reports.
+- Writers who want structured feedback on their own distilled notes before keeping or exporting them.
+
+### Not Designed For
+
+- **One-click whole-book summaries**: Yomitomo does not auto-summarize documents on import.
+- **Unattended reading**: Active AI output requires your explicit prompt or action.
 
 ---
 
 ## Frequently Asked Questions (FAQ)
 
-### Q1: Do I need a monthly subscription to use AI companions in Yomitomo?
-**Answer:** No subscription fees are paid to Yomitomo. Yomitomo operates on a Bring Your Own Key (BYOK) model. Connect your official OpenAI, Anthropic, DeepSeek, or Google Gemini keys, or use local Ollama / LM Studio instances completely for free.
+### Q1: Do I need a subscription to Yomitomo to use AI companions?
+No. Yomitomo is free and uses your own model configuration. Connect an API key from a supported provider (such as OpenAI, Anthropic, DeepSeek, Google Gemini, or another OpenAI-compatible endpoint), or connect a local server like Ollama or LM Studio.
 
-### Q2: Will AI companions work when offline?
-**Answer:** If you use local models via Ollama (e.g., DeepSeek-R1 or Llama 3), AI features work 100% offline. If using cloud APIs, internet connectivity is required for inference, but all annotation and distillation tools remain fully functional offline.
+### Q2: Do AI companions work offline?
+Manual reading, highlighting, writing thoughts, and keyword search always work offline with no AI configured. If you connect a local model through Ollama with weights already downloaded, AI discussions and reviews also run without internet access. Remote API providers require an internet connection when invoked.
 
-### Q3: Can I customize AI companion prompts?
-**Answer:** Yes. Under **Settings > AI Assistants**, you can fine-tune system prompts, model temperature, and default models for each companion, or build your own domain-specific personas.
+### Q3: Can I edit companion prompts or create custom personas?
+No. On the top-level **Assistants** page, you can read each built-in assistant's introduction and enable or disable individual assistants, but you cannot edit system prompts, set per-assistant temperature/models, or create custom personas in the UI. Model selection is configured in **Settings > Models & routing** using a shared **Default model** plus optional per-task overrides (**Reading comprehension**, **In-depth review**, and **Bilingual translation**).
 
 ---
 
 ## Related Guides & Workflows
 
-- [Critical Reading in Practice: Deconstruct Arguments with Review Agents](/en/blog/scenarios/critical-reading/)
-- [Academic Paper Deep Reading: An AI-Powered Workflow](/en/blog/scenarios/academic-paper-reading/)
-- [Deep Reading for Non-Fiction eBooks](/en/blog/scenarios/deep-ebook-reading/)
-- [AI Reading Companions & Review Matrix Documentation](/en/docs/ai-companions/)
+- [Critical Reading in Practice: Deconstruct Arguments with AI Review Agents](/en/blog/scenarios/critical-reading/)
+- [Academic Paper Deep Reading: An AI-Powered Workflow for Researchers](/en/blog/scenarios/academic-paper-reading/)
+- [Deep Reading for Non-Fiction eBooks: From Passive Highlighting to Cognitive Mastery](/en/blog/scenarios/deep-ebook-reading/)
+- [AI Reading Companions and Assistants](/en/docs/ai-companions/)
