@@ -21,9 +21,9 @@ Remote AI features send the reading content and conversation needed for the task
 2. In the **Library**, import a web article, EPUB/AZW3/MOBI ebook, PDF document, or Markdown text.
 3. Open the material, highlight text, and record a thought. Reading and manual annotations do not require an API key.
 
-When you want AI companionship, in-depth review, or bilingual translation, go to **Settings > Models and Routing**, add a provider, test the connection, and choose one default model. Expand per-task settings when you need different models. Remote services usually require your own API key; you can also connect a local model. See "[Settings, Models, and Data](/en/docs/settings/)".
+When you want AI companionship, in-depth review, or bilingual translation, go to **Settings > Models & routing**, add a provider, test the connection, and choose one default model. Expand per-task settings when you need different models. Remote services usually require your own API key; you can also connect a local model. See "[Settings, Models, and Data](/en/docs/settings/)".
 
-You can switch display languages anytime in Settings. Product documentation is available in [Chinese](/docs/), [English](/en/docs/), and [Japanese](/ja/docs/). To sync highlights, thoughts, and reading progress from WeRead, check out "[Get a WeRead API Key](/en/docs/weread-api-key/)".
+You can switch display languages anytime in **Settings > General**. Product documentation is available in [Chinese](/docs/), [English](/en/docs/), and [Japanese](/ja/docs/). To sync highlights, thoughts, and reading progress from WeRead, check out "[Get a WeRead API Key](/en/docs/weread-api-key/)".
 
 ## Core Product Areas
 
@@ -31,10 +31,11 @@ Yomitomo is organized around several key modules:
 
 - **Library**: Organize web articles, ebooks (EPUB/AZW3/MOBI), PDFs, Markdown/text files, WeRead highlights, and custom reading collections.
 - **Reader**: Deep text reading, precise text anchoring, inline discussions, bilingual translation, and knowledge distillation (see "[Distilled Notes and Review](/en/docs/sedimentation/)").
-- **Assistants**: Manage specialized AI reading companions and review assistants with tailored personas and prompts.
-- **Stats**: Track local reading streaks, annotation trends, and activity heatmaps, or query synced WeRead statistics.
-- **Settings**: Configure UI language, AI providers, themes, sound effects, App Lock, shortcuts, data backups, and privacy preferences.
-- **WeRead**: Seamlessly sync your books, highlights, thoughts, and progress via official Skill credentials.
+- **Reading Memory**: Browse published distillations, query saved highlights and thoughts across materials via **Ask library** with source citations, and revisit past judgments.
+- **Assistants**: Browse introductions and enable or disable the 6 built-in AI reading companions and 6 review assistants.
+- **Stats**: Review local reading activity, annotation trends, 70-day activity map, and assistant usage, or query synced WeRead reading time and stats.
+- **Settings**: Configure UI language, AI providers, translation options, sound effects, App Lock, shortcuts, data backups, and privacy preferences (light/dark appearance is switched in the sidebar footer).
+- **WeRead**: Sync your books, highlights, thoughts, and progress via official Skill credentials.
 
 ## The Reading Philosophy
 

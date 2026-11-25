@@ -3,18 +3,18 @@ title: Reading Stats and FAQ
 description: Review reading metrics across local and WeRead sources, and troubleshoot import, AI, and local storage issues.
 ---
 
-The Stats dashboard gives you an inspiring, quantitative overview of your reading habits and cognitive momentum over time. It aggregates data from two primary dimensions: **Local Reading** and **WeRead**.
+The Stats dashboard gives you a clear overview of your reading activity, annotation cadence, and assistant usage over time. It includes **Local Reading**, **Assistant usage**, and **WeRead** views.
 
 ## Key Metrics
 
-The Stats dashboard visualizes several core dimensions:
+The local reading stats view tracks:
 
-- **Daily Activity**: Today's reading interactions and engagement frequency
-- **Consistency & Milestones**: Total recorded days, active days per week, and all-time peak streaks
-- **Cognitive Output**: Total imported articles, annotations, and distilled notes
-- **Dialogue & Reflection**: Total discussion comments and AI companion co-reading contributions
+- **Today & Total Activity**: Distillations, thoughts, highlights, and assistant contributions (local stats do not track reading duration)
+- **Consistency & Milestones**: Total recorded days, active days per week, 7-day streak badge, and peak streaks
+- **21-Day Activity Trend**: Daily curves for distillations, thoughts, and highlights
+- **70-Day Reading Map**: An activity heatmap showing your ongoing reading rhythm
 
-Trend charts illustrate your historical trajectory across imports, highlights, distillations, and discussion threads, while the 70-day activity heatmap reflects your sustained reading cadence.
+Switch to **Assistant usage** to review call counts, total tokens, estimated cost (based on the public `models.dev` pricing catalog), and per-assistant breakdowns.
 
 ## WeRead Stats Synchronization
 
@@ -28,10 +28,10 @@ After configuring your WeRead API Key in Settings, you can switch to the **WeRea
 
 Please verify the following checkpoints:
 
-1. **Provider Setup**: Ensure at least one AI provider is added under **Settings > Models and Routing**.
+1. **Provider Setup**: Ensure at least one AI provider is added under **Settings > Models & routing**.
 2. **API Key Validity**: Check that the API key was pasted without unintended whitespace.
-3. **Connectivity Test**: Click **Test Connection** on the provider card to verify endpoint reachability.
-4. **Task Routing**: Confirm that models are actively assigned to specific tasks (e.g., Reading Comprehension and In-Depth Review).
+3. **Connectivity Test**: Edit the provider configuration and click **Test** in the dialog footer to verify endpoint reachability and authentication.
+4. **Default Model & Routing**: Confirm a **Default model** is selected under **Model usage** in **Settings > Models & routing** (and if you enabled per-task overrides, confirm the relevant task has a valid model).
 
 ### Why did a web article import fail?
 
@@ -64,4 +64,4 @@ By default, Yomitomo sends a lightweight anonymous heartbeat at most once per da
 
 ### Which operating systems are supported?
 
-Yomitomo natively supports **macOS (Apple Silicon & Intel)** and **Windows (x64 & ARM64)**.
+Yomitomo supports **macOS (Apple Silicon)** and **Windows (x64)**.

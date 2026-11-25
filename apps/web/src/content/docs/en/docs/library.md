@@ -3,7 +3,7 @@ title: Library and Import
 description: Manage web articles, EPUB/AZW3/MOBI ebooks, PDFs, and Markdown notes, and understand how Yomitomo stores reading materials.
 ---
 
-The Library is the central hub for all your reading materials. Web articles, ebooks (EPUB/AZW3/MOBI), PDF documents, Markdown/text files, WeRead highlights, and collections are organized neatly so you can transition into the right reading experience with ease. You can customize which sources appear on the home view in Settings. Deleting items requires confirmation, and actions are accompanied by top notifications and optional sound effects.
+The Library is the central hub for all your reading materials. Web articles, ebooks (EPUB/AZW3/MOBI), PDF documents, Markdown/text files, WeRead highlights, and collections live together in one view, and you can filter by multiple content types from the search bar. Deleting items requires confirmation, and actions are accompanied by top notifications and optional sound effects.
 
 ## Collections
 
@@ -22,7 +22,7 @@ The newly created collection opens immediately. You can rename it anytime from i
 A collection can hold web articles, ebooks, PDFs, plain text, and WeRead titles. You can add items in three ways:
 
 - **Pick from Collection View**: Inside the collection, click "Add to this collection" and select existing items from your library. The selector supports type filtering and keyword search; click "+" on individual items or drag them into the "Pending" tray on the right.
-- **Drag and Drop**: From the main library grid, drag any reading item card directly onto a collection card.
+- **Drag and Drop**: From the main library shelf, drag any reading item cover directly onto a collection crate.
 - **Card Menu**: Choose **Add to collection** from an item's card menu, then select collections or create a new one in the dialog.
 
 To remove an item, open its card menu inside the collection and choose "Remove from collection". This only removes the membership link—the original item remains intact in your library.
@@ -38,7 +38,7 @@ Deleting a collection only removes the grouping itself and its membership links.
 ## Import Web Articles
 
 1. Click the "+" button in the Library.
-2. Select "Add Web Page".
+2. Select **Add web article**.
 3. Paste any article URL starting with `http://` or `https://`.
 4. Yomitomo will automatically extract the clean title, author, body text, and images.
 
@@ -110,4 +110,4 @@ Choose **Edit info** from an item's card menu to change its title and author; th
 
 ## Local Storage and Offline Images
 
-All reading data is stored securely in your desktop application data directory. Enabling "Save images locally" downloads article illustrations directly to your disk upon web import, protecting your reading experience against broken links or removed source media.
+All reading data is stored securely in your desktop application data directory. Enabling **Save article images while capturing** in **Settings > General** downloads article illustrations directly to your disk upon web import, protecting your reading experience against broken links or removed source media.
