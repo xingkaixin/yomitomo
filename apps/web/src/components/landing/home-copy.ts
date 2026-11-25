@@ -185,7 +185,7 @@ const zh: HomeCopy = {
     },
     lang: {
       title: '双语对照',
-      desc: '段落级翻译，原文和译文上下对照。写回阅读器时不改动原文。',
+      desc: '段落级双语对照，支持网页、EPUB 章节与单栏文本 PDF，不改动原文内容。',
     },
     mem: {
       title: '阅读记忆',
@@ -201,11 +201,11 @@ const zh: HomeCopy = {
     },
     stats: {
       title: '阅读统计',
-      desc: '时长、划线和想法按日累计，也能同步微信读书的阅读数据。',
+      desc: '划线、想法、讨论和沉淀按日累计，也能同步微信读书的阅读数据。',
     },
     theme: {
       title: '阅读外观',
-      desc: '亮色、暗色，或跟随系统。阅读器中可调整字号和栏宽，暗色模式下 PDF 保留原始页面颜色。',
+      desc: '亮色、暗色，或跟随系统。阅读器中可调整字号和栏宽，暗色模式下 PDF 默认保留原色，也支持护眼滤镜。',
     },
     local: {
       title: '数据留在本机',
@@ -222,7 +222,7 @@ const zh: HomeCopy = {
   },
   band: {
     title: ['AI 伴读不替你读，', '而是陪你读。'],
-    lead: '六种视角各自提问、追根、翻译和编辑，但最终的判断始终留给你。你可以为每条划线指定谁参与，也可以让它们全部安静下来。',
+    lead: '六种视角各自陪读、追问、拆解前提、解释概念、梳理结构与整理洞见，但最终的判断始终留给你。你可以为每条划线指定谁参与，也可以让它们全部安静下来。',
     quote: '真正留下来的，是你当时停下来的那个判断。',
     noteTab: '助手想法',
     companions: {
@@ -233,12 +233,12 @@ const zh: HomeCopy = {
       },
       'question-mentor': {
         name: '许问渠',
-        role: '提问者',
+        role: '追问导师',
         say: '你上一次因为一句话改变看法，是什么时候？那句话现在还找得到吗？',
       },
       'insight-editor': {
         name: '陈砚书',
-        role: '洞见整理者',
+        role: '洞见整理员',
         say: '这句话把阅读的产出从“内容”换成了“判断”。可以记成：停下来的地方，才是读过的证据。',
       },
       'root-reviewer': {
@@ -248,12 +248,12 @@ const zh: HomeCopy = {
       },
       'concept-translator': {
         name: '沈清源',
-        role: '概念翻译者',
+        role: '概念翻译员',
         say: '这里的“判断”更接近读者当时的立场，不是对错评价。就像你在页边写下的那句“我不同意”。',
       },
       'structure-navigator': {
         name: '顾行简',
-        role: '结构梳理者',
+        role: '结构领航员',
         say: '这句是第二段的收束。前面铺垫“读完什么都没留下”，后一段转向笔记软件的局限。',
       },
     },
@@ -323,7 +323,7 @@ const zh: HomeCopy = {
     tabs: { distill: '沉淀', note: '批注' },
     distillBody: [
       '读过的证据不是内容，是停下来的位置。一条划线要能回答“我当时为什么停在这里”，否则它只是一段别人的话。',
-      '注意：原文只说判断比内容更耐久，没有给出证据，这是我认同的部分，不是作者的结论。',
+      '注意：原文只说判断比内容更持久，没有给出证据，这是我认同的部分，不是作者的结论。',
     ],
     time: {
       twoDaysAgo: '2 天前',
@@ -495,7 +495,7 @@ const en: HomeCopy = {
       {
         id: 'lib',
         label: 'Library',
-        desc: 'Content from different sources, your lines and discussions all land on the same workbench, and synced notes keep their original anchors.',
+        desc: 'Content from different sources, your highlights and discussions all land on one workbench, anchored back to the source.',
       },
     ],
   },
@@ -519,15 +519,15 @@ const en: HomeCopy = {
     },
     lang: {
       title: 'Side-by-side translation',
-      desc: 'Paragraph-level translation stacks the original and the translation. Writing it back never changes the source.',
+      desc: 'Paragraph-level bilingual translation for web articles, EPUB chapters, and single-column PDFs, without altering the source.',
     },
     mem: {
       title: 'Reading Memory',
-      desc: 'A local model indexes your lines, thoughts and distillations. Read a passage and find related things you have read.',
+      desc: 'A local model indexes your highlights, thoughts, and distillations. Read a passage and find related notes from your past reading.',
     },
     lib: {
       title: 'Ask your library',
-      desc: 'Ask questions across all your lines, thoughts and distillations. Answers carry citations that lead back to the source.',
+      desc: 'Ask questions across all your highlights, thoughts, and distillations. Answers carry citations that lead back to the source.',
     },
     review: {
       title: 'Revisit',
@@ -535,11 +535,11 @@ const en: HomeCopy = {
     },
     stats: {
       title: 'Reading stats',
-      desc: 'Reading time, lines and thoughts add up by day so you can see how your reading habits grow.',
+      desc: 'Highlights, thoughts, and distillations add up by day so you can see how your reading habits grow.',
     },
     theme: {
       title: 'Reading appearance',
-      desc: 'Light, dark, or follow your system. Adjust reading size and width; PDFs keep their original page colors in dark mode.',
+      desc: 'Light, dark, or follow your system. Adjust reading size and width; PDFs keep original page colors in dark mode, with an optional dark filter.',
     },
     local: {
       title: 'Your data stays local',
@@ -556,38 +556,38 @@ const en: HomeCopy = {
   },
   band: {
     title: ["AI companions don't read for you.", 'They read with you.'],
-    lead: 'Six perspectives question, dig deeper, translate and edit, but the final judgment always stays yours. You can choose who joins each line, or mute them all.',
+    lead: 'Six perspectives read alongside you—questioning, probing premises, explaining concepts, mapping structure, and editing insights—while the final judgment always stays yours. Choose who joins each line, or mute them all.',
     quote: 'What stays is the judgment you made when you stopped.',
     noteTab: 'Companion thought',
     companions: {
       'reading-partner': {
         name: 'June Hartley',
-        role: 'Margin reading companion',
+        role: 'Margin Reading Companion',
         say: 'I paused here too. Does the author\'s "judgment" come earlier than a conclusion, and with less certainty?',
       },
       'question-mentor': {
         name: 'Maya Brooks',
-        role: 'Questioner',
+        role: 'Question Mentor',
         say: 'When did a sentence last change your mind? Can you still find that sentence?',
       },
       'insight-editor': {
         name: 'Marcus Reed',
-        role: 'Insight editor',
+        role: 'Insight Editor',
         say: 'This moves the output of reading from content to judgment. You could note it as: where you stopped is the evidence that you read.',
       },
       'root-reviewer': {
         name: 'Gideon Frost',
-        role: 'Root-cause reviewer',
+        role: 'First-Principles Reviewer',
         say: 'The author assumes judgment outlasts content, but offers no evidence. If that judgment was wrong, what is the value of keeping it?',
       },
       'concept-translator': {
         name: 'Iris Chen',
-        role: 'Concept translator',
+        role: 'Concept Translator',
         say: '"Judgment" here is closer to where the reader stood at the time, not a verdict. Like the "I disagree" you wrote in the margin.',
       },
       'structure-navigator': {
         name: 'Daniel Park',
-        role: 'Structure navigator',
+        role: 'Structure Navigator',
         say: 'This closes the second paragraph. It builds on "nothing left after reading" and turns to the limits of note apps.',
       },
     },
@@ -850,7 +850,7 @@ const ja: HomeCopy = {
       {
         id: 'lib',
         label: 'ライブラリ',
-        desc: '異なるソースの本文、線、対話を一つのワークスペースに集約します。同期したメモも原文の位置を保ちます。',
+        desc: '異なるソースの本文、線、対話を一つのワークスペースに集約し、すべて原文の位置に結びつけます。',
       },
     ],
   },
@@ -874,7 +874,7 @@ const ja: HomeCopy = {
     },
     lang: {
       title: '二言語対照',
-      desc: '段落単位で翻訳し、原文と訳文を上下に並べます。リーダーへ書き戻しても原文は変わりません。',
+      desc: 'Web記事・EPUBの章・単段PDFを段落単位で対訳表示。原文の内容はそのまま保たれます。',
     },
     mem: {
       title: '読書メモリー',
@@ -890,11 +890,11 @@ const ja: HomeCopy = {
     },
     stats: {
       title: '読書統計',
-      desc: '読書時間、線、考えを日ごとに集計し、自分の読書リズムを振り返れます。',
+      desc: '線、考え、まとめを日ごとに集計し、自分の読書リズムを振り返れます。',
     },
     theme: {
       title: '読書表示',
-      desc: 'ライト、ダーク、またはシステムに合わせて切り替え。文字サイズと本文幅を調整でき、ダーク時もPDFの元の色を保ちます。',
+      desc: 'ライト、ダーク、またはシステムに合わせて切り替え。文字サイズと本文幅を調整でき、ダーク時はPDFの元の色を保つほか、ダークフィルターも選べます。',
     },
     local: {
       title: 'データは端末に残る',
@@ -911,7 +911,7 @@ const ja: HomeCopy = {
   },
   band: {
     title: ['AI読書パートナーは、', '代わりに読むのではなく一緒に読む。'],
-    lead: '六つの視点が問い、掘り下げ、翻訳し、編集します。最後に判断するのはいつもあなたです。線を引くたびに参加者を選ぶことも、全員を休ませることもできます。',
+    lead: '六つの視点が伴走、問いかけ、前提検証、概念解説、構成整理、洞察編集を担いますが、最後の判断はいつもあなたに残ります。線を引くたびに参加者を選ぶことも、全員を休ませることもできます。',
     quote: '本当に残るのは、立ち止まったときの判断だ。',
     noteTab: 'アシスタントの考え',
     companions: {
