@@ -1,9 +1,9 @@
 ---
 title: Blog & In-Depth Practice Guides
-description: Explore best practices for academic literature, market research, non-fiction deep reading, and air-gapped local AI co-reading with Yomitomo.
+description: Practical guides for academic papers, PDF reports, non-fiction ebooks, web articles, WeRead notes, and local AI reading with Yomitomo.
 ---
 
-Explore Yomitomo's in-depth reading methodologies, alternative comparisons, and integration workflows. Moving beyond abstract feature lists, we address authentic cognitive challenges—connecting academic PDFs, market reports, EPUB non-fiction, web essays, and WeRead notes into a permanent knowledge system.
+Practical reading workflows, tool comparisons, and setup guides for Yomitomo. Each guide covers how to read, annotate, discuss, and export notes across PDFs, ebooks, web articles, plain text, and synced WeRead notes.
 
 ---
 
@@ -11,16 +11,16 @@ Explore Yomitomo's in-depth reading methodologies, alternative comparisons, and 
 
 - [Academic Paper Deep Reading: An AI-Powered Workflow for Researchers](/en/blog/scenarios/academic-paper-reading/)
 - [PDF Annotation in Practice: Review Contracts, Whitepapers, and Reports](/en/blog/scenarios/pdf-annotation/)
-- [Deep Reading for Non-Fiction eBooks: From Passive Highlighting to Mastery](/en/blog/scenarios/deep-ebook-reading/)
-- [Escaping the Read-It-Later Black Hole: Turn Saved Articles into Knowledge](/en/blog/scenarios/web-article-collection/)
+- [Deep Reading for Non-Fiction eBooks: From Passive Highlighting to Cognitive Mastery](/en/blog/scenarios/deep-ebook-reading/)
+- [Escaping the Read-It-Later Black Hole: Turn Saved Articles into Synthesized Knowledge](/en/blog/scenarios/web-article-collection/)
 
 ---
 
 ## AI Companions & Critical Thinking
 
-- [The Right Way to Use AI Reading Companions: Co-Read, Don't Outsource Thinking](/en/blog/scenarios/ai-reading-companion/)
+- [The Right Way to Use AI Reading Companions: Partner with Models, Don't Outsource Thinking](/en/blog/scenarios/ai-reading-companion/)
 - [Critical Reading in Practice: Deconstruct Arguments with AI Review Agents](/en/blog/scenarios/critical-reading/)
-- [Air-Gapped & Private AI Reading: Yomitomo + Ollama Local LLM Workflow](/en/blog/scenarios/local-ai-reading-with-ollama/)
+- [Read PDFs and EPUBs with local AI: Yomitomo + Ollama setup](/en/blog/scenarios/local-ai-reading-with-ollama/)
 
 ---
 
@@ -35,6 +35,6 @@ Explore Yomitomo's in-depth reading methodologies, alternative comparisons, and 
 
 ## Data Sovereignty & Tool Selection
 
-- [Yomitomo vs Readwise Reader: Local Deep Distillation vs Cloud Read-It-Later](/en/blog/scenarios/readwise-reader-alternative/)
+- [Yomitomo vs Readwise Reader: a local, open-source alternative](/en/blog/scenarios/readwise-reader-alternative/)
 - [WeRead Notes Migration Guide: Bring Your Highlights and Thoughts Local](/en/blog/scenarios/weread-migration/)
 - [Why Local-First Architecture Matters: Building Lifelong Intellectual Assets](/en/blog/scenarios/local-first-privacy/)

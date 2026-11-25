@@ -27,12 +27,12 @@ const zhFaq: FaqItem[] = [
   {
     question: 'AI 伴读会替我做阅读判断吗？',
     answer:
-      '不会。Yomitomo 提供六位 AI 伴读，分别负责提问、追根、翻译和编辑，它们陪你一起读，但最终的判断始终留给你自己。',
+      '不会。Yomitomo 提供六位 AI 伴读，分别从陪读、追问、拆解前提、解释概念、梳理结构和整理洞见切入；只有你显式触发时才发言，最终的判断始终留给你自己。',
   },
   {
     question: '使用 Yomitomo 需要配置 API Key 吗？',
     answer:
-      '普通阅读和手动批注不需要。使用 AI 功能时，需配置模型供应商与任务路由；远程服务通常需要自己的 API Key，也可以连接 Ollama 等本地模型。',
+      '普通阅读和手动批注不需要。使用 AI 功能时，需配置模型供应商并选择默认模型（也可按任务单独覆盖）；远程服务通常需要自己的 API Key，也可以连接 Ollama 等本地模型。',
   },
 ];
 
@@ -60,12 +60,12 @@ const enFaq: FaqItem[] = [
   {
     question: 'Do the AI companions read for me?',
     answer:
-      'No. Yomitomo offers six AI companions that question, dig deeper, translate, and edit. They read with you, but the final judgment always stays yours.',
+      'No. Yomitomo offers six AI companions that read alongside you—questioning, probing premises, explaining concepts, mapping structure, and editing insights. They only speak when you invoke them, and the final judgment always stays yours.',
   },
   {
     question: 'Do I need an API key to use Yomitomo?',
     answer:
-      'Reading and manual annotations do not require an API key. AI features require a configured provider and task routes. Remote services usually need your own API key; you can also connect a local model such as Ollama.',
+      'Reading and manual annotations do not require an API key. AI features require a configured provider and default model (with optional per-task overrides). Remote services usually need your own API key; you can also connect a local model such as Ollama.',
   },
 ];
 
@@ -93,12 +93,12 @@ const jaFaq: FaqItem[] = [
   {
     question: 'AI読書パートナーが代わりに判断しますか？',
     answer:
-      'いいえ。六人のAI読書パートナーが問い、掘り下げ、翻訳し、編集しますが、最後の判断はいつもあなた自身に残ります。',
+      'いいえ。六人のAI読書パートナーが伴走、問いかけ、前提検証、概念解説、構成整理、洞察編集を担いますが、あなたが呼び出したときだけ発言し、最後の判断はいつもあなた自身に残ります。',
   },
   {
     question: 'Yomitomoを使うにはAPIキーが必要ですか？',
     answer:
-      '読書と手動の注釈には不要です。AI機能にはプロバイダーとタスクルートの設定が必要です。リモートサービスには通常ご自身のAPIキーが必要ですが、Ollamaなどのローカルモデルにも接続できます。',
+      '読書と手動の注釈には不要です。AI機能にはモデルプロバイダーと既定モデルの設定（タスク別の個別指定も可能）が必要です。リモートサービスには通常ご自身のAPIキーが必要ですが、Ollamaなどのローカルモデルにも接続できます。',
   },
 ];
 

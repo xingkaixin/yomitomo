@@ -1,85 +1,87 @@
 ---
 title: "PDF Annotation in Practice: Review Contracts, Whitepapers, and Reports"
-description: Reviewing dense commercial contracts, industry reports, or policy whitepapers? Yomitomo brings structured annotation, AI review specialists, and distillation to PDF analysis.
+description: Review dense contracts, industry reports, and technical whitepapers locally in Yomitomo with PDFium rendering, anchored notes, Reading Companions, Distillation review, and Markdown export.
 ---
 
-PDF is the universal standard for serious business and academic documents: master service agreements, equity research, whitepapers, and regulatory filings. These documents span dozens of pages, filled with dense clause definitions and complex statistical charts. Traditional PDF tools offer only flat highlighting and sticky notes, failing to assist in structural and logical analysis.
+Contracts, equity research, policy whitepapers, and technical specifications usually arrive as long PDFs packed with dense clauses and charts. Standard PDF viewers give you colored markers and sticky notes, which quickly turn into an unsearchable pile of comments when you need to compile questions or a review memo.
 
-Yomitomo integrates semantic annotations, AI review experts, and distillation workflows directly into the PDF environment.
+Yomitomo keeps PDF rendering, anchored notes, AI discussion, and Markdown export local on your desktop while leaving the original PDF file untouched.
 
 ---
 
 ## Professional PDF Review Workflow
 
-| Review Stage | User Action & Input | System Processing | Output Deliverable | Boundaries & Limits |
+| Stage | User Action | How Yomitomo Handles It | Output | Boundaries |
 |---|---|---|---|---|
-| **Batch Ingestion** | Import PDF reports/contracts (≤120MB per file) | High-fidelity local PDFium rendering; duplicate detection | Clean local document; dark mode preserves original chart colors | Max 120MB per file; requires vector text layer (pre-OCR for scans) |
-| **Clause Tagging** | Select text, press `A`, tag as Key Point, Assumption, Question | Precision coordinate anchoring in local SQLite | Filterable structured annotation index in sidebar | Non-destructive; leaves original PDF binary intact |
-| **Risk & Compliance Audit** | Summon `@LiangZhengyan` or `@SuDingbai` in thread | Injects clause text and context to LLM for risk analysis | Risk ratings, evidentiary audits, and counter-clause drafts | AI provides cognitive prompts, not formal legal certification |
-| **Synthesis & Reporting** | Press `T` to open Distillation Studio | Consolidates key findings and open issues into executive summary | High-density due diligence memo (Markdown format) | Stored locally; manually copy text from the distillation editing area |
+| **Batch Import** | Import up to 10 PDFs at once (up to 120 MB/file) | Renders locally via PDFium with automatic deduplication | Local library entry; dark mode preserves original page colors by default (plus optional **Dark eye-care filter**) | Requires a text layer for selection/translation; no built-in OCR for image-only scans |
+| **Clause Marking** | Select text, click **Highlight** or press `A` to record a thought, pick a highlight color | Stores passage coordinates, color, and verbatim thought in local SQLite | Anchored highlight card in the sidebar with its own discussion thread | Non-destructive overlay; original PDF file is never modified |
+| **Passage Interrogation** | `@`-mention a reading companion (e.g., `@GideonFrost`, `@DanielPark`, `@MayaBrooks`) or press `Q` for **Reader Q&A** | Sends the selected clause, surrounding context, and prompt to your configured model | Multi-turn analysis attached to that exact clause | AI provides reading assistance, not legal or compliance certification |
+| **Clause Distillation** | Click **Distill these thoughts** in a highlight's discussion | Opens the **Distillation** window with **Organize discussion** and right-hand **Review Assistants** | Inline diff preview (accept/reject item by item) → published distillation card | Operates on one highlight's discussion at a time |
+| **Cross-Document Synthesis & Export** | Use **Reading Memory** (**Ask library**, **Find related**) or **Export Markdown (.md)** / **Copy Markdown** | Queries saved notes across a collection or selected PDFs; exports clean Markdown | Cited Markdown answers or full document note export | No annotated-PDF export and no automatic external sync |
 
 ---
 
-## Tagging Cognitive Attributes Rather Than Screen Coordinates
+## Practical PDF Reading Controls
 
-In Yomitomo, select a clause or table and press `A` to assign an explicit cognitive role:
-- **Key Point**: Core liability terms, EBITDA metrics, or definitive covenants;
-- **Assumption**: Baseline forecasts (e.g., "Assumes 5% annual GDP growth");
-- **Concept**: Specialized legal or technical definitions;
-- **Question**: Ambiguous obligations, clause conflicts, or terms requiring negotiation;
-- **Quote**: Definitive statements suited for investment committee presentations.
+Yomitomo includes several PDF-specific features suited to long business and technical files:
 
-**Practical Use Case**: Reviewing a 40-page vendor framework agreement. Mark core obligations as **Key Point**, open-ended indemnities as **Assumption**, and conflicting termination clauses as **Question**. When finished, filter by **Question**, compile a clarification checklist, and manually copy its text from the distillation editing area for negotiation.
+- **Batch import with deduplication**: Import up to 10 PDFs at a time (up to 120 MB per file).
+- **Original page colors in dark mode**: Dark mode preserves original PDF page colors by default so financial charts, maps, and schematics stay legible, with an optional **Dark eye-care filter** if you prefer reduced glare.
+- **Zoom controls**: Switch between **Fit width**, **Fit page**, and **100%**, or adjust with `⌘/Ctrl +`, `−`, and `0`.
+- **Bilingual translation**: Translate single-column text PDFs page by page directly in the reader.
 
----
-
-## Cross-Examination with AI Review Specialists
-
-- Summon `@LiangZhengyan` (Evidence Scribe) to check whether cited regulatory frameworks are current;
-- Summon `@HeMingheng` (Logic Auditor) to test whether performance benchmarks logically ensure the intended business outcome;
-- Summon `@SuDingbai` (Risk Auditor) to surface hidden liability shifting and unhedged operational risks.
+Use per-highlight customizable colors to keep reviews structured without heavy overhead—for example, one color for binding obligations, another for assumptions or financial projections, and a third for clauses requiring follow-up.
 
 ---
 
-## Engineering Details for Professional Analysts
+## Separating Reading Companions from Review Assistants
 
-- **Batch Import with Deduplication**: Import up to 10 PDFs simultaneously with automatic deduplication;
-- **Original Chart Color Preservation in Dark Mode**: Prevents inverse color distortion on financial charts, maps, and technical schematics;
-- **Multi-Document Distillation**: Synthesize insights across multiple related PDFs into a single due diligence memo.
+When reviewing a dense clause, match the assistant to the stage of your work:
+
+1. **Inside a highlight's discussion thread (Reading Companions)**:
+   - **@GideonFrost** (First-Principles Reviewer): Probes hidden assumptions, missing edge cases, and whether a metric or covenant actually guarantees the claimed outcome.
+   - **@DanielPark** (Structure Navigator): Clarifies how a clause relates to definitions or sections elsewhere in the document.
+   - **@MayaBrooks** (Question Mentor): Helps turn a vague concern into concrete negotiation or due-diligence questions.
+   - **@IrisChen** (Concept Translator): Explains specialized financial, technical, or regulatory terminology in plain language.
+2. **Inside the Distillation window (Review Assistants)**:
+   - Click **Distill these thoughts** on a highlight's discussion to draft your takeaway, then select **Review Assistants** in the right-hand review panel (they cannot be `@`-mentioned in highlight threads): **Arthur Whitfield** (Evidence Archivist), **Simone Carter** (Logic Auditor), **Victor Tan** (Risk Examiner), **Grace Kim** (Action Calibrator), **Hannah Wells** (Reader Advocate), or **Julian Cross** (Final Copy Editor).
+   - Review their suggested edits in the inline diff preview and accept or reject each change individually.
+
+When reviewing a deal or project across several PDFs, group them into a collection and use **Reading Memory** (**Ask library** scoped to that collection or selected PDFs) to compile a cited Markdown summary of your notes across documents.
 
 ---
 
-## Target Audience & Usage Boundaries
+## Who This Is For and Where It Stops
 
-### Who This Is For
+### Good Fit
 
-- Legal counsel, investment analysts, consultants, and procurement leads reviewing dense contracts and whitepapers;
-- Engineers and technical architects auditing detailed specification standards;
-- Privacy-conscious professionals strictly forbidden from uploading confidential files to public clouds.
+- Legal, investment, consulting, procurement, and engineering readers reviewing dense PDF reports, filings, and specifications.
+- Readers handling confidential files who want local storage and the option to run AI through a local Ollama model.
 
-### What This Is Not For
+### Not Designed For
 
-- **Simple PDF form filling and electronic signatures**: Yomitomo is an analytical reading tool, not a form-filling utility;
-- **Unprocessed image scans**: Image-only scans must be OCR-processed before import.
+- **PDF editing, form filling, or e-signatures**: Yomitomo is a close-reading and annotation tool, not a PDF editor.
+- **Exporting annotations back into the PDF file**: Yomitomo exports notes as Markdown, not annotated PDFs.
+- **Unprocessed image scans**: Image-only PDFs require OCR in another tool before text can be selected or translated.
 
 ---
 
 ## Frequently Asked Questions (FAQ)
 
-### Q1: Are confidential contracts uploaded to any cloud server?
-**Answer:** Imported PDFs and annotations are stored locally. Remote AI review sends the reading content needed for the task to your configured model endpoint. A model running on your computer, such as local Ollama, performs inference locally.
+### Q1: Are confidential PDFs uploaded to a cloud server?
+Imported PDFs and notes are stored locally on your machine. If you invoke a remote AI or translation provider, the passage and context needed for that request are sent directly to your configured provider endpoint. If you configure a local model via Ollama, inference runs on your own computer. See [Why Local-First Architecture Matters: Building Lifelong Intellectual Assets](/en/blog/scenarios/local-first-privacy/) for the full outbound network boundary.
 
-### Q2: Does PDF annotation alter the original PDF file?
-**Answer:** No. Annotations reside in Yomitomo's local database overlay, leaving your source PDF binary completely unmodified.
+### Q2: Does annotating a PDF alter the original file?
+No. All highlights, thoughts, discussions, and distillations are stored in Yomitomo's local SQLite database. The source PDF binary is never modified.
 
-### Q3: Why does dark mode avoid inverting PDF chart colors?
-**Answer:** Financial charts and schematics become unreadable when colors are inverted. Yomitomo preserves original chart colors while softening interface backgrounds for ergonomic nighttime reading.
+### Q3: Why does dark mode keep original PDF page colors by default?
+Inverting financial charts, heatmaps, and technical diagrams often breaks color-coded legends and makes figures unreadable. Keeping original page colors preserves visual accuracy, while the optional **Dark eye-care filter** is available when you want a dimmer page.
 
 ---
 
 ## Related Guides & Workflows
 
-- [Academic Paper Deep Reading: An AI-Powered Workflow](/en/blog/scenarios/academic-paper-reading/)
-- [Critical Reading in Practice: Deconstruct Arguments](/en/blog/scenarios/critical-reading/)
-- [Why Local-First Architecture Matters for Data Privacy](/en/blog/scenarios/local-first-privacy/)
-- [PDF Reader Shortcuts & Feature Docs](/en/docs/reader/)
+- [Academic Paper Deep Reading: An AI-Powered Workflow for Researchers](/en/blog/scenarios/academic-paper-reading/)
+- [Critical Reading in Practice: Deconstruct Arguments with AI Review Agents](/en/blog/scenarios/critical-reading/)
+- [Why Local-First Architecture Matters: Building Lifelong Intellectual Assets](/en/blog/scenarios/local-first-privacy/)
+- [Reader, Annotations, and Discussions](/en/docs/reader/)

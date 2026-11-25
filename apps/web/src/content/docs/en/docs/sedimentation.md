@@ -7,7 +7,7 @@ Distillation transforms scattered thoughts accumulated around a highlight into a
 
 ## Open the Distillation Window
 
-From any annotation card, enter the discussion thread and click the **Distill** button. The window shows your draft on the left and the review companion panel on the right. Choose **Edit Draft** to edit the text; in reading mode, citation links return to the source.
+From any annotation card, enter the discussion thread and click **Distill these thoughts** (or **View distillation** if a draft already exists). The window shows your draft on the left and the review companion panel on the right. Choose **Edit Draft** to edit the text; in reading mode, citation links return to the source.
 
 You can craft the draft manually or invite review assistants to synthesize discussions and propose specific enhancements. Drafts support two lifecycle states:
 

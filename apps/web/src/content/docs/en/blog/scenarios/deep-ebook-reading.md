@@ -1,85 +1,96 @@
 ---
 title: "Deep Reading for Non-Fiction eBooks: From Passive Highlighting to Cognitive Mastery"
-description: Highlight dozens of lines in non-fiction books only to forget them weeks later? Use Yomitomo's multi-tier annotations, AI conceptual mapping, and chapter-level distillation to build lasting mental models.
+description: Read DRM-free EPUB, AZW3, and MOBI non-fiction ebooks in Yomitomo with anchored notes, spoiler-safe reading companions, single-highlight distillation, Reading Memory, and Markdown export.
 ---
 
-You have likely experienced this frustration: you finish an insightful non-fiction book on cognitive science or business strategy, diligently highlighting key sentences. Months later, you can only vaguely praise it as "worth reading," unable to recall its core arguments or operationalize its frameworks.
+It is common to finish a dense non-fiction book with dozens of highlighted sentences, only to forget the book's actual argument a month later. Highlighting marks what sounded good at the time, but it does not force you to test unfamiliar terms, write down your own reaction, or connect an idea to what you already know.
 
-This failure stems from traditional e-reader design, which treats colored highlights as the finish line of reading. In reality, highlighting is merely the **initial trace**. True mastery requires deconstructing unfamiliar terminology, connecting arguments across chapters, and condensing hundreds of pages into reusable mental models.
-
-Yomitomo transforms EPUB reading into a **deliberate distillation environment**.
+Yomitomo lets you read DRM-free ebooks locally, discuss specific passages without leaving the page, distill key threads into reusable notes, and retrieve them later through **Reading Memory**.
 
 ---
 
-## Non-Fiction eBook Deep Reading Workflow
+## Non-Fiction eBook Reading Workflow
 
-| Stage | User Action & Input | Internal Processing | Output & Asset | Boundaries |
+| Stage | User Action | How Yomitomo Handles It | Output | Boundaries |
 |---|---|---|---|---|
-| **eBook Ingestion** | Import local standard EPUB files | Local parsing of TOC, typography, and chapter DOM structure | Clean, distraction-free reading view with custom typography | Supports standard EPUB; DRM-locked files not supported |
-| **Five-Tier Annotation** | Select text, press `A` | Binds DOM chapter anchor; tags as Key Point, Concept, Assumption, etc. | Structured sidebar annotations filterable by category | Stored in local SQLite; leaves source EPUB file untouched |
-| **On-Site Concept Analysis** | Summon `@ShenQingyuan` or `@ChenYanshu` in thread | Injects passage and chapter context into LLM prompt | Clear contextual definition and transferable mental model | Analysis strictly follows book context without drifting |
-| **Chapter Distillation** | Press `T` to open Distillation Studio | Aggregates chapter highlights; refines draft with review agents | 300–500 word high-density chapter knowledge card | Focuses on reader's restructured framework, not raw TOC summaries |
+| **eBook Import** | Import DRM-free **EPUB, AZW3, or MOBI** files (up to 80 MB/book, 10/batch) | Parses TOC and chapters natively; stores original file locally | Local ebook entry in your library | DRM-locked files are not supported |
+| **Anchored Notes** | Select text, click **Highlight** or press `A` to record a thought, pick a color | Saves text anchor, highlight color, and your verbatim thought in local SQLite | Highlight card in the sidebar with its own discussion thread | Non-destructive; source ebook file stays untouched |
+| **Passage Discussion** | `@`-mention a reading companion (e.g., `@IrisChen`, `@MarcusReed`) or press `Q` for **Reader Q&A** | Sends passage and surrounding context to your configured model | Multi-turn thread attached to that passage | For EPUBs, assistants observe a spoiler-safe boundary (only chapters up to the highlighted chapter or current reading progress) |
+| **Distillation** | Click **Distill these thoughts** in a highlight's discussion | Opens the **Distillation** window with **Organize discussion** and right-hand **Review Assistants** | Published distillation replacing that single highlight card in the sidebar | Operates on one highlight's discussion, not an entire chapter or book |
+| **Book-Wide Recall & Export** | Use **Reading Memory** (**Ask library**, **Distillations**, **Revisit**) or **Export Markdown (.md)** | Searches saved notes across local articles or exports full book notes as Markdown | Cited cross-chapter answers, blind recall prompts, or `.md` files | No automatic two-way sync to external note apps |
 
 ---
 
-## Moving Beyond Flat Highlighting
+## Capture Your Own Reaction, Not Just Yellow Lines
 
-When reading an EPUB in Yomitomo, select text and press `A` to assign an explicit cognitive role:
-- **Key Point**: Central theses and empirical conclusions;
-- **Assumption**: Unstated premises (e.g., "Assumes market actors behave with perfect rationality");
-- **Concept**: Newly introduced frameworks or technical definitions;
-- **Question**: Counter-intuitive claims or logical leaps;
-- **Quote**: Striking prose suited for citation.
+When a passage matters, select it and press `A` to write a quick thought right away, or click **Highlight** in the selection menu to mark it first. You can assign custom highlight colors per highlight (for instance, one color for core claims and another for questions), press `C` to copy, or click **Find related** to see whether you highlighted a similar idea in another book.
 
-This categorization forces your brain to evaluate **how each passage connects to your existing mental models**.
+Yomitomo saves your highlights and thoughts verbatim and never rewrites them. Even without any AI provider configured, reading, highlighting, writing thoughts, and keyword search work offline.
 
 ---
 
-## On-Site Concept Unpacking Without Context Switching
+## Unpack Unfamiliar Terms Without Leaving the Book
 
-Encountering obscure jargon often forces readers to search the web, inevitably triggering digital distractions. In Yomitomo, invoke `@ShenQingyuan` (Concept Translator) inside the highlight thread. She breaks down the term's intellectual heritage and context-specific nuance right beside the text.
+Stopping to search the web for an unfamiliar concept often pulls you out of the book entirely. Inside a highlight's discussion thread, `@`-mention a **Reading Companion** (or use **Ask assistants**):
+
+- **@IrisChen** (Concept Translator): Explains specialized terms and definitions in plain language based on how the book uses them.
+- **@MarcusReed** (Insight Editor): Pulls out practical takeaways and connections.
+- **@DanielPark** (Structure Navigator): Explains how the current passage fits into the chapter's argument.
+- **@GideonFrost** (First-Principles Reviewer): Challenges hidden assumptions in the author's reasoning.
+- **@JuneHartley** (Margin Reading Companion) and **@MayaBrooks** (Question Mentor): Offer accessible margin commentary or help sharpen a vague question.
+
+For EPUBs, assistants automatically respect a spoiler-safe readable boundary—they only see chapters up to the highlighted chapter or your current reading progress.
 
 ---
 
-## Concluding Chapters with Distillation
+## Distill Important Threads and Review Across the Book
 
-EPUBs have natural chapter boundaries. Yomitomo encourages a compounding rhythm: **conclude each chapter by pressing `T` to open Distillation Studio**.
+When a highlight's discussion develops into a real insight, click **Distill these thoughts** inside that discussion to open the **Distillation** window.
 
-Synthesize the chapter's core arguments, test your practical takeaways, and invoke review agents to polish your draft. Once published, your chapter distillation card replaces scattered highlights in the sidebar, providing an instant high-density executive summary upon future visits.
+1. Click **Organize discussion** to pull points from the thread into your draft (additions only).
+2. Rewrite and tighten the takeaway in your own words.
+3. Optionally select **Review Assistants** in the right-hand review panel (such as **Simone Carter**, **Arthur Whitfield**, or **Julian Cross**) and accept or reject their inline diff suggestions item by item.
+4. Publish. The published distillation replaces that single highlight card in the sidebar while keeping its jump link back to the passage.
+
+Because each distillation belongs to one highlight's discussion, use **Reading Memory** when you want to step back across chapters or multiple books:
+
+- **Distillations** library: Browse all published distillations in one place.
+- **Ask library**: Ask questions scoped to this book, a collection, or selected books, and copy cited answers as Markdown.
+- **Revisit**: Practice blind recall on a past highlight before revealing what you originally wrote.
 
 ---
 
-## Target Audience & Usage Boundaries
+## Who This Is For and Where It Stops
 
-### Who This Is For
+### Good Fit
 
-- Readers studying complex non-fiction in economics, psychology, philosophy, and management;
-- Knowledge workers turning theoretical books into actionable frameworks;
-- Lifelong learners seeking to build a permanent personal digital library.
+- Readers studying non-fiction in economics, psychology, history, philosophy, technology, or management.
+- Readers who own DRM-free EPUB, AZW3, or MOBI books and want notes stored locally.
+- Readers who want to export structured Markdown notes without losing links to original passages inside Yomitomo.
 
-### What This Is Not For
+### Not Designed For
 
-- **Casual fiction & entertainment**: Heavy cognitive tagging is unnecessary for plot-driven leisure;
-- **Adobe DRM-locked files**: Yomitomo does not bypass proprietary DRM locks.
+- **DRM-locked store files**: Yomitomo does not bypass Adobe, Kindle, or other proprietary DRM locks.
+- **Cloud-synced mobile reading**: Yomitomo is a desktop application for macOS and Windows.
 
 ---
 
 ## Frequently Asked Questions (FAQ)
 
-### Q1: What eBook formats are supported besides EPUB?
-**Answer:** Yomitomo natively supports standard EPUB eBooks, PDF whitepapers/papers, and captured web articles. For MOBI or AZW3 files, convert them to standard EPUB using Calibre before importing.
+### Q1: What ebook formats does Yomitomo support?
+Yomitomo natively supports DRM-free **EPUB, AZW3, and MOBI** ebooks (up to 80 MB per book, up to 10 books per batch)—no Calibre conversion needed for AZW3 or MOBI. It also supports PDFs, web articles, `.txt`/`.md` files, and synced WeRead notes.
 
-### Q2: How do I export all chapter distillations for an entire book?
-**Answer:** There is currently no combined export of a book's chapter distillations. Open each distillation in Distillation Studio, select its text in the editing area, and copy it manually into an external note or blog editor to assemble your summary. Check formatting and links; source anchors and discussion records do not transfer automatically.
+### Q2: How do I export all notes and distillations from a book?
+Use **Export Markdown (.md)** or **Copy Markdown** in the reader toolbar to export the entire book's highlights, thoughts, discussions, and published distillations at once. You can also export or copy any individual distillation from the **Distillation** window or the **Distillations** library.
 
-### Q3: Why do published distillation cards replace raw highlights in the sidebar?
-**Answer:** Cognitive load management: once you have distilled a chapter, your high-density conclusions take precedence, reducing visual clutter while retaining instant jump links back to source passages.
+### Q3: What happens to the original highlight when I publish a distillation?
+Publishing replaces only that single highlight card in the sidebar with your distilled note so the margin stays readable. The link back to the passage remains intact, and you can reopen the distillation or its underlying discussion at any time.
 
 ---
 
 ## Related Guides & Workflows
 
-- [Knowledge Distillation Workflow: From Highlights to Structured Cards](/en/blog/scenarios/knowledge-distillation/)
-- [WeRead Notes Migration Guide: Bring Highlights Local](/en/blog/scenarios/weread-migration/)
-- [The Right Way to Use AI Reading Companions](/en/blog/scenarios/ai-reading-companion/)
-- [EPUB Reader Feature Documentation](/en/docs/reader/)
+- [Knowledge Distillation Workflow: From Fragmented Highlights to Structured Cards](/en/blog/scenarios/knowledge-distillation/)
+- [WeRead Notes Migration Guide: Bring Your Highlights and Thoughts Local](/en/blog/scenarios/weread-migration/)
+- [The Right Way to Use AI Reading Companions: Partner with Models, Don't Outsource Thinking](/en/blog/scenarios/ai-reading-companion/)
+- [Reader, Annotations, and Discussions](/en/docs/reader/)

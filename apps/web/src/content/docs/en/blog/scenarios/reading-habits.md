@@ -1,79 +1,84 @@
 ---
 title: "Improving Reading Habits with Local Analytics: Building a Data-Driven Cadence"
-description: Cannot quantify how many days you truly read, when your peak focus occurs, or how much you distilled? Yomitomo translates reading behaviors into private local charts.
+description: Track concrete reading output—highlights, thoughts, assistant contributions, and distillations—alongside assistant usage costs and WeRead reading duration in Yomitomo's local Stats view.
 ---
 
-"How many books or deep articles did you genuinely master this year?"—most people can only offer vague guesses. Fewer still know how many days they maintained focused reading, which hours produced their highest-quality reflections, or what percentage of highlights converted into structured knowledge.
+It is easy to feel busy reading without knowing whether you are actually turning reading into durable notes. Counting open tabs or page flips tells you very little about whether you paused to write down thoughts or finish distillations.
 
-Sustainable reading habits should not rely on fleeting bursts of willpower. Yomitomo quantifies key cognitive behaviors locally, giving you **verifiable data** to optimize your reading cadence.
-
----
-
-## Local Reading Analytics Metrics Model
-
-| Dimension | Data Source | Calculation Logic | Visual Presentation | Habit Diagnostic Value |
-|---|---|---|---|---|
-| **Focused Time** | Local reader focus tracking | Excludes idle time; logs active engagement | Daily/Weekly charts and historical trends | Pinpoints true focus time without self-deception |
-| **Cognitive Density** | Highlights (`A`), thoughts, discussions | Tracks frequency across 5 cognitive categories | Category breakdown donut chart & hourly distribution | Evaluates thinking depth (high Question/Assumption ratio = active critique) |
-| **Distillation Ratio** | Published distillation cards (`T`) | Ratio of `Distillation Cards ÷ Total Highlights` | Conversion funnel & weekly distillation velocity | Warns against the "highlighting without synthesizing" trap |
-| **Consistency Grid** | 70-day rolling activity | Daily cognitive score mapped to color density | GitHub-style 70-day activity matrix | Provides visual positive feedback to sustain momentum |
+Yomitomo's **Stats** view focuses on observable reading output stored in your local SQLite database—plus AI usage tracking and optional synced WeRead duration—so you can review your cadence without guesswork.
 
 ---
 
-## The Local Analytics Dashboard
+## What Yomitomo Stats Tracks
 
-- **Daily Activity**: Active reading time, imported articles, highlight count, and distillation submissions;
-- **Streaks & Consistency**: Total recorded days, active days per week, and peak cognitive time blocks;
-- **Conversion Velocity**: Historical curve comparing raw highlights to finalized knowledge cards;
-- **AI Collaboration Distribution**: Call frequency breakdown across various specialist personas.
-
-These metrics expose hidden habit signals: if active days drop from 5 to 2, your routine is slipping; if late-night highlights are never referenced in distillation drafts, move deep reading to the morning.
-
----
-
-## 70-Day Consistency Matrix
-
-The 70-day heatmap uses varying green shades to visualize reading density over the past two months. This continuous positive feedback builds internal momentum far more effectively than abstract resolutions.
+| View | What It Measures | Visuals & Breakdown | Scope & Boundaries |
+|---|---|---|---|
+| **Local Reading Stats** | Daily and total counts of **Distillations**, **Thoughts**, **Highlights**, and **Assistant contributions** | **21-day activity trend chart**, **7-day streak badge**, and **70-day reading map** | Tracks concrete annotation and distillation output—does **not** track local reading duration, focus timers, or idle pauses |
+| **Assistant Usage** | Total tokens, call counts, per-assistant breakdown, and estimated cost | Usage summary and per-assistant table inside **Stats** | Estimated cost uses the public pricing catalog fetched from `models.dev` |
+| **WeRead** | Reading duration synced from your WeRead account | WeRead reading duration trends inside **Stats > WeRead** | The **only** tab in Stats that shows reading duration; requires configuring your official WeRead Skill API key |
 
 ---
 
-## WeRead Data Integration: Breadth Meets Depth
+## Reading Output Over Vanity Timers
 
-When configured with your WeRead API Key, the analytics center switches seamlessly to visualize your WeRead reading duration across weekly, monthly, and yearly horizons. WeRead represents **input breadth** (hours spent, pages turned), while Yomitomo metrics represent **processing depth** (questions raised, knowledge distilled).
+Local reading stats in Yomitomo deliberately track what you produced while reading rather than how long a window stayed open:
+
+- **Highlights & Thoughts**: Show whether you are actively responding to what you read rather than skimming passively.
+- **Assistant contributions**: Show how often you engaged Reading Companions or Review Assistants in your discussions and drafts.
+- **Distillations**: Show how many discussions you actually turned into published notes.
+- **21-day activity trend, 7-day streak badge, and 70-day reading map**: Give you a quick visual read on consistency over the past three weeks and past ten weeks.
+
+If your highlights keep rising while thoughts and distillations stay flat, that is a clear signal to slow down and spend a few minutes writing in your own words.
 
 ---
 
-## Target Audience & Usage Boundaries
+## Monitoring AI Costs in Assistant Usage
 
-### Who This Is For
+Because Yomitomo uses your own model providers (BYOK or local models), **Stats > Assistant usage** lets you see how your reading workflow translates into real API usage:
 
-- Readers seeking to build a sustainable analytical reading routine backed by quantitative data;
-- Knowledge workers monitoring their highlight-to-distillation conversion efficiency;
-- WeRead power users wishing to combine input volume with deep desktop synthesis.
+- **Total tokens and calls** across your configured models.
+- **Per-assistant breakdown** showing which Reading Companions or Review Assistants you invoke most often.
+- **Estimated cost**, computed locally using public model pricing fetched from `models.dev`.
 
-### What This Is Not For
+---
 
-- **Social leaderboard competition**: Analytics are 100% private to your local device without public leaderboards or social sharing buttons;
-- **Artificial time farming**: Focus tracking detects idle windows and pauses automatically when inactive.
+## Pairing Local Depth with WeRead Duration
+
+If you connect your official WeRead Skill API key under **Settings > Data sources > WeRead**, the **Stats > WeRead** tab displays your synced WeRead reading duration alongside your local desktop notes. WeRead captures time spent reading on mobile or in WeRead, while local stats capture the thoughts, discussions, and distillations you produce in Yomitomo.
+
+---
+
+## Who This Is For and Where It Stops
+
+### Good Fit
+
+- Readers who want a private, local view of their annotation and distillation consistency.
+- BYOK users who want visibility into token counts, call volume, and estimated AI spend per assistant.
+- WeRead users who want their WeRead reading duration visible in the same desktop app.
+
+### Not Designed For
+
+- **Local screen-time or focus tracking**: Yomitomo does not run a local reading timer, track active reading minutes on local documents, or log hourly focus blocks.
+- **Public leaderboards or social streaks**: Your reading stats stay local to your machine with no social feed.
 
 ---
 
 ## Frequently Asked Questions (FAQ)
 
-### Q1: Is my reading analytics data uploaded to any server?
-**Answer:** Never. All telemetry, timestamps, and heatmaps live exclusively inside your local SQLite database.
+### Q1: Does Yomitomo upload my reading stats to a server?
+Your detailed reading stats—daily counts, 21-day trends, 7-day streaks, 70-day reading map, and assistant usage logs—stay inside your local SQLite database. Separately, Yomitomo makes two lightweight background requests: anonymous usage metrics to `telemetry.yomitomo.app` (on by default, opt out in **Settings > General > Privacy**; sends a daily anonymous heartbeat and Reading Memory action counts without an install ID and with no reading content), and a GET request to `models.dev` on startup and every 24 hours to fetch the public model pricing catalog for **Assistant usage** cost estimates (not controlled by the telemetry toggle; sends no reading content, API key, or install ID).
 
-### Q2: Does the timer keep running if I step away from my desk?
-**Answer:** No. Yomitomo includes intelligent idle detection. When the window loses focus or experiences no interaction, the timer pauses automatically.
+### Q2: Does local stats track reading time or pause when I step away?
+No. Local reading stats measures concrete actions (**Highlights**, **Thoughts**, **Assistant contributions**, and **Distillations**) rather than elapsed screen time. Reading duration is shown only under **Stats > WeRead** from synced WeRead records.
 
-### Q3: Will my 70-day heatmap transfer when switching computers?
-**Answer:** Yes. Exporting your database backup under **Settings > General** and importing it on your new computer restores all historical analytics and heatmaps completely.
+### Q3: Will my 70-day reading map transfer when I switch computers?
+Yes. Create a backup in **Settings > Data management** (use a complete backup if you also want your original PDFs and ebooks transferred) and restore it on your new computer to bring over your historical stats and 70-day map.
 
 ---
 
 ## Related Guides & Workflows
 
-- [Knowledge Distillation Workflow: From Highlights to Structured Cards](/en/blog/scenarios/knowledge-distillation/)
-- [WeRead Notes Migration Guide: Bring Highlights Local](/en/blog/scenarios/weread-migration/)
-- [Escaping the Read-It-Later Black Hole](/en/blog/scenarios/web-article-collection/)
-- [Reading Analytics & FAQ Documentation](/en/docs/stats-and-faq/)
+- [Knowledge Distillation Workflow: From Fragmented Highlights to Structured Cards](/en/blog/scenarios/knowledge-distillation/)
+- [WeRead Notes Migration Guide: Bring Your Highlights and Thoughts Local](/en/blog/scenarios/weread-migration/)
+- [Why Local-First Architecture Matters: Building Lifelong Intellectual Assets](/en/blog/scenarios/local-first-privacy/)
+- [Reading Stats and FAQ](/en/docs/stats-and-faq/)

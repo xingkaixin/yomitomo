@@ -1,88 +1,90 @@
 ---
 title: "WeRead Notes Migration Guide: Bring Your Highlights and Thoughts Local"
-description: Cannot export highlights and thoughts from WeRead? Sync your books, annotations, and reflections to local SQLite via official Skill APIs with Yomitomo, continuing structured distillation in freedom.
+description: Sync your WeRead books, highlights, thoughts, and reading duration locally via the official WeRead Skill API, browse them offline, open the web reader in-app, and export clean Markdown.
 lastUpdated: 2026-10-03
 ---
 
-WeRead offers a polished reading catalog, making it the primary reading tool for many serious readers. But after finishing dozens of books and accumulating hundreds of highlights, an inevitable bottleneck emerges: **your intellectual traces are trapped inside a closed platform**.
+If you do much of your book reading in WeRead, your highlights and thoughts accumulate inside a closed platform where bulk export and local archiving are awkward.
 
-WeRead does not provide automated, structured export mechanisms. Compiling research notes requires tedious copy-pasting; engaging in multi-turn dialectic debates on past thoughts is impossible in standard mobile comment fields. If network policies shift or catalog access changes, your notes risk becoming digital relics.
-
-Yomitomo builds upon the official WeRead Skill open protocol to offer a **lossless local sync and deep reprocessing pipeline**: direct communication with official APIs brings your shelf, highlights, thoughts, and progress straight into a local SQLite database.
+Yomitomo connects directly to the official **WeRead Skill API** to sync your WeRead books' highlights, thoughts, and reading duration into your local SQLite database. Once synced, you can browse your notes offline by chapter, organize books into collections, export Markdown, track reading duration in **Stats > WeRead**, and jump back to the book—including via Yomitomo's optional embedded WeRead web reader.
 
 ---
 
-## WeRead Local Sync Workflow
+## How WeRead Works in Yomitomo
 
-| Stage | Input | System Processing | Output | Boundaries |
-|---|---|---|---|---|
-| **API Authorization** | Official WeRead Skill API Key | Stored securely in OS Keyring; establishes direct HTTPS connection | Encrypted local credentials for library sync | Does not collect WeChat passwords or personal account tokens |
-| **Selective Sync** | Select books from shelf | Incremental fetching of chapters, highlights, and thoughts | Mirrored library entries in local SQLite database | Syncs user annotations and TOCs; does not download DRM-protected full texts |
-| **Cognitive Tagging** | Synced highlights & thoughts | Map to 5 cognitive categories (`A`); mention AI companions in threads | Deep debate threads anchored to original highlights | Requires configured local or cloud LLM credentials |
-| **Knowledge Distillation** | Cross-book highlight clusters | Aggregate into Distillation Studio (`T`); verify with review agents | Structured distillation text stored locally | Output stays local; does not write back to WeRead cloud |
-
----
-
-## Action Guide: 3 Steps to Local Sync and Reprocessing
-
-### Step 1: Obtain Official Skill API Key and Connect Directly
-
-Yomitomo uses no intermediate proxy servers. All requests originate directly from your desktop app:
-
-1. Open the <a href="https://weread.qq.com/r/weread-skills" target="_blank" rel="noopener noreferrer">WeRead Skill Management Portal</a> (or inside the mobile app: **Me > Settings > WeRead Skill**).
-2. Click **Quick Configuration**, scan the QR code to authenticate, and generate your dedicated API Key.
-3. In Yomitomo, navigate to **Settings > Data Sources > WeRead**, paste the key, and click **Save and Test Connection**.
-
-> For illustrated setup and troubleshooting, see the [WeRead API Key Documentation](/en/docs/weread-api-key/).
-
-### Step 2: Selective Sync and Cognitive Categorization
-
-In Yomitomo's dedicated WeRead view, select specific titles to sync:
-
-- **Preserve Native Thoughts**: Yomitomo pulls both text highlights and your spontaneous thoughts attached to them.
-- **Assign Cognitive Roles**: Select a highlight and press `A` to categorize it into one of five cognitive dimensions (Key Point, Assumption, Concept, Question, Quote).
-- **Multi-Turn AI Dialogue**: Mention `@ZhouYan` to audit causal logic or `@ShenQingyuan` to unpack theoretical origins.
-
-### Step 3: Cross-Book Synthesis and Manual Copying
-
-Break free from single-book silos. Press `T` to open the Distillation Studio and group highlights across different books sharing common themes (e.g., comparing organizational structures across three management classics). Call review agents like `@HeMingheng` (Logic Auditor) and `@TangJian` (Senior Editor) to polish your output into a standalone knowledge card.
-
-To continue in an external note app, select the text in the editing area and copy it manually. There is currently no Markdown file export or automatic sync to external note apps. Source anchors and discussion records do not transfer automatically.
+| Capability | How It Works | Boundaries |
+|---|---|---|
+| **API Connection** | Paste your official WeRead Skill API key in **Settings > Data sources > WeRead** | Stored in your OS keyring; requests go directly to WeRead (no Yomitomo proxy) |
+| **Library Sync** | Click **Sync WeRead** (or rely on 30-minute auto sync); refresh one book via **Sync book** | Syncs all books with highlights/thoughts (no pre-sync book picker); syncs annotations and metadata, not DRM-protected full texts |
+| **Read-Only Notes View** | Browse highlights and thoughts by chapter offline; group books into Collections | Read-only view inside Yomitomo: you cannot create local highlights (`A`), `@`-mention AI companions, distill, or index WeRead books in Reading Memory |
+| **Jump Back & In-App Web Reader** | Open a book or highlight in the WeRead desktop app, browser, or **Open the web version in Yomitomo** | In **Settings > Data sources > WeRead**: compact window does not write back reading progress; expanded view lets WeRead record position and reading time; login session stays local and is excluded from complete backups |
+| **Markdown Export & Re-Import** | Click **Export Markdown (.md)** or **Copy Markdown** in the WeRead book toolbar | Want AI discussion, distillation, or Reading Memory on WeRead notes? Export as Markdown and import the `.md` file as a local text document |
 
 ---
 
-## Target Audience & Usage Boundaries
+## Step-by-Step Setup and Workflow
 
-### Who This Is For
+### Step 1: Connect Your Official WeRead Skill API Key
 
-- Dedicated WeRead users with extensive reading notes seeking a permanent, sovereign local archive;
-- Researchers and writers synthesizing themes across multiple books;
-- Readers wanting to engage in rigorous AI debates anchored to their actual book highlights on desktop.
+All WeRead requests go directly from your desktop app to WeRead:
 
-### What This Is Not For
+1. Open the <a href="https://weread.qq.com/r/weread-skills" target="_blank" rel="noopener noreferrer">WeRead Skill Management Portal</a> (or in the WeRead mobile app: **Me > Settings > WeRead Skill**).
+2. Authenticate and generate your API key.
+3. In Yomitomo, open **Settings > Data sources > WeRead**, paste the key, and save/test the connection.
 
-- **Downloading pirated full-text eBooks**: Yomitomo adheres strictly to official API protocols, syncing annotations, bookmarks, and metadata without bypassing DRM protection;
-- **Two-way sync back to WeRead**: Local annotations and AI conversations remain strictly in your local database without polluting cloud records;
-- **Multi-user real-time cloud collaboration**: All records reside in local SQLite for personal intellectual synthesis.
+> For illustrated setup steps and troubleshooting, see [Get a WeRead API Key](/en/docs/weread-api-key/).
+
+### Step 2: Sync and Browse Your Notes Offline
+
+Click **Sync WeRead** to pull all books that have highlights or thoughts into your local SQLite database (Yomitomo also runs automatic sync every 30 minutes). To update a single title later without waiting, click **Sync book** on that book's page.
+
+Inside a synced WeRead book page, you can:
+
+- Browse your highlights and thoughts organized by chapter, even offline.
+- Group synced books into **Collections** alongside the rest of your library.
+- View your WeRead reading duration stats under **Stats > WeRead**.
+- Jump back to the book or highlight in the WeRead desktop app, your browser, or directly inside Yomitomo using **Open the web version in Yomitomo** (configured in **Settings > Data sources > WeRead**). Note that the compact embedded window does not write back reading progress to WeRead, while the expanded view lets WeRead record reading position and duration as normal.
+
+### Step 3: Export Markdown (or Re-Import for AI Discussion)
+
+From the WeRead book toolbar, use **Export Markdown (.md)** or **Copy Markdown** to save your chapter-organized highlights and thoughts into Obsidian, Notion, or any local folder.
+
+Because synced WeRead books are a **read-only notes view** in Yomitomo, you cannot press `A` to add local highlights, `@`-mention AI companions, distill threads, or search WeRead books through **Reading Memory** directly. If you want to discuss or distill a book's WeRead notes with Yomitomo's AI companions and index them in **Reading Memory**, export the book as Markdown and import that `.md` file into Yomitomo as a local text document (drag and drop the `.md` file, or use **Text file → Paste text**).
+
+---
+
+## Who This Is For and Where It Stops
+
+### Good Fit
+
+- WeRead readers who want a local SQLite archive and clean Markdown exports of their highlights and thoughts.
+- Readers who want to browse WeRead notes offline, organize them into collections, and view WeRead reading duration in **Stats > WeRead**.
+- Users who want to jump from a synced note back to WeRead without leaving Yomitomo.
+
+### Not Designed For
+
+- **Downloading full DRM-protected WeRead books**: Yomitomo uses the official Skill API to sync highlights, thoughts, and metadata only.
+- **Writing edits back to WeRead**: Synced notes in Yomitomo are read-only and never overwrite your WeRead cloud notes.
+- **Direct AI discussion or Reading Memory on synced WeRead entries**: Export to Markdown and import as a local text document if you need AI discussion, distillation, or Reading Memory indexing.
 
 ---
 
 ## Frequently Asked Questions (FAQ)
 
-### Q1: Will using the WeRead API Key get my account flagged or banned?
-**Answer:** Yomitomo uses the official WeRead Skill API, but cannot guarantee account status, future policies or API availability. Follow the current WeRead rules and respond to authorization or rate-limit errors using the official guidance.
+### Q1: Is using the WeRead Skill API key safe for my account?
+Yomitomo uses the official WeRead Skill API, but cannot guarantee account status, future WeRead policies, or API availability. Follow WeRead's current rules and handle authorization or rate-limit messages according to WeRead's official guidance.
 
-### Q2: Where is synced data stored, and how do I migrate to a new machine?
-**Answer:** Synced notes are stored locally. Use **Settings > Data management** for backups. A database-only backup does not include original PDFs or ebooks; choose a full backup when moving those too. Configure your API keys again after restoring.
+### Q2: Where is synced WeRead data stored, and how do I move it to a new computer?
+Synced highlights, thoughts, and metadata live in your local SQLite database. Create a backup under **Settings > Data management** (choose a complete backup if you also want your local PDFs and ebooks included) and restore it on the new computer. Your WeRead API key and embedded WeRead web reader login session are excluded from backups—sign in or re-enter your key after restoring.
 
-### Q3: If a book is delisted from WeRead, will my synced notes disappear?
-**Answer:** No. Once synced to local SQLite, all highlights, thoughts, AI dialogues, and distillation cards are permanent local assets, entirely independent of cloud library changes.
+### Q3: If a book is removed from WeRead later, will my synced notes disappear?
+No. Once synced into your local SQLite database (and optionally exported as `.md` files), your highlights and thoughts remain stored locally regardless of catalog changes in WeRead.
 
 ---
 
 ## Related Guides & Workflows
 
 - [Knowledge Distillation Workflow: From Fragmented Highlights to Structured Cards](/en/blog/scenarios/knowledge-distillation/)
-- [Why Local-First Architecture Matters for Reading Privacy](/en/blog/scenarios/local-first-privacy/)
-- [The Right Way to Use AI Reading Companions](/en/blog/scenarios/ai-reading-companion/)
-- [WeRead API Key Configuration Guide](/en/docs/weread-api-key/)
+- [Why Local-First Architecture Matters: Building Lifelong Intellectual Assets](/en/blog/scenarios/local-first-privacy/)
+- [Improving Reading Habits with Local Analytics: Building a Data-Driven Cadence](/en/blog/scenarios/reading-habits/)
+- [Get a WeRead API Key](/en/docs/weread-api-key/)

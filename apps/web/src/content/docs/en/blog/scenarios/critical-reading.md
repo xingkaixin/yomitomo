@@ -1,80 +1,89 @@
 ---
 title: "Critical Reading in Practice: Deconstruct Arguments with AI Review Agents"
-description: Finish a long report with only a vague sense that something feels off? Yomitomo's Review Matrix systematically dissects premises, causal chains, and evidence, turning intuitions into rigorous critique.
+description: Test claims while reading with Reading Companions, then audit your own distilled conclusions in the Distillation window with Yomitomo's six Review Assistants.
 ---
 
-"This is an impressive article" or "Something about this argument feels flawed"—after reading a dense industry report or policy brief, most people can only muster vague impressions.
+After finishing a dense report or policy brief, it is easy to walk away with only a vague impression: "this sounds convincing" or "something feels off." Turning that hunch into a concrete critique requires checking premises, causal links, evidence quality, and missing edge cases—hard to keep track of all at once while reading.
 
-This is not a cognitive defect; **critical reading is an intellectually demanding skill**. It requires holding multiple cognitive threads simultaneously: isolating hidden premises, verifying causal connections, evaluating dataset integrity, and detecting survivorship bias. Human working memory cannot track all these vectors unaided.
+Yomitomo splits critical reading into two stages:
 
-Yomitomo's **Review Matrix** deconstructs critical reading into specialized roles. Instead of an undifferentiated chatbot, you direct a panel of analytical specialists who provide targeted critiques, leaving you to synthesize final judgments.
-
----
-
-## Critical Review Workflow & Analytical Dimensions
-
-| Analytical Lens | Dedicated Agent | Core Inspection Focus | Output Format | Boundaries |
-|---|---|---|---|---|
-| **Evidence Audit** | `@LiangZhengyan` (Evidence Scribe) | Sample representativeness, data sources, citation integrity | Methodological inquiries regarding empirical validity | Does not run real-time live web scraping |
-| **Logic Verification** | `@HeMingheng` (Logic Auditor) | Necessary vs. sufficient fallacies, circular logic, inductive leaps | Flags broken links in the causal chain | Focuses strictly on formal logic and argument validity |
-| **Risk & Bias Audit** | `@SuDingbai` (Risk Auditor) | Unhedged assertions, survivorship bias, commercial conflicts | Risk checklist with counterfactual scenarios | Surfaces blind spots without making moral assertions |
-| **Editorial Refinement** | `@TangJian` (Senior Editor) | Verbose rhetoric and ambiguous phrasing in your own notes | High-density rewrite suggestions | Polishes prose without altering your core thesis |
+1. **While reading a passage**: Highlight the claim, write your own reaction, and `@`-mention **Reading Companions** inside that highlight's discussion thread to test the author's reasoning.
+2. **When refining your takeaway**: Open the **Distillation** window for that highlight's discussion and run **Review Assistants** in the right-hand review panel to audit your own written conclusion before you keep or share it.
 
 ---
 
-## Four Analytical Specialists in Action
+## Stage 1: Question the Author Inside a Highlight Thread
 
-### 1. LiangZhengyan: Evidence Scribe
-When encountering factual assertions ("Market size reached $100B", "Tests proved 90% efficacy"), highlight the text and summon `@LiangZhengyan`. She evaluates methodological rigor: Was this based on primary research or secondary citations? Is the sample size statistically significant? Are control groups documented?
+When you spot a bold claim, questionable assumption, or shaky causal step, select the passage and press `A` to record your doubt (or click **Highlight** first). Inside that highlight's discussion thread, `@`-mention one of the **Reading Companions** (or use **Ask assistants**):
 
-### 2. HeMingheng: Logic Auditor
-When reading complex causal arguments ("Adopting strategy X directly yielded result Y"), summon `@HeMingheng`. He audits whether hidden variables influenced the outcome, whether correlation was conflated with causation, and whether conclusions exceed premise boundaries.
+- **Gideon Frost** (`@GideonFrost`, First-Principles Reviewer): Tests unstated premises, causal jumps, and whether the conclusion actually follows from the evidence.
+- **Maya Brooks** (`@MayaBrooks`, Question Mentor): Turns a vague objection into sharp, specific follow-up questions.
+- **Daniel Park** (`@DanielPark`, Structure Navigator): Shows how the passage supports or contradicts the rest of the argument.
+- **Iris Chen** (`@IrisChen`, Concept Translator): Clarifies loaded or ambiguous technical terms so you know what the author is actually claiming.
 
-### 3. SuDingbai: Risk Auditor
-When authors employ absolute phrasing ("inevitably", "obviously", "irreversible"), summon `@SuDingbai`. She highlights cognitive bias, survivorship effects, and neglected black-swan dynamics—essential for investment theses and strategic whitepapers.
-
-### 4. TangJian: Senior Editor
-TangJian evaluates **your own written synthesis**. When you draft a summary in Distillation Studio (`T`), summon `@TangJian` to cut redundant jargon and sharpen your argument's impact.
+You can also press `Q` to open **Reader Q&A** for broader questions about the open document.
 
 ---
 
-## Closing the Critical Loop in Distillation Studio
+## Stage 2: Audit Your Synthesis with Review Assistants
 
-In the annotation sidebar, review interactions address specific localized passages. In Distillation Studio (`T`), you synthesize these critiques into a comprehensive evaluation. Once your draft is complete, run a meta-review with your review agents to ensure your own assertions withstand scrutiny before publishing.
+When a highlight's discussion has surfaced something worth keeping, click **Distill these thoughts** to open the **Distillation** window. Click **Organize discussion** to pull points from the thread into your draft (additions only), then edit the conclusion in your own words.
+
+In the right-hand review panel of the **Distillation** window, select one or more of the six built-in **Review Assistants**. Review Assistants are available **only** inside this review panel—they cannot be `@`-mentioned in highlight discussion threads.
+
+| Review Assistant | Role | Focus in Your Draft | Boundaries |
+|---|---|---|---|
+| **Arthur Whitfield** | Evidence Archivist | Checks whether claims have concrete backing, primary sources, or clear scope | Does not run live web fact-checking |
+| **Simone Carter** | Logic Auditor | Spots non sequiturs, circular reasoning, and hidden causal leaps | Evaluates reasoning structure, not factual truth |
+| **Victor Tan** | Risk Examiner | Flags unhedged assertions, survivorship bias, and overlooked failure modes | Surfaces blind spots; does not give legal or financial advice |
+| **Hannah Wells** | Reader Advocate | Identifies jargon, missing context, or jumps that confuse another reader | Focuses on clarity for the reader |
+| **Grace Kim** | Action Calibrator | Tests whether practical takeaways or next steps are concrete and realistic | Checks actionability rather than making decisions for you |
+| **Julian Cross** | Final Copy Editor | Cuts filler and tightens phrasing in your finished draft | Polishes wording without changing your core thesis |
+
+### How Review Assistants Work in Practice
+
+- **Arthur Whitfield** (he): Run him on drafts that cite numbers, benchmarks, or studies to catch claims that outrun their evidence.
+- **Simone Carter** (she): Run her when your note summarizes a causal argument ("X caused Y") so she can flag missing variables or weak links.
+- **Victor Tan** (he): Run him on investment notes, strategy memos, or absolute claims ("always," "inevitably") to surface counterexamples and downside risks.
+- **Hannah Wells** (she): Run her when a draft will be shared with teammates or revisited months later.
+- **Grace Kim** (she): Run her when your note includes decisions, checklists, or recommendations.
+- **Julian Cross** (he): Run him last to trim repetition and tighten prose.
+
+Each review assistant returns structured suggestions shown as an **inline diff preview**. You accept or reject edits item by item, then publish. Publishing replaces that single highlight card in the sidebar while keeping the link back to the original passage.
 
 ---
 
-## Target Audience & Usage Boundaries
+## Who This Is For and Where It Stops
 
-### Who This Is For
+### Good Fit
 
-- Analysts, consultants, investors, and legal experts evaluating whitepapers, pitch decks, and regulatory filings;
-- Writers and researchers striving for intellectual rigor in their published syntheses;
-- Readers committed to objective, evidence-based reasoning.
+- Analysts, investors, consultants, and legal or policy readers evaluating reports, whitepapers, and proposals.
+- Researchers and writers who want their own distilled notes pressure-tested before citing or sharing them.
+- Readers who prefer verifiable, passage-linked critiques over generic summaries.
 
-### What This Is Not For
+### Not Designed For
 
-- **Casual literary leisure reading**: Dialectic challenges can disrupt aesthetic flow when reading poetry or fiction;
-- **Automated legal or audit compliance**: AI agents provide cognitive prompts, not binding legal certifications.
+- **Casual leisure reading**: Formal argument audits get in the way when you just want to enjoy a story.
+- **Automated legal, medical, or compliance sign-off**: Assistants flag questions and blind spots; you remain responsible for verifying sources and final judgments.
 
 ---
 
 ## Frequently Asked Questions (FAQ)
 
-### Q1: Do AI review agents make definitive judgments like "this paper is wrong"?
-**Answer:** No. Yomitomo's review agents highlight potential reasoning gaps, unverified empirical claims, and alternative hypotheses. You always retain final judgment.
+### Q1: Do Review Assistants tell me definitively that an author is wrong?
+No. They point out potential reasoning gaps, missing evidence, edge cases, and unclear phrasing. Always check both the author's claims and the model's suggestions against the original text.
 
-### Q2: Can I consult multiple review agents on a single distillation draft?
-**Answer:** Yes. In Distillation Studio, you can sequentially invite `@HeMingheng` to check logic, `@LiangZhengyan` to verify citations, and `@TangJian` to polish prose.
+### Q2: Can I run multiple Review Assistants on the same distillation draft?
+Yes. In the right-hand review panel of the **Distillation** window, you can run several assistants in sequence—for example, **Simone Carter** for logic, **Arthur Whitfield** for evidence, and **Julian Cross** for final copy editing—and accept or reject each suggested edit individually.
 
-### Q3: How do I distinguish critical annotations from regular highlights in search?
-**Answer:** Press `A` and mark critical notes as **Question** or **Assumption**. In the Library, filter by cognitive type to aggregate all critique points across your documents instantly.
+### Q3: How do I find critical notes later across my library?
+You can assign distinct highlight colors to mark objections or questions, use keyword search across your local library, or open **Reading Memory** to browse the **Distillations** library, click **Find related** from a highlight, or run **Ask library** across all sources, a collection, or selected documents.
 
 ---
 
 ## Related Guides & Workflows
 
-- [Academic Paper Deep Reading: An AI-Powered Workflow](/en/blog/scenarios/academic-paper-reading/)
-- [PDF Annotation in Practice: Review Contracts and Whitepapers](/en/blog/scenarios/pdf-annotation/)
-- [Knowledge Distillation Workflow: From Highlights to Structured Cards](/en/blog/scenarios/knowledge-distillation/)
-- [AI Companion System Architecture Documentation](/en/docs/ai-companions/)
+- [Academic Paper Deep Reading: An AI-Powered Workflow for Researchers](/en/blog/scenarios/academic-paper-reading/)
+- [PDF Annotation in Practice: Review Contracts, Whitepapers, and Reports](/en/blog/scenarios/pdf-annotation/)
+- [Knowledge Distillation Workflow: From Fragmented Highlights to Structured Cards](/en/blog/scenarios/knowledge-distillation/)
+- [AI Reading Companions and Assistants](/en/docs/ai-companions/)

@@ -21,14 +21,14 @@ The Reader displays the source on a paper surface. Footnote numbers connect unde
 - **Full-Text Search**: Press ⌘F (Ctrl+F on Windows) or use the toolbar button to search the current document and jump to matches.
 - **Highlight Navigation**: Cruise forward and backward between highlights without manual scrolling.
 - **Persistent Assistant Chat**: Ask questions about the entire document at any time with multi-turn context retention.
-- **Bilingual Translation**: Translate web articles paragraph by paragraph with visual status indicators on modified blocks. PDFs can be translated page by page, with each paragraph overlaid on the original page. This first version targets single-column text PDFs; scanned pages without a text layer cannot be translated.
+- **Bilingual Translation**: Translate web articles and EPUB chapters paragraph by paragraph without altering the source. PDFs can be translated page by page, with each paragraph overlaid on the original page (this first version targets single-column text PDFs; scanned pages without a text layer cannot be translated). Configure target language, display styles, and **AI context-aware translation** in **Settings > General**.
 - **Export Markdown**: Export the current document's highlights, thoughts, discussions, and published distillations to an `.md` file or copy them to the clipboard, verbatim.
 
 ### Typography and Visual Styling
 
-- **Web Articles and Ebooks**: Adjust **Font Size** and **Article Width** to match your reading preferences.
+- **Web Articles and Ebooks**: Adjust **Font Size**, **Article Width**, **Paper** color, and default highlight/distillation underline colors from the reader toolbar.
 - **PDFs**: Choose **Fit width**, **Fit page**, or **100%**, or zoom with ⌘/Ctrl + / − / 0.
-- **Theme and Reading Appearance**: Choose light, dark, or system appearance at the bottom of the sidebar. Adjust reading size and width in the reader toolbar. PDFs keep their original page colors in dark mode; turn on the **Dark eye-care filter** in the PDF toolbar when you need it.
+- **Theme and Reading Appearance**: Choose light, dark, or system appearance at the bottom of the sidebar. PDFs keep their original page colors in dark mode by default; turn on the **Dark eye-care filter** in the PDF toolbar when you need it.
 
 ## Create Highlights and Thoughts
 
@@ -58,12 +58,14 @@ When your reflections around a passage mature into a concrete takeaway, framewor
 
 ## Essential Shortcuts
 
-| Shortcut                   | Action                                 |
-| -------------------------- | -------------------------------------- |
-| `C`                        | Copy selected text                     |
-| `A`                        | Create a highlight from selected text  |
-| `Q`                        | Ask AI about selected text             |
-| `⌘F` / `Ctrl+F`            | Search the current document            |
-| `⌘/Ctrl` + `+` / `−` / `0` | Zoom a PDF in, out, or back to default |
+| Shortcut                   | Action                                      |
+| -------------------------- | ------------------------------------------- |
+| `C`                        | Copy selected text                          |
+| `A`                        | Create a highlight from selected text       |
+| `Q`                        | Ask AI about selected text                  |
+| `⌘F` / `Ctrl+F`            | Search the current document                 |
+| `←` / `→`                  | Previous / next page in ebooks and PDFs     |
+| `⌘/Ctrl` + `+` / `−` / `0` | Zoom a PDF in, out, or back to default      |
+| `⌘L` / `Ctrl+L`            | Lock the app (when App Lock is enabled)     |
 
-`C`, `A`, and `Q` can be customized in **Settings > Shortcuts**.
+`C`, `A`, `Q`, and the message send shortcut can be customized in **Settings > Shortcuts**.
