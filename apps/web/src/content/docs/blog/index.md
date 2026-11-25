@@ -1,9 +1,9 @@
 ---
 title: 博客与深度实践指南
-description: 探索 Yomitomo 在学术研究、商业行研、严肃电子书精读与本地 AI 伴读等场景下的最佳实践，构建可复用的个人终身知识资产。
+description: 介绍 Yomitomo 在学术论文、PDF 研报、电子书精读、本地模型伴读与知识整理等场景下的工作流和使用边界。
 ---
 
-这里收录了 Yomitomo 的深度精读指南、选型对比与工作流实践。我们从真实的阅读困境与认知挑战出发，探讨如何将学术论文、PDF 研报、经典电子书、网页长文与微信读书笔记串联为可持续沉淀的个人思考系统。
+这里收录了 Yomitomo 的场景实践指南、选型对比与工作流说明。内容围绕真实阅读场景展开，介绍如何在本地把学术论文、PDF 研报、电子书、网页长文和微信读书笔记整理成可检索、可回溯的阅读记录。
 
 ---
 
@@ -20,7 +20,7 @@ description: 探索 Yomitomo 在学术研究、商业行研、严肃电子书精
 
 - [AI 伴读的正确姿势：让大模型陪你读书，不是替你读书](/blog/scenarios/ai-reading-companion/)
 - [批判性阅读实战：用 AI 审阅助手拆解文章的论证结构](/blog/scenarios/critical-reading/)
-- [离线与私有化 AI 阅读：Yomitomo + Ollama 本地大模型伴读实战](/blog/scenarios/local-ai-reading-with-ollama/)
+- [用 Ollama 本地模型阅读 PDF 和 EPUB：Yomitomo 配置指南](/blog/scenarios/local-ai-reading-with-ollama/)
 
 ---
 
@@ -36,5 +36,5 @@ description: 探索 Yomitomo 在学术研究、商业行研、严肃电子书精
 ## 数据主权与选型对比
 
 - [Yomitomo vs Readwise Reader 对比与选型指南：本地深度精读还是云端稍后读？](/blog/scenarios/readwise-reader-alternative/)
-- [微信读书笔记迁移指南：将划线与思考完整沉淀至本地](/blog/scenarios/weread-migration/)
+- [微信读书笔记同步到本地：划线、想法与备份指南](/blog/scenarios/weread-migration/)
 - [为什么选择本地优先：构建真正属于自己的终身阅读资产](/blog/scenarios/local-first-privacy/)
