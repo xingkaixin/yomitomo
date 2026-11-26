@@ -323,30 +323,7 @@ function catalogModel(provider: LlmProvider): Model<Api> | undefined {
         : isOfficialOpenAI(provider)
           ? OPENAI_MODELS
           : provider.presetId && PRESET_CATALOGS[provider.presetId];
-  const known = catalog?.[provider.modelName];
-  if (known) return known;
-  if (
-    provider.type !== 'gemini' ||
-    !['gemini-4-hydrogen', 'gemini-4-carbon'].includes(provider.modelName)
-  ) {
-    return undefined;
-  }
-  // pi-ai 1.5.2 lacks these models; Google rejects thinking budgets and the "off" level.
-  return {
-    ...fallbackModel(provider, provider.id),
-    contextWindow: 1_048_576,
-    maxTokens: 65_536,
-    thinkingLevelMap: {
-      off: null,
-      minimal: null,
-      low: 'low',
-      medium: 'medium',
-      high: 'high',
-      // pi-ai 1.5.2 cannot encode Google's XHIGH yet, so clamp it to HIGH.
-      xhigh: null,
-      max: null,
-    },
-  };
+  return catalog?.[provider.modelName];
 }
 
 function presetMaxOutputTokens(provider: LlmProvider) {
