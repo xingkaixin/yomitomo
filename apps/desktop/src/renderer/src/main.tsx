@@ -297,7 +297,9 @@ function ReadyApp({
                   onReadingModeChange={session.actions.setReaderOpen}
                   onRemoveCollectionMember={removeCollectionMember}
                   onRenameCollection={renameCollection}
-                  onSaveSettings={async (settings) => void (await saveSettings(settings))}
+                  onSaveSettings={async (settings) => {
+                    await saveSettings(settings);
+                  }}
                   onSetLibraryPin={setLibraryPin}
                   onOpenDataSources={() => session.actions.openSettingsSection('dataSources')}
                 />

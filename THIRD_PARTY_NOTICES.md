@@ -78,7 +78,7 @@ Bundled font notices are discovered from:
 | @aws-sdk/credential-provider-http | 3.972.76 | Apache-2.0 | [link](https://github.com/aws/aws-sdk-js-v3/tree/main/packages-internal/credential-provider-http) |
 | @aws-sdk/credential-provider-ini | 3.973.19 | Apache-2.0 | [link](https://github.com/aws/aws-sdk-js-v3/tree/main/packages-internal/credential-provider-ini) |
 | @aws-sdk/credential-provider-login | 3.972.81 | Apache-2.0 | [link](https://github.com/aws/aws-sdk-js-v3/tree/main/packages-internal/credential-provider-login) |
-| @aws-sdk/credential-provider-node | 3.972.86 | Apache-2.0 | [link](https://github.com/aws/aws-sdk-js-v3/tree/main/packages-internal/credential-provider-node) |
+| @aws-sdk/credential-provider-node | 3.972.82 | Apache-2.0 | [link](https://github.com/aws/aws-sdk-js-v3/tree/main/packages-internal/credential-provider-node) |
 | @aws-sdk/credential-provider-process | 3.972.74 | Apache-2.0 | [link](https://github.com/aws/aws-sdk-js-v3/tree/main/packages-internal/credential-provider-process) |
 | @aws-sdk/credential-provider-sso | 3.973.18 | Apache-2.0 | [link](https://github.com/aws/aws-sdk-js-v3/tree/main/packages-internal/credential-provider-sso) |
 | @aws-sdk/credential-provider-web-identity | 3.972.80 | Apache-2.0 | [link](https://github.com/aws/aws-sdk-js-v3/tree/main/packages-internal/credential-provider-web-identity) |
@@ -105,12 +105,12 @@ Bundled font notices are discovered from:
 | @dnd-kit/geometry | 0.5.3 | MIT | [link](https://github.com/clauderic/dnd-kit#readme) |
 | @dnd-kit/react | 0.5.3 | MIT | [link](https://github.com/clauderic/dnd-kit#readme) |
 | @dnd-kit/state | 0.5.3 | MIT | [link](https://github.com/clauderic/dnd-kit#readme) |
-| @earendil-works/chord | 1.5.2 | MIT | [link](https://github.com/earendil-works/pi#readme) |
-| @earendil-works/pi-ai | 1.5.2 | MIT | [link](https://github.com/earendil-works/pi#readme) |
-| @earendil-works/pi-codemode | 1.5.2 | MIT | [link](https://github.com/earendil-works/pi#readme) |
-| @earendil-works/pi-durable | 1.5.2 | MIT | [link](https://github.com/earendil-works/pi#readme) |
-| @earendil-works/pi-schema | 1.5.2 | MIT | [link](https://github.com/earendil-works/pi#readme) |
-| @earendil-works/pi-telemetry | 1.5.2 | MIT | [link](https://github.com/earendil-works/pi#readme) |
+| @earendil-works/chord | 1.6.1 | MIT | [link](https://github.com/earendil-works/pi#readme) |
+| @earendil-works/pi-ai | 1.6.1 | MIT | [link](https://github.com/earendil-works/pi#readme) |
+| @earendil-works/pi-codemode | 1.6.1 | MIT | [link](https://github.com/earendil-works/pi#readme) |
+| @earendil-works/pi-durable | 1.6.1 | MIT | [link](https://github.com/earendil-works/pi#readme) |
+| @earendil-works/pi-schema | 1.6.1 | MIT | [link](https://github.com/earendil-works/pi#readme) |
+| @earendil-works/pi-telemetry | 1.6.1 | MIT | [link](https://github.com/earendil-works/pi#readme) |
 | @embedpdf/core | 2.15.1 | MIT |  |
 | @embedpdf/engines | 2.15.1 | MIT | [link](https://www.embedpdf.com/docs/engines/introduction) |
 | @embedpdf/fonts-arabic | 1.0.0 | OFL-1.1 | [link](https://www.embedpdf.com/docs) |
@@ -137,7 +137,7 @@ Bundled font notices are discovered from:
 | @floating-ui/dom | 1.8.0 | MIT | [link](https://floating-ui.com) |
 | @floating-ui/react-dom | 2.1.9 | MIT | [link](https://floating-ui.com/docs/react-dom) |
 | @floating-ui/utils | 0.2.12 | MIT | [link](https://floating-ui.com) |
-| @google/genai | 2.21.0 | Apache-2.0 | [link](https://github.com/googleapis/js-genai#readme) |
+| @google/genai | 3.6.1 | Apache-2.0 | [link](https://github.com/googleapis/js-genai#readme) |
 | @hugeicons/core-free-icons | 4.4.0 | MIT | [link](https://hugeicons.com) |
 | @hugeicons/react | 1.1.10 | MIT | [link](https://hugeicons.com) |
 | @huggingface/jinja | 0.5.10 | MIT | [link](https://github.com/huggingface/huggingface.js#readme) |
@@ -179,8 +179,8 @@ Bundled font notices are discovered from:
 | @standard-schema/spec | 1.1.0 | MIT | [link](https://standardschema.dev) |
 | @standard-schema/utils | 0.3.0 | MIT | [link](https://github.com/standard-schema/standard-schema#readme) |
 | @sveltejs/acorn-typescript | 1.0.10 | MIT | [link](https://github.com/sveltejs/acorn-typescript#readme) |
-| @tanstack/query-core | 5.107.1 | MIT | [link](https://tanstack.com/query) |
-| @tanstack/react-query | 5.107.1 | MIT | [link](https://tanstack.com/query) |
+| @tanstack/query-core | 5.108.4 | MIT | [link](https://tanstack.com/query) |
+| @tanstack/react-query | 5.108.4 | MIT | [link](https://tanstack.com/query) |
 | @vue/compiler-core | 3.5.34 | MIT | [link](https://github.com/vuejs/core/tree/main/packages/compiler-core#readme) |
 | @vue/compiler-dom | 3.5.34 | MIT | [link](https://github.com/vuejs/core/tree/main/packages/compiler-dom#readme) |
 | @vue/compiler-sfc | 3.5.34 | MIT | [link](https://github.com/vuejs/core/tree/main/packages/compiler-sfc#readme) |
@@ -236,7 +236,7 @@ Bundled font notices are discovered from:
 | decimal.js-light | 2.5.1 | MIT | [link](https://github.com/MikeMcl/decimal.js-light#readme) |
 | define-data-property | 1.1.4 | MIT | [link](https://github.com/ljharb/define-data-property#readme) |
 | define-properties | 1.2.1 | MIT | [link](https://github.com/ljharb/define-properties#readme) |
-| defuddle | 0.19.6 | MIT | [link](https://github.com/kepano/defuddle) |
+| defuddle | 0.19.13 | MIT | [link](https://github.com/kepano/defuddle) |
 | detect-libc | 2.1.2 | Apache-2.0 | [link](https://github.com/lovell/detect-libc#readme) |
 | detect-node | 2.1.0 | MIT | [link](https://github.com/iliakan/detect-node) |
 | devalue | 5.9.4 | MIT | [link](https://github.com/sveltejs/devalue#readme) |
@@ -244,11 +244,11 @@ Bundled font notices are discovered from:
 | dom-serializer | 2.0.0, 3.1.1 | MIT | [link](https://github.com/cheeriojs/dom-serializer#readme) |
 | domelementtype | 2.3.0, 3.0.0 | BSD-2-Clause | [link](https://github.com/fb55/domelementtype#readme) |
 | domhandler | 5.0.3, 6.0.1 | BSD-2-Clause | [link](https://github.com/fb55/domhandler#readme) |
-| dompurify | 3.4.18 | (MPL-2.0 OR Apache-2.0) | [link](https://github.com/cure53/DOMPurify) |
+| dompurify | 3.5.0 | (MPL-2.0 OR Apache-2.0) | [link](https://github.com/cure53/DOMPurify) |
 | domutils | 3.2.2, 4.0.2 | BSD-2-Clause | [link](https://github.com/fb55/domutils#readme) |
 | drizzle-orm | 0.45.4 | Apache-2.0 | [link](https://orm.drizzle.team) |
 | ecdsa-sig-formatter | 1.0.11 | Apache-2.0 | [link](https://github.com/Brightspace/node-ecdsa-sig-formatter#readme) |
-| effect | 4.1.4 | MIT | [link](https://effect.website) |
+| effect | 4.1.5 | MIT | [link](https://effect.website) |
 | electron-updater | 6.8.11 | MIT | [link](https://github.com/electron-userland/electron-builder) |
 | entities | 4.5.0, 7.0.1, 8.0.0, 9.0.0 | BSD-2-Clause | [link](https://github.com/fb55/entities#readme) |
 | es-define-property | 1.0.1 | MIT | [link](https://github.com/ljharb/es-define-property#readme) |
@@ -286,7 +286,7 @@ Bundled font notices are discovered from:
 | htmlparser2 | 10.1.0 | MIT | [link](https://github.com/fb55/htmlparser2#readme) |
 | http-proxy-agent | 9.1.0 | MIT | [link](https://github.com/TooTallNate/proxy-agents#readme) |
 | https-proxy-agent | 7.0.6, 9.1.0 | MIT | [link](https://github.com/TooTallNate/proxy-agents#readme) |
-| i18next | 27.1.3 | MIT | [link](https://www.i18next.com) |
+| i18next | 27.2.7 | MIT | [link](https://www.i18next.com) |
 | immediate | 3.0.6 | MIT | [link](https://github.com/calvinmetcalf/immediate#readme) |
 | immer | 11.1.18 | MIT | [link](https://github.com/immerjs/immer#readme) |
 | inherits | 2.0.4 | ISC | [link](https://github.com/isaacs/inherits#readme) |
@@ -334,7 +334,7 @@ Bundled font notices are discovered from:
 | onnxruntime-common | 1.24.0-dev.20251116-b39e144322, 1.24.3 | MIT | [link](https://github.com/Microsoft/onnxruntime#readme) |
 | onnxruntime-node | 1.24.3 | MIT | [link](https://github.com/Microsoft/onnxruntime#readme) |
 | onnxruntime-web | 1.26.0-dev.20260416-b7804b056c | MIT | [link](https://github.com/Microsoft/onnxruntime#readme) |
-| openai | 7.19.0 | Apache-2.0 | [link](https://github.com/openai/openai-node#readme) |
+| openai | 7.59.0 | Apache-2.0 | [link](https://github.com/openai/openai-node#readme) |
 | p-retry | 4.6.2 | MIT | [link](https://github.com/sindresorhus/p-retry#readme) |
 | pako | 1.0.11 | (MIT AND Zlib) | [link](https://github.com/nodeca/pako) |
 | parse5 | 8.1.1 | MIT | [link](https://parse5.js.org) |
@@ -352,11 +352,11 @@ Bundled font notices are discovered from:
 | react | 19.3.1 | MIT | [link](https://react.dev/) |
 | react-day-picker | 10.0.2 | MIT | [link](https://daypicker.dev) |
 | react-dom | 19.3.1 | MIT | [link](https://react.dev/) |
-| react-i18next | 18.0.2 | MIT | [link](https://github.com/i18next/react-i18next) |
+| react-i18next | 18.0.3 | MIT | [link](https://github.com/i18next/react-i18next) |
 | react-is | 17.0.2 | MIT | [link](https://reactjs.org/) |
 | react-redux | 9.3.0 | MIT | [link](https://github.com/reduxjs/react-redux) |
 | readable-stream | 2.3.8 | MIT | [link](https://github.com/nodejs/readable-stream#readme) |
-| recharts | 3.10.1 | MIT | [link](https://github.com/recharts/recharts) |
+| recharts | 3.11.1 | MIT | [link](https://github.com/recharts/recharts) |
 | redux | 5.0.1 | MIT | [link](http://redux.js.org) |
 | redux-thunk | 3.1.0 | MIT | [link](https://github.com/reduxjs/redux-thunk) |
 | reselect | 5.2.0, 5.3.0 | MIT | [link](https://github.com/reduxjs/reselect#readme) |
@@ -378,7 +378,7 @@ Bundled font notices are discovered from:
 | string_decoder | 1.1.1 | MIT | [link](https://github.com/nodejs/string_decoder) |
 | supports-color | 10.2.2 | MIT | [link](https://github.com/chalk/supports-color#readme) |
 | svelte | 5.55.9 | MIT | [link](https://svelte.dev) |
-| tailwind-merge | 3.7.0 | MIT | [link](https://github.com/dcastil/tailwind-merge) |
+| tailwind-merge | 3.7.1 | MIT | [link](https://github.com/dcastil/tailwind-merge) |
 | tailwindcss | 4.3.5 | MIT | [link](https://tailwindcss.com) |
 | temml | 0.13.5 | MIT | [link](https://temml.org) |
 | tiny-invariant | 1.3.3 | MIT | [link](https://github.com/alexreardon/tiny-invariant#readme) |
@@ -392,9 +392,9 @@ Bundled font notices are discovered from:
 | turndown | 7.2.4 | MIT | [link](https://github.com/mixmark-io/turndown#readme) |
 | type-fest | 0.13.1 | (MIT OR CC0-1.0) | [link](https://github.com/sindresorhus/type-fest#readme) |
 | uhyphen | 0.2.0 | ISC | [link](https://github.com/WebReflection/uhyphen#readme) |
-| undici | 8.12.4 | MIT | [link](https://undici.nodejs.org) |
+| undici | 8.13.1 | MIT | [link](https://undici.nodejs.org) |
 | universalify | 2.0.1 | MIT | [link](https://github.com/RyanZim/universalify#readme) |
-| use-sync-external-store | 1.6.0, 1.7.0 | MIT | [link](https://github.com/react/react#readme) |
+| use-sync-external-store | 1.7.0 | MIT | [link](https://github.com/react/react#readme) |
 | util-deprecate | 1.0.2 | MIT | [link](https://github.com/TooTallNate/util-deprecate) |
 | victory-vendor | 37.3.6 | MIT AND ISC | [link](https://commerce.nearform.com/open-source/victory) |
 | vue | 3.5.34 | MIT | [link](https://vuejs.org/) |

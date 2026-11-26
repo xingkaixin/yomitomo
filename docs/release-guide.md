@@ -118,12 +118,7 @@ pnpm providers:check
 加入新模型前确认当前 pi-ai 版本的目录已收录它（`dist/providers/data/<供应商>.json`）；未收录时先升级
 pi-ai，否则思考参数按通用规则发送，可能被供应商拒绝。若最新版仍未收录，按供应商官方文档
 在 `packages/ai/src/provider/pi-provider.ts` 补充仅限该型号的能力，并验证实际请求参数；目录命中时
-优先使用上游数据。当前 pi-ai 1.5.2 未收录 Gemini 4 Hydrogen / Carbon，应用补充其 1,048,576
-上下文窗口、65,536 单次输出上限和 low / medium / high 思考级别。Hydrogen 的 xhigh 暂按 high
-发送，因为当前 pi-ai 的 Google transport 不支持 XHIGH。依据：
-[Hydrogen](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/4-hydrogen)、
-[Carbon](https://aistudio.google.com/docs/models/gemini-4-carbon)、
-[思考级别](https://aistudio.google.com/docs/thinking)。
+优先使用上游数据。
 两处都查不到的模型使用 128k 上下文和 4096 输出的保守默认值。实际请求的输出上限再取
 `min(模型输出上限, 上下文窗口 / 2)`。
 

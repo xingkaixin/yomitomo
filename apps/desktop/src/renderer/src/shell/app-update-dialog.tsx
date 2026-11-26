@@ -73,7 +73,7 @@ export function UpdateReleaseDialog({
     if (!version) return;
     const lastSeenVersion = store.settings.lastSeenVersion;
     if (lastSeenVersion !== version) {
-      void onSaveSettings({ ...store.settings, lastSeenVersion: version });
+      void onSaveSettings({ lastSeenVersion: version });
     }
     if (!shouldShowAfterUpdate(lastSeenVersion, version)) return;
     void getDesktopApi()
@@ -124,7 +124,7 @@ export function UpdateReleaseDialog({
     if (downloadStatus === 'downloaded') {
       void (async () => {
         if (updateState?.simulation === 'development') {
-          await onSaveSettings({ ...store.settings, lastSeenVersion: '0.0.0' });
+          await onSaveSettings({ lastSeenVersion: '0.0.0' });
         }
         await getDesktopApi().updates.install();
       })();

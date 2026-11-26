@@ -29,7 +29,7 @@ earliest persisted retry time. Orphan cleanup and backfill scan whole tables, so
 startup, after a database restore, and on manual rebuild. Shutdown interrupts waits, joins in-flight
 database leases, and closes the queue. Persisted projection jobs, retry timestamps, and
 database-generation checks remain authoritative. Timing and Promise-boundary tests retain their
-Vitest timer fixtures; `@effect/vitest@4.1.4` is pinned alongside the runtime.
+Vitest timer fixtures; `@effect/vitest@4.1.5` is pinned alongside the runtime.
 
 Embedding requests use a priority queue (`query` ahead of `document`) with Deferred responses and
 Effect timeouts. Aborting a queued or in-flight request rejects only that caller without restarting
@@ -55,6 +55,15 @@ matching Node's previous zero-delay timer behavior.
 The inventory includes both root and subpath imports.
 
 ## Runtime semantics
+
+The `4.1.4` to `4.1.5` source comparison covers every production namespace above and the
+internal runtime implementations. The API inventory and signatures remain compatible. Exiting
+fibers now mark themselves uninterruptible while waiting to interrupt child fibers, and `raceAll`
+registers each child before its first evaluation step so immediate settlements still interrupt
+losers. `Queue` defers finalization notifications when a closing queue delivers its final item so
+a waiter cannot interrupt the taking fiber mid-delivery. `Effect.all` on records, structural
+equality/hashing, and `Schema.encodeKeys` now enumerate own enumerable string and symbol keys.
+The `@effect/vitest` source is unchanged.
 
 The `4.1.3` to `4.1.4` source comparison covers every production namespace above and the
 internal runtime implementations. The production API sources and concurrency runtime are unchanged.
