@@ -3,12 +3,12 @@ packages:
   - "packages/*"
 catalog:
   "@base-ui/react": "^1.9.0"
-  "@cloudflare/workers-types": "^5.20261116.1"
-  "@earendil-works/chord": "1.5.2"
-  "@earendil-works/pi-ai": "1.5.2"
-  "@earendil-works/pi-durable": "1.5.2"
-  "@earendil-works/pi-schema": "1.5.2"
-  "@effect/vitest": "4.1.4"
+  "@cloudflare/workers-types": "^5.20261125.1"
+  "@earendil-works/chord": "1.6.1"
+  "@earendil-works/pi-ai": "1.6.1"
+  "@earendil-works/pi-durable": "1.6.1"
+  "@earendil-works/pi-schema": "1.6.1"
+  "@effect/vitest": "4.1.5"
   "@hugeicons/core-free-icons": "^4.4.0"
   "@hugeicons/react": "^1.1.10"
   "@huggingface/transformers": "4.2.0"
@@ -16,17 +16,17 @@ catalog:
   "@testing-library/dom": "^10.4.2"
   "@testing-library/react": "^16.3.3"
   "@types/jsdom": "^30.0.0"
-  "@types/react": "^19.3.0"
+  "@types/react": "^19.3.1"
   "@types/react-dom": "^19.3.0"
-  "effect": "4.1.4"
+  "effect": "4.1.5"
   "jsdom": "^31.0.1"
   "react": "^19.3.1"
   "react-dom": "^19.3.1"
   "tailwindcss": "^4.3.5"
   "typescript": "^7.0.2"
   "vite": "^8.3.8"
-  "vitest": "^5.1.0"
-  "wrangler": "^4.165.0"
+  "vitest": "^5.1.1"
+  "wrangler": "^4.168.0"
 allowBuilds:
   "@google/genai": false
   better-sqlite3: false
@@ -71,12 +71,12 @@ minimumReleaseAgeExclude:
   - wrangler@4.131.0
   - zod@4.6.2
   - vite@8.3.0
-  - '@earendil-works/chord@1.5.2'
-  - '@earendil-works/pi-ai@1.5.2'
-  - '@earendil-works/pi-codemode@1.5.2'
-  - '@earendil-works/pi-durable@1.5.2'
-  - '@earendil-works/pi-schema@1.5.2'
-  - '@earendil-works/pi-telemetry@1.5.2'
+  - '@earendil-works/chord@1.6.1'
+  - '@earendil-works/pi-ai@1.6.1'
+  - '@earendil-works/pi-codemode@1.6.1'
+  - '@earendil-works/pi-durable@1.6.1'
+  - '@earendil-works/pi-schema@1.6.1'
+  - '@earendil-works/pi-telemetry@1.6.1'
 overrides:
   "@electron/get>undici": "7.30.2"
   "@babel/core@<=7.29.0": "7.29.7"
@@ -89,11 +89,15 @@ overrides:
   "esbuild@<=0.28.1": "0.28.2"
   "fast-uri@>=3.0.0 <3.1.8": "3.1.8"
   "js-yaml@>=4.0.0 <5.0.0": "4.3.2"
-  "jsdom>undici": "8.12.4"
+  "jsdom>undici": "8.13.1"
   "miniflare>undici": "7.30.2"
   "node-gyp>undici": "6.29.1"
   "postcss@>=8.5.0 <8.5.18": "8.5.28"
   "sharp@>=0.34.0 <0.35.0": "0.35.5"
   "svgo@>=4.0.0 <4.1.0": "4.1.0"
   "tar@>=7.0.0 <7.5.22": "7.5.22"
-  "unifont>undici": "8.12.4"
+  "unifont>undici": "8.13.1"
+packageExtensions:
+  "@astrojs/astro2tsx":
+    dependencies:
+      "@emnapi/runtime": "^1.11.3"
