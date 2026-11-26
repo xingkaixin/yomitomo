@@ -14,6 +14,7 @@
   "rules": {
     "no-await-in-loop": "off",
     "typescript/consistent-return": "off",
+    "typescript/no-unsafe-class-instance-assignment": "off",
     "typescript/no-unsafe-type-assertion": "off",
     "unicorn/consistent-function-scoping": "off",
     "no-restricted-imports": [

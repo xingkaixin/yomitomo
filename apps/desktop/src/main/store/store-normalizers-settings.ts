@@ -20,10 +20,12 @@ export function rowToSettings(
   row: typeof schema.appSettings.$inferSelect | undefined,
 ): ResolvedAppSettings {
   if (!row) return normalizeAppSettings(undefined);
-  const { annotationMemoryBackfillVersion, id, updatedAt, ...settings } = row;
-  void annotationMemoryBackfillVersion;
-  void id;
-  void updatedAt;
+  const {
+    annotationMemoryBackfillVersion: _annotationMemoryBackfillVersion,
+    id: _id,
+    updatedAt: _updatedAt,
+    ...settings
+  } = row;
   return normalizeAppSettings(settings);
 }
 

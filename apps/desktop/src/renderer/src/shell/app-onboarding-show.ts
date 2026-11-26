@@ -107,7 +107,7 @@ export function startOnboardingShow(
     reach(skipTarget, skipTarget);
     startedAt = performance.now() - skipTarget * 1000;
     drawUnderline(skipTarget);
-    void stage.offsetWidth;
+    stage.getBoundingClientRect();
     stage.classList.remove('is-instant');
   }
 
