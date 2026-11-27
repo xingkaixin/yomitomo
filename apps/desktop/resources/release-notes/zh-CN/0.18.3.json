@@ -1,0 +1,29 @@
+{
+  "version": "0.18.3",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "使用 ChatGPT 账号直接登录",
+      "description": "新增 ChatGPT 供应商预置，在浏览器中完成 OAuth 授权即可使用订阅额度调用模型，无需手动填写 API Key；凭据存放在系统钥匙串，所有 ChatGPT 配置共用同一连接。",
+      "audience": "settings"
+    },
+    {
+      "type": "new",
+      "title": "按模型能力调节思考强度",
+      "description": "模型设置中新增思考强度选项，自动匹配当前模型支持的档位，方便在响应速度与推理深度之间按需切换。",
+      "audience": "settings"
+    },
+    {
+      "type": "changed",
+      "title": "启动、阅读库与 EPUB 更快响应",
+      "description": "延迟启动阶段的次要加载并预取书库目录，大书库分页查询走快速路径，EPUB 压缩包解析与章节排版也更轻快。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "启动设置更稳妥，预置模型已同步",
+      "description": "修复启动检查更新时可能覆盖并发设置写入的问题；同步移除已弃用的 Kimi K2.6 默认预置，并更新百炼与火山引擎的输出上限。",
+      "audience": "settings"
+    }
+  ]
+}

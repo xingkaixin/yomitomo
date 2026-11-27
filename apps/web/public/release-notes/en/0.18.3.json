@@ -1,0 +1,29 @@
+{
+  "version": "0.18.3",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "Sign in with ChatGPT",
+      "description": "Connect your ChatGPT account through browser OAuth to use eligible plan models without an API key. Credentials stay in the OS keyring and are shared across your ChatGPT configs.",
+      "audience": "settings"
+    },
+    {
+      "type": "new",
+      "title": "Model-aware thinking effort",
+      "description": "Provider settings now let you pick a thinking effort level matched to what each model actually supports, balancing speed and depth.",
+      "audience": "settings"
+    },
+    {
+      "type": "changed",
+      "title": "Faster launch, library, and EPUB reading",
+      "description": "Deferred startup work and catalog prefetching shorten launch time, library queries take a faster top-k path, and EPUB loading and layout respond quicker.",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "Safer startup settings and updated presets",
+      "description": "Fixed startup update checks overwriting concurrent settings saves, replaced the deprecated Kimi K2.6 default preset, and updated DashScope and Volcengine output limits.",
+      "audience": "settings"
+    }
+  ]
+}
