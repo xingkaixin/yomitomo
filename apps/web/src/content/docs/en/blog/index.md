@@ -20,7 +20,7 @@ Practical reading workflows, tool comparisons, and setup guides for Yomitomo. Ea
 
 - [The Right Way to Use AI Reading Companions: Partner with Models, Don't Outsource Thinking](/en/blog/scenarios/ai-reading-companion/)
 - [Critical Reading in Practice: Deconstruct Arguments with AI Review Agents](/en/blog/scenarios/critical-reading/)
-- [Read PDFs and EPUBs with local AI: Yomitomo + Ollama setup](/en/blog/scenarios/local-ai-reading-with-ollama/)
+- [Free Local AI PDF & EPUB Reader with Ollama (Offline Setup)](/en/blog/scenarios/local-ai-reading-with-ollama/)
 
 ---
 
@@ -35,6 +35,6 @@ Practical reading workflows, tool comparisons, and setup guides for Yomitomo. Ea
 
 ## Data Sovereignty & Tool Selection
 
-- [Yomitomo vs Readwise Reader: a local, open-source alternative](/en/blog/scenarios/readwise-reader-alternative/)
+- [Free Open-Source Readwise Reader Alternative: Yomitomo vs Readwise, NotebookLM & Zotero](/en/blog/scenarios/readwise-reader-alternative/)
 - [WeRead Notes Migration Guide: Bring Your Highlights and Thoughts Local](/en/blog/scenarios/weread-migration/)
 - [Why Local-First Architecture Matters: Building Lifelong Intellectual Assets](/en/blog/scenarios/local-first-privacy/)

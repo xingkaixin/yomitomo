@@ -1,7 +1,7 @@
 ---
-title: "Yomitomo vs Readwise Reader 比較と選定ガイド：ローカル深層精読か、クラウド「あとで読む」か"
-description: Readwise Readerの代替ツールやローカルファーストの精読環境をお探しですか？データ保存・AI対話・注釈とまとめ・WeRead連携・料金の観点から両ツールを比較し、用途に合う選び方を整理します。
-lastUpdated: 2026-10-03
+title: "Readwise Reader 代替（無料・ローカル）：Yomitomo との徹底比較ガイド"
+description: 無料・オープンソースのReadwise Reader代替をお探しですか？YomitomoとReadwise Readerをローカル保存、PDF・EPUB対応、Ollama/BYOKのAI対話、Markdown出力、料金の観点から比較します。
+lastUpdated: 2026-11-27
 ---
 
 デジタル読書や「あとで読む」ツールの分野で、Readwise ReaderはRSS集約、マルチデバイス同期、外部ノートアプリへの自動転送に強みがあります。一方で、ローカルへのデータ保存、AIモデルの選択自由度、継続課金を抑えた運用を重視する読者のあいだでは、ローカルファーストのデスクトップ環境を選ぶ動きも広がっています。
@@ -71,7 +71,9 @@ Readwiseの対応範囲と料金は、[公式製品ページ](https://readwise.i
 
 ## 関連ガイドとワークフロー
 
+<a href="/ja/#download" data-umami-event="download_section_click" data-umami-event-language="ja" data-umami-event-placement="guide">Yomitomoをダウンロードしてローカル精読を試す</a>。
+
+- [OllamaローカルAI読書ガイド：無料でPDF・EPUBをオフライン精読](/ja/blog/scenarios/local-ai-reading-with-ollama/)
 - [なぜローカルファーストなのか：生涯の知的資産を守るアーキテクチャ](/ja/blog/scenarios/local-first-privacy/)
 - [ハイライトからまとめへ：1つの対話を構造化ノートに整理するワークフロー](/ja/blog/scenarios/knowledge-distillation/)
-- [WeReadノート移行ガイド：ハイライトと思考を完全にローカルへ蓄積する](/ja/blog/scenarios/weread-migration/)
 - [AI 伴読アシスタントとレビュー担当者](/ja/docs/ai-companions/)

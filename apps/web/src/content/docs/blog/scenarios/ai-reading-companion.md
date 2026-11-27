@@ -1,6 +1,7 @@
 ---
-title: AI 伴读的正确姿势：让大模型陪你读书，不是替你读书
-description: Yomitomo 把 AI 定位为伴读者而非替代者：所有主动输出都由用户显式触发，围绕原文划线展开讨论，并在单条沉淀时由审阅助手协助复核。
+title: 免费开源 AI 伴读工具怎么选：围绕 PDF/EPUB 原文划线与 AI 深度讨论
+description: 不想只看 AI 一键摘要？了解 Yomitomo 的克制式 AI 伴读工作流：显式 @ 助手触发、锚定原文的批注讨论、单条沉淀与 Git-diff 审阅，支持自备 API Key 与本机 Ollama。
+lastUpdated: 2026-11-27
 ---
 
 “上传一份 PDF，30 秒帮你读完一本书”已经成为很多阅读工具的卖点。摘要确实省时间，但如果一本书或一篇论文值得认真读，直接看压缩后的二手结论，跳过的恰恰是阅读本身最有价值的部分：看到某个论点时的困惑、联想、怀疑，以及对照原文反复推敲的过程。
@@ -86,6 +87,8 @@ Yomitomo 内置 12 位分工明确的助手，分为**阅读理解助手（6 位
 ---
 
 ## 延伸阅读与关联工作流
+
+<a href="/#download" data-umami-event="download_section_click" data-umami-event-language="zh-CN" data-umami-event-placement="guide">下载 Yomitomo，在本地体验克制的 AI 伴读</a>。
 
 - [批判性阅读实战：用 AI 审阅助手拆解文章的论证结构](/blog/scenarios/critical-reading/)
 - [学术论文精读：研究者的 AI 深度阅读工作流](/blog/scenarios/academic-paper-reading/)
