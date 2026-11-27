@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.18.3 - 2026-11-27
+
+### Features
+
+- Added Sign in with ChatGPT as an OAuth provider preset so eligible ChatGPT accounts can run models without an API key. OAuth credentials stay in the OS keyring and are excluded from complete backups, tokens refresh automatically, and all ChatGPT model configs share one account connection. (#1116)
+- Added model-aware thinking effort settings in provider configuration, clamping choices to the levels each model supports and fixing `gpt-6.2-sol` clamping. (#1116)
+- Replaced the synthesized first-launch background music with an audio track. (#1119)
+- Updated preset models: removed deprecated `kimi-k2.6` from Moonshot (defaulting to `kimi-k3.1-pro`) and aligned `maxOutputTokens` for DashScope (`qwen3.7-plus`) and Volcengine (`doubao-seed-2-1-lite-260915`, `doubao-seed-2-1-pro-260915`, `deepseek-v4-1-flash-260910`) with models.dev.
+
+### Performance
+
+- Deferred main-process startup imports and SQLite setup, split renderer startup, and prefetched the library catalog to reduce launch latency. (#1120)
+- Added a top-k fast path for library catalog queries and sped up EPUB ZIP loading and chapter layout. (#1120)
+- Shrunk website landing images, CSS, and build assets to reduce transfer bytes. (#1120)
+
+### Fixes
+
+- Fixed the startup update check overwriting concurrent settings writes (such as provider routes) by patching only `lastSeenVersion`. (#1123)
+
+### Engineering
+
+- Upgraded `@earendil-works/*` (`pi-durable`, `pi-ai`, `chord`, `pi-schema`) to 1.6.1, Effect to 4.1.5, Electron to 45.5.0, pnpm to 12.23.0, and upstream dependencies; removed the temporary Gemini 4 fallback superseded by `pi-ai` 1.6.1 and refreshed third-party notices. (#1123)
+- Redesigned the website landing hero background and unified footer, refined landing SEO and author blog links, and aligned trilingual landing, documentation, and blog copy. (#1117, #1118, #1121, #1122)
+
 ## 0.18.2 - 2026-11-21
 
 ### Fixes

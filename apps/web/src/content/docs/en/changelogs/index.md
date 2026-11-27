@@ -5,6 +5,17 @@ sidebar:
   hidden: true
 ---
 
+## 0.18.3
+
+Released: 2026-11-27
+
+- Added Sign in with ChatGPT as an OAuth provider preset so you can use your ChatGPT account without an API key.
+- Added model-aware thinking effort settings and updated preset models and output limits for Moonshot, DashScope, and Volcengine.
+- Sped up desktop launch, library catalog queries, and EPUB loading and layout, and switched first-launch music to an audio track.
+- Fixed the startup update check overwriting concurrent settings writes, upgraded Electron, Effect, and pi-ai, and refreshed website visuals and docs.
+
+[View 0.18.3 release notes](/en/changelogs/v0-18-3/)
+
 ## 0.18.2
 
 Released: 2026-11-21

@@ -1,0 +1,29 @@
+{
+  "version": "0.18.3",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "ChatGPT アカウントで直接ログイン",
+      "description": "ChatGPT プリセットを追加しました。ブラウザで OAuth 認証するだけで API キーなしに対象プランのモデルを利用でき、認証情報は OS のキーチェーンで安全に共有されます。",
+      "audience": "settings"
+    },
+    {
+      "type": "new",
+      "title": "モデルに応じた思考強度の設定",
+      "description": "プロバイダー設定にモデルごとの対応レベルに合わせた思考強度オプションを追加し、応答速度と推論の深さを切り替えやすくなりました。",
+      "audience": "settings"
+    },
+    {
+      "type": "changed",
+      "title": "起動・ライブラリ・EPUB を高速化",
+      "description": "起動時の初期化を最適化してライブラリを先読みし、一覧取得の高速経路と EPUB の読み込み・レイアウト改善で待ち時間を減らしました。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "起動時の設定保護とプリセット更新",
+      "description": "起動時の更新確認が並行する設定保存を上書きしないよう修正し、非推奨の Kimi K2.6 既定値を置き換えて出力上限を最新化しました。",
+      "audience": "settings"
+    }
+  ]
+}
