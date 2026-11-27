@@ -42,7 +42,7 @@ export const providerPresets: ProviderPreset[] = [
       'glm-5.2',
     ],
     maxOutputTokens: {
-      'qwen3.7-plus': 64_000,
+      'qwen3.7-plus': 131_072,
       'qwen3.8-max': 131_072,
       'qwen3.8-flash': 131_072,
       'deepseek-v4.1-flash': 384_000,
@@ -69,10 +69,10 @@ export const providerPresets: ProviderPreset[] = [
     name: '月之暗面',
     type: 'openai-chat',
     baseUrl: 'https://api.moonshot.cn',
-    modelName: 'kimi-k2.6',
+    modelName: 'kimi-k3.1-pro',
     logo: 'moonshot.webp',
     articleTextBudget: DEFAULT_ARTICLE_TEXT_BUDGET,
-    modelNames: ['kimi-k2.6', 'kimi-k3.1-pro', 'kimi-k3'],
+    modelNames: ['kimi-k3.1-pro', 'kimi-k3'],
   },
   {
     id: 'zhipu',
@@ -102,8 +102,11 @@ export const providerPresets: ProviderPreset[] = [
       'deepseek-v4-1-flash-260910',
     ],
     maxOutputTokens: {
+      'doubao-seed-2-1-lite-260915': 256_000,
+      'doubao-seed-2-1-pro-260915': 256_000,
       'doubao-seed-2-1-turbo-260628': 256_000,
       'doubao-seed-2-0-mini-260428': 131_072,
+      'deepseek-v4-1-flash-260910': 384_000,
     },
   },
   {
