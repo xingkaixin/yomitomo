@@ -23,7 +23,8 @@ export const getDocsLabels = (lang: string) => {
     return {
       pages: 'Contents',
       close: 'Close',
-      help: 'Still need help?',
+      help: 'Ready to try Yomitomo?',
+      download: 'Download Yomitomo',
       pager: 'Pagination',
       prev: 'Previous',
       next: 'Next',
@@ -33,7 +34,8 @@ export const getDocsLabels = (lang: string) => {
     return {
       pages: '目次',
       close: '閉じる',
-      help: 'お困りですか？',
+      help: 'Yomitomo を試してみませんか？',
+      download: 'Yomitomo をダウンロード',
       pager: 'ページ送り',
       prev: '前のページ',
       next: '次のページ',
@@ -42,7 +44,8 @@ export const getDocsLabels = (lang: string) => {
   return {
     pages: '目录',
     close: '关闭',
-    help: '还需要帮助？',
+    help: '准备好体验 Yomitomo 了吗？',
+    download: '下载 Yomitomo',
     pager: '翻页',
     prev: '上一页',
     next: '下一页',

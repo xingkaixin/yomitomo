@@ -1,0 +1,113 @@
+---
+import { releaseDownloads } from '../../downloads';
+import type { Lang } from '../landing/home-copy';
+
+type Props = {
+  lang: Lang;
+  pathname: string;
+};
+
+const { lang, pathname } = Astro.props;
+const prefix = lang === 'en' ? '/en' : lang === 'ja' ? '/ja' : '';
+const homeUrl = prefix ? `${prefix}/` : '/';
+const normalizedPath = pathname.replace(/^\/(?:en|ja)(?=\/|$)/, '') || '/';
+
+const isWeReadGuide =
+  normalizedPath === '/docs/weread-api-key/' || normalizedPath === '/blog/scenarios/weread-migration/';
+const isScenarioGuide = /^\/blog\/scenarios\/[^/]+\/$/.test(normalizedPath);
+const shouldRender = isWeReadGuide || isScenarioGuide;
+
+const copy =
+  lang === 'en'
+    ? {
+        lead: isWeReadGuide
+          ? 'Sync your WeRead highlights and notes locally with Yomitomo (free & open source).'
+          : 'Try this workflow in Yomitomo — free, open-source, local-first AI reader for macOS & Windows.',
+        ctaMac: 'Download for macOS',
+        ctaWin: 'Download for Windows',
+        ctaMobile: 'View desktop app',
+        learnMore: 'Explore Yomitomo →',
+      }
+    : lang === 'ja'
+      ? {
+          lead: isWeReadGuide
+            ? 'Yomitomo（無料・オープンソース）で WeRead のハイライトやメモをローカルに同期できます。'
+            : 'Yomitomo でこのワークフローを試す — macOS・Windows 対応の無料ローカル AI 読書アプリ。',
+          ctaMac: 'macOS 版をダウンロード',
+          ctaWin: 'Windows 版をダウンロード',
+          ctaMobile: 'デスクトップ版を見る',
+          learnMore: 'Yomitomo を見る →',
+        }
+      : {
+          lead: isWeReadGuide
+            ? '用免费开源的 Yomitomo 同步微信读书划线与想法到本地，支持离线检索与导出 Markdown。'
+            : '在 Yomitomo 中上手这个工作流 —— 免费开源的本地 AI 伴读桌面应用，支持 macOS 与 Windows。',
+          ctaMac: '下载 macOS 版',
+          ctaWin: '下载 Windows 版',
+          ctaMobile: '查看桌面端下载',
+          learnMore: '了解 Yomitomo →',
+        };
+---
+
+{
+  shouldRender && (
+    <aside class="docs-promo" aria-label="Yomitomo">
+      <div class="docs-promo-info">
+        <img
+          src="/assets/yomitomo-logo-96.webp"
+          alt=""
+          width="32"
+          height="32"
+          loading="eager"
+          decoding="async"
+        />
+        <p>{copy.lead}</p>
+      </div>
+      <div class="docs-promo-actions">
+        <a
+          class="docs-promo-cta"
+          href={releaseDownloads.mac}
+          data-docs-dl
+          data-href-mac={releaseDownloads.mac}
+          data-href-win={releaseDownloads.windows}
+          data-href-mobile={`${prefix}/#download`}
+          data-label-mac={copy.ctaMac}
+          data-label-win={copy.ctaWin}
+          data-label-mobile={copy.ctaMobile}
+          data-umami-event="download_click"
+          data-umami-event-platform="macos-arm64"
+          data-umami-event-language={lang}
+          data-umami-event-placement="docs-promo"
+          data-umami-event-version={releaseDownloads.version}
+        >
+          {copy.ctaMac}
+        </a>
+        <a class="docs-promo-link" href={homeUrl}>
+          {copy.learnMore}
+        </a>
+      </div>
+    </aside>
+  )
+}
+
+<script is:inline>
+  (() => {
+    const ua = navigator.userAgent || '';
+    const platform = navigator.userAgentData?.platform || navigator.platform || '';
+    const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
+    const isWin = !isMobile && (/Win/i.test(platform) || /Windows/i.test(ua));
+    for (const el of document.querySelectorAll('[data-docs-dl]')) {
+      if (!(el instanceof HTMLAnchorElement)) continue;
+      if (isMobile) {
+        el.href = el.dataset.hrefMobile || '/#download';
+        el.textContent = el.dataset.labelMobile || el.textContent;
+        el.dataset.umamiEvent = 'download_section_click';
+        delete el.dataset.umamiEventPlatform;
+      } else if (isWin) {
+        el.href = el.dataset.hrefWin || el.href;
+        el.textContent = el.dataset.labelWin || el.textContent;
+        el.dataset.umamiEventPlatform = 'windows-x64';
+      }
+    }
+  })();
+</script>

@@ -1,6 +1,7 @@
 ---
 import LandingFooter from '../landing/LandingFooter.astro';
 import DocsDock from './DocsDock.astro';
+import DocsDownloadBar from './DocsDownloadBar.astro';
 
 const { entry, hasSidebar, lang } = Astro.locals.starlightRoute;
 const footerLang = lang === 'en' || lang === 'ja' ? lang : 'zh-CN';
@@ -15,6 +16,7 @@ const { title, description, hero } = entry.data;
         <div class="lp-container docs-head">
           <h1 id="_top">{title}</h1>
           {description && <p>{description}</p>}
+          <DocsDownloadBar lang={footerLang} pathname={Astro.url.pathname} />
         </div>
       )
     }

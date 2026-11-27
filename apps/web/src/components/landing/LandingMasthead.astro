@@ -16,6 +16,8 @@ const isEnglish = lang === 'en';
 const isJapanese = lang === 'ja';
 const prefix = isEnglish ? '/en' : isJapanese ? '/ja' : '';
 const navLabel = isEnglish ? 'Main navigation' : isJapanese ? 'メインナビゲーション' : '主导航';
+const downloadLabel = isEnglish ? 'Download' : isJapanese ? 'ダウンロード' : '下载';
+const downloadHref = `${prefix}/#download`;
 const homeUrl = prefix ? `${prefix}/` : '/';
 const navLinks = [
   { key: 'home', label: isEnglish ? 'Home' : isJapanese ? 'ホーム' : '首页', href: homeUrl },
@@ -43,6 +45,13 @@ const navLinks = [
       <a class="mh-wordmark" href={homeUrl}>
         <span class="mh-title">Yomitomo</span>
       </a>
+      <a
+        class="mh-cta"
+        href={downloadHref}
+        data-umami-event="download_section_click"
+        data-umami-event-language={lang}
+        data-umami-event-placement="masthead"
+      >{downloadLabel}</a>
     </div>
     <nav class="mh-nav" aria-label={navLabel}>
       {
@@ -71,5 +80,12 @@ const navLinks = [
       ))
     }
   </nav>
+  <a
+    class="mh-cta mh-float-cta"
+    href={downloadHref}
+    data-umami-event="download_section_click"
+    data-umami-event-language={lang}
+    data-umami-event-placement="masthead-float"
+  >{downloadLabel}</a>
   <LanguageSwitch lang={lang} menuId="float-language-menu" />
 </header>

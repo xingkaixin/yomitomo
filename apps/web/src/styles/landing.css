@@ -20,10 +20,45 @@
 .mh-bar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   /* Fixed height so the masthead is a deterministic 84 + 50 = 134px regardless
      of font swap, keeping --sl-nav-height exact and avoiding nav-jump on docs. */
   height: 84px;
   padding: 0;
+}
+
+.mh-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-family: var(--font-ui);
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  transition:
+    background var(--dur-1) var(--ease),
+    transform var(--dur-1) var(--ease);
+}
+
+.mh-cta:hover {
+  background: #96281b;
+  color: var(--accent-fg);
+  transform: translateY(-1px);
+}
+
+.mh-float .mh-float-cta {
+  height: 32px;
+  padding: 0 13px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--accent-fg);
 }
 
 .mh-wordmark {
@@ -225,6 +260,10 @@
 
   .mh-float-nav .nav-item {
     font-size: 14px;
+  }
+
+  .mh-float .mh-float-cta {
+    display: none;
   }
 }
 
