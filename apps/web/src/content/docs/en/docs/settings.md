@@ -12,6 +12,7 @@ Yomitomo supports popular preset providers as well as any custom OpenAI-compatib
 Built-in preset providers include:
 
 - OpenAI
+- ChatGPT (Sign in with ChatGPT via OAuth)
 - Anthropic
 - Google Gemini
 - DeepSeek
@@ -23,9 +24,9 @@ Built-in preset providers include:
 - OpenRouter
 - Vercel AI Gateway
 
-After selecting a provider, enter a display name, API Base URL, and your API Key. Click **Fetch** to automatically retrieve available models from the remote endpoint; if network conditions prevent dynamic fetching, reliable preset fallbacks are readily available. You can add, edit, delete, or hide models as needed. Click **Duplicate config** to create a copy of an existing provider; its API key is copied into a separate keychain entry.
+After selecting a provider, enter a display name, API Base URL, and your API Key—or choose **ChatGPT** to sign in via browser OAuth with your ChatGPT account without an API key (all ChatGPT configs share one account connection, and you can duplicate configs to switch models). Models with reasoning support also expose a model-aware **Thinking** effort selector. Click **Fetch** after entering a key or signing in to retrieve available models from the remote endpoint; if network conditions prevent dynamic fetching, preset fallbacks remain available. You can add, edit, delete, or hide models as needed. Click **Duplicate config** to create a copy of an existing provider; its API key is copied into a separate keychain entry.
 
-API keys are safely managed by your operating system's native secure enclave—Keychain on macOS and Credential Manager on Windows. Yomitomo never stores raw plaintext secrets on disk.
+API keys and ChatGPT OAuth credentials are safely managed by your operating system's native secure enclave—Keychain on macOS and Credential Manager on Windows. Yomitomo never stores raw plaintext secrets on disk.
 
 ## WeRead Integration
 
@@ -61,7 +62,7 @@ Choose one default model for reading comprehension, in-depth review, and bilingu
 
 ## Security and Privacy Controls
 
-- **Model and translation requests**: Remote AI features send the source text, annotations, and conversation needed for the task to your configured model endpoint. Translation requests send the paragraphs being translated, title, target language, and existing summary—plus up to two adjacent paragraphs on each side when **AI context-aware translation** is enabled. A model running on your computer performs inference locally.
+- **Model and translation requests**: Remote AI features send the source text, annotations, and conversation needed for the task to your configured model endpoint. Translation requests send the paragraphs being translated, title, target language, and existing summary—plus up to two adjacent paragraphs on each side when **AI context-aware translation** is enabled. Signing in with ChatGPT, refreshing expired tokens, or disconnecting sends OAuth/OIDC requests to `auth.openai.com` without reading content. A model running on your computer performs inference locally.
 - **App Lock (PIN Code)**: When enabled, lock the app at any time with the lock button in the sidebar or ⌘+L (Ctrl+L on Windows). Turn on **Lock on startup** to start locked after every launch or update restart. The app does not lock automatically when idle. Unlocking requires the PIN; passcode verification relies on native OS keystores.
 - **Telemetry Controls**: On by default. Sends two kinds of data to `telemetry.yomitomo.app`: an anonymous heartbeat at most once per day (anonymous installation UUID, app version, OS platform and version, architecture, local date, and timezone), and Reading Memory counts for opens, completed queries, source jumps, review decisions, and fallbacks, without the installation UUID. **Neither transmits reading content, titles, highlights, local paths, or AI dialogues.** Can be disabled under **Settings > General > Privacy**; turning it off also clears unsent Reading Memory counts.
 - **Model Pricing Catalog**: About 5 seconds after launch and every 24 hours after that, if the local price cache is older than 24 hours, Yomitomo fetches the public model pricing catalog from `https://models.dev/api.json` to estimate assistant usage costs. This plain GET request carries no reading content, API keys, or installation UUID; like any network request, it lets models.dev see your IP address and request time. The telemetry setting does not control this request, and it runs even when no model provider is configured.
@@ -75,7 +76,7 @@ Open local data folders, inspect logs, and choose a complete backup or a databas
 - **Complete backup**: Creates a folder containing the database, original ebooks and PDFs, PDF thumbnails, and a file checksum manifest. Keep the entire folder when moving devices. Restore verifies the files and database, keeps a safety backup of current data, and rolls back if installing the backup fails.
 - **Database only**: Saves a SQLite file containing stored annotations, discussions, distillations, and settings. Original ebooks, PDFs, and thumbnails are excluded; keep source files separately.
 
-Complete backups exclude API keys and do not transfer App Lock. After restoring, configure model and WeRead keys again and enable App Lock if needed. Download local Reading Memory models again on the new device. Assistant conversation memory is not backed up and is cleared when a database is restored; annotations, discussions, and Reader Q&A in the backup are restored as usual.
+Complete backups exclude API keys and ChatGPT OAuth credentials and do not transfer App Lock. After restoring, configure model and WeRead keys or sign in to ChatGPT again and enable App Lock if needed. Download local Reading Memory models again on the new device. Assistant conversation memory is not backed up and is cleared when a database is restored; annotations, discussions, and Reader Q&A in the backup are restored as usual.
 
 ## Reading Memory Data Scope and Local Model
 
