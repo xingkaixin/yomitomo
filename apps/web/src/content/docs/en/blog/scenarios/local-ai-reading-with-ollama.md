@@ -1,7 +1,7 @@
 ---
-title: "Read PDFs and EPUBs with local AI: Yomitomo + Ollama setup"
-description: Connect Yomitomo to a local Ollama model, annotate a PDF or EPUB, and discuss selected passages. Includes endpoint settings, troubleshooting and the limits of offline reading.
-lastUpdated: 2026-10-12
+title: "Free Local AI PDF & EPUB Reader with Ollama (Offline Setup)"
+description: Use Ollama to read, annotate, and discuss PDFs and EPUBs locally with Yomitomo—a free, open-source desktop reader. Includes localhost endpoint setup, model routing, and offline limits.
+lastUpdated: 2026-11-27
 ---
 
 Yomitomo can send reading questions to an Ollama model running on the same computer. Configure an `OpenAI compatible` provider at `http://localhost:11434/v1`, select a downloaded local model, and assign it to reading tasks. Your local model handles those AI requests; remote providers send the required context to their configured servers.

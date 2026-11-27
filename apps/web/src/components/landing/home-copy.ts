@@ -28,9 +28,20 @@ export type HomeCopy = {
     ctaWin: string;
     altMac: string;
     altWin: string;
+    mobileCopy: string;
+    mobileCopied: string;
+    mobileGithub: string;
+    mobileNote: string;
     note: string;
+    localeDismiss: string;
+    localeHints: { target: Lang; href: string; label: string }[];
   };
-  flow: { title: string; lead: string; views: View[] };
+  flow: {
+    title: string;
+    lead: string;
+    views: View[];
+    scenarios: { href: string; label: string }[];
+  };
   bento: {
     title: string;
     src: Tile;
@@ -55,7 +66,14 @@ export type HomeCopy = {
     companions: Record<CompanionId, Companion>;
   };
   help: { title: string; links: { href: string; title: string }[] };
-  download: { title: [string, string]; lead: string; arch: string };
+  download: {
+    title: [string, string];
+    lead: string;
+    arch: string;
+    platformNoteBefore: string;
+    platformNoteLink: string;
+    platformNoteAfter: string;
+  };
   footer: {
     tagline: string;
     columns: { title: string; links: { label: string; href: string; external?: boolean }[] }[];
@@ -135,13 +153,28 @@ const zh: HomeCopy = {
     sub: '在 PDF、EPUB 和网页原文中划线、记笔记、与 AI 讨论，也能同步微信读书笔记。阅读数据保存在本机，AI 可使用自备 API Key 或本地模型。',
     ctaMac: '下载 macOS 版',
     ctaWin: '下载 Windows 版',
-    altMac: '也支持 macOS →',
-    altWin: '也支持 Windows →',
-    note: '免费开源',
+    altMac: '下载 macOS 版 →',
+    altWin: '下载 Windows 版 →',
+    mobileCopy: '复制链接，去电脑下载',
+    mobileCopied: '已复制，去电脑打开',
+    mobileGithub: '在 GitHub 查看源码 →',
+    mobileNote: '桌面应用 · 支持 macOS 与 Windows',
+    note: 'MIT 开源',
+    localeDismiss: '关闭语言提示',
+    localeHints: [
+      { target: 'en', href: '/en/', label: 'Viewing in Chinese? Switch to English →' },
+      { target: 'ja', href: '/ja/', label: '日本語ページに切り替える →' },
+    ],
   },
   flow: {
     title: 'Yomitomo 把阅读的最小单位，从文章变成判断。',
     lead: '大多数工具只让你把文章「存起来」，却没人帮你「想清楚」。Yomitomo 反过来：少存一点，但把读过的真正变成你的判断。',
+    scenarios: [
+      { href: '/docs/weread-api-key/', label: '微信读书同步' },
+      { href: '/blog/scenarios/local-ai-reading-with-ollama/', label: 'Ollama 本地模型' },
+      { href: '/blog/scenarios/academic-paper-reading/', label: '论文 PDF 精读' },
+      { href: '/blog/scenarios/readwise-reader-alternative/', label: '对比 Readwise Reader' },
+    ],
     views: [
       {
         id: 'read',
@@ -274,6 +307,9 @@ const zh: HomeCopy = {
     title: ['下载 Yomitomo，', '开始把读过的留下来。'],
     lead: '本地优先、免费开源。你的划线、想法和讨论只保存在自己的电脑上。',
     arch: 'Apple 芯片',
+    platformNoteBefore: '提供 macOS（Apple 芯片）与 Windows x64 安装包；Intel Mac 与 Linux 可前往 ',
+    platformNoteLink: 'GitHub',
+    platformNoteAfter: ' 查看源码构建。',
   },
   footer: {
     tagline: '在阅读现场增加理解、共鸣与反思，不替你读完，也不改写你写下的任何一句话。',
@@ -469,13 +505,28 @@ const en: HomeCopy = {
     sub: 'Highlight PDF, EPUB and web passages, take notes, and discuss them with AI. Keep your reading data on your computer. Bring your own API key or local model.',
     ctaMac: 'Download for macOS',
     ctaWin: 'Download for Windows',
-    altMac: 'Also on macOS →',
-    altWin: 'Also on Windows →',
-    note: 'Free and open source',
+    altMac: 'Download for macOS →',
+    altWin: 'Download for Windows →',
+    mobileCopy: 'Copy link for desktop',
+    mobileCopied: 'Copied — open on desktop',
+    mobileGithub: 'View on GitHub →',
+    mobileNote: 'Desktop app · macOS & Windows',
+    note: 'MIT Open Source',
+    localeDismiss: 'Dismiss language banner',
+    localeHints: [
+      { target: 'zh-CN', href: '/', label: '正在浏览英文页？切换到简体中文 →' },
+      { target: 'ja', href: '/ja/', label: '日本語ページに切り替える →' },
+    ],
   },
   flow: {
     title: 'Yomitomo shrinks the smallest unit of reading from the article to the judgment.',
     lead: 'Most tools only let you "save" articles. None help you think them through. Yomitomo flips it: save less, turn what you read into judgments of your own.',
+    scenarios: [
+      { href: '/en/blog/scenarios/local-ai-reading-with-ollama/', label: 'Ollama Local AI' },
+      { href: '/en/blog/scenarios/readwise-reader-alternative/', label: 'vs Readwise Reader' },
+      { href: '/en/blog/scenarios/zotero-academic-workflow/', label: 'Zotero Paper Flow' },
+      { href: '/en/blog/scenarios/pdf-annotation/', label: 'PDF Annotation' },
+    ],
     views: [
       {
         id: 'read',
@@ -617,6 +668,10 @@ const en: HomeCopy = {
     title: ['Download Yomitomo,', 'and start keeping what you read.'],
     lead: 'Local-first, free and open source. Your highlights, thoughts and discussions stay on your computer.',
     arch: 'Apple Silicon',
+    platformNoteBefore:
+      'Installers for macOS (Apple Silicon) and Windows x64. Intel Mac & Linux users can build from source on ',
+    platformNoteLink: 'GitHub',
+    platformNoteAfter: '.',
   },
   footer: {
     tagline:
@@ -824,13 +879,28 @@ const ja: HomeCopy = {
     sub: 'PDF・EPUB・Web記事の原文に線を引き、メモを書き、AIと対話。読書データは端末内に保存。AIには自分のAPIキーやローカルモデルを使えます。',
     ctaMac: 'macOS版をダウンロード',
     ctaWin: 'Windows版をダウンロード',
-    altMac: 'macOS版もあります →',
-    altWin: 'Windows版もあります →',
-    note: '無料・オープンソース',
+    altMac: 'macOS版をダウンロード →',
+    altWin: 'Windows版をダウンロード →',
+    mobileCopy: 'PCで開くリンクをコピー',
+    mobileCopied: 'コピーしました（PCで開く）',
+    mobileGithub: 'GitHub でソースを見る →',
+    mobileNote: 'デスクトップアプリ · macOS / Windows',
+    note: 'MIT オープンソース',
+    localeDismiss: '言語案内を閉じる',
+    localeHints: [
+      { target: 'zh-CN', href: '/', label: '正在浏览日文页？切换到简体中文 →' },
+      { target: 'en', href: '/en/', label: 'Viewing in Japanese? Switch to English →' },
+    ],
   },
   flow: {
     title: '読書の最小単位を、記事から判断へ。',
     lead: '多くのツールは記事を「保存」するだけで、考え抜くところまでは助けてくれません。Yomitomoは逆です。保存を減らし、読んだことを自分の判断へ変えます。',
+    scenarios: [
+      { href: '/ja/blog/scenarios/pdf-annotation/', label: 'PDF注釈・AI精読' },
+      { href: '/ja/blog/scenarios/zotero-academic-workflow/', label: 'Zotero論文連携' },
+      { href: '/ja/blog/scenarios/local-ai-reading-with-ollama/', label: 'OllamaローカルAI' },
+      { href: '/ja/blog/scenarios/readwise-reader-alternative/', label: 'Readwise比較' },
+    ],
     views: [
       {
         id: 'read',
@@ -972,6 +1042,10 @@ const ja: HomeCopy = {
     title: ['Yomitomoをダウンロードして、', '読んだことを残し始めよう。'],
     lead: 'ローカル優先、無料オープンソース。線や考え、対話はすべて端末内に保存されます。',
     arch: 'Apple Silicon',
+    platformNoteBefore:
+      'macOS（Apple Silicon）・Windows x64 向けインストーラーを提供。Intel Mac・Linux は ',
+    platformNoteLink: 'GitHub',
+    platformNoteAfter: ' からビルドできます。',
   },
   footer: {
     tagline:

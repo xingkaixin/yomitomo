@@ -91,6 +91,53 @@
   padding-inline: 40px;
 }
 
+/* ---------- Locale hint banner ---------- */
+.locale-banner {
+  position: relative;
+  z-index: 25;
+  background: rgba(58, 5, 8, 0.34);
+  border-bottom: 1px solid rgba(255, 244, 227, 0.16);
+  color: var(--cream);
+  backdrop-filter: blur(8px);
+}
+.locale-banner[hidden] {
+  display: none;
+}
+.locale-banner-in {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 40px;
+  padding-block: 6px;
+  font-size: 13.5px;
+}
+.locale-banner-link {
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 244, 227, 0.55);
+  text-underline-offset: 3px;
+}
+.locale-banner-link:hover {
+  text-decoration-color: var(--cream);
+}
+.locale-banner-close {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 244, 227, 0.78);
+  cursor: pointer;
+}
+.locale-banner-close:hover {
+  background: rgba(255, 244, 227, 0.14);
+  color: var(--cream);
+}
+
 /* ---------- Nav ---------- */
 .nav-slot {
   position: relative;
@@ -338,6 +385,16 @@
   font-weight: 600;
   text-underline-offset: 4px;
   text-decoration-color: rgba(255, 244, 227, 0.55);
+}
+.hero-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255, 244, 227, 0.88);
+}
+.hero-meta a {
+  min-height: 44px;
+  font-weight: 500;
 }
 
 .stage {
@@ -1623,6 +1680,45 @@
 .flow .sec-lead {
   margin: 0;
 }
+.flow-scenarios {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: -36px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.flow-scenarios a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 500;
+  text-decoration: none;
+  transition:
+    border-color 140ms var(--ease),
+    color 140ms var(--ease),
+    transform 140ms var(--ease);
+}
+.flow-scenarios a span {
+  color: var(--muted);
+  transition: transform 140ms var(--ease);
+}
+.flow-scenarios a:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.flow-scenarios a:hover span {
+  color: var(--accent);
+  transform: translateX(2px);
+}
 .sec-title {
   margin: 0;
   font-family: var(--serif);
@@ -2425,6 +2521,21 @@
 .finale-btn.is-sec small {
   color: rgba(255, 244, 227, 0.82);
 }
+.finale-platform-note {
+  margin: 16px 0 0;
+  color: rgba(255, 244, 227, 0.8);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.finale-platform-note a {
+  color: var(--cream);
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 244, 227, 0.55);
+  text-underline-offset: 3px;
+}
+.finale-platform-note a:hover {
+  text-decoration-color: var(--cream);
+}
 .finale-rule {
   height: 1px;
   margin: 56px 0 40px;
@@ -2576,6 +2687,9 @@
   .help-sec {
     grid-template-columns: minmax(0, 1fr);
     gap: 36px;
+  }
+  .flow-scenarios {
+    margin-top: -12px;
   }
   .tile,
   .tile.is-wide {

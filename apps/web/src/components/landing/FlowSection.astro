@@ -12,4 +12,16 @@ const { flow } = getHomeCopy(lang);
 <section class="wrap flow">
   <h2 class="sec-title">{flow.title}</h2>
   <p class="sec-lead">{flow.lead}</p>
+  <ul class="flow-scenarios">
+    {
+      flow.scenarios.map((item) => (
+        <li>
+          <a href={item.href}>
+            {item.label}
+            <span aria-hidden="true">→</span>
+          </a>
+        </li>
+      ))
+    }
+  </ul>
 </section>

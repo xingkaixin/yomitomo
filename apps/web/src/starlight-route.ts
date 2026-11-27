@@ -38,6 +38,34 @@ export const onRequest = defineRouteMiddleware((context) => {
   const blogPrefix = `${localePrefix}/blog`;
   const changelogsPrefix = `${localePrefix}/changelogs`;
 
+  const isVersionedChangelog = /^\/(?:(?:en|ja)\/)?changelogs\/v\d/.test(pathname);
+  if (isVersionedChangelog) {
+    route.head.push({
+      tag: 'meta',
+      attrs: { name: 'robots', content: 'noindex, follow' },
+    });
+  }
+
+  const pathWithoutLocale = pathname.replace(/^\/(?:en|ja)(?=\/|$)/, '') || '/';
+  const xDefaultHref = new URL(
+    pathWithoutLocale === '/' ? '/en/' : `/en${pathWithoutLocale}`,
+    siteUrl,
+  ).href;
+  const xDefaultLink = route.head.find(
+    (item) =>
+      item.tag === 'link' &&
+      item.attrs?.rel === 'alternate' &&
+      item.attrs?.hreflang === 'x-default',
+  );
+  if (xDefaultLink?.attrs) {
+    xDefaultLink.attrs.href = xDefaultHref;
+  } else {
+    route.head.push({
+      tag: 'link',
+      attrs: { rel: 'alternate', hreflang: 'x-default', href: xDefaultHref },
+    });
+  }
+
   if (isBlogScenarioPath(pathname) && route.entry.data.description) {
     route.head.push({
       tag: 'script',

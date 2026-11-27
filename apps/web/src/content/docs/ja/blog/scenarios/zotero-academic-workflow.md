@@ -1,7 +1,7 @@
 ---
-title: "ZoteroのPDFをAIと精読する：Yomitomoとの手動ワークフロー"
-description: Zoteroで管理する論文PDFをYomitomoに手動で取り込み、注釈・AI対話・Markdown出力で読み進める方法。自動同期の有無、メモの戻し方、引用管理の役割分担を整理します。
-lastUpdated: 2026-10-03
+title: "Zotero × AI 論文精読ワークフロー：PDF注釈とローカルAI連携ガイド"
+description: Zoteroで管理する論文PDFをローカルAI（Ollama・APIキー）と精読する方法。無料オープンソース読書アプリYomitomoへの取り込み、段落ごとのAI対話、Markdown書き戻し手順を解説。
+lastUpdated: 2026-11-27
 ---
 
 Zoteroで管理している論文PDFをYomitomoに手動で取り込み、原文に注釈を付けてAIと対話できます。文献情報と正式な引用はZoteroで管理し続けます。**Zoteroアカウントの直接接続や、ハイライト・メモの自動同期はありません。**

@@ -1,7 +1,7 @@
 ---
-title: "Yomitomo vs Readwise Reader: a local, open-source alternative"
-description: Compare Yomitomo and Readwise Reader for PDF, ebook and web reading. Check local storage, AI setup, device support, Markdown export and migration limits before switching.
-lastUpdated: 2026-10-03
+title: "Free Open-Source Readwise Reader Alternative (Local-First) — Yomitomo"
+description: Looking for a free, open-source alternative to Readwise Reader? Compare Yomitomo vs Readwise Reader for local PDF & EPUB storage, BYOK/Ollama AI, Markdown export, and pricing.
+lastUpdated: 2026-11-27
 ---
 
 Yomitomo is a free, open-source desktop app for reading PDFs, ebooks and web articles with passage-level notes, AI discussion, and Markdown export. Readwise Reader is a better fit when you need a reading queue across mobile and desktop, RSS feeds, or automatic highlight sync to other tools. Choose around the workflow you use every day.

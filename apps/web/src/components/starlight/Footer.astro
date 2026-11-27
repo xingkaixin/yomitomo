@@ -3,6 +3,8 @@ import { getDocsLabels, helpLinks } from './docs-nav';
 
 const { hasSidebar, lang, pagination } = Astro.locals.starlightRoute;
 const labels = getDocsLabels(lang);
+const prefix = lang === 'en' ? '/en' : lang === 'ja' ? '/ja' : '';
+const umamiLang = lang === 'en' || lang === 'ja' ? lang : 'zh-CN';
 const { prev, next } = pagination;
 ---
 
@@ -11,6 +13,15 @@ const { prev, next } = pagination;
     <>
       <section class="docs-help">
         <h2>{labels.help}</h2>
+        <a
+          class="is-primary"
+          href={`${prefix}/#download`}
+          data-umami-event="download_section_click"
+          data-umami-event-language={umamiLang}
+          data-umami-event-placement="docs-footer"
+        >
+          {labels.download}
+        </a>
         {helpLinks.map((link) => (
           <a href={link.href} target="_blank" rel="noopener">
             {link.label}

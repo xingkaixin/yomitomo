@@ -44,4 +44,21 @@ describe('landing page rendering', () => {
       }
     },
   );
+
+  it.each(['zh-CN', 'en', 'ja'] as const)(
+    'links the %s hero CTA directly to installer downloads and includes locale hints',
+    async (lang) => {
+      const page = await renderLandingPage(lang);
+      const primary = page.querySelector<HTMLAnchorElement>('[data-hero-primary]');
+      const alt = page.querySelector<HTMLAnchorElement>('[data-hero-alt]');
+
+      expect(primary?.getAttribute('href')).toMatch(
+        /^https:\/\/download\.yomitomo\.app\/releases\/download\/v.+\.dmg$/,
+      );
+      expect(alt?.getAttribute('href')).toMatch(
+        /^https:\/\/download\.yomitomo\.app\/releases\/download\/v.+\.exe$/,
+      );
+      expect(page.querySelectorAll('[data-locale-hint]').length).toBe(2);
+    },
+  );
 });
