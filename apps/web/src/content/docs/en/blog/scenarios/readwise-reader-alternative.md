@@ -1,25 +1,33 @@
 ---
 title: "Free Open-Source Readwise Reader Alternative (Local-First) — Yomitomo"
-description: Looking for a free, open-source alternative to Readwise Reader? Compare Yomitomo vs Readwise Reader for local PDF & EPUB storage, BYOK/Ollama AI, Markdown export, and pricing.
+description: Looking for a free, local-first Readwise Reader alternative? Compare Yomitomo vs Readwise Reader, NotebookLM, and Zotero across local PDF & EPUB storage, BYOK/Ollama AI, Markdown export, and pricing.
 lastUpdated: 2026-11-27
 ---
 
-Yomitomo is a free, open-source desktop app for reading PDFs, ebooks and web articles with passage-level notes, AI discussion, and Markdown export. Readwise Reader is a better fit when you need a reading queue across mobile and desktop, RSS feeds, or automatic highlight sync to other tools. Choose around the workflow you use every day.
+Yomitomo is a free, open-source desktop app for reading PDFs, ebooks and web articles with passage-level notes, AI discussion, and Markdown export. Readwise Reader is a better fit when you need a reading queue across mobile and desktop, RSS feeds, or automatic highlight sync to other tools; NotebookLM fits quick multi-source synthesis in the browser; Zotero excels at academic citations and BibTeX. Choose around the workflow you use every day.
 
-Maintained by the Yomitomo project. Yomitomo features refer to v0.18.2. Readwise information was checked against its official product and pricing pages on October 3, 2026.
+Maintained by the Yomitomo project. Yomitomo features refer to v0.18.2. Readwise, NotebookLM, and Zotero product details were checked against their official pages.
 
-## Compare the workflows
+## Compare the workflows: Yomitomo vs Readwise Reader vs NotebookLM vs Zotero
 
-| Need | Yomitomo | Readwise Reader |
-| --- | --- | --- |
-| Devices | macOS and Windows desktop | Web, desktop and mobile apps |
-| Reading material | PDF, EPUB, AZW3, MOBI, web articles, text/Markdown, and WeRead notes | Articles, PDFs, EPUBs, newsletters and RSS |
-| Reading data | Stored locally in SQLite and local source files | Synced through a Readwise account |
-| AI | Your configured model API or compatible local model; discussions attached to passages, plus optional local Reading Memory | Built-in Ghostreader tools |
-| Notes in other tools | Built-in **Export Markdown (.md)** and **Copy Markdown** for documents, distillations, WeRead notes, and Ask library answers; no automatic Obsidian/Notion sync | Automatic highlight export integrations |
-| Cost | Free application; external model providers may charge for usage | Subscription; see [current pricing](https://readwise.io/pricing) |
+| Need | Yomitomo | Readwise Reader | NotebookLM | Zotero |
+| --- | --- | --- | --- | --- |
+| Primary focus | Local-first close reading, passage-anchored AI discussion & distillation | Cloud read-it-later queue, RSS, and highlight sync hub | Cloud AI notebook for multi-source Q&A, study guides & Audio Overviews | Open-source reference manager, citation & BibTeX engine |
+| Devices | macOS and Windows desktop | Web, desktop and mobile apps | Web and mobile apps (Google account) | Desktop (macOS, Windows, Linux), web & mobile |
+| Reading material | PDF, EPUB, AZW3, MOBI, web articles, text/Markdown, and WeRead notes | Articles, PDFs, EPUBs, newsletters, RSS, and transcripts | Uploaded PDFs, Docs, web URLs, YouTube, and audio sources | PDFs, EPUBs, web snapshots, and bibliographic metadata |
+| Reading data | Stored locally in SQLite and local source files (no account) | Synced through a Readwise cloud account | Stored in Google cloud notebooks | Stored locally with optional Zotero cloud sync |
+| AI workflow | Explicit BYOK API or local Ollama; passage-anchored companions, single-highlight distillation review, and local Reading Memory | Built-in Ghostreader for summaries, Q&A, and term lookup | Cloud Gemini models over uploaded notebooks; no local model or margin reader | No built-in AI companions (relies on third-party plugins) |
+| Notes & export | Built-in **Export Markdown (.md)** and **Copy Markdown** for documents, distillations, WeRead notes, and Ask library answers; no automatic Obsidian/Notion sync | Automatic highlight export integrations (Obsidian, Notion, Logseq, etc.) | Copy notes or export to Google Docs; not a margin annotation reader | Item notes, BibTeX/LaTeX/Word citations, and plugin ecosystem |
+| Cost | Free, MIT open source; pay only for your own API usage (or $0 with Ollama) | Paid subscription; see [current pricing](https://readwise.io/pricing) | Free tier with paid Google AI plan tiers | Free, open source; paid cloud storage above free quota |
 
-Readwise features are described on the [official Reader page](https://readwise.io/read). This guide is maintained by Yomitomo and is not an independent benchmark.
+Readwise features are described on the [official Reader page](https://readwise.io/read), NotebookLM on [notebooklm.google](https://notebooklm.google/), and Zotero on [zotero.org](https://www.zotero.org/). This guide is maintained by Yomitomo and is not an independent benchmark.
+
+### When to pick each tool
+
+- **Pick Yomitomo** if you want a free, local-first desktop reader for PDFs, EPUBs, and long web articles where your highlights stay in SQLite, AI only speaks when you `@`-mention a companion, and you can switch freely between your own API key and local Ollama.
+- **Pick Readwise Reader** if mobile reading, RSS/newsletter triage, and automatic highlight sync into Notion or Obsidian are non-negotiable.
+- **Pick NotebookLM** if you want cloud-hosted synthesis across a bundle of sources (or Audio Overviews) rather than line-by-line margin annotation.
+- **Pair Zotero with Yomitomo** if you write academic papers: keep bibliography, DOIs, and BibTeX in Zotero, and import core PDFs into Yomitomo for close reading and AI discussion. See [Academic Research Pipeline: Zotero + Yomitomo](/en/blog/scenarios/zotero-academic-workflow/).
 
 ## What reading in Yomitomo looks like
 

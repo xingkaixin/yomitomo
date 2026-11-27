@@ -1,7 +1,7 @@
 ---
-title: '用 Ollama 本地模型阅读 PDF 和 EPUB：Yomitomo 配置指南'
-description: 将 Yomitomo 连接到本机 Ollama，配置模型和任务路由，再围绕 PDF、EPUB 划线进行 AI 讨论。包含连接排查、硬件限制和离线使用范围。
-lastUpdated: 2026-10-12
+title: 'Ollama 本地 AI 阅读器配置指南：免费离线精读 PDF 与 EPUB（Yomitomo）'
+description: 用免费开源的 Yomitomo 连接本机 Ollama，离线阅读、划线批注并与本地大模型讨论 PDF 和 EPUB。含 localhost 接口配置、按任务模型路由、离线边界与排查方法。
+lastUpdated: 2026-11-27
 ---
 
 Yomitomo 可以通过 OpenAI 兼容接口连接本机 Ollama。把 Base URL 设置为 `http://localhost:11434/v1`，选择已下载的本地模型，并将它分配给阅读任务，即可围绕原文划线与本地 AI 讨论。

@@ -1,7 +1,7 @@
 ---
-title: "OllamaでPDF・EPUBを読む：YomitomoのローカルAI設定"
-description: Yomitomoを端末内のOllamaモデルに接続し、原文への注釈とAI対話を試す手順。接続設定、モデルの割り当て、オフラインの範囲とトラブル対処を説明します。
-lastUpdated: 2026-10-12
+title: "OllamaローカルAI読書ガイド：無料でPDF・EPUBをオフライン精読（Yomitomo）"
+description: 無料オープンソース読書アプリYomitomoをローカルのOllamaモデルに接続し、PDF・EPUBの注釈とAI対話をオフラインで試す手順。localhost設定、モデル割り当て、通信範囲とトラブル対処を解説。
+lastUpdated: 2026-11-27
 ---
 
 YomitomoはOpenAI互換の接続を通じて、同じ端末で動くOllamaモデルに読書の質問を送信できます。Base URLを `http://localhost:11434/v1` に設定し、取得済みのローカルモデルを読書タスクに割り当てます。

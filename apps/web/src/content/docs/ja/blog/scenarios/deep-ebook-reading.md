@@ -1,6 +1,7 @@
 ---
-title: "電子書籍の精読：ハイライトを自分の言葉で定着させる手順"
-description: ノンフィクションの電子書籍で大量にハイライトを引いたのに、内容を忘れていませんか？EPUB・AZW3・MOBIの直接取り込みから、原文に結び付く対話、1論点ごとのまとめ（蒸留）、Markdown出力まで解説します。
+title: "EPUB・電子書籍をAIと精読：無料ローカル読書アプリ Yomitomo の使い方"
+description: EPUB・AZW3・MOBI電子書籍を無料でローカル保存し、原文ハイライトとAI対話で精読する手順。ネタバレ防止の読解範囲、1論点ごとのまとめ（蒸留）、Markdown出力まで解説します。
+lastUpdated: 2026-11-27
 ---
 
 ノンフィクションの電子書籍を読み終え、熱心にハイライトを引いたのに、数ヶ月後には「良い本だった」という印象しか残っていない——そんな経験はありませんか。
@@ -57,6 +58,8 @@ description: ノンフィクションの電子書籍で大量にハイライト�
 
 ## 関連ガイドとワークフロー
 
+<a href="/ja/#download" data-umami-event="download_section_click" data-umami-event-language="ja" data-umami-event-placement="guide">YomitomoをダウンロードしてEPUB精読を試す</a>。
+
+- [OllamaローカルAI読書ガイド：無料でPDF・EPUBをオフライン精読](/ja/blog/scenarios/local-ai-reading-with-ollama/)
 - [ハイライトからまとめへ：1つの対話を構造化ノートに整理するワークフロー](/ja/blog/scenarios/knowledge-distillation/)
-- [WeReadノート移行ガイド：ハイライトと思考を完全にローカルへ蓄積する](/ja/blog/scenarios/weread-migration/)
 - [リーダー、注釈、ディスカッション](/ja/docs/reader/)

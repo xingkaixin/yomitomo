@@ -1,7 +1,7 @@
 ---
-title: 'Yomitomo vs Readwise Reader 对比与选型指南：本地深度精读还是云端稍后读？'
-description: 客观对比 Yomitomo 与 Readwise Reader 在本地存储、AI 交互机制、批注沉淀、微信读书支持与定价上的差异，帮助你按实际阅读方式做选择。
-lastUpdated: 2026-10-03
+title: '免费本地 Readwise Reader 替代方案：Yomitomo 深度对比与选型指南'
+description: 寻找免费、开源、本地优先的 Readwise Reader 替代工具？从本地存储、PDF/EPUB 精读、自备 API/Ollama 本地模型、微信读书笔记同步与 Markdown 导出全面对比 Yomitomo 与 Readwise Reader。
+lastUpdated: 2026-11-27
 ---
 
 在数字阅读工具中，Readwise Reader 以 RSS 聚合、全平台云同步和成熟的笔记软件自动导出见长。但如果你更在意本地数据掌控、自选云端或本地模型、避免长期软件订阅费，或者阅读重心在严肃长文与 PDF/电子书精读，Yomitomo 提供了另一条完全不同的路线。
@@ -79,6 +79,8 @@ Yomitomo 可以直接配置微信读书官方 Skill API 同步有笔记的书籍
 ---
 
 ## 延伸阅读与关联工作流
+
+<a href="/#download" data-umami-event="download_section_click" data-umami-event-language="zh-CN" data-umami-event-placement="guide">下载 Yomitomo，免费体验本地深度精读</a>。
 
 - [为什么选择本地优先：构建真正属于自己的终身阅读资产](/blog/scenarios/local-first-privacy/)
 - [知识沉淀工作流：从碎片划线到结构化知识卡片](/blog/scenarios/knowledge-distillation/)

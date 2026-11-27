@@ -18,9 +18,9 @@ description: 介绍 Yomitomo 在学术论文、PDF 研报、电子书精读、�
 
 ## AI 伴读与批判性思辨
 
-- [AI 伴读的正确姿势：让大模型陪你读书，不是替你读书](/blog/scenarios/ai-reading-companion/)
+- [免费开源 AI 伴读工具怎么选：围绕 PDF/EPUB 原文划线与 AI 深度讨论](/blog/scenarios/ai-reading-companion/)
 - [批判性阅读实战：用 AI 审阅助手拆解文章的论证结构](/blog/scenarios/critical-reading/)
-- [用 Ollama 本地模型阅读 PDF 和 EPUB：Yomitomo 配置指南](/blog/scenarios/local-ai-reading-with-ollama/)
+- [Ollama 本地 AI 阅读器配置指南：免费离线精读 PDF 与 EPUB](/blog/scenarios/local-ai-reading-with-ollama/)
 
 ---
 
@@ -35,6 +35,6 @@ description: 介绍 Yomitomo 在学术论文、PDF 研报、电子书精读、�
 
 ## 数据主权与选型对比
 
-- [Yomitomo vs Readwise Reader 对比与选型指南：本地深度精读还是云端稍后读？](/blog/scenarios/readwise-reader-alternative/)
-- [微信读书笔记同步到本地：划线、想法与备份指南](/blog/scenarios/weread-migration/)
+- [免费本地 Readwise Reader 替代方案：Yomitomo 深度对比与选型指南](/blog/scenarios/readwise-reader-alternative/)
+- [微信读书笔记怎么导出到本地与 Markdown：划线、想法同步与备份指南](/blog/scenarios/weread-migration/)
 - [为什么选择本地优先：构建真正属于自己的终身阅读资产](/blog/scenarios/local-first-privacy/)

@@ -11,7 +11,7 @@ Yomitomoの精読ガイド、ツール比較、ワークフロー実践集です
 
 - [学術論文の精読：研究者のためのAI活用型読書ワークフロー](/ja/blog/scenarios/academic-paper-reading/)
 - [PDFに注釈を付けてAIと読む：Yomitomoの使い方](/ja/blog/scenarios/pdf-annotation/)
-- [電子書籍の精読：ハイライトを自分の言葉で定着させる手順](/ja/blog/scenarios/deep-ebook-reading/)
+- [EPUB・電子書籍をAIと精読：無料ローカル読書アプリ Yomitomo の使い方](/ja/blog/scenarios/deep-ebook-reading/)
 - [「あとで読む」ブラックホールからの脱出：Web記事を精読して知識に残す](/ja/blog/scenarios/web-article-collection/)
 
 ---
@@ -20,14 +20,14 @@ Yomitomoの精読ガイド、ツール比較、ワークフロー実践集です
 
 - [AI読書パートナーの正しい活用法：要約を任せるのではなく、共に思考する](/ja/blog/scenarios/ai-reading-companion/)
 - [批判的読書の実践：AIアシスタントと論証を検証する](/ja/blog/scenarios/critical-reading/)
-- [OllamaでPDF・EPUBを読む：YomitomoのローカルAI設定](/ja/blog/scenarios/local-ai-reading-with-ollama/)
+- [OllamaローカルAI読書ガイド：無料でPDF・EPUBをオフライン精読](/ja/blog/scenarios/local-ai-reading-with-ollama/)
 
 ---
 
 ## 知識管理とワークフロー連携
 
 - [ハイライトからまとめへ：1つの対話を構造化ノートに整理するワークフロー](/ja/blog/scenarios/knowledge-distillation/)
-- [ZoteroのPDFをAIと精読する：Yomitomoとの手動ワークフロー](/ja/blog/scenarios/zotero-academic-workflow/)
+- [Zotero × AI 論文精読ワークフロー：PDF注釈とローカルAI連携ガイド](/ja/blog/scenarios/zotero-academic-workflow/)
 - [精読から第二の脳へ：Yomitomo と Obsidian で築く知識循環ループ](/ja/blog/scenarios/obsidian-knowledge-bridge/)
 - [読書統計で習慣を改善する：データ駆動型の精読リズムの構築](/ja/blog/scenarios/reading-habits/)
 
@@ -35,6 +35,6 @@ Yomitomoの精読ガイド、ツール比較、ワークフロー実践集です
 
 ## データ主権とツール選定
 
-- [Yomitomo vs Readwise Reader 比較と選定ガイド：ローカル深層精読か、クラウド「あとで読む」か](/ja/blog/scenarios/readwise-reader-alternative/)
+- [Readwise Reader 代替（無料・ローカル）：Yomitomo との徹底比較ガイド](/ja/blog/scenarios/readwise-reader-alternative/)
 - [WeReadノート移行ガイド：ハイライトと思考を完全にローカルへ蓄積する](/ja/blog/scenarios/weread-migration/)
 - [なぜローカルファーストなのか：生涯の知的資産を守るアーキテクチャ](/ja/blog/scenarios/local-first-privacy/)
