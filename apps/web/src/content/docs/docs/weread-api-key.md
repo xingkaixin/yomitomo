@@ -1,7 +1,7 @@
 ---
-title: 微信读书 API Key 怎么获取？官方入口与配置教程
-description: 从微信读书 Skill 官方网页或手机 App 获取 API Key，在 Yomitomo 中同步划线和想法。附图文步骤、找不到入口和连接失败的排查方法。
-lastUpdated: 2026-10-03
+title: 微信读书 API Key 获取教程（2026 官方网页与 App 入口）
+description: 2026 微信读书 API Key 最新获取方法：附微信读书 Skill 官方网页链接、手机 App 入口截图，以及找不到入口或授权失败的排查步骤，支持在 Yomitomo 中本地同步划线与想法。
+lastUpdated: 2026-11-27
 ---
 
 微信读书 API Key 在官方「微信读书 Skill」页面创建。登录账号后，找到「获取 API Key」，创建并复制到 Yomitomo 的「设置 > 数据来源 > 微信读书」。它用于同步书籍信息、划线和想法，不是 AI 模型的 API Key。
