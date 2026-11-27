@@ -58,7 +58,16 @@ const fineSuffix = isEnglish || isJapanese ? '' : ' 制作';
         >{isEnglish ? 'Download' : isJapanese ? 'ダウンロード' : '下载'}</a>
         {links.map((link) => <a href={link.href}>{link.label}</a>)}
         <span class="social-sep"></span>
-        <a class="social" href={githubUrl} target="_blank" rel="noopener" aria-label="GitHub">
+        <a
+          class="social"
+          href={githubUrl}
+          target="_blank"
+          rel="noopener"
+          aria-label="GitHub"
+          data-umami-event="github_click"
+          data-umami-event-language={lang}
+          data-umami-event-placement="footer-social"
+        >
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path
               fill="currentColor"

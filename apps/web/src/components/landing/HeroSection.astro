@@ -131,7 +131,14 @@ const { hero, flow } = getHomeCopy(lang);
         data-umami-event-version={downloads.version}
       >{hero.altWin}</a>
       <span class="hero-meta" data-hero-meta data-mobile-note={hero.mobileNote}>
-        <a href={githubUrl} target="_blank" rel="noopener">{hero.note} · GitHub ↗</a>
+        <a
+          href={githubUrl}
+          target="_blank"
+          rel="noopener"
+          data-umami-event="github_click"
+          data-umami-event-language={lang}
+          data-umami-event-placement="hero-meta"
+        >{hero.note} · GitHub ↗</a>
         <span aria-hidden="true">·</span>
         <span>v{downloads.version}</span>
       </span>
@@ -234,8 +241,10 @@ const { hero, flow } = getHomeCopy(lang);
         alt.target = '_blank';
         alt.rel = 'noopener';
         alt.textContent = alt.dataset.altMobile || alt.textContent;
-        delete alt.dataset.umamiEvent;
+        alt.dataset.umamiEvent = 'github_click';
+        alt.dataset.umamiEventPlacement = 'hero-mobile';
         delete alt.dataset.umamiEventPlatform;
+        delete alt.dataset.umamiEventVersion;
       } else if (isWin) {
         alt.href = alt.dataset.hrefMac || alt.href;
         alt.textContent = alt.dataset.altMac || alt.textContent;

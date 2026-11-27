@@ -244,7 +244,16 @@ const avatar = (id: CompanionId) => `/assets/landing-avatars/${lang}/${id}-96.we
     <p>{copy.model.desc}</p>
   </a>
 
-  <a class="tile" data-tile="open" href={githubUrl}>
+  <a
+    class="tile"
+    data-tile="open"
+    href={githubUrl}
+    target="_blank"
+    rel="noopener"
+    data-umami-event="github_click"
+    data-umami-event-language={lang}
+    data-umami-event-placement="bento"
+  >
     <div class="art" aria-hidden="true">
       <span class="chipi"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path pathLength="1" d="m6 5-4 4 4 4"></path><path pathLength="1" d="m12 5 4 4-4 4"></path><path pathLength="1" d="m10.5 3-3 12"></path></svg></span>
       <div class="sc">

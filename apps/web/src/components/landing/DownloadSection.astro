@@ -89,6 +89,7 @@ const creditSuffix = isEnglish
             data-umami-event="download_click"
             data-umami-event-platform="macos-arm64"
             data-umami-event-language={lang}
+            data-umami-event-placement="download-section"
             data-umami-event-version={downloads.version}
           >
             <svg width="21" height="21" viewBox="0 0 24 24" aria-hidden="true">
@@ -108,6 +109,7 @@ const creditSuffix = isEnglish
             data-umami-event="download_click"
             data-umami-event-platform="windows-x64"
             data-umami-event-language={lang}
+            data-umami-event-placement="download-section"
             data-umami-event-version={downloads.version}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
@@ -123,7 +125,14 @@ const creditSuffix = isEnglish
           </a>
         </div>
         <p class="finale-platform-note">
-          {copy.download.platformNoteBefore}<a href={githubUrl} target="_blank" rel="noopener">{copy.download.platformNoteLink}</a>{copy.download.platformNoteAfter}
+          {copy.download.platformNoteBefore}<a
+            href={githubUrl}
+            target="_blank"
+            rel="noopener"
+            data-umami-event="github_click"
+            data-umami-event-language={lang}
+            data-umami-event-placement="download-note"
+          >{copy.download.platformNoteLink}</a>{copy.download.platformNoteAfter}
         </p>
       </div>
 
@@ -144,7 +153,15 @@ const creditSuffix = isEnglish
           </a>
           <p>{copy.footer.tagline}</p>
           <div class="finale-socials">
-            <a href={githubUrl} target="_blank" rel="noopener" aria-label="GitHub">
+            <a
+              href={githubUrl}
+              target="_blank"
+              rel="noopener"
+              aria-label="GitHub"
+              data-umami-event="github_click"
+              data-umami-event-language={lang}
+              data-umami-event-placement="footer-social"
+            >
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path
                   fill="currentColor"
@@ -182,6 +199,9 @@ const creditSuffix = isEnglish
                       href={link.href}
                       target={link.external ? '_blank' : undefined}
                       rel={link.external ? 'noopener' : undefined}
+                      data-umami-event={link.href === githubUrl ? 'github_click' : undefined}
+                      data-umami-event-language={link.href === githubUrl ? lang : undefined}
+                      data-umami-event-placement={link.href === githubUrl ? 'footer-resources' : undefined}
                     >
                       {link.label}
                     </a>

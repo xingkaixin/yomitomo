@@ -1,4 +1,5 @@
 ---
+import { githubUrl } from '../../site-links';
 import { getDocsLabels, helpLinks } from './docs-nav';
 
 const { hasSidebar, lang, pagination } = Astro.locals.starlightRoute;
@@ -22,11 +23,21 @@ const { prev, next } = pagination;
         >
           {labels.download}
         </a>
-        {helpLinks.map((link) => (
-          <a href={link.href} target="_blank" rel="noopener">
-            {link.label}
-          </a>
-        ))}
+        {helpLinks.map((link) => {
+          const isGitHub = link.href.startsWith(githubUrl);
+          return (
+            <a
+              href={link.href}
+              target="_blank"
+              rel="noopener"
+              data-umami-event={isGitHub ? 'github_click' : undefined}
+              data-umami-event-language={isGitHub ? umamiLang : undefined}
+              data-umami-event-placement={isGitHub ? 'docs-footer' : undefined}
+            >
+              {link.label}
+            </a>
+          );
+        })}
       </section>
       <nav class="docs-pager" aria-label={labels.pager}>
         {prev && (
