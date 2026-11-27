@@ -1,14 +1,16 @@
 ---
+import type { ReleaseDownloads } from '../../downloads';
+import { githubUrl } from '../../site-links';
 import HomeNav from './HomeNav.astro';
 import ProductWindow from './ProductWindow.astro';
 import { getHomeCopy, type Lang } from './home-copy';
 
 type Props = {
   lang?: Lang;
-  version: string;
+  downloads: ReleaseDownloads;
 };
 
-const { lang = 'zh-CN', version } = Astro.props;
+const { lang = 'zh-CN', downloads } = Astro.props;
 const { hero, flow } = getHomeCopy(lang);
 ---
 
@@ -35,6 +37,37 @@ const { hero, flow } = getHomeCopy(lang);
       />
     </picture>
   </div>
+
+  <div class="locale-banner" data-locale-banner data-current-lang={lang} hidden>
+    <div class="wrap locale-banner-in">
+      {
+        hero.localeHints.map((hint) => (
+          <a
+            class="locale-banner-link"
+            href={hint.href}
+            data-locale-hint={hint.target}
+            data-umami-event="locale_banner_switch"
+            data-umami-event-from={lang}
+            data-umami-event-to={hint.target}
+            hidden
+          >
+            {hint.label}
+          </a>
+        ))
+      }
+      <button
+        class="locale-banner-close"
+        type="button"
+        aria-label={hero.localeDismiss}
+        data-locale-dismiss
+      >
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+          <path d="M3.5 3.5 10.5 10.5M10.5 3.5 3.5 10.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+        </svg>
+      </button>
+    </div>
+  </div>
+
   <HomeNav lang={lang} />
 
   <div class="wrap hero-copy">
@@ -49,10 +82,15 @@ const { hero, flow } = getHomeCopy(lang);
     <div class="hero-cta">
       <a
         class="btn-main"
-        href="#download"
-        data-umami-event="download_section_click"
+        href={downloads.mac}
+        data-hero-primary
+        data-href-mac={downloads.mac}
+        data-href-win={downloads.windows}
+        data-umami-event="download_click"
+        data-umami-event-platform="macos-arm64"
         data-umami-event-language={lang}
         data-umami-event-placement="hero"
+        data-umami-event-version={downloads.version}
       >
         <svg class="mark-apple" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
           <path
@@ -66,17 +104,37 @@ const { hero, flow } = getHomeCopy(lang);
             d="M1.8 4.2 10.8 3v8.5h-9V4.2Zm10.4-1.4 10-1.4v10.1h-10V2.8ZM1.8 12.5h9V21l-9-1.2v-7.3Zm10.4 0h10v10.1l-10-1.4v-8.7Z"
           ></path>
         </svg>
-        <span data-cta-mac={hero.ctaMac} data-cta-win={hero.ctaWin}>{hero.ctaMac}</span>
+        <svg class="mark-copy" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none">
+          <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+        </svg>
+        <span
+          data-cta-mac={hero.ctaMac}
+          data-cta-win={hero.ctaWin}
+          data-cta-mobile={hero.mobileCopy}
+          data-cta-copied={hero.mobileCopied}
+        >{hero.ctaMac}</span>
       </a>
       <a
-        href="#download"
+        href={downloads.windows}
+        data-hero-alt
+        data-href-mac={downloads.mac}
+        data-href-win={downloads.windows}
+        data-href-github={githubUrl}
         data-alt-mac={hero.altMac}
         data-alt-win={hero.altWin}
-        data-umami-event="download_section_click"
+        data-alt-mobile={hero.mobileGithub}
+        data-umami-event="download_click"
+        data-umami-event-platform="windows-x64"
         data-umami-event-language={lang}
         data-umami-event-placement="hero-alternative"
+        data-umami-event-version={downloads.version}
       >{hero.altWin}</a>
-      <span>{hero.note} · v{version}</span>
+      <span class="hero-meta" data-hero-meta data-mobile-note={hero.mobileNote}>
+        <a href={githubUrl} target="_blank" rel="noopener">{hero.note} · GitHub ↗</a>
+        <span aria-hidden="true">·</span>
+        <span>v{downloads.version}</span>
+      </span>
     </div>
   </div>
 
@@ -119,19 +177,111 @@ const { hero, flow } = getHomeCopy(lang);
 </section>
 
 <script is:inline>
-  const isWin =
-    /Win/i.test(navigator.userAgentData?.platform || navigator.platform || '') ||
-    /Windows/i.test(navigator.userAgent || '');
-  for (const el of document.querySelectorAll('[data-cta-mac][data-cta-win]')) {
-    el.textContent = isWin ? el.dataset.ctaWin : el.dataset.ctaMac;
-  }
-  for (const el of document.querySelectorAll('.btn-main .mark-apple')) {
-    el.style.display = isWin ? 'none' : '';
-  }
-  for (const el of document.querySelectorAll('.btn-main .mark-win')) {
-    el.style.display = isWin ? '' : 'none';
-  }
-  for (const el of document.querySelectorAll('[data-alt-mac][data-alt-win]')) {
-    el.textContent = isWin ? el.dataset.altMac : el.dataset.altWin;
-  }
+  (() => {
+    const ua = navigator.userAgent || '';
+    const platform = navigator.userAgentData?.platform || navigator.platform || '';
+    const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
+    const isWin = !isMobile && (/Win/i.test(platform) || /Windows/i.test(ua));
+
+    const primary = document.querySelector('[data-hero-primary]');
+    const alt = document.querySelector('[data-hero-alt]');
+    const meta = document.querySelector('[data-hero-meta]');
+
+    if (primary instanceof HTMLAnchorElement) {
+      const label = primary.querySelector('[data-cta-mac]');
+      const appleIcon = primary.querySelector('.mark-apple');
+      const winIcon = primary.querySelector('.mark-win');
+      const copyIcon = primary.querySelector('.mark-copy');
+
+      if (isMobile) {
+        primary.href = '#download';
+        primary.dataset.umamiEvent = 'mobile_copy_link';
+        delete primary.dataset.umamiEventPlatform;
+        if (appleIcon instanceof SVGElement) appleIcon.style.display = 'none';
+        if (winIcon instanceof SVGElement) winIcon.style.display = 'none';
+        if (copyIcon instanceof SVGElement) copyIcon.style.display = '';
+        if (label instanceof HTMLElement) {
+          label.textContent = label.dataset.ctaMobile || label.textContent;
+        }
+        primary.addEventListener('click', (event) => {
+          event.preventDefault();
+          const url = window.location.origin + window.location.pathname;
+          const finish = () => {
+            if (label instanceof HTMLElement && label.dataset.ctaCopied) {
+              label.textContent = label.dataset.ctaCopied;
+            }
+          };
+          if (navigator.clipboard?.writeText) {
+            navigator.clipboard.writeText(url).then(finish, finish);
+          } else {
+            finish();
+          }
+        });
+      } else if (isWin) {
+        primary.href = primary.dataset.hrefWin || primary.href;
+        primary.dataset.umamiEventPlatform = 'windows-x64';
+        if (appleIcon instanceof SVGElement) appleIcon.style.display = 'none';
+        if (winIcon instanceof SVGElement) winIcon.style.display = '';
+        if (label instanceof HTMLElement) {
+          label.textContent = label.dataset.ctaWin || label.textContent;
+        }
+      }
+    }
+
+    if (alt instanceof HTMLAnchorElement) {
+      if (isMobile) {
+        alt.href = alt.dataset.hrefGithub || alt.href;
+        alt.target = '_blank';
+        alt.rel = 'noopener';
+        alt.textContent = alt.dataset.altMobile || alt.textContent;
+        delete alt.dataset.umamiEvent;
+        delete alt.dataset.umamiEventPlatform;
+      } else if (isWin) {
+        alt.href = alt.dataset.hrefMac || alt.href;
+        alt.textContent = alt.dataset.altMac || alt.textContent;
+        alt.dataset.umamiEventPlatform = 'macos-arm64';
+      }
+    }
+
+    if (isMobile && meta instanceof HTMLElement && meta.dataset.mobileNote) {
+      meta.textContent = meta.dataset.mobileNote;
+    }
+
+    const banner = document.querySelector('[data-locale-banner]');
+    if (banner instanceof HTMLElement) {
+      const dismissKey = 'yomitomo-locale-dismissed';
+      const dismissed = (() => {
+        try {
+          return sessionStorage.getItem(dismissKey) === '1';
+        } catch {
+          return false;
+        }
+      })();
+      if (!dismissed) {
+        const current = banner.dataset.currentLang || 'zh-CN';
+        const preferred = (navigator.languages?.[0] || navigator.language || '').toLowerCase();
+        const target = preferred.startsWith('zh')
+          ? 'zh-CN'
+          : preferred.startsWith('ja')
+            ? 'ja'
+            : preferred
+              ? 'en'
+              : current;
+        if (target !== current) {
+          const hint = banner.querySelector(`[data-locale-hint="${target}"]`);
+          if (hint instanceof HTMLElement) {
+            hint.hidden = false;
+            banner.hidden = false;
+          }
+        }
+      }
+      const closeBtn = banner.querySelector('[data-locale-dismiss]');
+      closeBtn?.addEventListener('click', () => {
+        banner.hidden = true;
+        try {
+          sessionStorage.setItem(dismissKey, '1');
+        } catch {}
+      });
+    }
+  })();
 </script>

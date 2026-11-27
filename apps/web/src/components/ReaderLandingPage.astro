@@ -1,5 +1,4 @@
 ---
-import desktopPackage from '../../../desktop/package.json';
 import Analytics from './Analytics.astro';
 import FontPreloads from './FontPreloads.astro';
 import HeroSection from './landing/HeroSection.astro';
@@ -9,6 +8,7 @@ import CompanionsBand from './landing/CompanionsBand.astro';
 import HelpSection from './landing/HelpSection.astro';
 import DownloadSection from './landing/DownloadSection.astro';
 import { getFaqItems } from './landing/faq-data';
+import { releaseDownloads } from '../downloads';
 import { githubUrl, xUrl, youtubeUrl } from '../site-links';
 import { buildLandingStructuredData, siteUrl } from '../structured-data';
 import '../styles/landing-base.css';
@@ -27,13 +27,8 @@ const skipLinkLabel = isEnglish
     ? 'メインコンテンツへ移動'
     : '跳到主要内容';
 
-const releaseVersion = desktopPackage.version;
-const releaseBaseUrl = `https://download.yomitomo.app/releases/download/v${releaseVersion}`;
-const downloads = {
-  version: releaseVersion,
-  mac: `${releaseBaseUrl}/Yomitomo-${releaseVersion}-mac-arm64.dmg`,
-  windows: `${releaseBaseUrl}/Yomitomo-${releaseVersion}-win-x64.exe`,
-};
+const downloads = releaseDownloads;
+const releaseVersion = downloads.version;
 
 const localeUrls = {
   'zh-CN': `${siteUrl}/`,
@@ -107,7 +102,7 @@ const jsonLd = buildLandingStructuredData({
     <div class="lp lp-root">
       <a class="lp-skip-link" href="#main-content">{skipLinkLabel}</a>
       <main id="main-content" tabindex="-1">
-        <HeroSection lang={lang} version={downloads.version} />
+        <HeroSection lang={lang} downloads={downloads} />
         <FlowSection lang={lang} />
         <BentoSection lang={lang} />
         <CompanionsBand lang={lang} />
