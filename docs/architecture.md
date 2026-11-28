@@ -11,7 +11,7 @@
 | desktop preload  | 通过 `contextBridge` 暴露唯一的 `yomitomoDesktop` API，所有窗口共用                           |
 | desktop renderer | 界面和临时状态，不直接访问 Node、文件或密钥                                                   |
 | `apps/web`       | Astro 官网、帮助文档、changelog 和更新说明 JSON                                               |
-| `apps/download`  | 代理 GitHub Release 安装包、更新 manifest 和 Sparkle feed                                     |
+| `apps/download`  | 经 Cloudflare R2 分发安装包、更新 manifest 和 Sparkle feed（缺失时回退 GitHub Release）       |
 | `apps/telemetry` | 接收匿名 heartbeat 和阅读记忆计数，写入 Analytics Engine                                      |
 
 ## 包依赖方向
@@ -176,7 +176,7 @@ telemetry → shared
 ## 分发与外部服务
 
 - 更新：macOS 打包版本使用 Sparkle，Windows 使用 electron-updater，见
-  `apps/desktop/src/main/app/app-updater.ts`。安装包和更新 feed 经 `apps/download` 代理 GitHub Release。
+  `apps/desktop/src/main/app/app-updater.ts`。安装包和更新 feed 经 `apps/download` 优先从 Cloudflare R2（`public-releases/yomitomo/`，保留最近 5 个版本）分发，缺失或异常时回退 GitHub Release。
 - 遥测：`apps/desktop/src/main/telemetry/desktop-telemetry.ts` 发送 heartbeat 和阅读记忆计数，
   默认开启，可在设置中关闭。范围以 [产品方向](product.md) 的隐私边界为准。
 - 发布流程见 [版本发布指南](release-guide.md)，官网部署与缓存见 [官网资源加载与缓存](web-performance.md)。
