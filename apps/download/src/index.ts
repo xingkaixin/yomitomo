@@ -1,8 +1,9 @@
+const R2_RELEASES_ORIGIN = 'https://r2.xingkaixin.me/yomitomo';
 const GITHUB_RELEASES_ORIGIN = 'https://github.com/xingkaixin/yomitomo';
 
 const versionSegment = String.raw`\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?`;
 const releaseAssetPathPattern = new RegExp(
-  String.raw`^/(?<prefix>updates/)?releases/download/v(?<releaseVersion>${versionSegment})/Yomitomo-(?<assetVersion>${versionSegment})-(?<platform>mac|win)-(?<arch>arm64|x64)\.(?<extension>dmg|zip|exe)(?<blockmap>\.blockmap)?$`,
+  String.raw`^/(?<prefix>updates/)?releases/download/v(?<releaseVersion>${versionSegment})/(?<filename>Yomitomo-(?<assetVersion>${versionSegment})-(?<platform>mac|win)-(?<arch>arm64|x64)\.(?<extension>dmg|zip|exe)(?<blockmap>\.blockmap)?)$`,
 );
 const updateAssetPathPattern = new RegExp(
   String.raw`^/updates/(?<filename>Yomitomo-(?<assetVersion>${versionSegment})-(?<platform>mac|win)-(?<arch>arm64|x64)\.(?<extension>dmg|zip|exe)(?<blockmap>\.blockmap)?)$`,
@@ -29,6 +30,7 @@ type DownloadEventType =
 
 type DownloadRequest = {
   upstreamUrl: URL;
+  fallbackUrl: URL;
   event: {
     eventType: DownloadEventType;
     releaseVersion: string;
@@ -61,16 +63,9 @@ export async function handleRequest(request: Request, env: Env = {}) {
   const downloadRequest = parseDownloadRequest(requestUrl);
   if (!downloadRequest) return notFound();
 
-  const response = await fetch(upstreamRequest(downloadRequest.upstreamUrl, request), {
-    redirect: 'follow',
-    cf: cachePolicy(requestUrl.pathname),
-  });
+  const response = await fetchUpstream(downloadRequest, request, requestUrl.pathname);
   recordDownloadEvent(env, request, requestUrl, response, downloadRequest.event);
   return response;
-}
-
-export function githubReleaseUrl(url: URL) {
-  return parseDownloadRequest(url)?.upstreamUrl || null;
 }
 
 export function parseDownloadRequest(url: URL): DownloadRequest | null {
@@ -81,7 +76,8 @@ export function parseDownloadRequest(url: URL): DownloadRequest | null {
   if (delta?.groups) {
     const { releaseVersion, filename } = delta.groups;
     return {
-      upstreamUrl: new URL(
+      upstreamUrl: new URL(`${R2_RELEASES_ORIGIN}/releases/v${releaseVersion}/${filename}`),
+      fallbackUrl: new URL(
         `${GITHUB_RELEASES_ORIGIN}/releases/download/v${releaseVersion}/${filename}`,
       ),
       event: {
@@ -96,7 +92,7 @@ export function parseDownloadRequest(url: URL): DownloadRequest | null {
     };
   }
   const releaseAsset = releaseAssetPathPattern.exec(url.pathname);
-  if (releaseAsset?.groups) return releaseAssetRequest(url.pathname, releaseAsset.groups);
+  if (releaseAsset?.groups) return releaseAssetRequest(releaseAsset.groups);
 
   const updateAsset = updateAssetPathPattern.exec(url.pathname);
   if (updateAsset?.groups) return flatUpdateAssetRequest(updateAsset.groups);
@@ -110,6 +106,25 @@ export function parseDownloadRequest(url: URL): DownloadRequest | null {
   }
 
   return null;
+}
+
+async function fetchUpstream(downloadRequest: DownloadRequest, request: Request, pathname: string) {
+  const cache = cachePolicy(pathname);
+  try {
+    const response = await fetch(upstreamRequest(downloadRequest.upstreamUrl, request), {
+      redirect: 'follow',
+      cf: cache,
+    });
+    if (response.status !== 404 && response.status < 500) return response;
+    await response.body?.cancel();
+  } catch {
+    // Fall back to GitHub Releases when R2 is temporarily unreachable.
+  }
+
+  return fetch(upstreamRequest(downloadRequest.fallbackUrl, request), {
+    redirect: 'follow',
+    cf: cache,
+  });
 }
 
 function upstreamRequest(url: URL, request: Request) {
@@ -152,18 +167,22 @@ function cachePolicy(pathname: string): RequestInitCfProperties {
   };
 }
 
-function releaseAssetRequest(pathname: string, groups: Record<string, string | undefined>) {
+function releaseAssetRequest(groups: Record<string, string | undefined>) {
   const source: AssetSource = groups.prefix ? 'updater' : 'website';
-  const upstreamPath = source === 'updater' ? pathname.replace('/updates', '') : pathname;
+  const releaseVersion = groups.releaseVersion || 'unknown';
+  const filename = groups.filename || '';
   const extension = groups.extension || '';
   const isBlockmap = groups.blockmap === '.blockmap';
   const assetKind = isBlockmap ? 'blockmap' : extension === 'zip' ? 'zip' : 'installer';
 
   return {
-    upstreamUrl: new URL(`${GITHUB_RELEASES_ORIGIN}${upstreamPath}`),
+    upstreamUrl: new URL(`${R2_RELEASES_ORIGIN}/releases/v${releaseVersion}/${filename}`),
+    fallbackUrl: new URL(
+      `${GITHUB_RELEASES_ORIGIN}/releases/download/v${releaseVersion}/${filename}`,
+    ),
     event: {
       eventType: releaseAssetEventType(source, assetKind),
-      releaseVersion: groups.releaseVersion || 'unknown',
+      releaseVersion,
       assetVersion: groups.assetVersion || 'unknown',
       platform: platformName(groups.platform),
       arch: archName(groups.arch),
@@ -181,7 +200,8 @@ function flatUpdateAssetRequest(groups: Record<string, string | undefined>) {
   const assetKind = isBlockmap ? 'blockmap' : extension === 'zip' ? 'zip' : 'installer';
 
   return {
-    upstreamUrl: new URL(
+    upstreamUrl: new URL(`${R2_RELEASES_ORIGIN}/releases/v${assetVersion}/${filename}`),
+    fallbackUrl: new URL(
       `${GITHUB_RELEASES_ORIGIN}/releases/download/v${assetVersion}/${filename}`,
     ),
     event: {
@@ -198,7 +218,8 @@ function flatUpdateAssetRequest(groups: Record<string, string | undefined>) {
 
 function manifestRequest(pathname: string) {
   return {
-    upstreamUrl: new URL(
+    upstreamUrl: new URL(`${R2_RELEASES_ORIGIN}/latest${pathname}`),
+    fallbackUrl: new URL(
       `/xingkaixin/yomitomo/releases/latest/download${pathname}`,
       'https://github.com',
     ),

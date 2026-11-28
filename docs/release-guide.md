@@ -124,8 +124,9 @@ pi-ai，否则思考参数按通用规则发送，可能被供应商拒绝。若
 
 ## 发布前检查（Download Worker）
 
-Download Worker 是官网下载入口和自动更新 feed 的代理层，入口域名为
-`https://download.yomitomo.app`。每次发布前都应把它作为独立链路检查；如果本轮修改了
+Download Worker 是官网下载入口和自动更新 feed 的分发层，入口域名为
+`https://download.yomitomo.app`，优先回源 Cloudflare R2（`public-releases/yomitomo/`），
+未命中（如超出保留窗口的历史版本）或上游异常时回退到 GitHub Release。每次发布前都应把它作为独立链路检查；如果本轮修改了
 `apps/download/**`、`apps/download/cloudflare.config.ts`、根目录部署脚本或下载/更新 asset
 命名规则，在公开发布前部署 Worker：
 
@@ -207,9 +208,17 @@ cp apps/desktop/resources/release-notes/en/X.Y.Z.json apps/web/public/release-no
 cp apps/desktop/resources/release-notes/ja/X.Y.Z.json apps/web/public/release-notes/ja/X.Y.Z.json
 ```
 
-## 发布后：Download Worker smoke check
+## 发布后：R2 同步与 Download Worker smoke check
 
-GitHub Release 产物上传完成后、对外公告前，替换 `X.Y.Z` 并检查以下 URL。目标是确认官网下载入口、electron-updater manifest、`/updates` 前缀代理和 blockmap 代理都能访问真实 release asset。
+GitHub Release 公开为 latest 后，`.github/workflows/sync-release-to-r2.yml` 会自动将版本产物同步到
+Cloudflare R2 的 `public-releases/yomitomo/`：
+- 版本化产物（`.dmg`、`.zip`、`.exe`、`.blockmap`、`.delta`）上传至 `yomitomo/releases/vX.Y.Z/`（长缓存）。
+- 更新清单（`appcast-mac-arm64.xml`、`latest-mac.yml`、`latest.yml`）在版本产物全部上传后再更新至
+  `yomitomo/latest/`（60 秒缓存）。
+- R2 只保留最近 **5** 个正式版本，超出保留窗口的历史版本由 Download Worker 自动回退到 GitHub Release。
+- 如需手动补齐或重跑同步，可手动触发 `Sync Release to R2` workflow（指定 `tag`，或留空回填最近 5 个正式版）。
+
+`Sync Release to R2` 完成后、对外公告前，替换 `X.Y.Z` 并检查以下 URL。目标是确认官网下载入口、electron-updater manifest、`/updates` 前缀和 blockmap 都能访问真实 release asset。
 
 ```bash
 curl -I https://download.yomitomo.app/releases/download/vX.Y.Z/Yomitomo-X.Y.Z-mac-arm64.dmg
@@ -231,7 +240,7 @@ HEAD 成功不能代替内容校验。使用 `curl -fsSL` 获取 manifest 和 fe
 完整 ZIP URL、签名与长度；差分存在时核对来源版本，并确认 Range GET 返回 `206` 和正确的
 `Content-Range`。没有差分时跳过差分项，但仍检查完整 ZIP。
 
-Worker 的 feed 和 manifest 都指向 GitHub 的 latest 正式版，草稿阶段不会切换到新版本。
+Worker 的 feed 和 manifest 优先读取 R2 的 `yomitomo/latest/`，未命中或异常时回退到 GitHub 的 latest 正式版，草稿阶段不会切换到新版本。
 manifest/feed 的成功响应缓存为 60 秒，4xx 缓存为 10 秒。不要把缓存尚未刷新误判为发布失败。
 
 ## 发布顺序
@@ -242,11 +251,12 @@ manifest/feed 的成功响应缓存为 60 秒，4xx 缓存为 10 秒。不要把
    `appcast-mac-arm64.xml` 与实际 `.delta`；Windows 的 EXE、blockmap、`latest.yml`。
    查看差分生成日志，确认选中了预期基线；生成失败时允许回退完整包。
 4. 用 `CHANGELOG.md` 对应版本节替换自动生成的 Release 正文，再公开为 latest。
-5. 执行上面的 Download Worker smoke check。
-6. 在 main 执行 `pnpm deploy:cf` 部署官网，验证新版本下载链接、三语 changelog 和
+5. 等待 `Sync Release to R2` workflow 完成，确认新版本已同步至 `public-releases/yomitomo/` 且旧版本清理正常。
+6. 执行上面的 Download Worker smoke check。
+7. 在 main 执行 `pnpm deploy:cf` 部署官网，验证新版本下载链接、三语 changelog 和
    `/release-notes/{locale}/X.Y.Z.json`。官网安装包链接由桌面版本号生成，正式包可下载后再部署，
    避免新链接先指向不存在的产物。
-7. 用真实已安装的上一正式版验收升级、重启以及书库和设置保留。自动化结果不替代这一项。
+8. 用真实已安装的上一正式版验收升级、重启以及书库和设置保留。自动化结果不替代这一项。
 
 版本化产物缓存可达一年。公开发布后不要覆盖同名 ZIP、差分或签名文件；workflow 重跑会以
 `--clobber` 上传，不能用来修复已公开版本。正式发布发现问题时递增版本重新发布。
