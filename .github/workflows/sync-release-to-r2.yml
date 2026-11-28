@@ -1,0 +1,332 @@
+name: Sync Release to R2
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to sync (e.g. v0.18.3). Leave empty to sync the latest 5 published releases.'
+        required: false
+        type: string
+
+concurrency:
+  group: sync-release-to-r2
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: Sync GitHub Release assets to Cloudflare R2
+    if: github.event_name == 'workflow_dispatch' || (!github.event.release.draft && !github.event.release.prerelease)
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+      # AWS CLI v2.23+ defaults break S3-compatible multipart uploads against Cloudflare R2.
+      AWS_DEFAULT_REGION: auto
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+      R2_BUCKET: public-releases
+      R2_PREFIX: yomitomo
+      KEEP_VERSIONS: '5'
+      EVENT_NAME: ${{ github.event_name }}
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
+      INPUT_TAG: ${{ inputs.tag }}
+    steps:
+      - name: Validate R2 secrets
+        shell: bash
+        run: |
+          for secret_name in R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_ENDPOINT; do
+            if [ -z "${!secret_name}" ]; then
+              echo "::error::Missing required R2 secret: $secret_name"
+              exit 1
+            fi
+          done
+
+      - name: Sync release assets and prune old versions
+        shell: python3 {0}
+        run: |
+          import json
+          import os
+          import re
+          import subprocess
+          import sys
+          import tempfile
+          from pathlib import Path
+
+          REPO = os.environ["GH_REPO"]
+          BUCKET = os.environ["R2_BUCKET"]
+          PREFIX = os.environ["R2_PREFIX"]
+          ENDPOINT = os.environ["R2_ENDPOINT"]
+          KEEP_VERSIONS = int(os.environ["KEEP_VERSIONS"])
+          EVENT_NAME = os.environ["EVENT_NAME"]
+          RELEASE_TAG = os.environ.get("RELEASE_TAG", "").strip()
+          INPUT_TAG = os.environ.get("INPUT_TAG", "").strip()
+
+          SEMVER_TAG_RE = re.compile(r"^v(\d+)\.(\d+)\.(\d+)$")
+          VERSIONED_SUFFIXES = (".dmg", ".zip", ".exe", ".blockmap", ".delta")
+          MANIFEST_NAMES = {
+              "appcast-mac-arm64.xml": "application/xml; charset=utf-8",
+              "latest-mac.yml": "text/yaml; charset=utf-8",
+              "latest.yml": "text/yaml; charset=utf-8",
+          }
+
+          def semver_key(tag: str) -> tuple[int, int, int]:
+              match = SEMVER_TAG_RE.fullmatch(tag)
+              if not match:
+                  raise ValueError(f"Invalid semver tag: {tag}")
+              return tuple(int(part) for part in match.groups())
+
+          def run(cmd: list[str], capture: bool = False) -> str:
+              result = subprocess.run(
+                  cmd,
+                  check=True,
+                  text=True,
+                  capture_output=capture,
+              )
+              return result.stdout.strip() if capture else ""
+
+          def gh_json(path: str):
+              return json.loads(run(["gh", "api", path], capture=True))
+
+          def get_latest_tag() -> str | None:
+              result = subprocess.run(
+                  ["gh", "api", f"repos/{REPO}/releases/latest", "--jq", ".tag_name"],
+                  text=True,
+                  capture_output=True,
+              )
+              if result.returncode != 0:
+                  return None
+              tag = result.stdout.strip()
+              return tag if SEMVER_TAG_RE.fullmatch(tag) else None
+
+          def resolve_target_tags() -> list[str]:
+              if EVENT_NAME == "release":
+                  if not SEMVER_TAG_RE.fullmatch(RELEASE_TAG):
+                      print(f"Skipping non-semver release tag: {RELEASE_TAG}")
+                      return []
+                  return [RELEASE_TAG]
+
+              if INPUT_TAG:
+                  if not SEMVER_TAG_RE.fullmatch(INPUT_TAG):
+                      sys.exit(f"Invalid tag input (expected vX.Y.Z): {INPUT_TAG}")
+                  return [INPUT_TAG]
+
+              releases = gh_json(f"repos/{REPO}/releases?per_page=30")
+              stable_tags = [
+                  rel["tag_name"]
+                  for rel in releases
+                  if not rel.get("draft")
+                  and not rel.get("prerelease")
+                  and SEMVER_TAG_RE.fullmatch(rel["tag_name"])
+              ]
+              stable_tags.sort(key=semver_key, reverse=True)
+              selected = stable_tags[:KEEP_VERSIONS]
+              selected.reverse()
+              return selected
+
+          def remote_object_size(key: str) -> int | None:
+              result = subprocess.run(
+                  [
+                      "aws",
+                      "s3api",
+                      "head-object",
+                      "--endpoint-url",
+                      ENDPOINT,
+                      "--bucket",
+                      BUCKET,
+                      "--key",
+                      key,
+                      "--query",
+                      "ContentLength",
+                      "--output",
+                      "text",
+                  ],
+                  text=True,
+                  capture_output=True,
+              )
+              if result.returncode != 0:
+                  return None
+              try:
+                  return int(result.stdout.strip())
+              except ValueError:
+                  return None
+
+          def upload_file(
+              local_path: Path,
+              key: str,
+              cache_control: str,
+              content_type: str,
+              content_disposition: str | None = None,
+          ) -> None:
+              cmd = [
+                  "aws",
+                  "s3",
+                  "cp",
+                  str(local_path),
+                  f"s3://{BUCKET}/{key}",
+                  "--endpoint-url",
+                  ENDPOINT,
+                  "--cache-control",
+                  cache_control,
+                  "--content-type",
+                  content_type,
+                  "--only-show-errors",
+              ]
+              if content_disposition:
+                  cmd.extend(["--content-disposition", content_disposition])
+              run(cmd)
+
+          def sync_release(tag: str, latest_tag: str | None) -> None:
+              release = gh_json(f"repos/{REPO}/releases/tags/{tag}")
+              if release.get("draft") or release.get("prerelease"):
+                  sys.exit(f"Refusing to sync draft or prerelease tag: {tag}")
+
+              assets = release.get("assets", [])
+              versioned = [a for a in assets if a["name"].endswith(VERSIONED_SUFFIXES)]
+              manifests = [a for a in assets if a["name"] in MANIFEST_NAMES]
+
+              if not versioned:
+                  sys.exit(f"Release {tag} has no versioned assets to sync")
+
+              print(f"Syncing {tag}: {len(versioned)} versioned asset(s), {len(manifests)} manifest(s)")
+              with tempfile.TemporaryDirectory(prefix=f"yomitomo-r2-{tag}-") as tmp:
+                  tmpdir = Path(tmp)
+                  for asset in versioned:
+                      name = asset["name"]
+                      size = int(asset["size"])
+                      key = f"{PREFIX}/releases/{tag}/{name}"
+                      if remote_object_size(key) == size:
+                          print(f"  [skip] {key} ({size} bytes)")
+                          continue
+                      local_path = tmpdir / name
+                      run(
+                          [
+                              "gh",
+                              "release",
+                              "download",
+                              tag,
+                              "--repo",
+                              REPO,
+                              "--pattern",
+                              name,
+                              "--dir",
+                              str(tmpdir),
+                              "--clobber",
+                          ]
+                      )
+                      upload_file(
+                          local_path,
+                          key,
+                          cache_control="public, max-age=31536000, immutable",
+                          content_type="application/octet-stream",
+                          content_disposition=f'attachment; filename="{name}"',
+                      )
+                      local_path.unlink(missing_ok=True)
+                      print(f"  [put]  {key} ({size} bytes)")
+
+                  if tag != latest_tag:
+                      print(f"  Skipping latest/ manifests ({tag} != latest {latest_tag})")
+                      return
+
+                  if not manifests:
+                      sys.exit(f"Latest release {tag} has no update manifests to sync")
+
+                  for asset in manifests:
+                      name = asset["name"]
+                      key = f"{PREFIX}/latest/{name}"
+                      local_path = tmpdir / name
+                      run(
+                          [
+                              "gh",
+                              "release",
+                              "download",
+                              tag,
+                              "--repo",
+                              REPO,
+                              "--pattern",
+                              name,
+                              "--dir",
+                              str(tmpdir),
+                              "--clobber",
+                          ]
+                      )
+                      upload_file(
+                          local_path,
+                          key,
+                          cache_control="public, max-age=60",
+                          content_type=MANIFEST_NAMES[name],
+                      )
+                      local_path.unlink(missing_ok=True)
+                      print(f"  [put]  {key}")
+
+          def list_release_tags_in_r2() -> list[str]:
+              prefix = f"{PREFIX}/releases/"
+              tags: list[str] = []
+              token: str | None = None
+              while True:
+                  cmd = [
+                      "aws",
+                      "s3api",
+                      "list-objects-v2",
+                      "--endpoint-url",
+                      ENDPOINT,
+                      "--bucket",
+                      BUCKET,
+                      "--prefix",
+                      prefix,
+                      "--delimiter",
+                      "/",
+                      "--output",
+                      "json",
+                  ]
+                  if token:
+                      cmd.extend(["--continuation-token", token])
+                  raw = run(cmd, capture=True)
+                  data = json.loads(raw) if raw else {}
+                  for entry in data.get("CommonPrefixes", []):
+                      full_prefix = entry.get("Prefix", "")
+                      tag = full_prefix.removeprefix(prefix).rstrip("/")
+                      if SEMVER_TAG_RE.fullmatch(tag):
+                          tags.append(tag)
+                  if not data.get("IsTruncated"):
+                      break
+                  token = data.get("NextContinuationToken")
+              return tags
+
+          def prune_old_releases(latest_tag: str | None) -> None:
+              tags = list_release_tags_in_r2()
+              tags.sort(key=semver_key, reverse=True)
+              keep = set(tags[:KEEP_VERSIONS])
+              if latest_tag and latest_tag in tags:
+                  keep.add(latest_tag)
+              to_prune = [tag for tag in tags if tag not in keep]
+              print(f"R2 release retention (keep {KEEP_VERSIONS}): kept={[t for t in tags if t in keep]}, pruned={to_prune}")
+              for tag in to_prune:
+                  run(
+                      [
+                          "aws",
+                          "s3",
+                          "rm",
+                          f"s3://{BUCKET}/{PREFIX}/releases/{tag}/",
+                          "--recursive",
+                          "--endpoint-url",
+                          ENDPOINT,
+                          "--only-show-errors",
+                      ]
+                  )
+
+          latest_tag = get_latest_tag()
+          target_tags = resolve_target_tags()
+          if not target_tags:
+              sys.exit(0)
+
+          for tag in target_tags:
+              sync_release(tag, latest_tag)
+          prune_old_releases(latest_tag)
