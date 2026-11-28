@@ -40,7 +40,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           DOCUMENTATION_PATHS: '^(docs/|(README|README_zh|CHANGELOG|CHANGELOG_zh|CONTEXT|AGENTS|CLAUDE)\.md$|\.github/pull_request_template\.md$|apps/desktop/AGENTS\.md$)'
           SPARKLE_PATHS: '^(apps/desktop/native/sparkle\.mm$|apps/desktop/scripts/(prepare|smoke)-sparkle\.mjs$|apps/desktop/package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|\.github/workflows/ci\.yml$)'
-          WINDOW_CONTROLS_PATHS: '^(apps/desktop/native/window-controls/|apps/desktop/scripts/(prepare|smoke)-window-controls\.mjs$|apps/desktop/src/main/windows/native-window-minimize\.ts$|apps/desktop/package\.json$|pnpm-lock\.yaml$|\.github/workflows/ci\.yml$)'
+          WINDOW_CONTROLS_PATHS: '^(apps/desktop/native/window-controls/|apps/desktop/scripts/(prepare|smoke)-window-controls\.mjs$|apps/desktop/src/main/windows/(native-window-minimize|discussion-window-transition)\.ts$|apps/desktop/package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|\.github/workflows/ci\.yml$)'
         run: |
           code=true
           sparkle=true

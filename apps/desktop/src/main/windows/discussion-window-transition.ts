@@ -1,6 +1,7 @@
 import {
   BrowserWindow,
   type HandlerDetails,
+  type NativeImage,
   type Rectangle,
   type WindowOpenHandlerResponse,
 } from 'electron';
@@ -9,14 +10,18 @@ import type {
   AnnotationDiscussionWindowState,
   AnnotationDiscussionWindowTransition,
 } from '../../ipc-contract';
+import { logInfo } from '../app/logger';
 import { sendDesktopIpcRendererEvent } from '../ipc/ipc-events';
 
 type Direction = 'minimize' | 'restore';
+type TransitionIdentity = Pick<AnnotationDiscussionWindowState, 'articleId' | 'annotationId'>;
 type Transition = {
   id: number;
   direction: Direction;
   operation: Promise<void>;
   reply?: (response: AnnotationDiscussionTransitionResponse | null) => void;
+  abortHandlers: Set<() => void>;
+  aborted: boolean;
   mainWindow: BrowserWindow;
   phase: 'preparing' | 'animating' | 'showing';
   overlay?: { name: string; bounds: Rectangle; window?: BrowserWindow };
@@ -90,11 +95,20 @@ export function transitionDiscussionWindow(
   mainWindow: BrowserWindow | null,
   window: BrowserWindow,
   direction: Direction,
-  identity: Pick<AnnotationDiscussionWindowState, 'articleId' | 'annotationId'>,
+  identity: TransitionIdentity,
 ): Promise<void> {
   if (window.isDestroyed()) return Promise.resolve();
   const current = transitions.get(window.id);
   if (current) {
+    if (isWindowsDirectRestore(direction)) {
+      current.direction = 'restore';
+      abortTransition(current);
+      return current.operation.then(() => {
+        if (!window.isDestroyed() && (!window.isVisible() || window.isMinimized())) {
+          settleWindow(window, 'restore', mainWindow, identity);
+        }
+      });
+    }
     if (current.phase === 'showing') {
       return current.operation.then(() =>
         transitionDiscussionWindow(mainWindow, window, direction, identity),
@@ -106,16 +120,21 @@ export function transitionDiscussionWindow(
     return current.operation;
   }
   if (window.isVisible() === (direction === 'restore') && !window.isMinimized()) {
-    if (direction === 'restore') window.focus();
+    if (direction === 'restore') {
+      focusRestoredWindow(window);
+      notifyWindowState(mainWindow, window, identity, false);
+    }
     return Promise.resolve();
   }
   if (
+    isWindowsDirectRestore(direction) ||
+    window.isMinimized() ||
     !mainWindow ||
     mainWindow.isDestroyed() ||
     !mainWindow.isVisible() ||
     mainWindow.isMinimized()
   ) {
-    settleWindow(window, direction);
+    settleWindow(window, direction, mainWindow, identity);
     return Promise.resolve();
   }
   const host = mainWindow;
@@ -123,44 +142,60 @@ export function transitionDiscussionWindow(
     id: ++nextTransitionId,
     direction,
     operation: Promise.resolve(),
+    abortHandlers: new Set(),
+    aborted: false,
     mainWindow: host,
     phase: 'preparing',
   };
   transitions.set(window.id, transition);
-  const closed = () => transition.reply?.(null);
+  const closed = () => abortTransition(transition);
   window.once('closed', closed);
   transition.operation = perform().finally(() => {
     window.removeListener('closed', closed);
     const overlay = transition.overlay?.window;
+    const destroyedOverlay = Boolean(overlay && !overlay.isDestroyed());
     if (overlay && !overlay.isDestroyed()) overlay.destroy();
     transitions.delete(window.id);
     send(host, window.id, transition, { type: 'cancel' });
+    if (
+      destroyedOverlay &&
+      transition.direction === 'restore' &&
+      !window.isDestroyed() &&
+      window.isVisible()
+    ) {
+      // Destroying an owned overlay on Windows can re-activate the main window above the discussion.
+      focusRestoredWindow(window);
+      notifyWindowState(host, window, identity, false);
+    }
   });
   return transition.operation;
 
   async function perform() {
-    const imagePromise = window.webContents
-      .capturePage(undefined, { stayHidden: true })
-      .catch(() => null);
+    const imagePromise = captureWindowPage(window, transition);
     const measured = await exchange(transition, 'measured', () =>
       send(window, window.id, transition, { type: 'measure' }),
     );
     const image = await imagePromise;
     if (window.isDestroyed()) return;
+    if (isWindowsDirectRestore(transition.direction)) {
+      settleWindow(window, 'restore', host, identity);
+      return;
+    }
     if (!measured || !image || image.isEmpty() || host.isDestroyed()) {
-      settleWindow(window, transition.direction);
+      if (!transition.aborted) {
+        logInfo('discussion.transition.fallback', {
+          platform: process.platform,
+          direction: transition.direction,
+          windowId: window.id,
+          hasMeasured: Boolean(measured),
+          hasImage: Boolean(image && !image.isEmpty()),
+        });
+      }
+      settleWindow(window, transition.direction, host, identity);
       return;
     }
     if (transition.direction === 'minimize') {
-      sendDesktopIpcRendererEvent(host.webContents, 'annotation-discussion:window-state', {
-        type: 'upsert',
-        window: {
-          articleId: identity.articleId,
-          annotationId: identity.annotationId,
-          windowId: window.id,
-          minimized: true,
-        },
-      });
+      notifyWindowState(host, window, identity, true);
     }
     const mainBounds = host.getContentBounds();
     const bounds = window.getContentBounds();
@@ -192,25 +227,81 @@ export function transitionDiscussionWindow(
       }),
     );
     if (window.isDestroyed()) return;
+    if (isWindowsDirectRestore(transition.direction)) {
+      settleWindow(window, 'restore', host, identity);
+      return;
+    }
     if (ready?.prepared) {
       const overlay = transition.overlay?.window;
       if (overlay && !overlay.isDestroyed()) overlay.showInactive();
       transition.phase = 'animating';
-      if (transition.direction === 'minimize') settleWindow(window, 'minimize');
+      if (transition.direction === 'minimize') settleWindow(window, 'minimize', host, identity);
       await exchange(transition, 'finished', () =>
         send(host, window.id, transition, { type: 'animate', direction: transition.direction }),
       );
-      if (transition.direction === 'restore' && !window.isDestroyed() && !window.isVisible()) {
+      if (
+        !isWindowsDirectRestore(transition.direction) &&
+        transition.direction === 'restore' &&
+        !window.isDestroyed() &&
+        !window.isVisible()
+      ) {
         transition.phase = 'showing';
-        await restoreWindowAndWaitForShow(window);
+        await restoreWindowAndWaitForShow(window, host, identity);
         return;
       }
     }
-    settleWindow(window, transition.direction);
+    settleWindow(window, transition.direction, host, identity);
   }
 }
 
-function restoreWindowAndWaitForShow(window: BrowserWindow): Promise<void> {
+function isWindowsDirectRestore(direction: Direction) {
+  return process.platform === 'win32' && direction === 'restore';
+}
+
+function abortTransition(transition: Transition) {
+  transition.aborted = true;
+  for (const cancel of transition.abortHandlers) cancel();
+}
+
+function captureWindowPage(
+  window: BrowserWindow,
+  transition: Transition,
+): Promise<NativeImage | null> {
+  if (window.isDestroyed() || transition.aborted) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (image: NativeImage | null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      transition.abortHandlers.delete(cancel);
+      resolve(image);
+    };
+    const cancel = () => finish(null);
+    // capturePage can remain pending indefinitely when a window surface is hidden or suspended.
+    const timeout = setTimeout(() => {
+      logInfo('discussion.transition.capture_timeout', {
+        platform: process.platform,
+        direction: transition.direction,
+        windowId: window.id,
+        visible: !window.isDestroyed() && window.isVisible(),
+        minimized: !window.isDestroyed() && window.isMinimized(),
+      });
+      finish(null);
+    }, TRANSITION_TIMEOUT_MS);
+    transition.abortHandlers.add(cancel);
+    window.webContents.capturePage(undefined, { stayHidden: true }).then(
+      (image) => finish(image),
+      () => finish(null),
+    );
+  });
+}
+
+function restoreWindowAndWaitForShow(
+  window: BrowserWindow,
+  host: BrowserWindow,
+  identity: TransitionIdentity,
+): Promise<void> {
   return new Promise((resolve) => {
     const finish = () => {
       clearTimeout(timeout);
@@ -222,7 +313,7 @@ function restoreWindowAndWaitForShow(window: BrowserWindow): Promise<void> {
     const timeout = setTimeout(finish, TRANSITION_TIMEOUT_MS);
     window.once('show', finish);
     window.once('closed', finish);
-    settleWindow(window, 'restore');
+    settleWindow(window, 'restore', host, identity);
   });
 }
 
@@ -231,28 +322,64 @@ function exchange<Type extends AnnotationDiscussionTransitionResponse['type']>(
   type: Type,
   deliver: () => void,
 ): Promise<Extract<AnnotationDiscussionTransitionResponse, { type: Type }> | null> {
+  if (transition.aborted) return Promise.resolve(null);
   return new Promise((resolve) => {
+    let settled = false;
     const finish = (response: AnnotationDiscussionTransitionResponse | null) => {
-      if (response && response.type !== type) return;
+      if (settled || (response && response.type !== type)) return;
+      settled = true;
       clearTimeout(timeout);
-      transition.reply = undefined;
+      transition.abortHandlers.delete(cancel);
+      if (transition.reply === finish) transition.reply = undefined;
       resolve(response as Extract<AnnotationDiscussionTransitionResponse, { type: Type }> | null);
     };
+    const cancel = () => finish(null);
     // Reloading either renderer must not leave the discussion waiting for an acknowledgement.
     const timeout = setTimeout(() => finish(null), TRANSITION_TIMEOUT_MS);
+    transition.abortHandlers.add(cancel);
     transition.reply = finish;
     deliver();
   });
 }
 
-function settleWindow(window: BrowserWindow, direction: Direction) {
+function settleWindow(
+  window: BrowserWindow,
+  direction: Direction,
+  host: BrowserWindow | null,
+  identity: TransitionIdentity,
+) {
   if (window.isDestroyed()) return;
   if (window.isMinimized()) window.restore();
   if (direction === 'minimize') window.hide();
   else {
     window.show();
-    window.focus();
+    focusRestoredWindow(window);
+    notifyWindowState(host, window, identity, false);
   }
+}
+
+function focusRestoredWindow(window: BrowserWindow) {
+  if (window.isDestroyed()) return;
+  window.moveTop?.();
+  window.focus();
+}
+
+function notifyWindowState(
+  host: BrowserWindow | null,
+  window: BrowserWindow,
+  identity: TransitionIdentity,
+  minimized: boolean,
+) {
+  if (!host || host.isDestroyed() || window.isDestroyed()) return;
+  sendDesktopIpcRendererEvent(host.webContents, 'annotation-discussion:window-state', {
+    type: 'upsert',
+    window: {
+      articleId: identity.articleId,
+      annotationId: identity.annotationId,
+      windowId: window.id,
+      minimized,
+    },
+  });
 }
 
 function send(

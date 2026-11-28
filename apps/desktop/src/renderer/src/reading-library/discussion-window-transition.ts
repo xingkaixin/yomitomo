@@ -109,9 +109,7 @@ export async function animateDiscussionWindow(event: AnnotationDiscussionWindowT
       frame.style.left = `${Math.max(0, event.bounds.x)}px`;
       frame.style.top = `${Math.max(0, event.bounds.y)}px`;
       overlay.document.body.append(frame);
-      await new Promise<void>((resolve) =>
-        overlay.requestAnimationFrame(() => overlay.requestAnimationFrame(() => resolve())),
-      );
+      await waitForOverlayPaint(overlay);
     } else {
       document.body.append(frame);
       // An occluded Electron renderer does not run animation frames until the native window hides.
@@ -137,7 +135,8 @@ async function styleTransitionOverlay(doc: Document) {
   const loads: Promise<void>[] = [];
   for (const style of styles) {
     const copy = style.cloneNode(true);
-    if (copy instanceof HTMLLinkElement) {
+    if (copy instanceof HTMLLinkElement && style instanceof HTMLLinkElement) {
+      copy.href = style.href;
       loads.push(
         new Promise<void>((resolve, reject) => {
           copy.addEventListener('load', () => resolve(), { once: true });
@@ -152,6 +151,21 @@ async function styleTransitionOverlay(doc: Document) {
     doc.head.append(copy);
   }
   await Promise.all(loads);
+}
+
+function waitForOverlayPaint(overlay: Window): Promise<void> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      resolve();
+    };
+    // A hidden overlay window on Windows may not tick rAF before showInactive().
+    const timeout = setTimeout(finish, 200);
+    overlay.requestAnimationFrame(() => overlay.requestAnimationFrame(finish));
+  });
 }
 
 async function animateRun(run: Run) {
