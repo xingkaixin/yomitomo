@@ -42,9 +42,9 @@ jobs:
       - name: Validate R2 secrets
         shell: bash
         run: |
-          for secret_name in R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_ENDPOINT; do
+          for secret_name in AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY R2_ENDPOINT; do
             if [ -z "${!secret_name}" ]; then
-              echo "::error::Missing required R2 secret: $secret_name"
+              echo "::error::Missing required R2 secret env: $secret_name"
               exit 1
             fi
           done
