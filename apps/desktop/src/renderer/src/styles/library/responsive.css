@@ -1,86 +1,28 @@
-@container app-content (max-width: 980px) {
-  .library-home .library-home-header-main {
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .library-home .library-home-actions {
-    display: flex;
-    width: auto;
-    flex: 0 0 auto;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    margin-inline: 0;
-  }
-
-  .library-home .library-search {
-    flex: 0 1 clamp(340px, 34vw, 480px);
-    width: clamp(340px, 34vw, 480px);
-    min-width: 0;
-  }
-
-  .library-home .library-add-control,
-  .library-home .library-add-trigger {
-    width: 54px;
-    min-width: 54px;
-    align-self: center;
-    justify-content: center;
-  }
-
-  .library-home .library-inline-error {
-    grid-column: 1 / -1;
-    text-align: center;
-  }
-}
-
 @media (max-width: 980px) {
   .library-home .library-home-header-main {
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .library-home .library-home-actions {
-    display: flex;
-    width: auto;
-    flex: 0 0 auto;
-    align-items: center;
-    justify-content: center;
     gap: 10px;
-    margin-inline: 0;
   }
 
-  .library-home .library-search {
-    flex: 0 1 clamp(340px, 34vw, 480px);
-    width: clamp(340px, 34vw, 480px);
-    min-width: 0;
-  }
-
-  .library-home .library-add-control,
-  .library-home .library-add-trigger {
-    width: 54px;
-    min-width: 54px;
-    align-self: center;
-    justify-content: center;
-  }
-
-  .library-home .library-inline-error {
-    grid-column: 1 / -1;
-    text-align: center;
+  .library-home .library-search-typed {
+    min-width: 200px;
   }
 }
 
 @media (max-width: 760px) {
   .library-home .library-home-header-main {
+    flex-wrap: wrap;
     gap: 10px;
   }
 
-  .library-home .library-search {
-    flex: 0 1 clamp(320px, 55vw, 360px);
-    width: clamp(320px, 55vw, 360px);
-    max-width: 360px;
+  .library-home .library-search-typed {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .library-home .library-home-actions {
+    width: 100%;
+    justify-content: flex-end;
   }
 
   .library-search-combo .library-type-filter-trigger {
