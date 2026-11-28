@@ -189,18 +189,6 @@
   width: min(560px, calc(100vw - 32px));
 }
 
-@media (max-width: 980px) {
-  .library-home-header-main,
-  .library-home-actions {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .library-home-actions {
-    width: 100%;
-  }
-}
-
 .library-import-dialog > header {
   display: flex;
   min-width: 0;

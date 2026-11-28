@@ -295,59 +295,7 @@
   font-size: 12px;
 }
 
-@container app-content (max-width: 980px) {
-  .library-home-header-main,
-  .library-home-actions {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .library-home-actions,
-  .library-search,
-  .library-search-typed,
-  .library-type-filter-trigger {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .library-add-control,
-  .library-add-trigger {
-    width: 100%;
-  }
-
-  .library-add-menu-popover {
-    right: auto;
-    left: 0;
-    width: 100%;
-  }
-}
-
 @media (max-width: 760px) {
-  .library-home-header-main,
-  .library-home-actions {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .library-home-actions,
-  .library-search,
-  .library-search-typed,
-  .library-type-filter-trigger {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .library-add-control,
-  .library-add-trigger {
-    width: 100%;
-  }
-
-  .library-add-menu-popover {
-    right: auto;
-    left: 0;
-    width: 100%;
-  }
-
   .library-import-dialog > footer {
     align-items: stretch;
     flex-direction: column;
