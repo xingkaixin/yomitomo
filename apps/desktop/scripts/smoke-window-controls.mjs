@@ -27,6 +27,9 @@ try {
     async ({ app, BrowserWindow }, addonPath) => {
       await app.whenReady();
       const native = process.getBuiltinModule('node:module').createRequire(addonPath)(addonPath);
+      const host = new BrowserWindow({ show: false, width: 640, height: 480 });
+      await host.loadURL('data:text/html,<p>Host window</p>');
+      host.show();
       const window = new BrowserWindow({ show: false, width: 400, height: 200 });
       const handle = window.getNativeWindowHandle();
       let systemMinimizations = 0;
@@ -42,9 +45,9 @@ try {
           resolve();
         });
       });
-    await window.loadURL('data:text/html,<p>Native window controls check</p>');
-    window.show();
-    native.requestMinimize(handle);
+      await window.loadURL('data:text/html,<p>Native window controls check</p>');
+      window.show();
+      native.requestMinimize(handle);
       await intercepted;
       const collapsed = {
         enabled: window.isMinimizable(),
@@ -52,7 +55,14 @@ try {
         minimized: window.isMinimized(),
         systemMinimizations,
       };
+      host.focus();
       window.show();
+      window.moveTop();
+      window.focus();
+      const restoredFromHidden = {
+        visible: window.isVisible(),
+        minimized: window.isMinimized(),
+      };
       native.uninstall(handle);
       const minimized = new Promise((resolve, reject) => {
         const timeout = setTimeout(
@@ -70,13 +80,15 @@ try {
       window.restore();
       native.install(handle, () => {});
       window.destroy();
+      host.destroy();
       native.uninstall(handle);
-      return { collapsed, restoredNativeBehavior };
+      return { collapsed, restoredFromHidden, restoredNativeBehavior };
     },
     join(desktopRoot, '.cache/window-controls', process.arch, 'window_controls.node'),
   );
   assert.deepEqual(result, {
     collapsed: { enabled: true, visible: false, minimized: false, systemMinimizations: 0 },
+    restoredFromHidden: { visible: true, minimized: false },
     restoredNativeBehavior: true,
   });
   console.log(
