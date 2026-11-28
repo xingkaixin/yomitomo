@@ -25,6 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       code: ${{ steps.changes.outputs.code }}
+      desktop-tests: ${{ steps.changes.outputs.desktop-tests }}
       sparkle: ${{ steps.changes.outputs.sparkle }}
       window-controls: ${{ steps.changes.outputs.window-controls }}
     steps:
@@ -43,16 +44,20 @@ jobs:
           WINDOW_CONTROLS_PATHS: '^(apps/desktop/native/window-controls/|apps/desktop/scripts/(prepare|smoke)-window-controls\.mjs$|apps/desktop/src/main/windows/(native-window-minimize|discussion-window-transition)\.ts$|apps/desktop/package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|\.github/workflows/ci\.yml$)'
         run: |
           code=true
+          desktop_tests=true
           sparkle=true
           window_controls=true
+          NON_DESKTOP_TEST_PATHS="(${DOCUMENTATION_PATHS})|^apps/(web|download|telemetry)/|^\.github/workflows/(release|sync-release-to-r2|reading-memory-model|reading-memory-model-cache)\.yml$"
           if [ -n "$PR_NUMBER" ]; then
             files=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files" \
               --jq '.[] | .filename, .previous_filename // empty')
             grep -qvE "$DOCUMENTATION_PATHS" <<<"$files" || code=false
+            grep -qvE "$NON_DESKTOP_TEST_PATHS" <<<"$files" || desktop_tests=false
             grep -qE "$SPARKLE_PATHS" <<<"$files" || sparkle=false
             grep -qE "$WINDOW_CONTROLS_PATHS" <<<"$files" || window_controls=false
           fi
           echo "code=$code" >>"$GITHUB_OUTPUT"
+          echo "desktop-tests=$desktop_tests" >>"$GITHUB_OUTPUT"
           echo "sparkle=$sparkle" >>"$GITHUB_OUTPUT"
           echo "window-controls=$window_controls" >>"$GITHUB_OUTPUT"
 
@@ -87,10 +92,35 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
-  test:
-    name: Test (${{ matrix.name }})
+  test-packages:
+    name: Test (packages)
     needs: preflight
     if: needs.preflight.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup workspace
+        uses: ./.github/actions/setup-workspace
+        with:
+          install-args: --ignore-scripts
+
+      - name: Restore Turbo cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .turbo/cache
+          key: turbo-v2-test-packages-${{ hashFiles('pnpm-lock.yaml', 'mise.toml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-v2-test-packages-${{ hashFiles('pnpm-lock.yaml', 'mise.toml') }}-
+
+      - name: Test
+        run: pnpm test --filter=!@yomitomo/desktop
+
+  test-desktop:
+    name: Test (desktop ${{ matrix.shard }})
+    needs: preflight
+    if: needs.preflight.outputs.code == 'true' && needs.preflight.outputs.desktop-tests == 'true'
     runs-on: ubuntu-latest
     env:
       # `--ignore-scripts` skips Electron's binary download, so every test worker that loads
@@ -101,21 +131,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: packages
-            cache: packages
-            args: --filter=!@yomitomo/desktop
-          - name: desktop 1/4
-            cache: desktop-1
-            args: --filter=@yomitomo/desktop -- --shard=1/4
-          - name: desktop 2/4
-            cache: desktop-2
-            args: --filter=@yomitomo/desktop -- --shard=2/4
-          - name: desktop 3/4
-            cache: desktop-3
-            args: --filter=@yomitomo/desktop -- --shard=3/4
-          - name: desktop 4/4
-            cache: desktop-4
-            args: --filter=@yomitomo/desktop -- --shard=4/4
+          - shard: 1/2
+            cache: desktop-shard-1-of-2
+          - shard: 2/2
+            cache: desktop-shard-2-of-2
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -134,7 +153,7 @@ jobs:
             turbo-v2-test-${{ matrix.cache }}-${{ hashFiles('pnpm-lock.yaml', 'mise.toml') }}-
 
       - name: Test
-        run: pnpm test ${{ matrix.args }}
+        run: pnpm test --filter=@yomitomo/desktop -- --shard=${{ matrix.shard }}
 
   build:
     name: Build and desktop e2e
@@ -223,7 +242,7 @@ jobs:
 
   ci-ok:
     name: CI OK
-    needs: [preflight, static, test, build, sparkle, window-controls]
+    needs: [preflight, static, test-packages, test-desktop, build, sparkle, window-controls]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:

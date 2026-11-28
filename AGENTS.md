@@ -47,7 +47,7 @@ Yomitomo 是本地优先的 AI 伴读桌面应用：Electron 桌面端，配套 
 
 ## 命令与门禁
 
-本地快速循环使用 `mise run check:fast`。推送 PR 分支前至少运行 `pnpm format:check`；会触发完整 CI 的改动在推送前运行 `mise run check`。
+本地快速循环使用 `mise run check:fast`；单测增量迭代可用 `pnpm test:since-last-run` 或 `pnpm test:changed [ref]`（不走 Turbo 缓存）。推送 PR 分支前至少运行 `pnpm format:check`；会触发完整 CI 的改动在推送前运行 `mise run check`。
 
 `mise run check` 是 canonical 门禁，CI 把同一组命令拆到并行 job 执行。未安装 mise 时运行下面的等价命令；改动门禁时同步更新 `mise.toml`、CI 和本节：
 
@@ -62,7 +62,7 @@ pnpm test:app:e2e:from-dist
 
 无图形环境的 Linux 通过 `xvfb-run -a mise run check` 运行完整门禁。
 
-CI 用 `Repository checks` job 判断改动范围：只改文档的 PR 跳过构建和测试，Sparkle 烟测只在其输入变化时运行，main 的每个提交都全量运行。分支保护只要求 `CI OK`；不要要求其他 job 或 `Reading Memory Model`，它们被跳过时检查会一直挂起。
+CI 用 `Repository checks` job 判断改动范围：只改文档的 PR 跳过构建和测试，未触及桌面端及其共享依赖的 PR 跳过桌面端单测分片，Sparkle 和原生最小化烟测只在其输入变化时运行，main 的每个提交都全量运行。分支保护只要求 `CI OK`；不要要求其他 job 或 `Reading Memory Model`，它们被跳过时检查会一直挂起。
 
 ## 仓库约束
 

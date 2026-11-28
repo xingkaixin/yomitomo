@@ -28,6 +28,8 @@
     "format": "turbo run format",
     "format:check": "turbo run format:check",
     "test": "turbo test",
+    "test:changed": "pnpm -r --parallel exec vitest run --passWithNoTests --changed",
+    "test:since-last-run": "pnpm -r --parallel exec vitest run --passWithNoTests --since-last-run",
     "test:app:e2e": "pnpm --filter @yomitomo/desktop test:e2e",
     "test:app:e2e:from-dist": "pnpm --filter @yomitomo/desktop test:e2e:from-dist",
     "test:app:e2e:ui": "pnpm --filter @yomitomo/desktop test:e2e:ui"
